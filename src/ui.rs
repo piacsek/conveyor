@@ -9,7 +9,13 @@ use crate::text::{age, pad_right};
 const HIGHLIGHT: &str = "> ";
 
 pub fn draw(frame: &mut Frame, app: &mut App) {
-    let columns = Layout::horizontal([Constraint::Fill(1); 4]).split(frame.area());
+    let [body, footer] =
+        Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(frame.area());
+    let columns = Layout::horizontal([Constraint::Fill(1); 4]).split(body);
+    frame.render_widget(
+        Paragraph::new(app.notice.clone().unwrap_or_default()),
+        footer,
+    );
     draw_prs(frame, app, columns[0]);
     for (area, name) in columns[1..]
         .iter()

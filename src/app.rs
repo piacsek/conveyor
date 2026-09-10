@@ -36,6 +36,7 @@ pub enum Action {
     Continue,
     Quit,
     Open(String),
+    Copy(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -50,6 +51,7 @@ pub struct App {
     pub list: ListState,
     pub config: Config,
     pub now: SystemTime,
+    pub notice: Option<String>,
     pending_g: bool,
 }
 
@@ -64,6 +66,7 @@ impl App {
             list: ListState::default().with_selected(Some(0)),
             config,
             now,
+            notice: None,
             pending_g: false,
         }
     }
@@ -95,6 +98,7 @@ impl App {
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> Action {
+        self.notice = None;
         if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
             return Action::Quit;
         }
@@ -104,6 +108,12 @@ impl App {
             KeyCode::Enter | KeyCode::Char('o') => {
                 if let Some(pr) = self.selected() {
                     return Action::Open(pr.url.clone());
+                }
+            }
+            KeyCode::Char('y') => {
+                if let Some((number, url)) = self.selected().map(|pr| (pr.number, pr.url.clone())) {
+                    self.notice = Some(format!("copied #{number}"));
+                    return Action::Copy(url);
                 }
             }
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
@@ -142,6 +152,7 @@ where
             Input::Key(key) => match app.handle_key(key) {
                 Action::Quit => return Ok(()),
                 Action::Open(url) => opener.open(&url)?,
+                Action::Copy(text) => opener.copy(&text)?,
                 Action::Continue => {}
             },
         }
