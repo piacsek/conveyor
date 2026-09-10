@@ -267,3 +267,26 @@ fn a_failing_build_shows_its_failed_step_on_the_card() {
         h.screen()
     );
 }
+
+#[test]
+fn main_builds_stay_newest_first_across_refreshes() {
+    let mut h = Harness::new();
+    let older = vec![
+        build(25, BuildStatus::Success, Some((4821, "alice", "Retry"))),
+        build(24, BuildStatus::Success, None),
+    ];
+    let mut running = build(26, BuildStatus::Running, Some((4840, "bob", "Speed up")));
+    running.finished_at = None;
+    let with_new = vec![older[1].clone(), running.clone(), older[0].clone()];
+
+    h.run(vec![builds(older), builds(with_new)]).unwrap();
+
+    let col = column(&h.screen(), 2);
+    assert!(
+        col[1].contains("#4840 Speed up"),
+        "the new run leads, whatever order the API sent: {}",
+        h.screen()
+    );
+    assert!(col[4].contains("#4821 Retry"), "{}", h.screen());
+    assert!(col[7].contains("run 24"), "{}", h.screen());
+}

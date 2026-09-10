@@ -162,3 +162,23 @@ fn b_opens_the_merge_group_run_of_the_selected_entry() {
         h.screen()
     );
 }
+
+#[test]
+fn queue_entries_stay_in_position_order_across_refreshes() {
+    let mut h = Harness::new();
+    let mut jumped = entry(1, 4830, "carol", "Rate limits");
+    let mut demoted = entry(2, 4821, "alice", "Retry webhooks");
+    jumped.jump = true;
+    demoted.state = QueueState::Queued;
+
+    h.run(vec![queue(two()), queue(vec![demoted, jumped])])
+        .unwrap();
+
+    let col = column(&h.screen(), 1);
+    assert!(
+        col[1].contains("#4830 Rate limits"),
+        "the entry that jumped to position 1 leads: {}",
+        h.screen()
+    );
+    assert!(col[4].contains("#4821 Retry webhooks"), "{}", h.screen());
+}
