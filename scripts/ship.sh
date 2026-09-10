@@ -9,6 +9,7 @@ if [ "$branch" = "main" ]; then
   echo "refusing to ship on main" >&2
   exit 1
 fi
+cargo fmt
 scripts/gates.sh
 scripts/dev-install.sh
 git add -A

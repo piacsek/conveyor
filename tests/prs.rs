@@ -481,3 +481,43 @@ fn the_footer_says_just_now_for_three_seconds_then_the_wall_clock_time() {
         h.screen()
     );
 }
+
+const BRAILLE: [char; 10] = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+
+fn spinner_in(text: &str) -> Option<char> {
+    text.chars().find(|c| BRAILLE.contains(c))
+}
+
+#[test]
+fn a_refreshing_column_spins_a_braille_glyph_in_its_title_until_data_arrives() {
+    use conveyor::app::Stage;
+    use support::{fetching, tick_at_ms};
+    let mut h = Harness::new();
+
+    h.run(vec![prs(three()), fetching(Stage::Prs)]).unwrap();
+    let title = h.screen().lines().next().unwrap().to_string();
+    let first = spinner_in(&title).expect("a spinner in the title");
+    assert!(title.contains("My PRs (3)"), "{title}");
+
+    h.run(vec![tick_at_ms(NOW * 1000 + 100)]).unwrap();
+    let second = spinner_in(h.screen().lines().next().unwrap()).unwrap();
+    assert_ne!(first, second, "the spinner advances with time");
+
+    h.run(vec![prs(three())]).unwrap();
+    assert_eq!(spinner_in(h.screen().lines().next().unwrap()), None);
+}
+
+#[test]
+fn the_initial_fetch_spins_too() {
+    use conveyor::app::Stage;
+    use support::fetching;
+    let mut h = Harness::new();
+
+    h.run(vec![fetching(Stage::Prs)]).unwrap();
+
+    let body = h.screen().lines().nth(1).unwrap().to_string();
+    assert!(
+        spinner_in(&body).is_some() && body.contains("fetching…"),
+        "{body}"
+    );
+}

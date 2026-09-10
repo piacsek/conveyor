@@ -73,21 +73,30 @@ fn draw_tabs(frame: &mut Frame, app: &mut App, area: Rect) {
     draw_column(frame, app, app.focus, body, false);
 }
 
-fn titled<T: Row>(base: &str, column: &Column<T>) -> String {
+fn titled<T: Row>(base: &str, column: &Column<T>, spinner: char) -> String {
     let warning = if column.error.is_some() { " ⚠" } else { "" };
-    if column.is_loading() {
-        format!("{base}{warning}")
+    let spin = if column.refreshing {
+        format!(" {spinner}")
     } else {
-        format!("{base} ({}){warning}", column.all().len())
+        String::new()
+    };
+    if column.is_loading() {
+        format!("{base}{warning}{spin}")
+    } else {
+        format!("{base} ({}){warning}{spin}", column.all().len())
     }
 }
 
 fn column_title(app: &App, stage: Stage) -> String {
     match stage {
-        Stage::Prs => titled("My PRs", &app.prs),
+        Stage::Prs => titled("My PRs", &app.prs, app.spinner()),
         Stage::Queue => match &app.queue_repo {
-            Some(repo) => titled(&format!("Queue {}", short_repo(repo)), &app.queue),
-            None => titled("Merge queue", &app.queue),
+            Some(repo) => titled(
+                &format!("Queue {}", short_repo(repo)),
+                &app.queue,
+                app.spinner(),
+            ),
+            None => titled("Merge queue", &app.queue, app.spinner()),
         },
         Stage::Builds => "Main builds".to_string(),
         Stage::Deployed => "Deployed".to_string(),
@@ -113,6 +122,7 @@ fn column_block(app: &App, stage: Stage, titled: bool) -> Block<'static> {
 fn draw_column(frame: &mut Frame, app: &mut App, stage: Stage, area: Rect, titled: bool) {
     let block = column_block(app, stage, titled);
     let now = app.now;
+    let spinner = app.spinner();
     match stage {
         Stage::Prs => draw_list(
             frame,
@@ -120,6 +130,7 @@ fn draw_column(frame: &mut Frame, app: &mut App, stage: Stage, area: Rect, title
             area,
             block,
             "no open pull requests",
+            spinner,
             |i, pr, w| pr_row(i, pr, now, w),
         ),
         Stage::Queue => draw_list(
@@ -128,6 +139,7 @@ fn draw_column(frame: &mut Frame, app: &mut App, stage: Stage, area: Rect, title
             area,
             block,
             "queue empty",
+            spinner,
             |_, entry, w| queue_row(entry, w),
         ),
         _ => frame.render_widget(Paragraph::new("not configured").block(block), area),
@@ -140,13 +152,14 @@ fn draw_list<T: Row>(
     area: Rect,
     block: Block<'static>,
     empty: &str,
+    spinner: char,
     row: impl Fn(usize, &T, usize) -> Line<'static>,
 ) {
     if column.is_loading() {
         let body = column
             .error
             .clone()
-            .unwrap_or_else(|| "fetching…".to_string());
+            .unwrap_or_else(|| format!("{spinner} fetching…"));
         frame.render_widget(Paragraph::new(body).block(block), area);
         return;
     }

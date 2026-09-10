@@ -127,6 +127,9 @@ fn spawn_fetcher(
     let (refresh_tx, refresh_rx) = mpsc::channel::<()>();
     thread::spawn(move || {
         loop {
+            if tx.send(Ok(Input::Fetching(stage))).is_err() {
+                return;
+            }
             if tx.send(Ok(Input::Data(stage, fetch()))).is_err() {
                 return;
             }

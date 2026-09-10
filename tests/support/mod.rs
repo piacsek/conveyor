@@ -105,6 +105,14 @@ pub fn failed(stage: Stage, message: &str) -> io::Result<Input> {
     Ok(Input::Data(stage, Err(message.to_string())))
 }
 
+pub fn fetching(stage: Stage) -> io::Result<Input> {
+    Ok(Input::Fetching(stage))
+}
+
+pub fn tick_at_ms(millis: u64) -> io::Result<Input> {
+    Ok(Input::Tick(UNIX_EPOCH + Duration::from_millis(millis)))
+}
+
 pub fn tick() -> io::Result<Input> {
     tick_at(NOW)
 }
