@@ -16,7 +16,7 @@ git commit -q -m "$message"
 git push -q -u origin "$branch"
 git log --oneline -1
 if ! gh pr view "$branch" --json number >/dev/null 2>&1; then
-  title="$(echo "$branch" | sed -E 's/[-_]+/ /g; s/^./\U&/')"
+  title="$(echo "$branch" | tr '_-' '  ' | awk '{ $1 = toupper(substr($1, 1, 1)) substr($1, 2); print }')"
   gh pr create --draft --assignee @me --title "$title" --body "Work in progress on \`$branch\`; one commit per task." >/dev/null
   echo "opened draft PR for $branch"
 fi

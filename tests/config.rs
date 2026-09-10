@@ -78,3 +78,31 @@ fn the_config_path_prefers_the_override_then_xdg_then_home() {
         PathBuf::from("/home/me/.config/conveyor/config.toml")
     );
 }
+
+#[test]
+fn repo_tables_carry_defaults_for_the_build_workflow_and_intervals() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write(
+        &dir,
+        "[[repo]]\nname = \"acme/webapp\"\n\n[[repo]]\nname = \"acme/auth\"\nmain_workflow = \"build.yml\"\nbuilds = 5\nrefresh_secs = 15\n",
+    );
+
+    let config = load(&path).unwrap();
+
+    assert_eq!(config.repo.len(), 2);
+    assert_eq!(config.repo[0].name, "acme/webapp");
+    assert_eq!(config.repo[0].main_workflow, "CI/CD");
+    assert_eq!(config.repo[0].builds, 10);
+    assert_eq!(config.repo[0].refresh_secs, 30);
+    assert_eq!(config.repo[1].main_workflow, "build.yml");
+    assert_eq!(
+        (config.repo[1].builds, config.repo[1].refresh_secs),
+        (5, 15)
+    );
+    assert!(Config::default().repo.is_empty());
+    assert!(
+        config.to_toml().contains("[[repo]]"),
+        "{}",
+        config.to_toml()
+    );
+}
