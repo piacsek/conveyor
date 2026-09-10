@@ -52,6 +52,7 @@ pub struct App {
     pub config: Config,
     pub now: SystemTime,
     pub notice: Option<String>,
+    pub details: bool,
     pending_g: bool,
 }
 
@@ -67,6 +68,7 @@ impl App {
             config,
             now,
             notice: None,
+            details: false,
             pending_g: false,
         }
     }
@@ -116,6 +118,7 @@ impl App {
                     return Action::Copy(url);
                 }
             }
+            KeyCode::Char('p') => self.details = !self.details,
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.list.select_previous(),
             KeyCode::Char('G') => self.list.select(self.len().checked_sub(1)),

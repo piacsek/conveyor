@@ -1,9 +1,10 @@
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
+use ratatui::text::Line;
 use ratatui::widgets::{Block, List, ListItem, Paragraph};
 
 use crate::app::{App, ColumnState};
-use crate::model::prs::{CheckState, PullRequest};
+use crate::model::prs::{CheckConclusion, CheckState, PullRequest};
 use crate::text::{age, pad_right};
 
 const HIGHLIGHT: &str = "> ";
@@ -11,6 +12,14 @@ const HIGHLIGHT: &str = "> ";
 pub fn draw(frame: &mut Frame, app: &mut App) {
     let [body, footer] =
         Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(frame.area());
+    let body = if app.details {
+        let [columns, details] =
+            Layout::vertical([Constraint::Fill(1), Constraint::Percentage(40)]).areas(body);
+        draw_details(frame, app, details);
+        columns
+    } else {
+        body
+    };
     let columns = Layout::horizontal([Constraint::Fill(1); 4]).split(body);
     frame.render_widget(
         Paragraph::new(app.notice.clone().unwrap_or_default()),
@@ -83,5 +92,45 @@ fn glyph(checks: CheckState) -> char {
         CheckState::Pending => '●',
         CheckState::None => '○',
         CheckState::Unknown => '?',
+    }
+}
+
+fn draw_details(frame: &mut Frame, app: &App, area: Rect) {
+    let Some(pr) = app.selected() else {
+        frame.render_widget(
+            Paragraph::new("nothing selected").block(Block::bordered().title("Details")),
+            area,
+        );
+        return;
+    };
+    let mut lines = vec![
+        Line::from(format!(
+            "#{} {}  {}  +{} −{}",
+            pr.number, pr.repo, pr.head_ref, pr.additions, pr.deletions
+        )),
+        Line::from(format!("review: {}  merge: {}", pr.review, pr.merge_state)),
+    ];
+    lines.extend(pr.checks_failures_first().into_iter().map(|check| {
+        Line::from(format!(
+            "{} {}  {}",
+            conclusion_glyph(check.conclusion),
+            check.name,
+            check.url
+        ))
+    }));
+    let title = format!("#{} {}", pr.number, pr.title);
+    frame.render_widget(
+        Paragraph::new(lines).block(Block::bordered().title(title)),
+        area,
+    );
+}
+
+fn conclusion_glyph(conclusion: CheckConclusion) -> char {
+    match conclusion {
+        CheckConclusion::Success => '✓',
+        CheckConclusion::Failure => '✗',
+        CheckConclusion::Pending => '●',
+        CheckConclusion::Skipped => '-',
+        CheckConclusion::Unknown => '?',
     }
 }
