@@ -121,6 +121,5 @@ pub fn pr(number: u64, title: &str) -> PullRequest {
         repo: "acme/webapp".to_string(),
         checks: CheckState::Success,
         updated_at: Some(UNIX_EPOCH + Duration::from_secs(NOW - 2 * 3600)),
-        ..PullRequest::default()
     }
 }

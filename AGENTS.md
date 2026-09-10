@@ -19,6 +19,7 @@ src/cli.rs       `conveyor` (TUI) | `config` | `--help` | `--version`; hand-roll
 src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
+scripts/ship.sh               gates + dev-install + commit + push, aborts on any failure
 scripts/homebrew-formula.sh   prints the tap formula for a released version
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend
 ```
@@ -83,6 +84,11 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 cargo test -- --ignored        # e2e: real binary with a `gh` shim first on PATH
 ```
+
+Ship with `scripts/ship.sh "<message>"`: gates, `dev-install.sh`, commit, push, all under
+`set -e`, refusing to run on `main`. Do not hand-roll the chain: the interactive shell here is
+zsh, where `PIPESTATUS` is undefined and `test "" -eq 0` is true, so a `gates.sh | grep` guard
+silently passed a clippy failure into a commit on 2026-09-10.
 
 Run the wrapper, not the commands: piping `gates.sh | tail` once hid a `cargo fmt --check`
 failure in tmux-agents and an unformatted commit slipped through. Chaining gates with `&&`

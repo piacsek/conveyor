@@ -14,3 +14,14 @@ fn no_pull_requests_shows_an_empty_column_and_q_quits() {
     assert!(screen.contains("no open pull requests"), "{screen}");
     assert!(h.opener.opened().is_empty());
 }
+
+#[test]
+fn the_column_says_fetching_until_the_first_data_arrives() {
+    let mut h = Harness::new();
+
+    h.run(vec![key(KeyCode::Char('q'))]).unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("fetching…"), "{screen}");
+    assert!(!screen.contains("no open pull requests"), "{screen}");
+}
