@@ -67,3 +67,21 @@ fn a_missing_gh_binary_says_how_to_install_it() {
         "gh not found on PATH; install gh (brew install gh) and run gh auth login"
     );
 }
+
+#[test]
+fn current_repo_asks_gh_for_the_checked_out_repository() {
+    assert_eq!(
+        CliGh::current_repo_args(),
+        vec![
+            "repo",
+            "view",
+            "--json",
+            "nameWithOwner",
+            "--jq",
+            ".nameWithOwner"
+        ]
+    );
+    let dir = tempfile::tempdir().unwrap();
+    let gh = shim(&dir, "echo acme/webapp");
+    assert_eq!(gh.current_repo().unwrap(), "acme/webapp");
+}
