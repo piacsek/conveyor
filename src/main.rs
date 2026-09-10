@@ -10,8 +10,9 @@ use std::time::{Duration, SystemTime};
 use conveyor::app::{App, Input, Rows, Stage, run};
 use conveyor::cli::{self, Command};
 use conveyor::config::{self, Config};
-use conveyor::fetch::{BuildsSource, fetch_prs, fetch_queue, repos};
+use conveyor::fetch::{BuildsSource, DeploySource, fetch_prs, fetch_queue, repos};
 use conveyor::github::CliGh;
+use conveyor::kube::CliKubectl;
 use conveyor::open::SystemOpener;
 use ratatui::crossterm::event::{self, Event};
 
@@ -77,6 +78,9 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
         Stage::Builds,
         spawn_builds_fetcher(config.clone(), tx.clone()),
     );
+    if let Some(refresh) = spawn_deploy_fetcher(config.clone(), tx.clone()) {
+        refreshers.insert(Stage::Deployed, refresh);
+    }
     spawn_terminal_events(tx);
     let mut app = App::new(config);
     app.notice = config_error;
@@ -187,4 +191,16 @@ fn spawn_builds_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<()> {
         let builds = source.fetch(&gh)?;
         Ok(Rows::Builds(source.into_builds(builds)))
     })
+}
+
+fn spawn_deploy_fetcher(config: Config, tx: Inputs) -> Option<mpsc::Sender<()>> {
+    let repo = config.repo.iter().find(|repo| !repo.deploy.is_empty())?;
+    let deploy = repo.deploy.first()?.clone();
+    let interval = Duration::from_secs(deploy.refresh_secs);
+    let mut source = DeploySource::new(repo.name.clone(), deploy);
+    let gh = CliGh::default();
+    let kube = CliKubectl::default();
+    Some(spawn_fetcher(Stage::Deployed, interval, tx, move || {
+        Ok(Rows::Deployed(source.fetch(&gh, &kube, SystemTime::now())))
+    }))
 }

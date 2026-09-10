@@ -85,6 +85,49 @@ esac
 SHIM
 chmod +x "$home/bin/gh"
 
+cat >"$home/bin/kubectl" <<'KUBE'
+#!/bin/sh
+case "$*" in
+  *ctx-dev*) printf 'ghcr.io/acme/api:3333333333333333333333333333333333333333';;
+  *ctx-staging*) printf 'ghcr.io/acme/api:2222222222222222222222222222222222222222';;
+  *ctx-prod*) printf 'ghcr.io/acme/api:0000000000000000000000000000000000000000';;
+  *) echo 'ERROR: Active profile expired.' >&2; exit 1;;
+esac
+KUBE
+chmod +x "$home/bin/kubectl"
+mkdir -p "$home/.config/conveyor"
+cat >"$home/.config/conveyor/config.toml" <<'TOML'
+[[repo]]
+name = "acme/webapp"
+
+[[repo.deploy]]
+system = "api"
+
+[[repo.deploy.env]]
+name = "dev"
+context = "ctx-dev"
+namespace = "api"
+deployment = "api"
+
+[[repo.deploy.env]]
+name = "staging"
+context = "ctx-staging"
+namespace = "api"
+deployment = "api"
+
+[[repo.deploy.env]]
+name = "prod"
+context = "ctx-prod"
+namespace = "api"
+deployment = "api"
+
+[[repo.deploy.env]]
+name = "uat"
+context = "ctx-uat"
+namespace = "api"
+deployment = "api"
+TOML
+
 shot_window="$(t new-session -d -s main -x 160 -y 14 -c "$home" -P -F '#{window_id}')"
 t set -g status off
 
@@ -126,5 +169,6 @@ shoot columns 160 14 ""
 shoot details 160 22 "p"
 shoot queue   160 22 "lp"
 shoot builds  160 22 "llp"
+shoot deployed 160 22 "lllp"
 shoot tabs     80 14 ""
-echo "wrote $out/columns.png $out/details.png $out/queue.png $out/builds.png $out/tabs.png"
+echo "wrote $out/columns.png $out/details.png $out/queue.png $out/builds.png $out/deployed.png $out/tabs.png"
