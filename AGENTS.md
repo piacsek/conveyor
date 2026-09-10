@@ -190,4 +190,9 @@ dev builds are only reachable as `conveyor-dev`. `rustsec/audit-check` v2.0.0 (l
 2026-09-10) still targets Node 20 and CI prints a deprecation annotation; bump the pin when a
 newer release exists.
 
+Never force-push a tag that has a release: the push re-runs `release.yml`, republishes the
+assets and rewrites the tap formula for that old version (seen 2026-09-10 after a history
+rewrite, when the `v0.0.1` re-run raced the `v0.1.0` run for the formula). If a released
+tag must move, delete the release and the tag first, or bump the version instead.
+
 Semver: minor for new columns/keys/config, patch for fixes, major on a config-format break.
