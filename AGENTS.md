@@ -195,7 +195,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 ## Documentation rule
 
 `README.md` embeds `docs/columns.png`, `docs/details.png`, `docs/queue.png`, `docs/builds.png`,
-`docs/deployed.png` and `docs/tabs.png`. After any
+`docs/deployed.png`, `docs/zoom.png` and `docs/tabs.png`. After any
 visible layout change run `scripts/screenshots.sh` (needs `brew install
 charmbracelet/tap/freeze`, Google Chrome, and the FiraCode Nerd Font in `~/Library/Fonts`) and
 commit the new images. Freeze lays out an SVG with the font embedded; headless Chrome

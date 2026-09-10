@@ -367,6 +367,27 @@ Phase 1 exit: retro (see checkpoints), `AGENTS.md` updated, v0.1.0 tagged, plan 
 - Deferred: job details for the queue's merge-group run and for a PR's check runs (only main
   builds fetch jobs); a per-column selection bar colour for the unfocused columns.
 
+## Phase 6 — zoom, deployed cards, full-height selection (requested 2026-09-10)
+
+Plan: `plans/phase-6-zoom-and-cards.md`. `z` zooms the focused column as a toggle; Deployed
+cards give each field its own line with the PR title before the author; the cyan bar runs down
+every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
+
+### Phase 6 outcome (2026-09-10)
+
+- Shipped on `phase-6-zoom-and-cards` (PR #9): `App::zoom` + `z`; `text::wrap` (pure, unit
+  tested in `tests/text.rs`) behind Deployed cards that put one field per line, title first,
+  wrapped over at most two lines, with the error and the sha on their own lines and no line
+  cap; the bar on every card line; `▪─▪─▪▸` in the footer.
+- Two mid-phase corrections from the user: the highlight had to stay **minimal**, so the bar
+  became the card's left edge rather than a background or reverse video; and the old logo was
+  disliked because a Nerd Font drew `⟦▣⟧` as a boxed `[回]`, so logo glyphs must be
+  single-width with no brackets. Three candidates were offered and the rollers won.
+- `scripts/scrub-check.sh` earned its keep: the first draft of the plan file quoted a real PR
+  title and login from the user's screenshot and the gate refused the commit.
+- Deferred: wrapping titles on the other three columns (their titles are already on line 1),
+  and a zoom indicator in the footer (the full-width column is obvious enough).
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
