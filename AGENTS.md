@@ -106,6 +106,14 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   the pane's login shell rebuilt `PATH` (macOS `path_helper` and rc files), the shim was
   never found and the real `gh` ran. Sockets are per test so parallel tests never share a
   server.
+- **`gh` shim tests share one process, so they race on fork.** `tests/github.rs` writes a
+  shell script per test and spawns it; on Linux CI one test's `fs::write` was still open when
+  another test's `Command` forked, the child inherited the fd and `exec` failed with
+  `ExecutableFileBusy` ("Text file busy"). It never showed on macOS and passed on the PR run,
+  then failed on `main` after the rebase merge. Every test that creates a shim now takes the
+  `SHIMS` mutex for its whole body. Any new test that writes an executable and runs it in the
+  same test binary must do the same (or run it in a separate process such as tmux, as e2e
+  does). Treat a green PR run as no proof against this class: it is timing-dependent.
 - Rows in a 40-column pane hold about 33 characters after the number, glyph, repo and age;
   behaviour tests use short titles, snapshots carry the truncation.
 
