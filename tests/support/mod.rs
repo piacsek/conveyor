@@ -6,6 +6,7 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use conveyor::app::{App, Input, Rows, Stage, run};
 use conveyor::config::Config;
+use conveyor::model::builds::{Build, BuildStatus, Builds, PullRef};
 use conveyor::model::prs::{CheckState, PullRequest};
 use conveyor::model::queue::{Queue, QueueEntry, QueueState};
 use conveyor::open::Opener;
@@ -81,6 +82,43 @@ pub fn queue(entries: Vec<QueueEntry>) -> io::Result<Input> {
             entries,
         })),
     ))
+}
+
+pub fn builds(builds: Vec<Build>) -> io::Result<Input> {
+    Ok(Input::Data(
+        Stage::Builds,
+        Ok(Rows::Builds(Builds {
+            repo: "acme/webapp".to_string(),
+            builds,
+        })),
+    ))
+}
+
+pub fn build(run_number: u64, status: BuildStatus, pr: Option<(u64, &str, &str)>) -> Build {
+    let started = UNIX_EPOCH + Duration::from_secs(NOW - 2 * 3600);
+    Build {
+        id: 1000 + run_number,
+        run_number,
+        status,
+        sha: format!("{run_number:040x}"),
+        title: pr
+            .map(|(_, _, title)| title.to_string())
+            .unwrap_or_else(|| format!("run {run_number}")),
+        actor: "bot".to_string(),
+        url: format!(
+            "https://github.com/acme/webapp/actions/runs/{}",
+            1000 + run_number
+        ),
+        started_at: Some(started),
+        finished_at: Some(started + Duration::from_secs(228)),
+        pr_number: pr.map(|(number, _, _)| number),
+        pull: pr.map(|(number, author, title)| PullRef {
+            number,
+            title: title.to_string(),
+            author: author.to_string(),
+            url: format!("https://github.com/acme/webapp/pull/{number}"),
+        }),
+    }
 }
 
 pub fn entry(position: u64, number: u64, author: &str, title: &str) -> QueueEntry {

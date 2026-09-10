@@ -9,6 +9,7 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::widgets::ListState;
 
 use crate::config::Config;
+use crate::model::builds::{Build, Builds};
 use crate::model::prs::PullRequest;
 use crate::model::queue::{Queue, QueueEntry};
 use crate::open::Opener;
@@ -46,6 +47,7 @@ impl Stage {
 pub enum Rows {
     Prs(Vec<PullRequest>),
     Queue(Queue),
+    Builds(Builds),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -113,6 +115,31 @@ impl Row for QueueEntry {
             format!("#{}", self.number),
             self.title.to_lowercase(),
             self.author.to_lowercase(),
+        ]
+        .iter()
+        .any(|text| text.contains(query))
+    }
+}
+
+impl Row for Build {
+    fn key(&self) -> u64 {
+        self.id
+    }
+
+    fn url(&self) -> &str {
+        &self.url
+    }
+
+    fn matches(&self, query: &str) -> bool {
+        let pull = self.pull.as_ref();
+        [
+            self.pr_number
+                .or(pull.map(|p| p.number))
+                .map(|n| format!("#{n}"))
+                .unwrap_or_default(),
+            self.title.to_lowercase(),
+            pull.map(|p| p.author.to_lowercase()).unwrap_or_default(),
+            self.sha.clone(),
         ]
         .iter()
         .any(|text| text.contains(query))
@@ -246,6 +273,8 @@ pub struct App {
     pub prs: Column<PullRequest>,
     pub queue: Column<QueueEntry>,
     pub queue_repo: Option<String>,
+    pub builds: Column<Build>,
+    pub builds_repo: Option<String>,
     pub focus: Stage,
     pub mode: Mode,
     pub config: Config,
@@ -267,6 +296,8 @@ impl App {
             prs: Column::default(),
             queue: Column::default(),
             queue_repo: None,
+            builds: Column::default(),
+            builds_repo: None,
             focus: Stage::Prs,
             mode: Mode::Normal,
             config,
@@ -286,8 +317,13 @@ impl App {
                 self.queue_repo = Some(queue.repo);
                 self.queue.receive(queue.entries, self.now);
             }
+            (Stage::Builds, Ok(Rows::Builds(builds))) => {
+                self.builds_repo = Some(builds.repo);
+                self.builds.receive(builds.builds, self.now);
+            }
             (Stage::Prs, Err(message)) => self.prs.fail(message),
             (Stage::Queue, Err(message)) => self.queue.fail(message),
+            (Stage::Builds, Err(message)) => self.builds.fail(message),
             _ => {}
         }
     }
@@ -296,7 +332,8 @@ impl App {
         match stage {
             Stage::Prs => self.prs.refreshing = true,
             Stage::Queue => self.queue.refreshing = true,
-            Stage::Builds | Stage::Deployed => {}
+            Stage::Builds => self.builds.refreshing = true,
+            Stage::Deployed => {}
         }
     }
 
@@ -321,7 +358,8 @@ impl App {
         match self.focus {
             Stage::Prs => self.prs.error.as_deref(),
             Stage::Queue => self.queue.error.as_deref(),
-            Stage::Builds | Stage::Deployed => None,
+            Stage::Builds => self.builds.error.as_deref(),
+            Stage::Deployed => None,
         }
     }
 
@@ -329,7 +367,8 @@ impl App {
         match self.focus {
             Stage::Prs => self.prs.fetched_at(),
             Stage::Queue => self.queue.fetched_at(),
-            Stage::Builds | Stage::Deployed => None,
+            Stage::Builds => self.builds.fetched_at(),
+            Stage::Deployed => None,
         }
     }
 
@@ -337,7 +376,8 @@ impl App {
         match self.focus {
             Stage::Prs => (self.prs.visible().len(), self.prs.all().len()),
             Stage::Queue => (self.queue.visible().len(), self.queue.all().len()),
-            Stage::Builds | Stage::Deployed => (0, 0),
+            Stage::Builds => (self.builds.visible().len(), self.builds.all().len()),
+            Stage::Deployed => (0, 0),
         }
     }
 
@@ -348,7 +388,16 @@ impl App {
                 .queue
                 .selected()
                 .map(|entry| (entry.key(), entry.url.clone())),
-            Stage::Builds | Stage::Deployed => None,
+            Stage::Builds => self.builds.selected().map(|build| {
+                (
+                    build
+                        .pr_number
+                        .or(build.pull.as_ref().map(|p| p.number))
+                        .unwrap_or(build.run_number),
+                    build.url.clone(),
+                )
+            }),
+            Stage::Deployed => None,
         }
     }
 
@@ -366,14 +415,16 @@ impl App {
         match self.focus {
             Stage::Prs => act(&mut self.prs),
             Stage::Queue => act(&mut self.queue),
-            Stage::Builds | Stage::Deployed => {}
+            Stage::Builds => act(&mut self.builds),
+            Stage::Deployed => {}
         }
     }
 
     fn sync_filter(&mut self) {
         let filter = self.filter().map(str::to_string);
         self.prs.filter = filter.clone();
-        self.queue.filter = filter;
+        self.queue.filter = filter.clone();
+        self.builds.filter = filter;
         self.with_focused(|column| column.select_index_clamped(0));
     }
 
