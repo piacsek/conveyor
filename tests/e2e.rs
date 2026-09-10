@@ -144,6 +144,16 @@ fn dispatching_shim(home: &Path) -> String {
     .unwrap();
     fs::write(home.join("jobs.json"), include_str!("fixtures/jobs.json")).unwrap();
     fs::write(
+        home.join("commit.json"),
+        r#"{"commit":{"message":"Phase 2: merge queue column (#3)"}}"#,
+    )
+    .unwrap();
+    fs::write(
+        home.join("pull.json"),
+        r#"{"number":3,"title":"Phase 2: merge queue column","user":{"login":"piacsek"},"html_url":"https://github.com/acme/webapp/pull/3","merge_commit_sha":"b0b513654654b311044cebdd3a61d6ccc436c6fa"}"#,
+    )
+    .unwrap();
+    fs::write(
         home.join("workflows.json"),
         r#"{"workflows":[{"id":22,"name":"CI/CD","path":".github/workflows/cicd.yml"}]}"#,
     )
@@ -158,7 +168,9 @@ fn dispatching_shim(home: &Path) -> String {
              *'actions/runs/'*'/jobs'*) cat '{dir}/jobs.json';; \
              *'actions/workflows?'*) cat '{dir}/workflows.json';; \
              *'actions/workflows/'*) cat '{dir}/runs.json';; \
-             *'/commits/'*) cat '{dir}/pulls.json';; \
+             *'/commits/'*'/pulls'*) cat '{dir}/pulls.json';; \
+             *'/commits/'*) cat '{dir}/commit.json';; \
+             *'/pulls/'*) cat '{dir}/pull.json';; \
              *'actions/runs?'*) echo '{{\"workflow_runs\":[]}}';; \
              *) cat '{dir}/prs.json';; esac"
         ),
