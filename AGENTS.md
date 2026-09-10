@@ -34,7 +34,14 @@ src/model/builds.rs Build, BuildStatus, PullRef, Builds; `parse_runs`, `pr_numbe
 src/model/deployed.rs Deployment, Deployed; `sha_from_image` (40-hex tag or `-<sha>` suffix)
 src/kube.rs      Kube trait (`image(env)`), CliKubectl (`kubectl --context … get deploy … -o jsonpath`, 10 s timeout)
 src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode), Input::{Key, Data, Tick}, run()
-src/ui.rs        rendering: 4 columns or tabs below `4 × ui.min_column_width`; KEYS drives the help view
+src/ui/mod.rs    draw: 4 columns or tabs below `4 × ui.min_column_width`
+src/ui/style.rs  the shared vocabulary: BAR, INDENT, dim(), glyphs and status words, short_repo, sha8
+src/ui/card.rs   card() and meta(): one title line plus indented span lines
+src/ui/columns.rs column titles, blocks and draw_list
+src/ui/rows.rs   one card builder per stage: pr_row, queue_row, build_row, deployed_row
+src/ui/details.rs the `p` pane per stage, including the job list
+src/ui/footer.rs footer text, the refresh spinner and the static logo
+src/ui/help.rs   KEYS drives the help view
 src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`)
 src/text.rs      truncate/pad_right with `…`, age()
 src/queries/     GraphQL documents, `include_str!`ed
