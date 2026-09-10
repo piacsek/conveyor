@@ -10,6 +10,17 @@ type Call = (String, Vec<(String, Variable)>);
 struct FakeGithub {
     calls: RefCell<Vec<Call>>,
     response: io::Result<serde_json::Value>,
+    cwd_repo: io::Result<String>,
+}
+
+impl FakeGithub {
+    fn with_response(response: io::Result<serde_json::Value>) -> Self {
+        Self {
+            calls: RefCell::default(),
+            response,
+            cwd_repo: Ok("acme/from-cwd".to_string()),
+        }
+    }
 }
 
 impl Github for FakeGithub {
@@ -25,14 +36,20 @@ impl Github for FakeGithub {
             Err(err) => Err(io::Error::new(err.kind(), err.to_string())),
         }
     }
+
+    fn current_repo(&self) -> io::Result<String> {
+        match &self.cwd_repo {
+            Ok(name) => Ok(name.clone()),
+            Err(err) => Err(io::Error::new(err.kind(), err.to_string())),
+        }
+    }
 }
 
 #[test]
 fn fetch_prs_runs_the_configured_search_and_parses_the_rows() {
-    let gh = FakeGithub {
-        calls: RefCell::default(),
-        response: Ok(serde_json::from_str(include_str!("fixtures/prs.json")).unwrap()),
-    };
+    let gh = FakeGithub::with_response(Ok(
+        serde_json::from_str(include_str!("fixtures/prs.json")).unwrap()
+    ));
     let mut config = Config::default();
     config.prs.query = "is:pr involves:@me".to_string();
     config.prs.limit = 7;
@@ -58,12 +75,41 @@ fn fetch_prs_runs_the_configured_search_and_parses_the_rows() {
 
 #[test]
 fn fetch_prs_turns_gh_errors_into_a_message() {
-    let gh = FakeGithub {
-        calls: RefCell::default(),
-        response: Err(io::Error::other("gh: HTTP 401: Bad credentials")),
-    };
+    let gh = FakeGithub::with_response(Err(io::Error::other("gh: HTTP 401: Bad credentials")));
 
     let err = fetch_prs(&gh, &Config::default()).unwrap_err();
 
     assert_eq!(err, "gh: HTTP 401: Bad credentials");
+}
+
+#[test]
+fn repos_come_from_the_config_or_else_from_the_current_directory() {
+    use conveyor::config::Repo;
+    use conveyor::fetch::repos;
+    let gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+
+    let mut config = Config::default();
+    config.repo.push(Repo {
+        name: "acme/webapp".to_string(),
+        ..Repo::default()
+    });
+    assert_eq!(
+        repos(&gh, &config)
+            .unwrap()
+            .iter()
+            .map(|r| r.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["acme/webapp"]
+    );
+
+    let fallback = repos(&gh, &Config::default()).unwrap();
+    assert_eq!(fallback.len(), 1);
+    assert_eq!(fallback[0].name, "acme/from-cwd");
+    assert_eq!(fallback[0].main_workflow, "CI/CD");
+
+    let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    gh.cwd_repo = Err(io::Error::other("not a git repository"));
+    let err = repos(&gh, &Config::default()).unwrap_err();
+    assert!(err.contains("not a git repository"), "{err}");
+    assert!(err.contains("[[repo]]"), "hints at the config: {err}");
 }

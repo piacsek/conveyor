@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::config::{Config, Repo};
 use crate::github::Github;
 use crate::model::prs::{PullRequest, parse};
 
@@ -15,4 +15,17 @@ pub fn fetch_prs(gh: &impl Github, config: &Config) -> Result<Vec<PullRequest>, 
         )
         .map_err(|err| err.to_string())?;
     parse(&value)
+}
+
+pub fn repos(gh: &impl Github, config: &Config) -> Result<Vec<Repo>, String> {
+    if !config.repo.is_empty() {
+        return Ok(config.repo.clone());
+    }
+    let name = gh.current_repo().map_err(|err| {
+        format!("no [[repo]] configured and the current directory has none: {err}")
+    })?;
+    Ok(vec![Repo {
+        name,
+        ..Repo::default()
+    }])
 }

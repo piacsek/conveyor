@@ -34,6 +34,7 @@ impl From<usize> for Variable {
 
 pub trait Github {
     fn graphql(&self, query: &str, vars: &[(&str, Variable)]) -> io::Result<serde_json::Value>;
+    fn current_repo(&self) -> io::Result<String>;
 }
 
 pub const MISSING: &str =
@@ -76,6 +77,19 @@ impl CliGh {
         args
     }
 
+    pub fn current_repo_args() -> Vec<String> {
+        [
+            "repo",
+            "view",
+            "--json",
+            "nameWithOwner",
+            "--jq",
+            ".nameWithOwner",
+        ]
+        .map(str::to_string)
+        .to_vec()
+    }
+
     fn run(&self, args: &[String]) -> io::Result<String> {
         let output = Command::new(&self.program)
             .args(args)
@@ -107,5 +121,9 @@ impl Github for CliGh {
         let stdout = self.run(&Self::graphql_args(query, vars))?;
         serde_json::from_str(&stdout)
             .map_err(|err| io::Error::other(format!("gh returned invalid JSON: {err}")))
+    }
+
+    fn current_repo(&self) -> io::Result<String> {
+        Ok(self.run(&Self::current_repo_args())?.trim().to_string())
     }
 }
