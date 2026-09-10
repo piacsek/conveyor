@@ -86,18 +86,70 @@ const DEFAULT_WORKFLOWS: [&str; 8] = [
     "main.yml",
 ];
 
+pub struct Pulls {
+    repo: String,
+    cache: std::collections::HashMap<String, crate::model::builds::PullRef>,
+}
+
+impl Pulls {
+    pub fn new(repo: String) -> Self {
+        Self {
+            repo,
+            cache: std::collections::HashMap::new(),
+        }
+    }
+
+    pub fn for_sha(
+        &mut self,
+        gh: &impl Github,
+        sha: &str,
+    ) -> Option<crate::model::builds::PullRef> {
+        if let Some(cached) = self.cache.get(sha) {
+            return Some(cached.clone());
+        }
+        let pull = self
+            .associated(gh, sha)
+            .or_else(|| self.by_squash_suffix(gh, sha))?;
+        self.cache.insert(sha.to_string(), pull.clone());
+        Some(pull)
+    }
+
+    fn associated(&self, gh: &impl Github, sha: &str) -> Option<crate::model::builds::PullRef> {
+        let value = gh
+            .rest(&format!("repos/{}/commits/{sha}/pulls", self.repo))
+            .ok()?;
+        crate::model::builds::parse_pull_numbers(&value)
+    }
+
+    fn by_squash_suffix(
+        &self,
+        gh: &impl Github,
+        sha: &str,
+    ) -> Option<crate::model::builds::PullRef> {
+        let commit = gh
+            .rest(&format!("repos/{}/commits/{sha}", self.repo))
+            .ok()?;
+        let message = commit.pointer("/commit/message")?.as_str()?;
+        let number = crate::model::builds::pr_number_from_title(message.lines().next()?)?;
+        let pull = gh
+            .rest(&format!("repos/{}/pulls/{number}", self.repo))
+            .ok()?;
+        crate::model::builds::parse_pull(&pull)
+    }
+}
+
 pub struct BuildsSource {
     repo: Repo,
     workflow: Option<String>,
-    pulls: std::collections::HashMap<String, Option<crate::model::builds::PullRef>>,
+    pulls: Pulls,
 }
 
 impl BuildsSource {
     pub fn new(repo: Repo) -> Self {
         Self {
+            pulls: Pulls::new(repo.name.clone()),
             repo,
             workflow: None,
-            pulls: std::collections::HashMap::new(),
         }
     }
 
@@ -111,7 +163,7 @@ impl BuildsSource {
             .map_err(|err| err.to_string())?;
         let mut builds = crate::model::builds::parse_runs(&runs);
         for build in &mut builds {
-            build.pull = self.pull_for(gh, &build.sha);
+            build.pull = self.pulls.for_sha(gh, &build.sha);
         }
         Ok(builds)
     }
@@ -167,34 +219,18 @@ impl BuildsSource {
         self.workflow = Some(resolved.clone());
         Ok(resolved)
     }
-
-    fn pull_for(&mut self, gh: &impl Github, sha: &str) -> Option<crate::model::builds::PullRef> {
-        if let Some(cached) = self.pulls.get(sha) {
-            return cached.clone();
-        }
-        match gh.rest(&format!("repos/{}/commits/{sha}/pulls", self.repo.name)) {
-            Ok(value) => {
-                let pull = crate::model::builds::parse_pull_numbers(&value);
-                self.pulls.insert(sha.to_string(), pull.clone());
-                pull
-            }
-            Err(_) => None,
-        }
-    }
 }
 
 pub struct DeploySource {
-    repo: String,
     deploy: crate::config::Deploy,
-    pulls: std::collections::HashMap<String, Option<crate::model::builds::PullRef>>,
+    pulls: Pulls,
 }
 
 impl DeploySource {
     pub fn new(repo: String, deploy: crate::config::Deploy) -> Self {
         Self {
-            repo,
             deploy,
-            pulls: std::collections::HashMap::new(),
+            pulls: Pulls::new(repo),
         }
     }
 
@@ -238,26 +274,12 @@ impl DeploySource {
         row.image = Some(image.clone());
         match crate::model::deployed::sha_from_image(&image) {
             Ok(sha) => {
-                row.pull = self.pull_for(gh, &sha);
+                row.pull = self.pulls.for_sha(gh, &sha);
                 row.sha = Some(sha);
                 row.fetched_at = Some(now);
             }
             Err(err) => row.error = Some(err),
         }
         row
-    }
-
-    fn pull_for(&mut self, gh: &impl Github, sha: &str) -> Option<crate::model::builds::PullRef> {
-        if let Some(cached) = self.pulls.get(sha) {
-            return cached.clone();
-        }
-        match gh.rest(&format!("repos/{}/commits/{sha}/pulls", self.repo)) {
-            Ok(value) => {
-                let pull = crate::model::builds::parse_pull_numbers(&value);
-                self.pulls.insert(sha.to_string(), pull.clone());
-                pull
-            }
-            Err(_) => None,
-        }
     }
 }

@@ -125,7 +125,10 @@ pub fn pr_number_from_title(title: &str) -> Option<u64> {
 }
 
 pub fn parse_pull_numbers(value: &serde_json::Value) -> Option<PullRef> {
-    let pr = value.as_array()?.first()?;
+    parse_pull(value.as_array()?.first()?)
+}
+
+pub fn parse_pull(pr: &serde_json::Value) -> Option<PullRef> {
     Some(PullRef {
         number: pr.get("number")?.as_u64()?,
         title: text(pr, "title"),
