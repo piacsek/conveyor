@@ -381,3 +381,32 @@ fn a_failure_before_any_data_flags_the_column_and_shows_the_message_in_the_body(
         "{screen}"
     );
 }
+
+#[test]
+fn check_glyphs_are_colored_by_state_and_the_age_is_dim() {
+    use conveyor::model::prs::CheckState;
+    use ratatui::style::{Color, Modifier};
+    let mut h = Harness::new();
+    let mut failing = pr(1, "a");
+    failing.checks = CheckState::Failure;
+    let mut pending = pr(2, "b");
+    pending.checks = CheckState::Pending;
+    let ok = pr(3, "c");
+
+    h.run(vec![prs(vec![failing, pending, ok])]).unwrap();
+
+    assert_eq!(h.cell(5, 1).fg, Color::Red);
+    assert_eq!(h.cell(5, 2).fg, Color::Yellow);
+    assert_eq!(h.cell(5, 3).fg, Color::Green);
+    assert!(h.cell(37, 1).modifier.contains(Modifier::DIM), "age is dim");
+}
+
+#[test]
+fn the_tab_layout_does_not_repeat_the_column_title() {
+    let mut h = Harness::with_size(80, 12);
+
+    h.run(vec![prs(three())]).unwrap();
+
+    let screen = h.screen();
+    assert_eq!(screen.matches("My PRs (3)").count(), 1, "{screen}");
+}
