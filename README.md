@@ -4,8 +4,13 @@ A terminal view of where your changes are: open pull requests, the merge
 queue, the last main builds, and what each environment runs. One column per
 stage, one repo, one screen.
 
-Status: phase 0 (scaffolding). `conveyor --help`, `conveyor --version` and
-`conveyor config` work; the TUI lands in phase 1.
+Status: phase 1 (My PRs column). The other three columns are placeholders.
+
+Keys: `j/k` move, `1-9` jump to a row, `h/l`/`Tab` focus a column, `Enter`/`o` open in the
+browser, `y` copy the URL, `p` details pane, `/` filter, `r` refresh, `?` help, `q` quit.
+Below `4 × min_column_width` columns the four columns collapse into tabs. A failed fetch keeps
+the last rows, marks the column `⚠` and shows the error in the footer; the app never exits on
+it.
 
 ## Install
 
@@ -56,6 +61,10 @@ named by `CONVEYOR_CONFIG`). Every key is optional; unknown keys are an error.
 query = "is:pr is:open author:@me archived:false"
 limit = 20
 refresh_secs = 60
+
+[ui]
+min_column_width = 36
+details_percent = 40
 ```
 
 ## Develop

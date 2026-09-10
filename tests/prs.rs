@@ -279,3 +279,81 @@ fn a_refresh_keeps_the_row_order_and_the_selection_follows_the_number() {
         "falls back to the first row"
     );
 }
+
+#[test]
+fn question_mark_shows_the_key_help_and_any_key_returns() {
+    let mut h = Harness::with_size(160, 16);
+
+    h.run(vec![prs(three()), key(KeyCode::Char('?'))]).unwrap();
+
+    let screen = h.screen();
+    for needle in [
+        "j/k",
+        "Enter/o",
+        "open in browser",
+        "y",
+        "copy URL",
+        "p",
+        "details",
+        "/",
+        "filter",
+        "r",
+        "refresh",
+        "h/l",
+        "column",
+        "q",
+        "quit",
+    ] {
+        assert!(screen.contains(needle), "{needle}: {screen}");
+    }
+    assert!(!screen.contains("#1 webapp  a"), "{screen}");
+
+    h.run(vec![key(KeyCode::Char('x'))]).unwrap();
+    assert!(h.screen().contains("#1 webapp  a"), "{}", h.screen());
+}
+
+#[test]
+fn digits_jump_to_the_numbered_row() {
+    let mut h = Harness::new();
+
+    h.run(vec![prs(three()), key(KeyCode::Char('3'))]).unwrap();
+    assert_eq!(highlighted_row(&h.screen()), 3);
+
+    h.run(vec![key(KeyCode::Char('9'))]).unwrap();
+    assert_eq!(highlighted_row(&h.screen()), 3, "out of range is ignored");
+}
+
+#[test]
+fn narrow_terminals_collapse_the_columns_into_tabs_and_h_l_switch_them() {
+    let mut h = Harness::with_size(80, 12);
+
+    h.run(vec![prs(three())]).unwrap();
+    let screen = h.screen();
+    assert!(
+        screen.contains("My PRs (3) │ Merge queue │ Main builds │ Deployed"),
+        "{screen}"
+    );
+    assert!(screen.contains("#1 webapp  a"), "{screen}");
+    assert!(!screen.contains("not configured"), "{screen}");
+
+    h.run(vec![key(KeyCode::Char('l'))]).unwrap();
+    let screen = h.screen();
+    assert!(screen.contains("not configured"), "{screen}");
+    assert!(!screen.contains("#1 webapp  a"), "{screen}");
+
+    h.run(vec![key(KeyCode::Char('h')), key(KeyCode::Char('h'))])
+        .unwrap();
+    assert!(
+        h.screen().contains("#1 webapp  a"),
+        "clamps at the first column"
+    );
+
+    h.run(vec![
+        key(KeyCode::Tab),
+        key(KeyCode::Tab),
+        key(KeyCode::Tab),
+        key(KeyCode::Tab),
+    ])
+    .unwrap();
+    assert!(h.screen().contains("#1 webapp  a"), "Tab wraps around");
+}

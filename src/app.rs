@@ -19,6 +19,26 @@ pub enum Stage {
     Deployed,
 }
 
+impl Stage {
+    pub const ALL: [Stage; 4] = [Stage::Prs, Stage::Queue, Stage::Builds, Stage::Deployed];
+
+    pub fn index(self) -> usize {
+        Self::ALL.iter().position(|s| *s == self).unwrap_or(0)
+    }
+
+    fn at(index: usize) -> Stage {
+        Self::ALL[index.rem_euclid(Self::ALL.len())]
+    }
+
+    pub fn next(self) -> Stage {
+        Self::at(self.index() + 1)
+    }
+
+    pub fn previous(self) -> Stage {
+        Self::at(self.index() + Self::ALL.len() - 1)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Rows {
     Prs(Vec<PullRequest>),
@@ -45,6 +65,7 @@ pub enum Mode {
     #[default]
     Normal,
     Filter(String),
+    Help,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -69,6 +90,7 @@ impl<T> ColumnState<T> {
 pub struct App {
     pub prs: ColumnState<PullRequest>,
     pub prs_error: Option<String>,
+    pub focus: Stage,
     pub list: ListState,
     pub mode: Mode,
     pub config: Config,
@@ -87,6 +109,7 @@ impl App {
         Self {
             prs: ColumnState::Loading,
             prs_error: None,
+            focus: Stage::Prs,
             list: ListState::default().with_selected(Some(0)),
             mode: Mode::Normal,
             config,
@@ -120,7 +143,7 @@ impl App {
     pub fn filter(&self) -> Option<&str> {
         match &self.mode {
             Mode::Filter(query) => Some(query),
-            Mode::Normal => None,
+            Mode::Normal | Mode::Help => None,
         }
     }
 
@@ -161,6 +184,10 @@ impl App {
             return Action::Quit;
         }
         match self.mode {
+            Mode::Help => {
+                self.mode = Mode::Normal;
+                Action::Continue
+            }
             Mode::Filter(_) => self.handle_filter_key(key),
             Mode::Normal => self.handle_normal_key(key),
         }
@@ -194,6 +221,7 @@ impl App {
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => return Action::Quit,
             KeyCode::Char('/') => self.mode = Mode::Filter(String::new()),
+            KeyCode::Char('?') => self.mode = Mode::Help,
             KeyCode::Enter | KeyCode::Char('o') => {
                 if let Some(pr) = self.selected() {
                     return Action::Open(pr.url.clone());
@@ -205,7 +233,17 @@ impl App {
                     return Action::Copy(url);
                 }
             }
-            KeyCode::Char('r') => return Action::Refresh(Stage::Prs),
+            KeyCode::Char('r') => return Action::Refresh(self.focus),
+            KeyCode::Char('l') if self.focus != Stage::Deployed => self.focus = self.focus.next(),
+            KeyCode::Char('h') if self.focus != Stage::Prs => self.focus = self.focus.previous(),
+            KeyCode::Tab => self.focus = self.focus.next(),
+            KeyCode::BackTab => self.focus = self.focus.previous(),
+            KeyCode::Char(digit @ '1'..='9') => {
+                let index = digit.to_digit(10).unwrap_or(1) as usize - 1;
+                if index < self.visible().len() {
+                    self.list.select(Some(index));
+                }
+            }
             KeyCode::Char('p') => self.details = !self.details,
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.list.select_previous(),
