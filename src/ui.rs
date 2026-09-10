@@ -7,9 +7,10 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, List, ListItem, Paragraph};
 
 use crate::app::{App, Column, Mode, Row, Stage};
+use crate::model::builds::{Build, BuildStatus};
 use crate::model::prs::{CheckConclusion, CheckState, PullRequest};
 use crate::model::queue::QueueEntry;
-use crate::text::{age, duration, pad_right, refreshed};
+use crate::text::{age, clock, duration, pad_right, refreshed};
 
 const HIGHLIGHT: &str = "> ";
 
@@ -98,7 +99,14 @@ fn column_title(app: &App, stage: Stage) -> String {
             ),
             None => titled("Merge queue", &app.queue, app.spinner()),
         },
-        Stage::Builds => "Main builds".to_string(),
+        Stage::Builds => match &app.builds_repo {
+            Some(repo) => titled(
+                &format!("Main {}", short_repo(repo)),
+                &app.builds,
+                app.spinner(),
+            ),
+            None => titled("Main builds", &app.builds, app.spinner()),
+        },
         Stage::Deployed => "Deployed".to_string(),
     }
 }
@@ -142,8 +150,103 @@ fn draw_column(frame: &mut Frame, app: &mut App, stage: Stage, area: Rect, title
             spinner,
             |_, entry, w| queue_row(entry, w),
         ),
-        _ => frame.render_widget(Paragraph::new("not configured").block(block), area),
+        Stage::Builds => draw_list(
+            frame,
+            &mut app.builds,
+            area,
+            block,
+            "no builds on main",
+            spinner,
+            |i, build, w| build_row(i, build, now, w),
+        ),
+        Stage::Deployed => frame.render_widget(Paragraph::new("not configured").block(block), area),
     }
+}
+
+fn build_label(build: &Build) -> (String, String) {
+    match (&build.pull, build.pr_number) {
+        (Some(pull), _) => (format!("#{}", pull.number), pull.author.clone()),
+        (None, Some(number)) => (format!("#{number}"), build.actor.clone()),
+        (None, None) => (format!("run {}", build.run_number), build.actor.clone()),
+    }
+}
+
+fn build_row(index: usize, build: &Build, now: SystemTime, width: usize) -> Line<'static> {
+    let (label, who) = build_label(build);
+    let title = build
+        .pull
+        .as_ref()
+        .map(|p| p.title.clone())
+        .unwrap_or_else(|| build.title.clone());
+    let took = build
+        .duration()
+        .or_else(|| build.elapsed(now))
+        .map(duration)
+        .unwrap_or_default();
+    let started = build.started_at.map(|at| age(at, now)).unwrap_or_default();
+    line(
+        row_number(index),
+        build_glyph(build.status),
+        format!("{label} {who}  {title}"),
+        format!("{took} {started}"),
+        width,
+    )
+}
+
+fn build_glyph(status: BuildStatus) -> (char, Color) {
+    match status {
+        BuildStatus::Success => ('✓', Color::Green),
+        BuildStatus::Failure => ('✗', Color::Red),
+        BuildStatus::Running => ('●', Color::Yellow),
+        BuildStatus::Queued => ('○', Color::Yellow),
+        BuildStatus::Cancelled => ('-', Color::DarkGray),
+        BuildStatus::Unknown => ('?', Color::DarkGray),
+    }
+}
+
+fn status_word(status: BuildStatus) -> &'static str {
+    match status {
+        BuildStatus::Success => "success",
+        BuildStatus::Failure => "failure",
+        BuildStatus::Running => "running",
+        BuildStatus::Queued => "queued",
+        BuildStatus::Cancelled => "cancelled",
+        BuildStatus::Unknown => "?",
+    }
+}
+
+fn build_details(build: &Build, now: SystemTime, utc_offset_secs: i32) -> Vec<Line<'static>> {
+    let took = build
+        .duration()
+        .or_else(|| build.elapsed(now))
+        .map(duration)
+        .unwrap_or_default();
+    let started = build
+        .started_at
+        .map(|at| format!("started at {}", clock(at, utc_offset_secs)))
+        .unwrap_or_default();
+    let mut lines = vec![Line::from(format!(
+        "run {}  {}  {took}  {started}  by {}",
+        build.run_number,
+        status_word(build.status),
+        build.actor
+    ))];
+    match &build.pull {
+        Some(pull) => lines.push(Line::from(vec![
+            Span::raw(format!(
+                "#{} {}  {}  ",
+                pull.number, pull.author, pull.title
+            )),
+            Span::styled(pull.url.clone(), dim()),
+        ])),
+        None => lines.push(Line::from(build.title.clone())),
+    }
+    lines.push(Line::from(vec![
+        Span::styled(build.sha.clone(), dim()),
+        Span::raw("  "),
+        Span::styled(build.url.clone(), dim()),
+    ]));
+    lines
 }
 
 fn draw_list<T: Row>(
@@ -265,9 +368,17 @@ fn draw_details(frame: &mut Frame, app: &App, area: Rect) {
             ),
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
         },
-        Stage::Builds | Stage::Deployed => {
-            ("Details".to_string(), vec![Line::from("not configured")])
-        }
+        Stage::Builds => match app.builds.selected() {
+            Some(build) => {
+                let (label, _) = build_label(build);
+                (
+                    format!("{label} run {}", build.run_number),
+                    build_details(build, app.now, app.utc_offset_secs),
+                )
+            }
+            None => ("Details".to_string(), vec![Line::from("nothing selected")]),
+        },
+        Stage::Deployed => ("Details".to_string(), vec![Line::from("not configured")]),
     };
     frame.render_widget(
         Paragraph::new(lines).block(Block::bordered().title(title)),
