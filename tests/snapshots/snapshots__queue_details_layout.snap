@@ -3,7 +3,7 @@ source: tests/snapshots.rs
 expression: h.screen()
 ---
 ┌My PRs (3)────────────────────────────┐┌Queue webapp (2)──────────────────────┐┌Main builds───────────────────────────┐┌Deployed──────────────────────────────┐
-│> 1 ✗ #4821 webapp  Retry webhook … 2h││> 1 ● #4821 alice  Retry webhook … 12m││⠋ fetching…                           ││not configured                        │
+│> 1 ✗ #4821 webapp  Retry webhook … 2h││> 1 ● #4821 alice  Retry webhook … 12m││⠋ fetching…                           ││no [[repo.deploy]] configured         │
 │  2 ● #4830 auth  Add rate limit h… 2h││  2 ○ #4830 carol  Add rate li… queued││                                      ││                                      │
 │  3 ○ #4790 webapp  Spike: paralle… 2h││                                      ││                                      ││                                      │
 │                                      ││                                      ││                                      ││                                      │

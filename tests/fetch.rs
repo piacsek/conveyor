@@ -371,3 +371,98 @@ fn the_default_workflow_name_falls_back_to_common_ci_workflows() {
         "{calls:?}"
     );
 }
+
+struct FakeKube {
+    images: Vec<(String, io::Result<String>)>,
+}
+
+impl conveyor::kube::Kube for FakeKube {
+    fn image(&self, env: &conveyor::config::DeployEnv) -> io::Result<String> {
+        match self.images.iter().find(|(name, _)| *name == env.name) {
+            Some((_, Ok(image))) => Ok(image.clone()),
+            Some((_, Err(err))) => Err(io::Error::new(err.kind(), err.to_string())),
+            None => Err(io::Error::other("no such env")),
+        }
+    }
+}
+
+#[test]
+fn deploy_source_reads_each_environment_and_keeps_per_env_errors_on_the_row() {
+    use conveyor::config::{Deploy, DeployEnv};
+    use conveyor::fetch::DeploySource;
+    let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    gh.rest_routes = vec![
+        (
+            "repos/acme/webapp/commits/0123456789abcdef0123456789abcdef01234567".to_string(),
+            serde_json::from_str(include_str!("fixtures/commit-pulls.json")).unwrap(),
+        ),
+        (
+            "repos/acme/webapp/commits/".to_string(),
+            serde_json::json!([]),
+        ),
+    ];
+    let kube = FakeKube {
+        images: vec![
+            (
+                "staging".to_string(),
+                Ok("ghcr.io/acme/api:0123456789abcdef0123456789abcdef01234567".to_string()),
+            ),
+            (
+                "prod".to_string(),
+                Err(io::Error::other("ERROR: Active profile expired.")),
+            ),
+            ("dev".to_string(), Ok("ghcr.io/acme/api:latest".to_string())),
+        ],
+    };
+    let deploy = Deploy {
+        system: "api".to_string(),
+        env: ["staging", "prod", "dev"]
+            .iter()
+            .map(|name| DeployEnv {
+                name: name.to_string(),
+                ..DeployEnv::default()
+            })
+            .collect(),
+        ..Deploy::default()
+    };
+    let mut source = DeploySource::new("acme/webapp".to_string(), deploy);
+
+    let deployed = source.fetch(&gh, &kube, std::time::UNIX_EPOCH);
+
+    assert_eq!(deployed.system, "api");
+    assert_eq!(deployed.rows.len(), 3);
+    assert_eq!(deployed.rows[0].env, "staging");
+    assert_eq!(
+        deployed.rows[0].sha.as_deref(),
+        Some("0123456789abcdef0123456789abcdef01234567")
+    );
+    assert_eq!(deployed.rows[0].pull.as_ref().map(|p| p.number), Some(3));
+    assert_eq!(deployed.rows[0].error, None);
+    assert_eq!(
+        deployed.rows[1].error.as_deref(),
+        Some("ERROR: Active profile expired.")
+    );
+    assert_eq!(deployed.rows[1].sha, None);
+    assert!(
+        deployed.rows[2]
+            .error
+            .as_deref()
+            .unwrap()
+            .contains("unexpected image tag")
+    );
+    assert_eq!(
+        deployed.rows[2].image.as_deref(),
+        Some("ghcr.io/acme/api:latest")
+    );
+
+    source.fetch(&gh, &kube, std::time::UNIX_EPOCH);
+    let calls = gh.calls.borrow().clone();
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|(q, _)| q.contains("/commits/"))
+            .count(),
+        1,
+        "sha lookup cached"
+    );
+}

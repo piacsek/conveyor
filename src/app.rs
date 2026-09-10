@@ -10,6 +10,7 @@ use ratatui::widgets::ListState;
 
 use crate::config::Config;
 use crate::model::builds::{Build, Builds};
+use crate::model::deployed::{Deployed, Deployment};
 use crate::model::prs::PullRequest;
 use crate::model::queue::{Queue, QueueEntry};
 use crate::open::Opener;
@@ -48,6 +49,7 @@ pub enum Rows {
     Prs(Vec<PullRequest>),
     Queue(Queue),
     Builds(Builds),
+    Deployed(Deployed),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -140,6 +142,35 @@ impl Row for Build {
             self.title.to_lowercase(),
             pull.map(|p| p.author.to_lowercase()).unwrap_or_default(),
             self.sha.clone(),
+        ]
+        .iter()
+        .any(|text| text.contains(query))
+    }
+}
+
+impl Row for Deployment {
+    fn key(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::hash::DefaultHasher::new();
+        self.env.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    fn url(&self) -> &str {
+        self.pull
+            .as_ref()
+            .map(|p| p.url.as_str())
+            .unwrap_or_default()
+    }
+
+    fn matches(&self, query: &str) -> bool {
+        let pull = self.pull.as_ref();
+        [
+            self.env.to_lowercase(),
+            pull.map(|p| format!("#{}", p.number)).unwrap_or_default(),
+            pull.map(|p| p.title.to_lowercase()).unwrap_or_default(),
+            pull.map(|p| p.author.to_lowercase()).unwrap_or_default(),
+            self.sha.clone().unwrap_or_default(),
         ]
         .iter()
         .any(|text| text.contains(query))
@@ -275,6 +306,8 @@ pub struct App {
     pub queue_repo: Option<String>,
     pub builds: Column<Build>,
     pub builds_repo: Option<String>,
+    pub deployed: Column<Deployment>,
+    pub deployed_system: Option<String>,
     pub focus: Stage,
     pub mode: Mode,
     pub config: Config,
@@ -298,6 +331,8 @@ impl App {
             queue_repo: None,
             builds: Column::default(),
             builds_repo: None,
+            deployed: Column::default(),
+            deployed_system: None,
             focus: Stage::Prs,
             mode: Mode::Normal,
             config,
@@ -321,9 +356,15 @@ impl App {
                 self.builds_repo = Some(builds.repo);
                 self.builds.receive(builds.builds, self.now);
             }
+            (Stage::Deployed, Ok(Rows::Deployed(deployed))) => {
+                self.deployed_system = Some(deployed.system);
+                let rows = keep_last_known(self.deployed.all(), deployed.rows);
+                self.deployed.receive(rows, self.now);
+            }
             (Stage::Prs, Err(message)) => self.prs.fail(message),
             (Stage::Queue, Err(message)) => self.queue.fail(message),
             (Stage::Builds, Err(message)) => self.builds.fail(message),
+            (Stage::Deployed, Err(message)) => self.deployed.fail(message),
             _ => {}
         }
     }
@@ -333,7 +374,7 @@ impl App {
             Stage::Prs => self.prs.refreshing = true,
             Stage::Queue => self.queue.refreshing = true,
             Stage::Builds => self.builds.refreshing = true,
-            Stage::Deployed => {}
+            Stage::Deployed => self.deployed.refreshing = true,
         }
     }
 
@@ -359,7 +400,11 @@ impl App {
             Stage::Prs => self.prs.error.as_deref(),
             Stage::Queue => self.queue.error.as_deref(),
             Stage::Builds => self.builds.error.as_deref(),
-            Stage::Deployed => None,
+            Stage::Deployed => self.deployed.error.as_deref().or_else(|| {
+                self.deployed
+                    .selected()
+                    .and_then(|row| row.error.as_deref())
+            }),
         }
     }
 
@@ -368,7 +413,7 @@ impl App {
             Stage::Prs => self.prs.fetched_at(),
             Stage::Queue => self.queue.fetched_at(),
             Stage::Builds => self.builds.fetched_at(),
-            Stage::Deployed => None,
+            Stage::Deployed => self.deployed.fetched_at(),
         }
     }
 
@@ -377,7 +422,7 @@ impl App {
             Stage::Prs => (self.prs.visible().len(), self.prs.all().len()),
             Stage::Queue => (self.queue.visible().len(), self.queue.all().len()),
             Stage::Builds => (self.builds.visible().len(), self.builds.all().len()),
-            Stage::Deployed => (0, 0),
+            Stage::Deployed => (self.deployed.visible().len(), self.deployed.all().len()),
         }
     }
 
@@ -397,8 +442,21 @@ impl App {
                     build.url.clone(),
                 )
             }),
-            Stage::Deployed => None,
+            Stage::Deployed => self
+                .deployed
+                .selected()
+                .and_then(|row| row.pull.as_ref())
+                .map(|pull| (pull.number, pull.url.clone())),
         }
+    }
+
+    pub fn behind_main(&self, row: &Deployment) -> Option<usize> {
+        let sha = row.sha.as_ref()?;
+        self.builds.all().iter().position(|build| &build.sha == sha)
+    }
+
+    pub fn deploy_configured(&self) -> bool {
+        self.config.repo.iter().any(|repo| !repo.deploy.is_empty())
     }
 
     fn opened_recently(&self, url: &str) -> bool {
@@ -416,7 +474,7 @@ impl App {
             Stage::Prs => act(&mut self.prs),
             Stage::Queue => act(&mut self.queue),
             Stage::Builds => act(&mut self.builds),
-            Stage::Deployed => {}
+            Stage::Deployed => act(&mut self.deployed),
         }
     }
 
@@ -424,7 +482,8 @@ impl App {
         let filter = self.filter().map(str::to_string);
         self.prs.filter = filter.clone();
         self.queue.filter = filter.clone();
-        self.builds.filter = filter;
+        self.builds.filter = filter.clone();
+        self.deployed.filter = filter;
         self.with_focused(|column| column.select_index_clamped(0));
     }
 
@@ -542,6 +601,23 @@ impl<T: Row> Navigable for Column<T> {
             self.select_index(index);
         }
     }
+}
+
+fn keep_last_known(current: &[Deployment], fresh: Vec<Deployment>) -> Vec<Deployment> {
+    fresh
+        .into_iter()
+        .map(|mut row| {
+            if row.sha.is_none()
+                && let Some(known) = current.iter().find(|old| old.env == row.env)
+            {
+                row.sha = known.sha.clone();
+                row.image = known.image.clone();
+                row.pull = known.pull.clone();
+                row.fetched_at = known.fetched_at;
+            }
+            row
+        })
+        .collect()
 }
 
 fn attempt(app: &mut App, result: io::Result<()>) {
