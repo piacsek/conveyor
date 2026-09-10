@@ -226,7 +226,7 @@ pub(crate) fn deployed_row(
     let glyph = match (&row.error, behind) {
         (Some(_), _) => ('✗', Color::Red),
         (None, Some(0)) => ('✓', Color::Green),
-        (None, Some(_)) => ('●', Color::Yellow),
+        (None, Some(_)) => ('◐', Color::Yellow),
         (None, None) => ('○', Color::DarkGray),
     };
     let right = match behind {

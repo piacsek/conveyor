@@ -58,7 +58,11 @@ fn deployed_cards_show_env_pull_request_sha_and_how_far_behind_main() {
     assert!(col[1].contains("at main"), "{}", h.screen());
     assert!(col[2].contains("#4840 bob · Speed up CI"), "{}", h.screen());
     assert!(col[3].contains("00000000 · read 6d ago"), "{}", h.screen());
-    assert!(col[4].contains("● prod"), "{}", h.screen());
+    assert!(
+        col[4].contains("◐ prod"),
+        "behind main is a half circle, never the ● of a running build: {}",
+        h.screen()
+    );
     assert!(col[4].contains("↓2"), "two builds behind: {}", h.screen());
     assert!(
         col[5].contains("#4790 dave · Spike tests"),
