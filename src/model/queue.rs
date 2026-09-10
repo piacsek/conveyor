@@ -45,6 +45,7 @@ pub struct QueueEntry {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Queue {
+    pub repo: String,
     pub url: String,
     pub entries: Vec<QueueEntry>,
 }
@@ -63,6 +64,7 @@ pub fn parse(value: &serde_json::Value) -> Result<Queue, String> {
         .unwrap_or_default();
     entries.sort_by_key(|entry| entry.position);
     Ok(Queue {
+        repo: String::new(),
         url: text(queue, "url"),
         entries,
     })

@@ -23,11 +23,12 @@ pub fn pad_right(text: &str, width: usize) -> String {
 }
 
 pub fn age(since: SystemTime, now: SystemTime) -> String {
-    let elapsed = now
-        .duration_since(since)
-        .unwrap_or(Duration::ZERO)
-        .as_secs();
-    match elapsed {
+    duration(now.duration_since(since).unwrap_or(Duration::ZERO))
+}
+
+pub fn duration(value: Duration) -> String {
+    let secs = value.as_secs();
+    match secs {
         s if s < 60 => format!("{s}s"),
         s if s < 3600 => format!("{}m", s / 60),
         s if s < 86_400 => format!("{}h", s / 3600),
