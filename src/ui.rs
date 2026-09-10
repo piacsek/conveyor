@@ -613,28 +613,21 @@ fn draw_help(frame: &mut Frame, area: Rect) {
     );
 }
 
-const BELT_WIDTH: usize = 12;
-
-pub fn belt(now: SystemTime) -> String {
-    let millis = now
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0);
-    let offset = (millis / 250 % 3) as usize;
-    let rollers: String = (0..BELT_WIDTH)
-        .map(|i| if (i + offset) % 3 == 2 { '●' } else { '━' })
-        .collect();
-    format!("{rollers}▸")
+pub fn logo() -> String {
+    format!(
+        "\u{27e6}\u{25a3}\u{27e7}\u{2501}\u{27e6}\u{25a3}\u{27e7}\u{2501}\u{27e6}\u{25a3}\u{27e7}\u{2501}\u{25b8} conveyor v{}",
+        env!("CARGO_PKG_VERSION")
+    )
 }
 
 fn draw_footer(frame: &mut Frame, app: &App, area: Rect) {
-    let belt = belt(app.now);
-    let belt_width = belt.chars().count() as u16 + 1;
+    let logo = logo();
+    let logo_width = logo.chars().count() as u16 + 1;
     let [text, right] =
-        Layout::horizontal([Constraint::Fill(1), Constraint::Length(belt_width)]).areas(area);
+        Layout::horizontal([Constraint::Fill(1), Constraint::Length(logo_width)]).areas(area);
     frame.render_widget(Paragraph::new(footer_text(app)), text);
     frame.render_widget(
-        Paragraph::new(Span::styled(belt, dim())).right_aligned(),
+        Paragraph::new(Span::styled(logo, dim())).right_aligned(),
         right,
     );
 }

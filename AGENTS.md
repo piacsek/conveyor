@@ -122,8 +122,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `refreshing` flag draws a braille spinner (frame from `app.now`, 100 ms per frame, so the 250
   ms tick advances it) in the title and in the loading body; `Data` clears it. The footer says
   `refreshed just now` for 3 s, then `refreshed at HH:MM:SS` local time
-  (`utc_offset_secs` from `chrono::Local` in `main`, 0 in tests). The belt at the bottom right
-  is `ui::belt(now)`, one frame per 250 ms.
+  (`utc_offset_secs` from `chrono::Local` in `main`, 0 in tests). The bottom right holds the
+  static `ui::logo()` with the crate version; nothing there changes between ticks.
 - **Colors** come from the ANSI palette so terminal themes apply. Do not hardcode hex.
 
 ## Testing traps hit so far
