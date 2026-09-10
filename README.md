@@ -9,19 +9,20 @@ Status: phase 4. All four columns are live: My PRs, Merge queue, Main builds, De
 ![columns](docs/columns.png)
 
 - **My PRs**: the `[prs] query` search. Row: number, check glyph, repo, title, `⇥n` when the
-  PR sits at position n of a merge queue, age.
+  PR sits at position n of a merge queue, age. `b` opens a check run, failures first.
 - **Merge queue**: the queue of the first `[[repo]]`, or of the repository checked out in the
   current directory. Row: position, check glyph (from the merge-group run when one exists),
-  number, author, title, ETA or state. A repo without a merge queue shows the error in place.
+  number, author, title, ETA or state. `b` opens the merge-group run. A repo without a merge
+  queue shows the error in place.
 - **Main builds**: the last `builds` runs of `main_workflow` pushed to `main`. Row: status
   glyph, the PR it merged (from the squash `(#N)` suffix or the commit's pull requests) with
-  its author and title, duration or elapsed time, age. `Enter` opens the run.
+  its author and title, duration or elapsed time, age. `Enter` opens the PR it merged, `b` the run.
 - **Deployed**: one row per `[[repo.deploy.env]]`, read with `kubectl` (`--context`,
   `-n`, `get deploy -o jsonpath=…image`, 10 s timeout). The image tag must be the 40-hex
   commit sha (or end with `-<sha>`); the row shows the PR that commit merged, `at main` or
   `↓n` builds behind the Main builds column. A failed environment (expired session, missing
   deployment) keeps its last known sha with a red `✗` and the error in the footer and details.
-  `Enter` opens the PR.
+  `Enter` opens the PR, `b` the main build that matches the deployed sha.
 - Footer: `refreshed just now`, then `refreshed at HH:MM:SS` in local time, for the focused
   column; a braille spinner in a column title while its fetch is in flight; a static
   `conveyor v<version>` logo at the bottom right. Holding `Enter` opens a row once per second, not per repeat.
@@ -49,8 +50,8 @@ Narrow terminals collapse the columns into tabs:
 ![tabs](docs/tabs.png)
 
 Keys: `j/k` move, `1-9` jump to a row, `h/l`/`Tab` focus a column, `Enter`/`o` open in the
-browser, `y` copy the URL, `p` details pane, `/` filter, `r` refresh the focused column, `?` help,
-`q` quit. Keys act on the focused column.
+browser, `b` open the build behind the row, `y` copy the URL, `p` details pane, `/` filter,
+`r` refresh the focused column, `?` help, `q` quit. Keys act on the focused column.
 Below `4 × min_column_width` columns the four columns collapse into tabs (`h/l` switch). A failed fetch keeps
 the last rows, marks the column `⚠` and shows the error in the footer; the app never exits on
 it.

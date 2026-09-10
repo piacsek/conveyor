@@ -58,7 +58,7 @@ fn build_rows_show_status_pull_request_author_title_duration_and_age() {
 }
 
 #[test]
-fn enter_opens_the_run_and_p_shows_its_details() {
+fn enter_opens_the_pull_request_b_opens_the_run_and_p_shows_its_details() {
     let mut h = Harness::with_size(160, 20);
 
     h.run(vec![
@@ -67,13 +67,17 @@ fn enter_opens_the_run_and_p_shows_its_details() {
         key(KeyCode::Char('l')),
         key(KeyCode::Char('j')),
         key(KeyCode::Enter),
+        key(KeyCode::Char('b')),
         key(KeyCode::Char('p')),
     ])
     .unwrap();
 
     assert_eq!(
         h.opener.opened(),
-        vec!["https://github.com/acme/webapp/actions/runs/1025".to_string()]
+        vec![
+            "https://github.com/acme/webapp/pull/4821".to_string(),
+            "https://github.com/acme/webapp/actions/runs/1025".to_string(),
+        ]
     );
     let screen = h.screen();
     assert!(screen.contains("run 25  failure  3m"), "{screen}");
@@ -101,5 +105,24 @@ fn a_failed_builds_fetch_flags_the_column() {
         col[1].contains("main_workflow `Nope` not found"),
         "{}",
         h.screen()
+    );
+}
+
+#[test]
+fn enter_falls_back_to_the_run_when_no_pull_request_is_known() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        builds(three()),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('G')),
+        key(KeyCode::Enter),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        h.opener.opened(),
+        vec!["https://github.com/acme/webapp/actions/runs/1024".to_string()]
     );
 }

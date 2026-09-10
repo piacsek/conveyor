@@ -143,3 +143,36 @@ fn without_deploy_config_the_column_says_so_and_a_failed_fetch_flags_it() {
     let col = column(&h.screen(), 3);
     assert!(col[0].contains("Deployed ⚠"), "{}", h.screen());
 }
+
+#[test]
+fn b_opens_the_main_build_that_matches_the_deployed_sha() {
+    let mut h = Harness::new();
+    let rows = vec![
+        deployment("staging", 26, Some((4840, "bob", "Speed up CI"))),
+        deployment("dev", 99, Some((4999, "erin", "Unbuilt"))),
+    ];
+
+    h.run(vec![
+        builds(main_builds()),
+        deployed(rows),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('b')),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        h.opener.opened(),
+        vec!["https://github.com/acme/webapp/actions/runs/1026".to_string()]
+    );
+
+    h.run(vec![key(KeyCode::Char('j')), key(KeyCode::Char('b'))])
+        .unwrap();
+    assert_eq!(h.opener.opened().len(), 1);
+    assert!(
+        h.screen().contains("no main build found for 00000000"),
+        "{}",
+        h.screen()
+    );
+}

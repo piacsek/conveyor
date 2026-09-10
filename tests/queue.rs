@@ -132,3 +132,31 @@ fn p_shows_queue_entry_details_for_the_focused_queue_column() {
         "{screen}"
     );
 }
+
+#[test]
+fn b_opens_the_merge_group_run_of_the_selected_entry() {
+    let mut h = Harness::new();
+    let mut entries = two();
+    entries[0].run_url = Some("https://github.com/acme/webapp/actions/runs/99".to_string());
+
+    h.run(vec![
+        queue(entries),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('b')),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        h.opener.opened(),
+        vec!["https://github.com/acme/webapp/actions/runs/99".to_string()]
+    );
+
+    h.run(vec![key(KeyCode::Char('j')), key(KeyCode::Char('b'))])
+        .unwrap();
+    assert_eq!(h.opener.opened().len(), 1);
+    assert!(
+        h.screen().contains("no merge-group run yet"),
+        "{}",
+        h.screen()
+    );
+}

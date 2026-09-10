@@ -439,7 +439,11 @@ impl App {
                         .pr_number
                         .or(build.pull.as_ref().map(|p| p.number))
                         .unwrap_or(build.run_number),
-                    build.url.clone(),
+                    build
+                        .pull
+                        .as_ref()
+                        .map(|pull| pull.url.clone())
+                        .unwrap_or_else(|| build.url.clone()),
                 )
             }),
             Stage::Deployed => self
@@ -447,6 +451,49 @@ impl App {
                 .selected()
                 .and_then(|row| row.pull.as_ref())
                 .map(|pull| (pull.number, pull.url.clone())),
+        }
+    }
+
+    fn build_url(&self) -> Result<String, String> {
+        match self.focus {
+            Stage::Prs => self
+                .prs
+                .selected()
+                .and_then(|pr| {
+                    pr.checks_failures_first()
+                        .into_iter()
+                        .find(|check| !check.url.is_empty())
+                        .map(|check| check.url.clone())
+                })
+                .ok_or_else(|| "no checks yet".to_string()),
+            Stage::Queue => self
+                .queue
+                .selected()
+                .and_then(|entry| entry.run_url.clone())
+                .ok_or_else(|| "no merge-group run yet".to_string()),
+            Stage::Builds => self
+                .builds
+                .selected()
+                .map(|build| build.url.clone())
+                .ok_or_else(|| "nothing selected".to_string()),
+            Stage::Deployed => {
+                let sha = self
+                    .deployed
+                    .selected()
+                    .and_then(|row| row.sha.clone())
+                    .ok_or_else(|| "no deployed sha to look up".to_string())?;
+                self.builds
+                    .all()
+                    .iter()
+                    .find(|build| build.sha == sha)
+                    .map(|build| build.url.clone())
+                    .ok_or_else(|| {
+                        format!(
+                            "no main build found for {}",
+                            sha.chars().take(8).collect::<String>()
+                        )
+                    })
+            }
         }
     }
 
@@ -542,6 +589,14 @@ impl App {
                     return Action::Open(url);
                 }
             }
+            KeyCode::Char('b') => match self.build_url() {
+                Ok(url) if !self.opened_recently(&url) => {
+                    self.last_open = Some((url.clone(), self.now));
+                    return Action::Open(url);
+                }
+                Ok(_) => {}
+                Err(message) => self.notice = Some(message),
+            },
             KeyCode::Char('y') => {
                 if let Some((number, url)) = self.selected_target() {
                     self.notice = Some(format!("copied #{number}"));
