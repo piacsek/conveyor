@@ -151,6 +151,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   fetch thread behind `fetching…`.
 - **Zoom.** `z` toggles `App::zoom`; `ui::draw` then renders only `app.focus` across the whole
   body and skips the tabs check, so the narrow layout is unaffected. Nothing else reads the flag.
+- **The help pane does not scroll.** `draw_help` renders `KEYS` through a `Paragraph`, so a
+  list longer than the pane is silently clipped from the bottom: 13 keys plus two borders
+  exactly fills a 16-row terminal. `("q", "quit")` is therefore first in `KEYS`, so the one
+  key that gets you out is never the line that disappears. Adding a key means checking the
+  smallest terminal you care about, or paginating the pane.
 - **`q` is the only quit key** (besides `Ctrl-C`). `Esc` leaves zoom and otherwise does
   nothing in normal mode; in Filter mode it still drops the filter and in Help it still closes
   the help, both handled before the normal-mode arm. `Esc` used to quit, which made an

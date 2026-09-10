@@ -708,35 +708,116 @@ fn esc_leaves_zoom_and_never_quits() {
         key(KeyCode::Esc),
     ])
     .unwrap();
-
     assert!(
         h.screen().contains("Merge queue"),
         "esc left zoom: {}",
         h.screen()
     );
 
-    h.run(vec![key(KeyCode::Esc), key(KeyCode::Esc)]).unwrap();
+    h.run(vec![key(KeyCode::Esc), key(KeyCode::Esc), prs(vec![])])
+        .unwrap();
     assert!(
-        h.screen().contains("Merge queue"),
-        "esc outside zoom does nothing: {}",
+        h.screen().contains("no open pull requests"),
+        "esc outside zoom is swallowed and the next input is still read: {}",
         h.screen()
     );
 
-    h.run(vec![key(KeyCode::Char('z')), key(KeyCode::Char('z'))])
-        .unwrap();
+    h.run(vec![
+        prs(three()),
+        key(KeyCode::Char('z')),
+        key(KeyCode::Char('z')),
+    ])
+    .unwrap();
     assert!(
         h.screen().contains("Merge queue"),
         "z still toggles zoom off: {}",
         h.screen()
     );
+}
 
-    let mut quitter = Harness::new();
-    quitter
-        .run(vec![prs(three()), key(KeyCode::Char('q')), prs(vec![])])
+#[test]
+fn q_quits_from_every_state_and_is_ordinary_text_in_a_filter() {
+    let mut zoomed = Harness::new();
+    zoomed
+        .run(vec![
+            prs(three()),
+            key(KeyCode::Char('z')),
+            key(KeyCode::Char('q')),
+            prs(vec![]),
+        ])
         .unwrap();
     assert!(
-        quitter.screen().contains("#1 a"),
-        "q quit before the next input was read: {}",
-        quitter.screen()
+        !zoomed.screen().contains("no open pull requests"),
+        "q quit while zoomed, leaving the input unread: {}",
+        zoomed.screen()
+    );
+
+    let mut helped = Harness::with_size(160, 16);
+    helped
+        .run(vec![
+            prs(three()),
+            key(KeyCode::Char('?')),
+            key(KeyCode::Char('q')),
+            key(KeyCode::Char('q')),
+            prs(vec![]),
+        ])
+        .unwrap();
+    assert!(
+        !helped.screen().contains("no open pull requests"),
+        "the first q closes the help, the second quits: {}",
+        helped.screen()
+    );
+
+    let mut filtering = Harness::new();
+    filtering
+        .run(vec![
+            prs(three()),
+            key(KeyCode::Char('/')),
+            key(KeyCode::Char('q')),
+            prs(vec![]),
+        ])
+        .unwrap();
+    let screen = filtering.screen();
+    assert!(
+        screen.contains("/q  0/0"),
+        "q is text in a filter: {screen}"
+    );
+    assert!(
+        screen.contains("no open pull requests"),
+        "and the app kept running, so the input after it was read: {screen}"
+    );
+}
+
+#[test]
+fn leaving_a_filter_or_the_help_does_not_disturb_zoom() {
+    let mut h = Harness::with_size(160, 16);
+
+    h.run(vec![
+        prs(three()),
+        key(KeyCode::Char('z')),
+        key(KeyCode::Char('/')),
+        key(KeyCode::Char('a')),
+        key(KeyCode::Esc),
+    ])
+    .unwrap();
+    assert!(
+        !h.screen().contains("Merge queue"),
+        "esc dropped the filter and kept zoom: {}",
+        h.screen()
+    );
+
+    h.run(vec![key(KeyCode::Char('?')), key(KeyCode::Esc)])
+        .unwrap();
+    assert!(
+        !h.screen().contains("Merge queue"),
+        "esc closed the help and kept zoom: {}",
+        h.screen()
+    );
+
+    h.run(vec![key(KeyCode::Esc)]).unwrap();
+    assert!(
+        h.screen().contains("Merge queue"),
+        "and now esc leaves zoom: {}",
+        h.screen()
     );
 }
