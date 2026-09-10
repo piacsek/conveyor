@@ -115,7 +115,9 @@ cargo test -- --ignored        # e2e: real binary with a `gh` shim first on PATH
 
 Ship with `scripts/ship.sh "<message>"`: gates, `dev-install.sh`, commit, push, all under
 `set -e`, refusing to run on `main`. The first ship on a branch also opens the draft PR
-(`gh pr create --draft --assignee @me`); a branch must never carry commits without one. Do not hand-roll the chain: the interactive shell here is
+(`gh pr create --draft --assignee @me`); a branch must never carry commits without one.
+A PR with a visible change embeds the `docs/*.png` screenshots in its body, as commit-pinned
+`raw.githubusercontent.com` URLs so they outlive the branch. Do not hand-roll the chain: the interactive shell here is
 zsh, where `PIPESTATUS` is undefined and `test "" -eq 0` is true, so a `gates.sh | grep` guard
 silently passed a clippy failure into a commit on 2026-09-10.
 
