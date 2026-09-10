@@ -32,28 +32,31 @@ fn three() -> Vec<conveyor::model::builds::Build> {
 }
 
 #[test]
-fn build_rows_show_status_pull_request_author_title_duration_and_age() {
+fn build_cards_show_the_pull_request_the_run_and_the_sha() {
     let mut h = Harness::new();
 
     h.run(vec![builds(three()), tick_at(NOW)]).unwrap();
 
     let col = column(&h.screen(), 2);
     assert!(col[0].contains("Main webapp (3)"), "{}", h.screen());
+    assert!(col[1].contains("▌ ● #4840 Speed up CI"), "{}", h.screen());
+    assert!(col[1].contains("1m"), "elapsed age: {}", h.screen());
     assert!(
-        col[1].contains("1 ● #4840 bob  Speed up CI"),
+        col[2].contains("bob · run 26 · 1m · running"),
         "{}",
         h.screen()
     );
-    assert!(col[1].contains("1m 1m"), "elapsed then age: {}", h.screen());
+    assert!(col[3].contains("00000000"), "the sha: {}", h.screen());
+    assert!(col[4].contains("✗ #4821 Retry hooks"), "{}", h.screen());
     assert!(
-        col[2].contains("2 ✗ #4821 alice  Retry hooks"),
+        col[5].contains("alice · run 25 · 3m · failure"),
         "{}",
         h.screen()
     );
-    assert!(col[2].contains("3m 2h"), "{}", h.screen());
+    assert!(col[7].contains("✓ run 24"), "no PR known: {}", h.screen());
     assert!(
-        col[3].contains("3 ✓ run 24 bot  run 24"),
-        "no PR known: {}",
+        col[8].contains("bot · run 24 · 3m · success"),
+        "{}",
         h.screen()
     );
 }
@@ -144,7 +147,14 @@ fn p_on_a_build_asks_for_its_jobs_and_lists_them_failures_first() {
 
     h.run(inputs).unwrap();
 
-    assert_eq!(h.requests, vec![Request::Jobs { run_id: 1026 }]);
+    assert_eq!(
+        h.requests,
+        vec![
+            Request::Jobs { run_id: 1025 },
+            Request::Jobs { run_id: 1026 },
+        ],
+        "the failing run is asked for without being selected, then the selected one"
+    );
     assert!(h.screen().contains("jobs: loading…"), "{}", h.screen());
 
     h.run(vec![jobs(
@@ -166,11 +176,14 @@ fn p_on_a_build_asks_for_its_jobs_and_lists_them_failures_first() {
         screen.contains("https://github.com/acme/webapp/actions/runs/1025/job/1"),
         "{screen}"
     );
-    assert!(!screen.contains("jobs: loading…"), "{screen}");
+    assert!(
+        screen.contains("✗ check · Run cargo test"),
+        "and on the card itself: {screen}"
+    );
 }
 
 #[test]
-fn moving_the_selection_with_details_open_asks_for_the_next_runs_jobs_once() {
+fn moving_the_selection_asks_for_each_runs_jobs_once() {
     let mut h = Harness::with_size(160, 30);
     let mut inputs = focus_builds();
     inputs.push(key(KeyCode::Char('p')));
@@ -183,8 +196,8 @@ fn moving_the_selection_with_details_open_asks_for_the_next_runs_jobs_once() {
     assert_eq!(
         h.requests,
         vec![
-            Request::Jobs { run_id: 1026 },
             Request::Jobs { run_id: 1025 },
+            Request::Jobs { run_id: 1026 },
         ],
         "each run is asked for once"
     );
@@ -210,30 +223,47 @@ fn a_failed_jobs_fetch_shows_the_message_in_the_details_pane() {
 fn a_refresh_asks_again_for_an_unsettled_runs_jobs_and_keeps_the_settled_ones() {
     let mut h = Harness::with_size(160, 30);
     let mut inputs = focus_builds();
-    inputs.push(key(KeyCode::Char('p')));
     inputs.push(jobs(
         1026,
         vec![job(1, "check", BuildStatus::Running, None)],
     ));
     inputs.push(builds(three()));
+    inputs.push(builds(three()));
 
     h.run(inputs).unwrap();
 
-    assert_eq!(
-        h.requests,
-        vec![
-            Request::Jobs { run_id: 1026 },
-            Request::Jobs { run_id: 1026 },
-        ],
-        "the running run is asked again"
-    );
-
-    h.run(vec![key(KeyCode::Char('j')), builds(three())])
-        .unwrap();
-    assert_eq!(
-        h.requests.len(),
-        3,
-        "a settled run keeps its jobs: {:?}",
+    let asked = |run_id| {
         h.requests
+            .iter()
+            .filter(|request| **request == Request::Jobs { run_id })
+            .count()
+    };
+    assert_eq!(asked(1026), 3, "the running run is asked on every refresh");
+    assert_eq!(asked(1025), 1, "the settled run keeps its jobs");
+}
+
+#[test]
+fn a_failing_build_shows_its_failed_step_on_the_card() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        builds(three()),
+        jobs(
+            1025,
+            vec![job(
+                1,
+                "check",
+                BuildStatus::Failure,
+                Some("Run cargo test"),
+            )],
+        ),
+    ])
+    .unwrap();
+
+    let col = column(&h.screen(), 2);
+    assert!(
+        col[6].contains("✗ check · Run cargo test"),
+        "{}",
+        h.screen()
     );
 }

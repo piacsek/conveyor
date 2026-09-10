@@ -27,11 +27,15 @@ fn the_column_says_fetching_until_the_first_data_arrives() {
 }
 
 #[test]
-fn rows_show_number_glyph_repo_title_and_age_with_the_first_highlighted() {
+fn cards_stack_a_title_a_dim_meta_line_and_the_unhappy_checks_under_a_selection_bar() {
     let mut h = Harness::new();
+    let mut first = pr(4821, "Retry hooks");
+    first.head_ref = "webhook-retry".to_string();
+    first.additions = 12;
+    first.deletions = 3;
 
     h.run(vec![
-        prs(vec![pr(4821, "Retry hooks"), pr(4830, "Rate limits")]),
+        prs(vec![first, pr(4830, "Rate limits")]),
         key(KeyCode::Char('q')),
     ])
     .unwrap();
@@ -39,15 +43,15 @@ fn rows_show_number_glyph_repo_title_and_age_with_the_first_highlighted() {
     let screen = h.screen();
     let rows: Vec<&str> = screen.lines().collect();
     assert!(rows[0].contains("My PRs (2)"), "{screen}");
-    assert!(
-        rows[1].starts_with("│> 1 ✓ #4821 webapp  Retry hooks"),
-        "{screen}"
-    );
+    assert!(rows[1].starts_with("│▌ ✓ #4821 Retry hooks"), "{screen}");
     assert!(rows[1].contains("2h│"), "{screen}");
     assert!(
-        rows[2].starts_with("│  2 ✓ #4830 webapp  Rate limits"),
+        rows[2].starts_with("│    webapp · webhook-retry · +12 −3"),
         "{screen}"
     );
+    assert!(rows[3].starts_with("│    checks: success"), "{screen}");
+    assert!(rows[4].starts_with("│  ✓ #4830 Rate limits"), "{screen}");
+    assert!(!screen.contains("1 ✓"), "no row numbers: {screen}");
 }
 
 fn three() -> Vec<conveyor::model::prs::PullRequest> {
@@ -57,7 +61,7 @@ fn three() -> Vec<conveyor::model::prs::PullRequest> {
 fn highlighted_row(screen: &str) -> usize {
     screen
         .lines()
-        .position(|line| line.starts_with("│> "))
+        .position(|line| line.starts_with("│▌"))
         .expect("a highlighted row")
 }
 
@@ -70,11 +74,11 @@ fn j_k_arrows_gg_and_g_move_the_highlight_and_clamp() {
         key(KeyCode::Down),
     ])
     .unwrap();
-    assert_eq!(highlighted_row(&h.screen()), 3);
+    assert_eq!(highlighted_row(&h.screen()), 7);
 
     h.run(vec![key(KeyCode::Char('j')), key(KeyCode::Char('j'))])
         .unwrap();
-    assert_eq!(highlighted_row(&h.screen()), 3, "clamps at the end");
+    assert_eq!(highlighted_row(&h.screen()), 7, "clamps at the end");
 
     h.run(vec![
         key(KeyCode::Char('k')),
@@ -85,7 +89,7 @@ fn j_k_arrows_gg_and_g_move_the_highlight_and_clamp() {
     assert_eq!(highlighted_row(&h.screen()), 1, "clamps at the start");
 
     h.run(vec![key(KeyCode::Char('G'))]).unwrap();
-    assert_eq!(highlighted_row(&h.screen()), 3);
+    assert_eq!(highlighted_row(&h.screen()), 7);
 
     h.run(vec![key(KeyCode::Char('g')), key(KeyCode::Char('g'))])
         .unwrap();
@@ -112,7 +116,7 @@ fn enter_and_o_open_the_selected_pull_request_and_keep_running() {
     );
     assert_eq!(
         highlighted_row(&h.screen()),
-        2,
+        4,
         "still open on the same row"
     );
 }
@@ -175,7 +179,8 @@ fn p_toggles_a_details_pane_with_failed_checks_first() {
     assert!(test_line < lint_line, "failures first: {screen}");
 
     h.run(vec![key(KeyCode::Char('p'))]).unwrap();
-    assert!(!h.screen().contains("✗ api / test"), "{}", h.screen());
+    assert!(!h.screen().contains("review: approved"), "{}", h.screen());
+    assert!(!h.screen().contains("✓ lint"), "{}", h.screen());
 }
 
 #[test]
@@ -191,7 +196,7 @@ fn slash_filters_rows_by_number_title_or_repo_and_shows_the_count() {
     .unwrap();
 
     let screen = h.screen();
-    assert!(screen.contains("#3 webapp  gamma"), "{screen}");
+    assert!(screen.contains("#3 gamma"), "{screen}");
     assert!(!screen.contains("alpha"), "{screen}");
     assert!(screen.contains("/am  1/3"), "{screen}");
 
@@ -240,7 +245,7 @@ fn a_failed_fetch_keeps_the_old_rows_and_flags_the_column_until_the_next_success
 
     let screen = h.screen();
     assert!(screen.contains("My PRs (3) ⚠"), "{screen}");
-    assert!(screen.contains("#1 webapp  a"), "rows kept: {screen}");
+    assert!(screen.contains("#1 a"), "rows kept: {screen}");
     assert!(screen.contains("gh: HTTP 401: Bad credentials"), "{screen}");
 
     h.run(vec![prs(three())]).unwrap();
@@ -258,7 +263,7 @@ fn a_failed_open_shows_in_the_footer_and_the_app_stays_up() {
 
     let screen = h.screen();
     assert!(screen.contains("open: exec failed"), "{screen}");
-    assert!(screen.contains("#1 webapp  a"), "{screen}");
+    assert!(screen.contains("#1 a"), "{screen}");
 }
 
 #[test]
@@ -271,10 +276,10 @@ fn a_refresh_keeps_the_row_order_and_the_selection_follows_the_number() {
 
     let screen = h.screen();
     let rows: Vec<&str> = screen.lines().collect();
-    assert!(rows[1].contains("#2 webapp  b"), "kept: {screen}");
-    assert!(rows[2].contains("#3 webapp  c"), "kept: {screen}");
-    assert!(rows[3].contains("#4 webapp  d"), "appended: {screen}");
-    assert!(!screen.contains("#1 webapp  a"), "gone: {screen}");
+    assert!(rows[1].contains("#2 b"), "kept: {screen}");
+    assert!(rows[4].contains("#3 c"), "kept: {screen}");
+    assert!(rows[7].contains("#4 d"), "appended: {screen}");
+    assert!(!screen.contains("#1 a"), "gone: {screen}");
     assert_eq!(highlighted_row(&screen), 1, "selection follows #2");
 
     h.run(vec![prs(vec![pr(4, "d")])]).unwrap();
@@ -315,21 +320,10 @@ fn question_mark_shows_the_key_help_and_any_key_returns() {
     ] {
         assert!(screen.contains(needle), "{needle}: {screen}");
     }
-    assert!(!screen.contains("#1 webapp  a"), "{screen}");
+    assert!(!screen.contains("#1 a"), "{screen}");
 
     h.run(vec![key(KeyCode::Char('x'))]).unwrap();
-    assert!(h.screen().contains("#1 webapp  a"), "{}", h.screen());
-}
-
-#[test]
-fn digits_jump_to_the_numbered_row() {
-    let mut h = Harness::new();
-
-    h.run(vec![prs(three()), key(KeyCode::Char('3'))]).unwrap();
-    assert_eq!(highlighted_row(&h.screen()), 3);
-
-    h.run(vec![key(KeyCode::Char('9'))]).unwrap();
-    assert_eq!(highlighted_row(&h.screen()), 3, "out of range is ignored");
+    assert!(h.screen().contains("#1 a"), "{}", h.screen());
 }
 
 #[test]
@@ -342,20 +336,17 @@ fn narrow_terminals_collapse_the_columns_into_tabs_and_h_l_switch_them() {
         screen.contains("My PRs (3) │ Merge queue │ Main builds │ Deployed"),
         "{screen}"
     );
-    assert!(screen.contains("#1 webapp  a"), "{screen}");
+    assert!(screen.contains("#1 a"), "{screen}");
     assert!(!screen.contains("fetching…"), "{screen}");
 
     h.run(vec![key(KeyCode::Char('l'))]).unwrap();
     let screen = h.screen();
     assert!(screen.contains("fetching…"), "the queue column: {screen}");
-    assert!(!screen.contains("#1 webapp  a"), "{screen}");
+    assert!(!screen.contains("#1 a"), "{screen}");
 
     h.run(vec![key(KeyCode::Char('h')), key(KeyCode::Char('h'))])
         .unwrap();
-    assert!(
-        h.screen().contains("#1 webapp  a"),
-        "clamps at the first column"
-    );
+    assert!(h.screen().contains("#1 a"), "clamps at the first column");
 
     h.run(vec![
         key(KeyCode::Tab),
@@ -364,7 +355,7 @@ fn narrow_terminals_collapse_the_columns_into_tabs_and_h_l_switch_them() {
         key(KeyCode::Tab),
     ])
     .unwrap();
-    assert!(h.screen().contains("#1 webapp  a"), "Tab wraps around");
+    assert!(h.screen().contains("#1 a"), "Tab wraps around");
 }
 
 #[test]
@@ -407,10 +398,15 @@ fn check_glyphs_are_colored_by_state_and_the_age_is_dim() {
 
     h.run(vec![prs(vec![failing, pending, ok])]).unwrap();
 
-    assert_eq!(h.cell(5, 1).fg, Color::Red);
-    assert_eq!(h.cell(5, 2).fg, Color::Yellow);
-    assert_eq!(h.cell(5, 3).fg, Color::Green);
+    assert_eq!(h.cell(3, 1).fg, Color::Red);
+    assert_eq!(h.cell(3, 4).fg, Color::Yellow);
+    assert_eq!(h.cell(3, 7).fg, Color::Green);
     assert!(h.cell(37, 1).modifier.contains(Modifier::DIM), "age is dim");
+    assert!(h.cell(1, 1).fg == Color::Cyan, "the selection bar is cyan");
+    assert!(
+        h.cell(6, 2).modifier.contains(Modifier::DIM),
+        "the meta line is dim"
+    );
 }
 
 #[test]
@@ -434,9 +430,9 @@ fn a_pull_request_in_the_merge_queue_shows_its_position_on_the_row() {
 
     let screen = h.screen();
     let rows: Vec<&str> = screen.lines().collect();
-    assert!(rows[1].contains("#4821 webapp  Retry hooks"), "{screen}");
+    assert!(rows[1].contains("#4821 Retry hooks"), "{screen}");
     assert!(rows[1].contains("⇥2 2h"), "{screen}");
-    assert!(!rows[2].contains("⇥"), "{screen}");
+    assert!(!rows[4].contains("⇥"), "{screen}");
 }
 
 #[test]

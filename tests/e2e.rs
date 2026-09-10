@@ -181,8 +181,9 @@ fn the_binary_draws_my_prs_from_gh_before_any_key() {
         env!("CARGO_BIN_EXE_conveyor"),
     );
 
-    let screen = server.wait_for_screen("#1 conveyor  Phase 0: setup");
+    let screen = server.wait_for_screen("#1 Phase 0: setup");
     assert!(screen.contains("My PRs (1)"), "{screen}");
+    assert!(screen.contains("conveyor · "), "the meta line: {screen}");
     assert!(screen.contains("Merge queue"), "{screen}");
 }
 
@@ -230,8 +231,9 @@ fn the_queue_column_fills_from_the_checked_out_repository() {
     );
 
     let screen = server.wait_for_screen("Queue webapp (2)");
-    assert!(screen.contains("#4821 alice  Retry webhook"), "{screen}");
-    assert!(screen.contains("#1 conveyor  Phase 0: setup"), "{screen}");
+    assert!(screen.contains("#4821 Retry webhook"), "{screen}");
+    assert!(screen.contains("alice · position 1"), "{screen}");
+    assert!(screen.contains("#1 Phase 0: setup"), "{screen}");
 }
 
 #[test]
@@ -250,7 +252,8 @@ fn the_main_builds_column_fills_from_the_workflow_runs() {
     );
 
     let screen = server.wait_for_screen("Main webapp (4)");
-    assert!(screen.contains("✗ #3 piacsek  Phase 2"), "{screen}");
+    assert!(screen.contains("✗ #3 Phase 2"), "{screen}");
+    assert!(screen.contains("piacsek · run "), "{screen}");
     assert!(screen.contains("Queue webapp (2)"), "{screen}");
 }
 
@@ -273,8 +276,8 @@ fn the_deployed_column_fills_from_kubectl_per_environment() {
     );
 
     let screen = server.wait_for_screen("Deployed api (2)");
-    assert!(screen.contains("staging  #3 piacsek"), "{screen}");
-    assert!(screen.contains("prod  ERROR: Active profile"), "{screen}");
+    assert!(screen.contains("#3 piacsek · "), "{screen}");
+    assert!(screen.contains("ERROR: Active profile"), "{screen}");
 }
 
 #[test]
