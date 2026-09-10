@@ -42,6 +42,7 @@ scripts/gates.sh              the quality gates; fails loudly, never pipe it thr
 scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
 scripts/ship.sh               gates + dev-install + commit + push, aborts on any failure
+plans/                        one versioned plan file per phase (see Working agreements)
 scripts/homebrew-formula.sh   prints the tap formula for a released version
 scripts/screenshots.sh        renders docs/*.png from a gh shim + synthetic fixture (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend
@@ -181,8 +182,12 @@ agent's private memory. When the user says "update the guidelines", edit this fi
   commit of an empty repository, and never force-push.
 - **Two binaries.** `conveyor` on PATH is the Homebrew release; `conveyor-dev` is the working
   tree (`scripts/dev-install.sh`). Never `cargo install` the crate into a PATH directory.
-- **Plan before code.** Each phase starts from the plan in `PLAN.md`, is re-planned after the
-  previous retro, and its "Verified facts" section is checked against live tools before use.
+- **Plan before code, plans in the repo.** Each phase starts from a written plan, re-planned
+  after the previous retro, with its "Verified facts" checked against live tools before use.
+  Plans are versioned here: write each one to its own file under `plans/` (for example
+  `plans/phase-5-cards.md`) and commit it with the first ship of the phase. Never leave a plan
+  only in an agent's private plan directory or memory. `PLAN.md` stays the index of phases,
+  retros and the backlog; a phase's outcome is appended there when it closes.
 
 ## Development
 

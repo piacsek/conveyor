@@ -330,6 +330,19 @@ Phase 1 exit: retro (see checkpoints), `AGENTS.md` updated, v0.1.0 tagged, plan 
   deploy age from the cluster (`fetched_at` is when conveyor read it, not when the rollout
   happened).
 
+## Phase 5 — cards and build details (requested 2026-09-10)
+
+1. Footer: the rolling belt goes; a static, quirky conveyor logo with the version sits at the
+   bottom right, dim.
+2. `b` opens the build behind the selected card in every column: the PR's first failing (else
+   first) check run, the queue entry's merge-group run, the build's run, the main build that
+   produced the deployed sha. `Enter`/`o` open the item itself (PR when known).
+3. Build details fetch the run's jobs on `p` (`repos/{r}/actions/runs/{id}/jobs`), failures
+   first with durations, loaded lazily through a `Request::Jobs` from the TUI to a fetch thread.
+4. Multi-line cards instead of rows: two lines per item, no row numbers (the `1-9` keys go),
+   the selected card marked with a colored bar and bold title instead of `> `; dim second line.
+5. Docs, snapshots, screenshots, v0.5.0.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
