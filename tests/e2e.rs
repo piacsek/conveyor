@@ -17,7 +17,9 @@ impl Server {
         let status = server
             .tmux(&["new-session", "-d", "-s", "live", "-x", "160", "-y", "12"])
             .status()
-            .expect("tmux binary on PATH");
+            .unwrap_or_else(|err| {
+                panic!("the e2e tests drive a scratch tmux server; install tmux (brew install tmux) and rerun `cargo test -- --ignored`: {err}")
+            });
         assert!(status.success(), "could not start tmux e2e server");
         server
     }
