@@ -1,7 +1,7 @@
 use crate::config::{Config, Repo};
 use crate::github::Github;
 use crate::model::prs::PullRequest;
-use crate::model::queue::Queue;
+use crate::model::queue::{Queue, parse_merge_group_runs};
 
 pub const PRS_QUERY: &str = include_str!("queries/prs.graphql");
 pub const QUEUE_QUERY: &str = include_str!("queries/queue.graphql");
@@ -50,5 +50,13 @@ pub fn fetch_queue(gh: &impl Github, repo: &Repo) -> Result<Queue, String> {
         .map_err(|err| err.to_string())?;
     let mut queue = crate::model::queue::parse(&value)?;
     queue.repo = repo.name.clone();
+    if !queue.entries.is_empty()
+        && let Ok(runs) = gh.rest(&format!(
+            "repos/{}/actions/runs?event=merge_group&per_page=30",
+            repo.name
+        ))
+    {
+        queue.attach_runs(&parse_merge_group_runs(&runs));
+    }
     Ok(queue)
 }

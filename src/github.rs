@@ -34,6 +34,7 @@ impl From<usize> for Variable {
 
 pub trait Github {
     fn graphql(&self, query: &str, vars: &[(&str, Variable)]) -> io::Result<serde_json::Value>;
+    fn rest(&self, path: &str) -> io::Result<serde_json::Value>;
     fn current_repo(&self) -> io::Result<String>;
 }
 
@@ -75,6 +76,10 @@ impl CliGh {
             }
         }
         args
+    }
+
+    pub fn rest_args(path: &str) -> Vec<String> {
+        vec!["api".to_string(), path.to_string()]
     }
 
     pub fn current_repo_args() -> Vec<String> {
@@ -119,6 +124,12 @@ impl CliGh {
 impl Github for CliGh {
     fn graphql(&self, query: &str, vars: &[(&str, Variable)]) -> io::Result<serde_json::Value> {
         let stdout = self.run(&Self::graphql_args(query, vars))?;
+        serde_json::from_str(&stdout)
+            .map_err(|err| io::Error::other(format!("gh returned invalid JSON: {err}")))
+    }
+
+    fn rest(&self, path: &str) -> io::Result<serde_json::Value> {
+        let stdout = self.run(&Self::rest_args(path))?;
         serde_json::from_str(&stdout)
             .map_err(|err| io::Error::other(format!("gh returned invalid JSON: {err}")))
     }
