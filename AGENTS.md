@@ -159,7 +159,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `draw_list` wraps each in `ListItem::new(Text::from(lines))` with no `highlight_symbol`:
   the bar is drawn by the card from `Some(i) == column.list.selected()`. Cards carry what a
   browser trip would otherwise cost: the unhappy checks, the failed job and step, the
-  deployed sha. Prefer adding a line there over adding one to the details pane.
+  deployed sha. Prefer adding a line there over adding one to the details pane. Deployed cards
+  go further: one field per line rather than a joined-and-truncated `meta()`, the PR title
+  before the author, wrapped with `text::wrap` over at most `DEPLOYED_TITLE_LINES` lines. Card
+  height varies per row; the list widget handles it.
 - **Colors** come from the ANSI palette so terminal themes apply. Do not hardcode hex.
 
 ## Testing traps hit so far

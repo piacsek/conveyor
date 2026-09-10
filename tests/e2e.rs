@@ -276,7 +276,8 @@ fn the_deployed_column_fills_from_kubectl_per_environment() {
     );
 
     let screen = server.wait_for_screen("Deployed api (2)");
-    assert!(screen.contains("#3 piacsek · "), "{screen}");
+    assert!(screen.contains("#3 Phase 2"), "the title first: {screen}");
+    assert!(screen.contains("piacsek"), "then the author: {screen}");
     assert!(screen.contains("ERROR: Active profile"), "{screen}");
 }
 
