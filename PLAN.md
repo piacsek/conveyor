@@ -339,9 +339,33 @@ Phase 1 exit: retro (see checkpoints), `AGENTS.md` updated, v0.1.0 tagged, plan 
    produced the deployed sha. `Enter`/`o` open the item itself (PR when known).
 3. Build details fetch the run's jobs on `p` (`repos/{r}/actions/runs/{id}/jobs`), failures
    first with durations, loaded lazily through a `Request::Jobs` from the TUI to a fetch thread.
-4. Multi-line cards instead of rows: two lines per item, no row numbers (the `1-9` keys go),
-   the selected card marked with a colored bar and bold title instead of `> `; dim second line.
-5. Docs, snapshots, screenshots, v0.5.0.
+4. Multi-line cards instead of rows: three lines per item, no row numbers (the `1-9` keys go),
+   the selected card marked with a colored bar and bold title instead of `> `; dim lines below.
+5. `R` refreshes every column; one braille spinner at the start of the footer replaces the
+   per-title ones.
+6. Docs, snapshots, screenshots, v0.5.0.
+
+### Phase 5 outcome (2026-09-10)
+
+- Shipped on `phase-5-cards` (PR #7), plan versioned as `plans/phase-5-cards.md`: the static
+  `ui::logo()` with the crate version replaces the rolling belt; `b` opens the build behind any
+  card (`App::build_url` per stage) while `Enter` on a build now opens the PR it merged;
+  `R` → `Action::RefreshAll` and one footer spinner driven by `App::any_refreshing()`;
+  `model::jobs` + `fetch_jobs` with a dedicated jobs thread and `Request::Jobs`; three-line
+  cards with a cyan bar.
+- Mid-phase the user asked for **more lines, not fewer**: "I wanna see what matters at a glance
+  and rarely have to hit `p` or worse: go to the browser." So cards grew a third line carrying
+  the unhappy checks, the failed job and its step, or the deployed sha, and failing main builds
+  now fetch their jobs eagerly (`EAGER_JOBS = 5`) instead of only when selected.
+- Two refactors the user asked for in the same pass: `ui.rs` (830 lines) split into
+  `src/ui/{mod,style,card,columns,rows,details,footer,help}.rs`, and everything that talks to an
+  external service grouped under `src/sources/` (`github.rs`, `kube.rs`, `fetch.rs`,
+  `queries/`). `open.rs` stayed out: it is the OS seam, not a service.
+- `Action::OpenBuild` was dropped from the plan: it would have carried a `run()` arm identical
+  to `Action::Open`. `Action::LoadJobs` was dropped too: `run()` asks `App::jobs_needed()` after
+  every input, which also covers the re-request after a refresh drops an unsettled run's cache.
+- Deferred: job details for the queue's merge-group run and for a PR's check runs (only main
+  builds fetch jobs); a per-column selection bar colour for the unfocused columns.
 
 ## Deferred / backlog (discuss at retros)
 
