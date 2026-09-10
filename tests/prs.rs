@@ -255,3 +255,27 @@ fn a_failed_open_shows_in_the_footer_and_the_app_stays_up() {
     assert!(screen.contains("open: exec failed"), "{screen}");
     assert!(screen.contains("#1 webapp  a"), "{screen}");
 }
+
+#[test]
+fn a_refresh_keeps_the_row_order_and_the_selection_follows_the_number() {
+    let mut h = Harness::new();
+
+    h.run(vec![prs(three()), key(KeyCode::Char('j'))]).unwrap();
+    h.run(vec![prs(vec![pr(4, "d"), pr(3, "c"), pr(2, "b")])])
+        .unwrap();
+
+    let screen = h.screen();
+    let rows: Vec<&str> = screen.lines().collect();
+    assert!(rows[1].contains("#2 webapp  b"), "kept: {screen}");
+    assert!(rows[2].contains("#3 webapp  c"), "kept: {screen}");
+    assert!(rows[3].contains("#4 webapp  d"), "appended: {screen}");
+    assert!(!screen.contains("#1 webapp  a"), "gone: {screen}");
+    assert_eq!(highlighted_row(&screen), 1, "selection follows #2");
+
+    h.run(vec![prs(vec![pr(4, "d")])]).unwrap();
+    assert_eq!(
+        highlighted_row(&h.screen()),
+        1,
+        "falls back to the first row"
+    );
+}
