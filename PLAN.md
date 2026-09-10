@@ -32,10 +32,10 @@ per PR: `number title isDraft reviewDecision mergeStateStatus statusCheckRollup{
 mergeQueueEntry{position state} updatedAt url headRefName repository{nameWithOwner} additions
 deletions comments{totalCount} reviews reviewRequests`. Check contexts are a union of `CheckRun`
 (`name status conclusion detailsUrl`) and `StatusContext` (`context state targetUrl`). Your four
-open PRs are drafts in <repo> with `mergeStateStatus: UNKNOWN` (GitHub computes it lazily);
+open PRs are drafts with `mergeStateStatus: UNKNOWN` (GitHub computes it lazily);
 treat UNKNOWN as "—", not as an error.
 
-**Merge queue** (`<owner>/<repo>`): `repository.mergeQueue{ url configuration{mergeMethod
+**Merge queue** (a large monorepo with a merge queue): `repository.mergeQueue{ url configuration{mergeMethod
 maximumEntriesToBuild minimumEntriesToMerge mergingStrategy} entries(first:20){ nodes{ position
 state enqueuedAt estimatedTimeToMerge solo jump headCommit{oid statusCheckRollup{state}}
 pullRequest{number title author{login}} } } }`. Config today: SQUASH, build 5, merge 1, ALLGREEN.
@@ -43,7 +43,7 @@ Entry `state` ∈ AWAITING_CHECKS | LOCKED | MERGEABLE | QUEUED | UNMERGEABLE. Q
 moment; merge-group workflow runs are visible with `gh run list --event merge_group` on branches
 `gh-readonly-queue/main/pr-<N>-<base sha>` with `displayTitle` = workflow name (useless for the
 row; use the PR from the queue entry, or parse `pr-<N>` from the branch for runs whose entry has
-already left the queue). Rulesets endpoint returns nothing (classic protection), so the GraphQL
+already left the queue). Rulesets endpoint returned nothing for the probed repo (classic protection), so the GraphQL
 queue object is the only source.
 
 **Main builds**: `CI/CD` (`.github/workflows/cicd.yml`) runs on `push` to `main`, `merge_group`
@@ -56,8 +56,7 @@ rest. `history(first:10)` GraphQL with `associatedPullRequests` is the one-query
 
 **Deployed**: Argo CD image-updater pins a 40-hex sha per env in
 `<gitops repo>/<app>/{dev,staging,prod}/image-updater.yaml` (`image.tag`), `newest-build`
-strategy; Api namespace `api`. kubectl contexts:
-`teleport.<employer>.io-{production,staging,uat}-cluster` (staging current). `tsh status`
+strategy. kubectl contexts come from teleport, one per environment (staging current). `tsh status`
 shows the session **expired**, so a fetcher failure is the normal case, not the exception: the
 row shows the error and the app keeps running. GitHub Deployments API only records `staging`.
 Repo env names: Production, staging, Preview, copilot. sha → PR via `commits/{sha}/pulls`;
@@ -97,7 +96,7 @@ src/text.rs              truncate() with ellipsis (port from tmux-agents)
 src/open.rs              trait Opener { open(url); copy(text) }; system impl (`open`/`xdg-open`, `pbcopy`/`xclip`)
 scripts/homebrew-formula.sh, scripts/gates.sh (fmt, clippy -D warnings, test, test --ignored; fails loudly, never piped through tail)
 tests/support/mod.rs     Harness { terminal: TestBackend, app, gh: FakeGithub, kube: FakeKube, opener: FakeOpener }, key()/ctrl()/data()/tick(), screen(), cell(x,y), row builders
-tests/fixtures/*.json    verbatim `gh` output captured from <repo> (prs, queue, runs, commit pulls); refreshed when GitHub changes shape
+tests/fixtures/*.json    verbatim `gh` output captured from a public repo (prs, queue, runs, commit pulls); refreshed when GitHub changes shape
 tests/{prs,queue,builds,deployed,layout,config,cli,snapshots,e2e}.rs
 ```
 
@@ -143,7 +142,7 @@ system = "api"
 [[repo.deploy.env]]
 name = "staging"
 fetcher = "kubectl"
-context = "<kube context staging>"
+context = "<kube context>"
 namespace = "api"
 deployment = "api"
 ```
@@ -192,7 +191,7 @@ Outside-in order (`tests/prs.rs` drives `run()` with scripted inputs; one failin
 
 1. Empty data → column titled `My PRs (0)`, body `no open pull requests`; `q` quits.
 2. Loading state before the first `Data` input → `fetching…` in the body; a `Data` input replaces it.
-3. Two PRs → rows `#4821 ✓ Retry webhook delivery…  <repo>  2h`; first highlighted; `1-9` jump.
+3. Two PRs → rows `#4821 ✓ webapp  Retry webhook…  2h`; first highlighted; `1-9` jump.
    Row = number · check glyph (✓ success, ✗ failure, ● pending, ○ none) · title (truncated) ·
    repo · review glyph (approved / changes requested / review required) · draft marker · age.
 4. `j/k`, `Down/Up`, `g g`, `G` move and clamp (port from tmux-agents).
@@ -239,8 +238,9 @@ Phase 1 exit: retro (see checkpoints), `AGENTS.md` updated, v0.1.0 tagged, plan 
 - All 16 behaviours shipped on `phase-1-my-prs` (PR #2): 18 TUI tests, 8 snapshots, 4 parse,
   4 gh-seam, 2 fetch, 1 opener, 5 cli, 5 config, 2 ignored e2e (real binary, scratch tmux,
   `gh` shim). e2e also runs on the Linux CI runner.
-- Fixture is public data only (PR #1 of this repo): the repository is public, so no
-  <employer> PR titles or logins may land in `tests/fixtures/` or `docs/`.
+- Fixture is public data only (PR #1 of this repo): the repository is public, so no employer
+  data (org, repo names, PR titles, logins, hosts) may land anywhere in it; `scripts/scrub-check.sh`
+  gates against a local denylist.
 - Live shapes seen: `mergeStateStatus` ∈ {UNKNOWN, BEHIND, BLOCKED, CLEAN}; `reviewDecision`
   null on repos without required reviews; `StatusContext` has `state` and no `status`.
 - Traps: tmux pane login shells rebuild PATH (`respawn-pane -e PATH=…` silently ran the real
@@ -275,7 +275,7 @@ Phase 1 exit: retro (see checkpoints), `AGENTS.md` updated, v0.1.0 tagged, plan 
 
 ## Phase 4 — Deployed column (kubectl fetcher)
 
-- `[[repo.deploy]]` config as sketched; one row per env: `prod  #4780 (bob) feat: rate limits…
+- `[[repo.deploy]]` config as sketched; one row per env: `prod  #4790 (bob) Spike: parallel…
   ↓3 · 6d`, where `↓3` = commits behind main computed from the phase 3 list (or `—` when the sha
   is older than the list). `kube.rs` runs `kubectl --context C -n NS get deploy D -o
   jsonpath={.spec.template.spec.containers[0].image}`; tag after the last `:` must be 40 hex,
@@ -307,12 +307,12 @@ Phase 1 exit: retro (see checkpoints), `AGENTS.md` updated, v0.1.0 tagged, plan 
   `gh attestation verify conveyor-aarch64-apple-darwin.tar.gz --repo piacsek/conveyor`.
 - Phase 1: `conveyor` inside a 200-column pane shows four columns, the PR column matches
   `gh search prs --author @me --state open`; `Enter` opens the PR in the browser; `y` then paste;
-  `p` shows the 40 checks of #4792; unplug the network (or `GH_TOKEN=bad`) and press `r`: the
+  `p` lists every check of a PR; unplug the network (or `GH_TOKEN=bad`) and press `r`: the
   column goes `⚠`, rows stay, app stays up. Resize to 80 columns: tabs.
-- Phase 2: enqueue a throwaway PR in <repo> (or wait for someone's) and compare the column
+- Phase 2: enqueue a throwaway PR in the configured repo (or wait for someone's) and compare the column
   with `https://github.com/<owner>/<repo>/queue/main`.
 - Phase 3: compare with `gh run list --repo <owner>/<repo> --workflow cicd.yml --branch main --event push --limit 10`.
-- Phase 4: `tsh login` then compare with `kubectl -n api get deploy api -o jsonpath=…`; then
+- Phase 4: `tsh login` then compare with `kubectl -n <ns> get deploy <name> -o jsonpath=…`; then
   let the session expire and confirm the row degrades to an error without blanking.
 - Snapshot diffs read and committed after every intentional layout change
   (`INSTA_UPDATE=always cargo test --test snapshots`).

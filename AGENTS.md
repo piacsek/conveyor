@@ -11,6 +11,15 @@ environment runs. One column per stage, side by side; a focused column,
 actions on the selected row. `conveyor config` prints the effective config.
 `PLAN.md` holds the phase history, retros, and the backlog.
 
+## This repository is public
+
+No employer data, ever: no org or repo names, PR numbers or titles, logins, hostnames, cluster
+or kube-context names, ticket prefixes. Fixtures come from this repo's own public PRs;
+screenshots and TUI tests use invented `acme/*` data; plans and docs use `<owner>/<repo>`
+placeholders. `scripts/scrub-check.sh` (first gate) fails when a tracked file matches the
+local denylist at `~/.config/conveyor-dev/denylist` (kept outside the repo on purpose; the
+check is skipped where the file is absent, so CI does not enforce it).
+
 ## Layout
 
 ```
@@ -26,6 +35,7 @@ src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`
 src/text.rs      truncate/pad_right with `…`, age()
 src/queries/     GraphQL documents, `include_str!`ed
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
+scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
 scripts/ship.sh               gates + dev-install + commit + push, aborts on any failure
 scripts/homebrew-formula.sh   prints the tap formula for a released version
@@ -46,7 +56,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   Entry `state` ∈ AWAITING_CHECKS | LOCKED | MERGEABLE | QUEUED | UNMERGEABLE. The
   merge-group workflow runs (`gh run list --event merge_group`) live on branches
   `gh-readonly-queue/main/pr-<N>-<base sha>`; their `displayTitle` is the workflow name.
-  Rulesets return nothing for <repo> (classic protection); the GraphQL object is the source.
+  Rulesets returned nothing for the probed repo (classic protection); the GraphQL object is the source.
 - **Main builds**: `repos/{r}/actions/workflows/<file>/runs?branch=main&event=push`. Many
   workflows run on main (`issue_comment` bots, per-app deploys), so the build workflow is
   per-repo config (default `CI/CD`). Squash titles end in `(#N)`; `repos/{r}/commits/{sha}/pulls`
@@ -98,6 +108,27 @@ Whenever behaviour changes, check that `README.md` still covers it and is still 
 a default, a subcommand, a config key. The README must stay terse: one line per feature,
 defaults in the TOML block, no prose that repeats the code. Depth belongs here.
 
+## Working agreements
+
+All guidelines live in this file, versioned with the code; nothing binding lives only in an
+agent's private memory. When the user says "update the guidelines", edit this file.
+
+- **Cadence.** Work runs under `/tdd autonomous`: one branch per phase (`phase-N-<topic>`),
+  one commit per task through `scripts/ship.sh`, no pause between tasks, a pause only for the
+  end-of-phase retro. Retro outcomes go to `PLAN.md` (facts, decisions) and here (rules).
+- **Draft PR first.** The first ship on a branch opens the draft PR assigned to the user;
+  every later commit lands on that PR. Before merging, re-read the PR title and body and fix
+  what went stale without rewording the user's edits.
+- **Screenshots in PRs.** A PR with a visible change embeds the `docs/*.png` screenshots in
+  its body as commit-pinned `raw.githubusercontent.com` URLs.
+- **Merging and releasing.** Rebase-merge the phase PR into `main` when CI is green, then tag
+  from `main` (see Releasing). Never push to `main` directly except the very first bootstrap
+  commit of an empty repository, and never force-push.
+- **Two binaries.** `conveyor` on PATH is the Homebrew release; `conveyor-dev` is the working
+  tree (`scripts/dev-install.sh`). Never `cargo install` the crate into a PATH directory.
+- **Plan before code.** Each phase starts from the plan in `PLAN.md`, is re-planned after the
+  previous retro, and its "Verified facts" section is checked against live tools before use.
+
 ## Development
 
 Strict TDD: one failing test, minimal code, refactor. Outside-in: start from the binary or
@@ -114,10 +145,7 @@ cargo test -- --ignored        # e2e: real binary with a `gh` shim first on PATH
 ```
 
 Ship with `scripts/ship.sh "<message>"`: gates, `dev-install.sh`, commit, push, all under
-`set -e`, refusing to run on `main`. The first ship on a branch also opens the draft PR
-(`gh pr create --draft --assignee @me`); a branch must never carry commits without one.
-A PR with a visible change embeds the `docs/*.png` screenshots in its body, as commit-pinned
-`raw.githubusercontent.com` URLs so they outlive the branch. Do not hand-roll the chain: the interactive shell here is
+`set -e`, refusing to run on `main`, opening the draft PR on the first push of a branch. Do not hand-roll the chain: the interactive shell here is
 zsh, where `PIPESTATUS` is undefined and `test "" -eq 0` is true, so a `gates.sh | grep` guard
 silently passed a clippy failure into a commit on 2026-09-10.
 

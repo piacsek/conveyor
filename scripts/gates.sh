@@ -9,6 +9,7 @@ step() {
   "$@"
 }
 
+step scripts/scrub-check.sh
 step cargo fmt --check
 step cargo clippy --all-targets -- -D warnings
 step cargo test
