@@ -106,3 +106,51 @@ fn repo_tables_carry_defaults_for_the_build_workflow_and_intervals() {
         config.to_toml()
     );
 }
+
+#[test]
+fn deploy_tables_describe_systems_and_their_environments() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write(
+        &dir,
+        r#"[[repo]]
+name = "acme/webapp"
+
+[[repo.deploy]]
+system = "api"
+refresh_secs = 60
+
+[[repo.deploy.env]]
+name = "staging"
+fetcher = "kubectl"
+context = "teleport-staging"
+namespace = "api"
+deployment = "api"
+
+[[repo.deploy.env]]
+name = "prod"
+context = "teleport-prod"
+namespace = "api"
+deployment = "api"
+"#,
+    );
+
+    let config = load(&path).unwrap();
+
+    let deploy = &config.repo[0].deploy;
+    assert_eq!(deploy.len(), 1);
+    assert_eq!(deploy[0].system, "api");
+    assert_eq!(deploy[0].refresh_secs, 60);
+    assert_eq!(deploy[0].env.len(), 2);
+    assert_eq!(deploy[0].env[1].name, "prod");
+    assert_eq!(deploy[0].env[1].fetcher, conveyor::config::Fetcher::Kubectl);
+    assert_eq!(deploy[0].env[1].context, "teleport-prod");
+    assert_eq!(deploy[0].env[1].deployment, "api");
+    assert!(
+        config.to_toml().contains("[[repo.deploy.env]]"),
+        "{}",
+        config.to_toml()
+    );
+
+    let err = load(&write(&dir, "[[repo]]\nname = \"a/b\"\n[[repo.deploy]]\nsystem = \"x\"\n[[repo.deploy.env]]\nname = \"p\"\nfetcher = \"argocd\"\n")).unwrap_err();
+    assert!(err.to_string().contains("argocd"), "{err}");
+}
