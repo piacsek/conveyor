@@ -92,6 +92,7 @@ pub struct PullRequest {
     pub merge_state: MergeState,
     pub additions: u64,
     pub deletions: u64,
+    pub queue_position: Option<u64>,
     pub updated_at: Option<SystemTime>,
 }
 
@@ -146,6 +147,9 @@ fn parse_pull_request(node: &serde_json::Value) -> Option<PullRequest> {
         merge_state: merge_state(node.get("mergeStateStatus").and_then(|v| v.as_str())),
         additions: node.get("additions").and_then(|v| v.as_u64()).unwrap_or(0),
         deletions: node.get("deletions").and_then(|v| v.as_u64()).unwrap_or(0),
+        queue_position: node
+            .pointer("/mergeQueueEntry/position")
+            .and_then(|v| v.as_u64()),
         updated_at: node
             .get("updatedAt")
             .and_then(|v| v.as_str())

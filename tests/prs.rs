@@ -413,3 +413,19 @@ fn the_tab_layout_does_not_repeat_the_column_title() {
     let screen = h.screen();
     assert_eq!(screen.matches("My PRs (3)").count(), 1, "{screen}");
 }
+
+#[test]
+fn a_pull_request_in_the_merge_queue_shows_its_position_on_the_row() {
+    let mut h = Harness::new();
+    let mut queued = pr(4821, "Retry hooks");
+    queued.queue_position = Some(2);
+
+    h.run(vec![prs(vec![queued, pr(4830, "Rate limits")])])
+        .unwrap();
+
+    let screen = h.screen();
+    let rows: Vec<&str> = screen.lines().collect();
+    assert!(rows[1].contains("#4821 webapp  Retry hooks"), "{screen}");
+    assert!(rows[1].contains("⇥2 2h"), "{screen}");
+    assert!(!rows[2].contains("⇥"), "{screen}");
+}

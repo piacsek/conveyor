@@ -205,7 +205,11 @@ fn row_number(index: usize) -> String {
 }
 
 fn pr_row(index: usize, pr: &PullRequest, now: SystemTime, width: usize) -> Line<'static> {
-    let right = pr.updated_at.map(|at| age(at, now)).unwrap_or_default();
+    let age = pr.updated_at.map(|at| age(at, now)).unwrap_or_default();
+    let right = match pr.queue_position {
+        Some(position) => format!("⇥{position} {age}"),
+        None => age,
+    };
     let text = format!("#{} {}  {}", pr.number, short_repo(&pr.repo), pr.title);
     line(row_number(index), glyph(pr.checks), text, right, width)
 }

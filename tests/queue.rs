@@ -104,3 +104,31 @@ fn a_failed_queue_fetch_flags_the_column_and_shows_the_message() {
         h.screen()
     );
 }
+
+#[test]
+fn p_shows_queue_entry_details_for_the_focused_queue_column() {
+    let mut h = Harness::with_size(160, 20);
+    let mut entries = two();
+    entries[0].jump = true;
+
+    h.run(vec![
+        queue(entries),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('p')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(
+        screen.contains("#4821 by alice  position 1  checks  eta 12m  jump"),
+        "{screen}"
+    );
+    assert!(
+        screen.contains("enqueued 20m ago  checks: pending"),
+        "{screen}"
+    );
+    assert!(
+        screen.contains("https://github.com/acme/webapp/pull/4821"),
+        "{screen}"
+    );
+}
