@@ -118,3 +118,20 @@ fn enter_and_o_open_the_selected_pull_request_and_keep_running() {
         "still open on the same row"
     );
 }
+
+#[test]
+fn y_copies_the_url_and_the_footer_confirms_it() {
+    let mut h = Harness::new();
+
+    h.run(vec![prs(three()), key(KeyCode::Char('y'))]).unwrap();
+
+    assert_eq!(
+        h.opener.copied(),
+        vec!["https://github.com/acme/webapp/pull/1".to_string()]
+    );
+    let screen = h.screen();
+    assert!(screen.contains("copied #1"), "{screen}");
+
+    h.run(vec![key(KeyCode::Char('j'))]).unwrap();
+    assert!(!h.screen().contains("copied #1"), "cleared by the next key");
+}
