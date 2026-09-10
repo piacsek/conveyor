@@ -15,11 +15,12 @@ use crate::text::{age, clock, duration, pad_right, refreshed};
 
 const HIGHLIGHT: &str = "> ";
 
-pub const KEYS: [(&str, &str); 10] = [
+pub const KEYS: [(&str, &str); 11] = [
     ("j/k ↓/↑", "move"),
     ("1-9", "jump to row"),
     ("h/l Tab", "focus column"),
     ("Enter/o", "open in browser"),
+    ("b", "open build"),
     ("y", "copy URL"),
     ("p", "details"),
     ("/", "filter"),

@@ -87,8 +87,10 @@ the snapshot, but stay in Unicode box/geometric shapes, no emoji). `ui::belt(now
 `ui::logo() -> String` with `env!("CARGO_PKG_VERSION")`. Footer layout stays
 `[text | Fill] [logo | Length]`. Remove the "belt" wording from README and AGENTS.md.
 
-**`b` semantics (task 2 in execution order).** New `Action::OpenBuild(String)` from key `b`
-(`KEYS` gets `("b", "open build")`; README keys line too). Per focused column:
+**`b` semantics (task 2 in execution order).** Key `b` reuses `Action::Open` (a separate
+`OpenBuild` variant would have carried an identical `run()` arm, so it was dropped;
+`App::build_url()` picks the URL) with the same debounce (`KEYS` gets `("b", "open build")`;
+README keys line too). Per focused column:
 - Prs: URL of the first check in `checks_failures_first()` that has a non-empty `url` (failures
   first, so a failing check wins); none → footer notice `no checks yet`.
 - Queue: `run_url`; none → notice `no merge-group run yet`.
@@ -96,7 +98,8 @@ the snapshot, but stay in Unicode box/geometric shapes, no emoji). `ui::belt(now
   known and the run otherwise (today Enter opens the run; change it and update
   `tests/builds.rs::enter_opens_the_run_and_p_shows_its_details`).
 - Deployed: the run URL of the Main builds entry whose `sha` equals the row's sha
-  (`app.builds.all()`); none → notice `no main build found for <sha8>`.
+  (`app.builds.all()`); none → notice `no main build found for <sha8>`, and a row without a
+  sha at all → `no deployed sha to look up`.
 `OpenBuild` goes through the same `attempt(app, opener.open(url))` and the same 1 s debounce as
 `Open` (share `opened_recently`).
 

@@ -293,6 +293,8 @@ fn question_mark_shows_the_key_help_and_any_key_returns() {
         "j/k",
         "Enter/o",
         "open in browser",
+        "b",
+        "open build",
         "y",
         "copy URL",
         "p",
@@ -542,4 +544,40 @@ fn a_static_dim_logo_with_the_version_sits_at_the_bottom_right() {
         footer,
         "the footer does not move between ticks"
     );
+}
+
+#[test]
+fn b_opens_the_check_run_behind_a_pull_request_and_says_so_when_there_is_none() {
+    use conveyor::model::prs::{Check, CheckConclusion};
+    let mut h = Harness::new();
+    let mut checked = pr(4821, "Retry hooks");
+    checked.checks_detail = vec![
+        Check {
+            name: "lint".to_string(),
+            conclusion: CheckConclusion::Success,
+            url: "https://ci/lint".to_string(),
+        },
+        Check {
+            name: "api / test".to_string(),
+            conclusion: CheckConclusion::Failure,
+            url: "https://ci/test".to_string(),
+        },
+    ];
+
+    h.run(vec![
+        prs(vec![checked, pr(4830, "Rate limits")]),
+        key(KeyCode::Char('b')),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        h.opener.opened(),
+        vec!["https://ci/test".to_string()],
+        "the failing check wins"
+    );
+
+    h.run(vec![key(KeyCode::Char('j')), key(KeyCode::Char('b'))])
+        .unwrap();
+    assert_eq!(h.opener.opened().len(), 1, "no second open");
+    assert!(h.screen().contains("no checks yet"), "{}", h.screen());
 }

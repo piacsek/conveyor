@@ -7,13 +7,13 @@ expression: h.screen()
 │1-9      jump to row                                                                                                                                          │
 │h/l Tab  focus column                                                                                                                                         │
 │Enter/o  open in browser                                                                                                                                      │
+│b        open build                                                                                                                                           │
 │y        copy URL                                                                                                                                             │
 │p        details                                                                                                                                              │
 │/        filter                                                                                                                                               │
 │r        refresh                                                                                                                                              │
 │?        this help                                                                                                                                            │
 │q Esc    quit                                                                                                                                                 │
-│                                                                                                                                                              │
 │                                                                                                                                                              │
 │                                                                                                                                                              │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
