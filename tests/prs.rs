@@ -91,3 +91,30 @@ fn j_k_arrows_gg_and_g_move_the_highlight_and_clamp() {
         .unwrap();
     assert_eq!(highlighted_row(&h.screen()), 1);
 }
+
+#[test]
+fn enter_and_o_open_the_selected_pull_request_and_keep_running() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(three()),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Enter),
+        key(KeyCode::Char('o')),
+        key(KeyCode::Char('q')),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        h.opener.opened(),
+        vec![
+            "https://github.com/acme/webapp/pull/2".to_string(),
+            "https://github.com/acme/webapp/pull/2".to_string(),
+        ]
+    );
+    assert_eq!(
+        highlighted_row(&h.screen()),
+        2,
+        "still open on the same row"
+    );
+}
