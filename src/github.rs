@@ -79,6 +79,7 @@ impl CliGh {
     fn run(&self, args: &[String]) -> io::Result<String> {
         let output = Command::new(&self.program)
             .args(args)
+            .stdin(std::process::Stdio::null())
             .output()
             .map_err(|err| {
                 if err.kind() == io::ErrorKind::NotFound {

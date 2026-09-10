@@ -15,3 +15,8 @@ git add -A
 git commit -q -m "$message"
 git push -q -u origin "$branch"
 git log --oneline -1
+if ! gh pr view "$branch" --json number >/dev/null 2>&1; then
+  title="$(echo "$branch" | sed -E 's/[-_]+/ /g; s/^./\U&/')"
+  gh pr create --draft --assignee @me --title "$title" --body "Work in progress on \`$branch\`; one commit per task." >/dev/null
+  echo "opened draft PR for $branch"
+fi

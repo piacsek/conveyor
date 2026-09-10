@@ -58,7 +58,21 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 - **Errors stay inside the TUI.** A failed action or fetch sets an error drawn in the footer
   or column title; the app never exits on it.
 - **Draw before the first read.** `run()` renders, then waits for input.
+- **`gh` never inherits the terminal.** `CliGh::run` gives it a null stdin, so a `gh` that
+  wants to prompt (no auth, `HOME` pointing elsewhere) fails fast instead of hanging the
+  fetch thread behind `fetching…`.
 - **Colors** come from the ANSI palette so terminal themes apply. Do not hardcode hex.
+
+## Testing traps hit so far
+
+- `tests/e2e.rs` runs the real binary in a scratch tmux server (`-L`, `-f /dev/null`) with
+  `HOME` in a tempdir and a `gh` shell shim that prints `tests/fixtures/prs.json`. The pane
+  command must be `env HOME=… PATH=… <binary>`: `respawn-pane -e PATH=…` looked right but
+  the pane's login shell rebuilt `PATH` (macOS `path_helper` and rc files), the shim was
+  never found and the real `gh` ran. Sockets are per test so parallel tests never share a
+  server.
+- Rows in a 40-column pane hold about 33 characters after the number, glyph, repo and age;
+  behaviour tests use short titles, snapshots carry the truncation.
 
 ## Documentation rule
 
@@ -86,7 +100,8 @@ cargo test -- --ignored        # e2e: real binary with a `gh` shim first on PATH
 ```
 
 Ship with `scripts/ship.sh "<message>"`: gates, `dev-install.sh`, commit, push, all under
-`set -e`, refusing to run on `main`. Do not hand-roll the chain: the interactive shell here is
+`set -e`, refusing to run on `main`. The first ship on a branch also opens the draft PR
+(`gh pr create --draft --assignee @me`); a branch must never carry commits without one. Do not hand-roll the chain: the interactive shell here is
 zsh, where `PIPESTATUS` is undefined and `test "" -eq 0` is true, so a `gates.sh | grep` guard
 silently passed a clippy failure into a commit on 2026-09-10.
 
