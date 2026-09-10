@@ -46,8 +46,8 @@ fn main_builds() -> Vec<conveyor::model::builds::Build> {
 }
 
 #[test]
-fn deployed_cards_show_env_pull_request_sha_and_how_far_behind_main() {
-    let mut h = Harness::new();
+fn deployed_cards_give_each_field_its_own_line_with_the_title_before_the_author() {
+    let mut h = Harness::with_size(160, 20);
 
     h.run(vec![builds(main_builds()), deployed(envs())])
         .unwrap();
@@ -56,25 +56,48 @@ fn deployed_cards_show_env_pull_request_sha_and_how_far_behind_main() {
     assert!(col[0].contains("Deployed api"), "{}", h.screen());
     assert!(col[1].contains("▌ ✓ staging"), "{}", h.screen());
     assert!(col[1].contains("at main"), "{}", h.screen());
-    assert!(col[2].contains("#4840 bob · Speed up CI"), "{}", h.screen());
-    assert!(col[3].contains("00000000 · read 6d ago"), "{}", h.screen());
+    assert!(col[2].contains("#4840 Speed up CI"), "{}", h.screen());
+    assert!(col[3].contains("bob"), "the author below: {}", h.screen());
+    assert!(col[4].contains("00000000 · read 6d ago"), "{}", h.screen());
+    assert!(col[5].contains("◐ prod"), "{}", h.screen());
+    assert!(col[5].contains("↓2"), "two builds behind: {}", h.screen());
+    assert!(col[6].contains("#4790 Spike tests"), "{}", h.screen());
+    assert!(col[7].contains("dave"), "{}", h.screen());
+    assert!(col[9].contains("✗ uat"), "{}", h.screen());
     assert!(
-        col[4].contains("◐ prod"),
-        "behind main is a half circle, never the ● of a running build: {}",
-        h.screen()
-    );
-    assert!(col[4].contains("↓2"), "two builds behind: {}", h.screen());
-    assert!(
-        col[5].contains("#4790 dave · Spike tests"),
-        "{}",
-        h.screen()
-    );
-    assert!(col[7].contains("✗ uat"), "{}", h.screen());
-    assert!(
-        col[8].contains("ERROR: Active profile expired."),
+        col[10].contains("ERROR: Active profile expired."),
         "the error takes the place of a pull request: {}",
         h.screen()
     );
+}
+
+#[test]
+fn a_long_pull_request_title_wraps_onto_a_second_line() {
+    let mut h = Harness::new();
+    let rows = vec![deployment(
+        "staging",
+        26,
+        Some((
+            4840,
+            "bob",
+            "Cancel the pending notification job when a tour is rebooked",
+        )),
+    )];
+
+    h.run(vec![deployed(rows)]).unwrap();
+
+    let col = column(&h.screen(), 3);
+    assert!(
+        col[2].contains("#4840 Cancel the pending"),
+        "{}",
+        h.screen()
+    );
+    assert!(
+        col[3].contains("notification job when a tour"),
+        "{}",
+        h.screen()
+    );
+    assert!(col[4].contains("bob"), "{}", h.screen());
 }
 
 #[test]
@@ -98,12 +121,12 @@ fn a_failed_env_keeps_its_last_known_sha_from_the_previous_fetch() {
     let col = column(&h.screen(), 3);
     assert!(col[1].contains("✗ staging"), "{}", h.screen());
     assert!(
-        col[2].contains("#4840 bob · Speed up CI"),
+        col[2].contains("#4840 Speed up CI"),
         "old row kept: {}",
         h.screen()
     );
     assert!(
-        col[3].contains("kubectl exited with exit status: 1"),
+        col[4].contains("kubectl exited with exit status: 1"),
         "the error is on the card: {}",
         h.screen()
     );

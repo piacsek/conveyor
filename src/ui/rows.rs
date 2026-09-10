@@ -8,25 +8,19 @@ use crate::model::builds::{Build, BuildStatus};
 use crate::model::deployed::Deployment;
 use crate::model::prs::{Check, CheckConclusion, MergeState, PullRequest, ReviewDecision};
 use crate::model::queue::QueueEntry;
-use crate::text::{age, duration, truncate};
+use crate::text::{age, duration, truncate, wrap};
 use crate::ui::card::{card, meta};
 use crate::ui::style::{
     INDENT, build_glyph, check_word, conclusion_glyph, dim, glyph, sha8, short_repo, status_word,
 };
+
+const DEPLOYED_TITLE_LINES: usize = 2;
 
 pub(crate) fn build_label(build: &Build) -> (String, String) {
     match (&build.pull, build.pr_number) {
         (Some(pull), _) => (format!("#{}", pull.number), pull.author.clone()),
         (None, Some(number)) => (format!("#{number}"), build.actor.clone()),
         (None, None) => (format!("run {}", build.run_number), build.actor.clone()),
-    }
-}
-
-pub(crate) fn pull_text(row: &Deployment) -> String {
-    match (&row.pull, &row.sha) {
-        (Some(pull), _) => format!("#{} {} · {}", pull.number, pull.author, pull.title),
-        (None, Some(sha)) => sha.chars().take(8).collect(),
-        (None, None) => "unknown".to_string(),
     }
 }
 
@@ -234,9 +228,18 @@ pub(crate) fn deployed_row(
         Some(n) => format!("↓{n}"),
         None => String::new(),
     };
-    let mut below = Vec::new();
-    if row.pull.is_some() || row.sha.is_some() {
-        below.push(meta(&[pull_text(row)], width));
+    let mut below: Vec<Vec<Span<'static>>> = Vec::new();
+    if let Some(pull) = &row.pull {
+        below.extend(
+            wrap(
+                &format!("#{} {}", pull.number, pull.title),
+                width.saturating_sub(INDENT),
+                DEPLOYED_TITLE_LINES,
+            )
+            .into_iter()
+            .map(|line| vec![Span::styled(line, dim())]),
+        );
+        below.push(meta(std::slice::from_ref(&pull.author), width));
     }
     if let Some(error) = &row.error {
         below.push(vec![Span::styled(
@@ -258,6 +261,5 @@ pub(crate) fn deployed_row(
     if below.is_empty() {
         below.push(meta(&["unknown".to_string()], width));
     }
-    below.truncate(2);
     card(selected, glyph, row.env.clone(), right, below, width)
 }
