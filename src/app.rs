@@ -51,6 +51,7 @@ pub enum Rows {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Input {
     Key(KeyEvent),
+    Fetching(Stage),
     Data(Stage, Result<Rows, String>),
     Tick(SystemTime),
 }
@@ -141,6 +142,7 @@ impl<T> ColumnState<T> {
 pub struct Column<T> {
     pub state: ColumnState<T>,
     pub error: Option<String>,
+    pub refreshing: bool,
     pub list: ListState,
     pub filter: Option<String>,
 }
@@ -150,6 +152,7 @@ impl<T> Default for Column<T> {
         Self {
             state: ColumnState::Loading,
             error: None,
+            refreshing: false,
             list: ListState::default().with_selected(Some(0)),
             filter: None,
         }
@@ -197,10 +200,16 @@ impl<T: Row> Column<T> {
             fetched_at: now,
         };
         self.error = None;
+        self.refreshing = false;
         let index = selected
             .and_then(|key| self.visible().iter().position(|row| row.key() == key))
             .unwrap_or(0);
         self.list.select(Some(index));
+    }
+
+    pub fn fail(&mut self, message: String) {
+        self.error = Some(message);
+        self.refreshing = false;
     }
 
     fn select_next(&mut self) {
@@ -277,10 +286,28 @@ impl App {
                 self.queue_repo = Some(queue.repo);
                 self.queue.receive(queue.entries, self.now);
             }
-            (Stage::Prs, Err(message)) => self.prs.error = Some(message),
-            (Stage::Queue, Err(message)) => self.queue.error = Some(message),
+            (Stage::Prs, Err(message)) => self.prs.fail(message),
+            (Stage::Queue, Err(message)) => self.queue.fail(message),
             _ => {}
         }
+    }
+
+    pub fn fetching(&mut self, stage: Stage) {
+        match stage {
+            Stage::Prs => self.prs.refreshing = true,
+            Stage::Queue => self.queue.refreshing = true,
+            Stage::Builds | Stage::Deployed => {}
+        }
+    }
+
+    pub fn spinner(&self) -> char {
+        const FRAMES: [char; 10] = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+        let millis = self
+            .now
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0);
+        FRAMES[(millis / 100 % FRAMES.len() as u128) as usize]
     }
 
     pub fn filter(&self) -> Option<&str> {
@@ -495,6 +522,7 @@ where
         };
         match input? {
             Input::Tick(now) => app.now = now,
+            Input::Fetching(stage) => app.fetching(stage),
             Input::Data(stage, data) => app.receive(stage, data),
             Input::Key(key) => match app.handle_key(key) {
                 Action::Quit => return Ok(()),
