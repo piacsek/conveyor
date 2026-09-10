@@ -41,7 +41,9 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         body
     };
     draw_footer(frame, app, footer);
-    if body.width < app.config.ui.min_column_width * Stage::ALL.len() as u16 {
+    if app.zoom {
+        draw_column(frame, app, app.focus, body, true);
+    } else if body.width < app.config.ui.min_column_width * Stage::ALL.len() as u16 {
         draw_tabs(frame, app, body);
     } else {
         let columns = Layout::horizontal([Constraint::Fill(1); 4]).split(body);

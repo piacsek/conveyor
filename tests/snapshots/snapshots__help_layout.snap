@@ -9,12 +9,12 @@ expression: h.screen()
 │b        open build                                                                                                                                           │
 │y        copy URL                                                                                                                                             │
 │p        details                                                                                                                                              │
+│z        zoom the column                                                                                                                                      │
 │/        filter                                                                                                                                               │
 │r        refresh                                                                                                                                              │
 │R        refresh all                                                                                                                                          │
 │?        this help                                                                                                                                            │
 │q Esc    quit                                                                                                                                                 │
-│                                                                                                                                                              │
 │                                                                                                                                                              │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 any key returns

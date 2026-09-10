@@ -61,8 +61,9 @@ Narrow terminals collapse the columns into tabs:
 ![tabs](docs/tabs.png)
 
 Keys: `j/k` move, `h/l`/`Tab` focus a column, `Enter`/`o` open in the
-browser, `b` open the build behind the row, `y` copy the URL, `p` details pane, `/` filter,
-`r` refresh the focused column, `R` refresh all of them, `?` help, `q` quit. Keys act on the focused column.
+browser, `b` open the build behind the row, `y` copy the URL, `p` details pane, `z` zoom the
+focused column to the full width, `/` filter, `r` refresh the focused column, `R` refresh all
+of them, `?` help, `q` quit. Keys act on the focused column.
 Below `4 × min_column_width` columns the four columns collapse into tabs (`h/l` switch). A failed fetch keeps
 the last rows, marks the column `⚠` and shows the error in the footer; the app never exits on
 it.
