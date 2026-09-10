@@ -289,6 +289,19 @@ Phase 1 exit: retro (see checkpoints), `AGENTS.md` updated, v0.1.0 tagged, plan 
 - Open → run URL; `y` → run URL. `L` (backlog) → `gh run view --log-failed` in a pager.
 - Fixture `tests/fixtures/runs.json` from the REST endpoint above.
 
+### Phase 3 outcome (2026-09-10)
+
+- Shipped on `phase-3-main-builds` (PR #4): builds model from real captures of this repo's CI
+  runs; `BuildsSource` resolving `main_workflow` by name or file and caching sha→PR lookups;
+  column rows, details and failures; fetcher thread; e2e and screenshots through the
+  dispatching shim.
+- User adjustments folded in: open debounce (held `Enter` opened endless tabs), braille spinner
+  while refreshing, `refreshed just now` / `refreshed at HH:MM:SS`, conveyor belt bottom right.
+- Flaky test found and fixed: `gh` shim tests raced on fork (`Text file busy`) on Linux only;
+  serialized with a mutex; lesson in `AGENTS.md`.
+- Not done: run jobs in details (`repos/{r}/actions/runs/{id}/jobs`), only the first `[[repo]]`
+  is watched, `Enter` on a build opens the run (no key for the PR yet).
+
 ## Phase 4 — Deployed column (kubectl fetcher)
 
 - `[[repo.deploy]]` config as sketched; one row per env: `prod  #4790 (bob) Spike: parallel…
