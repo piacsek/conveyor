@@ -33,7 +33,17 @@ From source (needs Rust 1.98+):
 cargo install --git https://github.com/piacsek/conveyor --locked
 ```
 
-Requires `gh` logged in (`gh auth login`).
+### Dependencies
+
+Runtime:
+
+- `gh` (GitHub CLI), logged in: `gh auth login`. Every GitHub read goes through it, so its
+  keyring login and SSO apply. Homebrew installs it as a dependency.
+- `open` and `pbcopy` (macOS) or `xdg-open` and `xclip` (Linux) for opening a row in the
+  browser and copying its URL.
+- `kubectl` with a working context, only for the deployed column (phase 4).
+
+Build: Rust 1.98 or newer. No other toolchain.
 
 ## Configure
 

@@ -1,0 +1,63 @@
+{
+    "data": {
+        "search": {
+            "issueCount": 1,
+            "nodes": [
+                {
+                    "number": 1,
+                    "title": "Phase 0: setup",
+                    "url": "https://github.com/piacsek/conveyor/pull/1",
+                    "isDraft": false,
+                    "updatedAt": "2026-09-10T15:25:43Z",
+                    "headRefName": "phase-0-setup",
+                    "repository": {
+                        "nameWithOwner": "piacsek/conveyor"
+                    },
+                    "author": {
+                        "login": "piacsek"
+                    },
+                    "reviewDecision": null,
+                    "mergeStateStatus": "UNKNOWN",
+                    "additions": 1007,
+                    "deletions": 1,
+                    "mergeQueueEntry": null,
+                    "statusCheckRollup": {
+                        "state": "SUCCESS",
+                        "contexts": {
+                            "totalCount": 3,
+                            "nodes": [
+                                {
+                                    "name": "check",
+                                    "status": "COMPLETED",
+                                    "conclusion": "SUCCESS",
+                                    "detailsUrl": "https://github.com/piacsek/conveyor/actions/runs/34495175627/job/102931850230"
+                                },
+                                {
+                                    "name": "audit",
+                                    "status": "COMPLETED",
+                                    "conclusion": "SUCCESS",
+                                    "detailsUrl": "https://github.com/piacsek/conveyor/actions/runs/34495175627/job/102931850457"
+                                },
+                                {
+                                    "name": "GitGuardian Security Checks",
+                                    "status": "COMPLETED",
+                                    "conclusion": "SUCCESS",
+                                    "detailsUrl": "https://dashboard.gitguardian.com"
+                                }
+                            ]
+                        }
+                    },
+                    "reviews": {
+                        "nodes": []
+                    },
+                    "reviewRequests": {
+                        "nodes": []
+                    },
+                    "comments": {
+                        "totalCount": 0
+                    }
+                }
+            ]
+        }
+    }
+}
