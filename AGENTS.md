@@ -131,6 +131,15 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   fetch thread behind `fetching…`.
 - **Zoom.** `z` toggles `App::zoom`; `ui::draw` then renders only `app.focus` across the whole
   body and skips the tabs check, so the narrow layout is unaffected. Nothing else reads the flag.
+- **Row order is per column, and `merge_keeping_order` alone is not enough.** A refresh merges
+  the fresh rows onto the old order and appends whatever is new **at the end**, which is right
+  for My PRs (the search query owns the order) and for Deployed (config order), and wrong for
+  any column whose order carries meaning: a new main build or a jumped queue entry drifted to
+  the bottom over a long session. `Row::ORDER` fixes it per type: `Build` is
+  `ByRankDescending` on `run_number`, `QueueEntry` is `ByRankAscending` on `position`, the
+  rest are `AsFetched`. `Column::receive` applies it on every fetch, so the order holds from
+  the first draw through every incremental refresh and never depends on what order the API
+  happened to return.
 - **Keys act on the focused column.** `App::with_focused` dispatches navigation to the
   `Column` of `app.focus`; `Enter`/`y` use `selected_target` (a build opens the PR it merged
   when one is known, else the run), `b` uses `build_url`.

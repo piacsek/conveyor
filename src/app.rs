@@ -95,8 +95,22 @@ pub enum Mode {
     Help,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Order {
+    AsFetched,
+    ByRankAscending,
+    ByRankDescending,
+}
+
 pub trait Row: Clone {
+    const ORDER: Order = Order::AsFetched;
+
     fn key(&self) -> u64;
+
+    fn rank(&self) -> u64 {
+        0
+    }
+
     fn url(&self) -> &str;
     fn matches(&self, query: &str) -> bool;
 }
@@ -122,8 +136,14 @@ impl Row for PullRequest {
 }
 
 impl Row for QueueEntry {
+    const ORDER: Order = Order::ByRankAscending;
+
     fn key(&self) -> u64 {
         self.number
+    }
+
+    fn rank(&self) -> u64 {
+        self.position
     }
 
     fn url(&self) -> &str {
@@ -142,8 +162,14 @@ impl Row for QueueEntry {
 }
 
 impl Row for Build {
+    const ORDER: Order = Order::ByRankDescending;
+
     fn key(&self) -> u64 {
         self.id
+    }
+
+    fn rank(&self) -> u64 {
+        self.run_number
     }
 
     fn url(&self) -> &str {
@@ -271,8 +297,14 @@ impl<T: Row> Column<T> {
     pub fn receive(&mut self, rows: Vec<T>, now: SystemTime) {
         let selected = self.selected().map(Row::key);
         let current = std::mem::take(&mut self.state).into_rows();
+        let mut rows = merge_keeping_order(current, rows);
+        match T::ORDER {
+            Order::AsFetched => {}
+            Order::ByRankAscending => rows.sort_by_key(Row::rank),
+            Order::ByRankDescending => rows.sort_by_key(|row| std::cmp::Reverse(row.rank())),
+        }
         self.state = ColumnState::Ready {
-            rows: merge_keeping_order(current, rows),
+            rows,
             fetched_at: now,
         };
         self.error = None;
