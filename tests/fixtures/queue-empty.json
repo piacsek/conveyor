@@ -1,0 +1,1 @@
+{"data":{"repository":{"mergeQueue":{"url":"https://github.com/acme/webapp/queue/main","configuration":{"mergeMethod":"SQUASH","maximumEntriesToBuild":5,"minimumEntriesToMerge":1,"mergingStrategy":"ALLGREEN"},"entries":{"totalCount":0,"nodes":[]}}}}}
