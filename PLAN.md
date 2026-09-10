@@ -263,6 +263,22 @@ Phase 1 exit: retro (see checkpoints), `AGENTS.md` updated, v0.1.0 tagged, plan 
   empty capture from today for the empty state.
 - A PR that is both yours and queued: the PRs column shows a `⇥ #pos` marker from `mergeQueueEntry`.
 
+### Phase 2 outcome (2026-09-10)
+
+- Shipped on `phase-2-merge-queue` (PR #3): `[[repo]]` config with cwd fallback via `gh repo
+  view`; queue model + synthetic fixture; generic `Column<T: Row>` refactor (keys act on the
+  focused column, per-column error/fetched_at/filter); queue rows, details, failures; `⇥n`
+  marker on own queued PRs; merge-group run attached per entry through the REST runs API;
+  per-stage fetch threads with refresh channels; e2e with a dispatching `gh` shim; queue
+  snapshots and screenshot.
+- Live check: this repo (no queue) shows the error in place; the employer repo showed an empty
+  queue at the time, so the populated rendering was only verified through the synthetic
+  fixture. First real queue sighting should be compared against the GitHub queue page.
+- Process: `ship.sh` opened the draft PR on the first push (title casing fixed for BSD `sed`);
+  tasks 5–7 landed in one commit (three small behaviours), a deviation from one-commit-per-task.
+- Retro candidates: main builds now feed the queue's "n behind" idea; `refresh_secs` per
+  repo is read but only the first repo is watched; `Tick` still only drives ages.
+
 ## Phase 3 — Main builds column
 
 - Rows = last N (`repo.builds`, default 10) runs of `main_workflow` on `main` with

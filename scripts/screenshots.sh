@@ -49,7 +49,16 @@ cat >"$home/prs.json" <<JSON
   "reviews":{"nodes":[]},"reviewRequests":{"nodes":[]},"comments":{"totalCount":0}}
 ]}}}
 JSON
-printf '#!/bin/sh\ncat "%s/prs.json"\n' "$home" >"$home/bin/gh"
+cp "$root/tests/fixtures/queue.json" "$home/queue.json"
+cat >"$home/bin/gh" <<SHIM
+#!/bin/sh
+case "\$*" in
+  *'repository(owner'*) cat "$home/queue.json";;
+  *'repo view'*) echo acme/webapp;;
+  *actions/runs*) echo '{"workflow_runs":[{"head_branch":"gh-readonly-queue/main/pr-4821-0000000000000000000000000000000000000000","status":"in_progress","conclusion":null,"html_url":"https://github.com/acme/webapp/actions/runs/1"}]}';;
+  *) cat "$home/prs.json";;
+esac
+SHIM
 chmod +x "$home/bin/gh"
 
 shot_window="$(t new-session -d -s main -x 160 -y 14 -c "$home" -P -F '#{window_id}')"
@@ -91,5 +100,6 @@ shoot() {
 
 shoot columns 160 14 ""
 shoot details 160 22 "p"
+shoot queue   160 22 "lp"
 shoot tabs     80 14 ""
-echo "wrote $out/columns.png $out/details.png $out/tabs.png"
+echo "wrote $out/columns.png $out/details.png $out/queue.png $out/tabs.png"

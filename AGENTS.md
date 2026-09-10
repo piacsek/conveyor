@@ -26,10 +26,11 @@ check is skipped where the file is absent, so CI does not enforce it).
 src/main.rs      CLI dispatch, config load, wiring
 src/cli.rs       `conveyor` (TUI) | `config` | `--help` | `--version`; hand-rolled, no clap
 src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override
-src/github.rs    Github trait (`graphql(query, vars)`), CliGh spawns `gh api graphql`, error mapping
-src/fetch.rs     fetch_prs(gh, config): the search query from `src/queries/prs.graphql` → parsed rows
+src/github.rs    Github trait (`graphql`, `rest`, `current_repo`), CliGh spawns `gh api …` / `gh repo view`, error mapping
+src/fetch.rs     repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST); queries in `src/queries/`
 src/model/prs.rs PullRequest, CheckState, Check, ReviewDecision, MergeState; lenient `parse` of gh JSON
-src/app.rs       App state (Mode::{Normal, Filter, Help}, focus, details), Input::{Key, Data, Tick}, run()
+src/model/queue.rs Queue, QueueEntry, QueueState, MergeGroupRun; `parse`, `parse_merge_group_runs`, `attach_runs`
+src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode), Input::{Key, Data, Tick}, run()
 src/ui.rs        rendering: 4 columns or tabs below `4 × ui.min_column_width`; KEYS drives the help view
 src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`)
 src/text.rs      truncate/pad_right with `…`, age()
@@ -51,7 +52,14 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `contexts` is a union of `CheckRun` (`name status conclusion detailsUrl`) and
   `StatusContext` (`context state targetUrl`). `mergeStateStatus` is often `UNKNOWN`
   (GitHub computes it lazily): show it as `—`, never as an error.
-- **Merge queue**: `repository.mergeQueue.entries` (`position state enqueuedAt
+- **Merge queue**: one query per repo (`src/queries/queue.graphql`) plus one REST call
+  `repos/{r}/actions/runs?event=merge_group&per_page=30`; runs are matched to entries by the
+  `pr-<N>-` segment of `head_branch` and the newest run wins. The REST call is optional: a
+  failure leaves the entries with the rollup state from GraphQL. A repository without a queue
+  (`mergeQueue: null`) is a column error, not a crash. `tests/fixtures/queue.json` is
+  **synthetic** (built from the schema; no public repo with a queue was at hand) and
+  `queue-empty.json` is a real empty response.
+- **Merge queue schema**: `repository.mergeQueue.entries` (`position state enqueuedAt
   estimatedTimeToMerge solo jump headCommit{oid} pullRequest{number title author}`).
   Entry `state` ∈ AWAITING_CHECKS | LOCKED | MERGEABLE | QUEUED | UNMERGEABLE. The
   merge-group workflow runs (`gh run list --event merge_group`) live on branches
@@ -80,6 +88,12 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 - **`gh` never inherits the terminal.** `CliGh::run` gives it a null stdin, so a `gh` that
   wants to prompt (no auth, `HOME` pointing elsewhere) fails fast instead of hanging the
   fetch thread behind `fetching…`.
+- **Keys act on the focused column.** `App::with_focused` dispatches navigation to the
+  `Column` of `app.focus`; `Enter`/`y` use `selected_target`. Adding a stage means a new
+  `Column<T>` field, a `Row` impl, a `Rows` variant, and arms in `receive`, `focused_*`,
+  `selected_target`, `with_focused`, `column_title`, `draw_column` and `draw_details`.
+- **The `gh` shim in e2e and screenshots dispatches on the query text.** Match the queue query
+  on `repository(owner`, not `mergeQueue`: the PR query also contains `mergeQueueEntry`.
 - **Colors** come from the ANSI palette so terminal themes apply. Do not hardcode hex.
 
 ## Testing traps hit so far
@@ -97,7 +111,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 
 ## Documentation rule
 
-`README.md` embeds `docs/columns.png`, `docs/details.png` and `docs/tabs.png`. After any
+`README.md` embeds `docs/columns.png`, `docs/details.png`, `docs/queue.png` and `docs/tabs.png`. After any
 visible layout change run `scripts/screenshots.sh` (needs `brew install
 charmbracelet/tap/freeze`, Google Chrome, and the FiraCode Nerd Font in `~/Library/Fonts`) and
 commit the new images. Freeze lays out an SVG with the font embedded; headless Chrome
