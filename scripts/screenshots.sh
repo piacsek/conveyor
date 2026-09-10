@@ -50,11 +50,35 @@ cat >"$home/prs.json" <<JSON
 ]}}}
 JSON
 cp "$root/tests/fixtures/queue.json" "$home/queue.json"
+now_s="$(date -u +%s)"
+iso() { date -u -r "$1" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d "@$1" +%Y-%m-%dT%H:%M:%SZ; }
+run() {
+  local n="$1" status="$2" conclusion="$3" sha="$4" title="$5" started_ago="$6" took="$7"
+  local started=$(( now_s - started_ago ))
+  printf '{"id":%s,"run_number":%s,"status":"%s","conclusion":%s,"head_sha":"%s","display_title":"%s","html_url":"https://github.com/acme/webapp/actions/runs/%s","actor":{"login":"merge-bot"},"run_started_at":"%s","updated_at":"%s"}' \
+    "$n" "$n" "$status" "$conclusion" "$sha" "$title" "$n" "$(iso "$started")" "$(iso $(( started + took )))"
+}
+{
+  printf '{"workflow_runs":['
+  run 312 in_progress null 3333333333333333333333333333333333333333 "Speed up CI with a warm cache (#4840)" 95 0; printf ','
+  run 311 completed '"failure"' 2222222222222222222222222222222222222222 "Retry webhook delivery with backoff (#4821)" 3600 1097; printf ','
+  run 310 completed '"success"' 1111111111111111111111111111111111111111 "Add rate limit headers to the API (#4830)" 7200 1002; printf ','
+  run 309 completed '"success"' 0000000000000000000000000000000000000000 "Spike: parallel test runner (#4790)" 90000 930
+  printf ']}'
+} >"$home/runs.json"
+pulls() { printf '[{"number":%s,"title":"%s","html_url":"https://github.com/acme/webapp/pull/%s","user":{"login":"%s"}}]' "$1" "$2" "$1" "$3"; }
+pulls 4840 "Speed up CI with a warm cache" bob >"$home/pulls-3333333333333333333333333333333333333333.json"
+pulls 4821 "Retry webhook delivery with backoff" alice >"$home/pulls-2222222222222222222222222222222222222222.json"
+pulls 4830 "Add rate limit headers to the API" carol >"$home/pulls-1111111111111111111111111111111111111111.json"
+pulls 4790 "Spike: parallel test runner" dave >"$home/pulls-0000000000000000000000000000000000000000.json"
 cat >"$home/bin/gh" <<SHIM
 #!/bin/sh
 case "\$*" in
   *'repository(owner'*) cat "$home/queue.json";;
   *'repo view'*) echo acme/webapp;;
+  *'actions/workflows?'*) echo '{"workflows":[{"id":22,"name":"CI/CD","path":".github/workflows/cicd.yml"}]}';;
+  *'actions/workflows/'*) cat "$home/runs.json";;
+  *'/commits/'*) sha=\$(printf '%s' "\$*" | sed -E 's#.*/commits/([0-9a-f]+)/pulls.*#\\1#'); cat "$home/pulls-\$sha.json";;
   *actions/runs*) echo '{"workflow_runs":[{"head_branch":"gh-readonly-queue/main/pr-4821-0000000000000000000000000000000000000000","status":"in_progress","conclusion":null,"html_url":"https://github.com/acme/webapp/actions/runs/1"}]}';;
   *) cat "$home/prs.json";;
 esac
@@ -101,5 +125,6 @@ shoot() {
 shoot columns 160 14 ""
 shoot details 160 22 "p"
 shoot queue   160 22 "lp"
+shoot builds  160 22 "llp"
 shoot tabs     80 14 ""
-echo "wrote $out/columns.png $out/details.png $out/queue.png $out/tabs.png"
+echo "wrote $out/columns.png $out/details.png $out/queue.png $out/builds.png $out/tabs.png"

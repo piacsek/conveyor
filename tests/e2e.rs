@@ -87,11 +87,29 @@ fn fixture_path(home: &Path) -> String {
 fn dispatching_shim(home: &Path) -> String {
     fs::write(home.join("prs.json"), include_str!("fixtures/prs.json")).unwrap();
     fs::write(home.join("queue.json"), include_str!("fixtures/queue.json")).unwrap();
+    fs::write(home.join("runs.json"), include_str!("fixtures/runs.json")).unwrap();
+    fs::write(
+        home.join("pulls.json"),
+        include_str!("fixtures/commit-pulls.json"),
+    )
+    .unwrap();
+    fs::write(
+        home.join("workflows.json"),
+        r#"{"workflows":[{"id":22,"name":"CI/CD","path":".github/workflows/cicd.yml"}]}"#,
+    )
+    .unwrap();
     let dir = home.display();
     shim(
         home,
         &format!(
-            "case \"$*\" in *'repository(owner'*) cat '{dir}/queue.json';; *'repo view'*) echo acme/webapp;; *) cat '{dir}/prs.json';; esac"
+            "case \"$*\" in \
+             *'repository(owner'*) cat '{dir}/queue.json';; \
+             *'repo view'*) echo acme/webapp;; \
+             *'actions/workflows?'*) cat '{dir}/workflows.json';; \
+             *'actions/workflows/'*) cat '{dir}/runs.json';; \
+             *'/commits/'*) cat '{dir}/pulls.json';; \
+             *'actions/runs?'*) echo '{{\"workflow_runs\":[]}}';; \
+             *) cat '{dir}/prs.json';; esac"
         ),
     )
 }
@@ -163,4 +181,24 @@ fn the_queue_column_fills_from_the_checked_out_repository() {
     let screen = server.wait_for_screen("Queue webapp (2)");
     assert!(screen.contains("#4821 alice  Retry webhook"), "{screen}");
     assert!(screen.contains("#1 conveyor  Phase 0: setup"), "{screen}");
+}
+
+#[test]
+#[ignore]
+fn the_main_builds_column_fills_from_the_workflow_runs() {
+    let home = tempfile::tempdir().unwrap();
+    let path = dispatching_shim(home.path());
+    let server = Server::start("builds");
+
+    server.respawn(
+        &[
+            ("HOME", &home.path().display().to_string()),
+            ("PATH", &path),
+        ],
+        env!("CARGO_BIN_EXE_conveyor"),
+    );
+
+    let screen = server.wait_for_screen("Main webapp (4)");
+    assert!(screen.contains("✗ #3 piacsek  Phase 2"), "{screen}");
+    assert!(screen.contains("Queue webapp (2)"), "{screen}");
 }
