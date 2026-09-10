@@ -62,6 +62,17 @@ pub fn fetch_queue(gh: &impl Github, repo: &Repo) -> Result<Queue, String> {
     Ok(queue)
 }
 
+const DEFAULT_WORKFLOWS: [&str; 8] = [
+    "CI/CD",
+    "cicd.yml",
+    "CI",
+    "ci",
+    "ci.yml",
+    "build",
+    "build.yml",
+    "main.yml",
+];
+
 pub struct BuildsSource {
     repo: Repo,
     workflow: Option<String>,
@@ -113,14 +124,21 @@ impl BuildsSource {
                     self.repo.name
                 ))
                 .map_err(|err| err.to_string())?;
+            let candidates: Vec<&str> = if wanted == Repo::default().main_workflow {
+                DEFAULT_WORKFLOWS.to_vec()
+            } else {
+                vec![wanted]
+            };
             list.get("workflows")
                 .and_then(|v| v.as_array())
                 .and_then(|workflows| {
-                    workflows.iter().find(|w| {
-                        w.get("name").and_then(|v| v.as_str()) == Some(wanted)
-                            || w.get("path")
-                                .and_then(|v| v.as_str())
-                                .is_some_and(|path| path.ends_with(&format!("/{wanted}")))
+                    candidates.iter().find_map(|candidate| {
+                        workflows.iter().find(|w| {
+                            w.get("name").and_then(|v| v.as_str()) == Some(candidate)
+                                || w.get("path")
+                                    .and_then(|v| v.as_str())
+                                    .is_some_and(|path| path.ends_with(&format!("/{candidate}")))
+                        })
                     })
                 })
                 .and_then(|w| w.get("id"))
