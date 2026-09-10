@@ -885,3 +885,28 @@ fn a_run_that_carries_its_own_number_skips_the_commit_read() {
         "the (#N) on the run title is already in hand: {calls:?}"
     );
 }
+
+#[test]
+fn a_clock_that_steps_backwards_retries_rather_than_freezing_the_row() {
+    let (gh, kube, mut source) = deploy_source_for(
+        SHA,
+        vec![(
+            format!("repos/acme/webapp/commits/{SHA}/pulls"),
+            serde_json::json!([]),
+        )],
+    );
+    let later = NOW + std::time::Duration::from_secs(600);
+
+    source.fetch(&gh, &kube, later);
+    source.fetch(&gh, &kube, NOW);
+
+    assert_eq!(
+        gh.calls
+            .borrow()
+            .iter()
+            .filter(|(path, _)| path.ends_with("/pulls"))
+            .count(),
+        2,
+        "an unmeasurable window is not a fresh one: the safe direction is to ask again"
+    );
+}
