@@ -141,17 +141,28 @@ PR line, line 3 sha + run URL, then `jobs: loading…` / `jobs: <error>` / one l
 `ui.details_percent` (40 %); a run with more jobs than lines scrolls nothing, so put failures
 first and cap at the visible height minus the three header lines.
 
-**Cards (task 5, the big one).** Replace `line(...)` rows with a `card(selected, glyph, title,
-meta, right, width) -> Vec<Line>` helper producing two lines:
+**Cards (task 5, the big one).** *Revised mid-phase on the user's request: "I prefer to have
+more lines over fewer lines. I wanna see what matters at a glance and rarely have to hit `p`
+or worse: go to the browser." So cards are three lines (two when a Deployed row has nothing
+for the third), and the third line carries what a browser trip would otherwise cost: the
+unhappy checks, the failed job and its step, the deployed sha. Failing main builds fetch
+their jobs eagerly (capped at `EAGER_JOBS = 5`) so the failed step shows without focusing the
+column.* `card(selected, glyph, title, right, rest: Vec<Vec<Span>>, width) -> Vec<Line>`:
 - line 1: `▌ ✗ #4821 Retry webhook delivery with backoff` — bar `▌` in `Color::Cyan` when
   selected, else a space; glyph colored as today; title bold when selected; truncated with `…`
   by `text::truncate`; right-aligned `right` on line 1 stays (age / eta / `at main` / `↓n`).
 - line 2: `  webapp · fix-branch · approved · +12 −3` dim, per column:
-  - Prs: `<repo short> · <head_ref> · <review word> · +a −d` (`⇥n` when queued).
-  - Queue: `<author> · position n · <state> · enqueued 20m ago`.
-  - Builds: `<author or actor> · run N · <took> · <status word>`.
-  - Deployed: `#n <author> · <title>` (line 1 is `<env>` + right `at main`/`↓n`; error rows show
-    the error dim on line 2 in red).
+  - Prs: `<repo short> · <head_ref> · draft · <review word> · +a −d`, then the checks that are
+    neither success nor skipped (colored, failures first), else `merge: <state>`, else
+    `checks: <rollup word>` when the merge state is unknown.
+  - Queue: `<author> · position n · enqueued 20m ago`, then
+    `checks: <word>` or `no merge-group run yet` · flags · head sha8. The state stays on line 1
+    (right) when there is no ETA, so it is not repeated on line 2.
+  - Builds: `<author or actor> · run N · <took> · <status word>`, then the failing or running
+    job as `✗ <job> · <failed step>`, else `<n> jobs ok`, else the sha8 while jobs are unknown.
+    Line 1 drops the `run N` label when a PR number is known, since line 2 carries it.
+  - Deployed: line 1 is `<env>` + right `at main`/`↓n`; then `#n <author> · <title>`, the error
+    in red, and `<sha8> · read <age> ago`, keeping the first two that apply.
 Render with `ListItem::new(Text::from(lines))`, `List::highlight_symbol("")` (the bar is drawn
 by the card itself from `Some(i) == column.list.selected()`), keep `ListState` for scrolling.
 Remove `row_number`, the `1-9` arm in `handle_normal_key`, the `("1-9", …)` KEYS entry, and

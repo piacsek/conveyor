@@ -46,7 +46,7 @@ fn main_builds() -> Vec<conveyor::model::builds::Build> {
 }
 
 #[test]
-fn deployed_rows_show_env_pull_request_and_how_far_behind_main() {
+fn deployed_cards_show_env_pull_request_sha_and_how_far_behind_main() {
     let mut h = Harness::new();
 
     h.run(vec![builds(main_builds()), deployed(envs())])
@@ -54,17 +54,21 @@ fn deployed_rows_show_env_pull_request_and_how_far_behind_main() {
 
     let col = column(&h.screen(), 3);
     assert!(col[0].contains("Deployed api"), "{}", h.screen());
-    assert!(col[1].contains("1 ✓ staging  #4840 bob"), "{}", h.screen());
+    assert!(col[1].contains("▌ ✓ staging"), "{}", h.screen());
     assert!(col[1].contains("at main"), "{}", h.screen());
+    assert!(col[2].contains("#4840 bob · Speed up CI"), "{}", h.screen());
+    assert!(col[3].contains("00000000 · read 6d ago"), "{}", h.screen());
+    assert!(col[4].contains("● prod"), "{}", h.screen());
+    assert!(col[4].contains("↓2"), "two builds behind: {}", h.screen());
     assert!(
-        col[2].contains("2 ● prod  #4790 dave  Spike tests"),
+        col[5].contains("#4790 dave · Spike tests"),
         "{}",
         h.screen()
     );
-    assert!(col[2].contains("↓2"), "two builds behind: {}", h.screen());
+    assert!(col[7].contains("✗ uat"), "{}", h.screen());
     assert!(
-        col[3].contains("3 ✗ uat  ERROR: Active profile"),
-        "{}",
+        col[8].contains("ERROR: Active profile expired."),
+        "the error takes the place of a pull request: {}",
         h.screen()
     );
 }
@@ -88,9 +92,15 @@ fn a_failed_env_keeps_its_last_known_sha_from_the_previous_fetch() {
     .unwrap();
 
     let col = column(&h.screen(), 3);
+    assert!(col[1].contains("✗ staging"), "{}", h.screen());
     assert!(
-        col[1].contains("✗ staging  #4840 bob  Speed up CI"),
+        col[2].contains("#4840 bob · Speed up CI"),
         "old row kept: {}",
+        h.screen()
+    );
+    assert!(
+        col[3].contains("kubectl exited with exit status: 1"),
+        "the error is on the card: {}",
         h.screen()
     );
     assert!(

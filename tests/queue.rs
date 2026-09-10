@@ -28,7 +28,7 @@ fn column(screen: &str, index: usize) -> Vec<String> {
 }
 
 #[test]
-fn queue_rows_show_position_glyph_number_author_title_and_eta_or_state() {
+fn queue_cards_show_the_entry_its_position_age_and_eta_or_state() {
     let mut h = Harness::new();
 
     h.run(vec![queue(two())]).unwrap();
@@ -36,17 +36,19 @@ fn queue_rows_show_position_glyph_number_author_title_and_eta_or_state() {
     let col = column(&h.screen(), 1);
     assert!(col[0].contains("Queue webapp (2)"), "{}", h.screen());
     assert!(
-        col[1].contains("1 ● #4821 alice  Retry webhooks"),
+        col[1].contains("▌ ● #4821 Retry webhooks"),
         "{}",
         h.screen()
     );
     assert!(col[1].contains("12m"), "{}", h.screen());
     assert!(
-        col[2].contains("2 ○ #4830 carol  Rate limits"),
+        col[2].contains("alice · position 1 · enqueued 20m"),
         "{}",
         h.screen()
     );
-    assert!(col[2].contains("queued"), "{}", h.screen());
+    assert!(col[3].contains("no merge-group run yet"), "{}", h.screen());
+    assert!(col[4].contains("○ #4830 Rate limits"), "{}", h.screen());
+    assert!(col[4].contains("queued"), "{}", h.screen());
 }
 
 #[test]
@@ -82,7 +84,7 @@ fn keys_act_on_the_focused_queue_column() {
         vec!["https://github.com/acme/webapp/pull/4830".to_string()]
     );
     let col = column(&h.screen(), 1);
-    assert!(col[2].starts_with("│> 2"), "{}", h.screen());
+    assert!(col[4].starts_with("│▌ ○ #4830"), "{}", h.screen());
     assert!(h.screen().contains("copied #4830"), "{}", h.screen());
 }
 

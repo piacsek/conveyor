@@ -71,6 +71,24 @@ pulls 4840 "Speed up CI with a warm cache" bob >"$home/pulls-3333333333333333333
 pulls 4821 "Retry webhook delivery with backoff" alice >"$home/pulls-2222222222222222222222222222222222222222.json"
 pulls 4830 "Add rate limit headers to the API" carol >"$home/pulls-1111111111111111111111111111111111111111.json"
 pulls 4790 "Spike: parallel test runner" dave >"$home/pulls-0000000000000000000000000000000000000000.json"
+jobs() {
+  local n="$1" status="$2" conclusion="$3" step="$4"
+  printf '{"total_count":2,"jobs":[
+ {"id":%s01,"name":"check","status":"%s","conclusion":%s,"started_at":"%s","completed_at":%s,
+  "html_url":"https://github.com/acme/webapp/actions/runs/%s/job/%s01","steps":[
+   {"name":"Run cargo fmt --check","number":1,"status":"completed","conclusion":"success"},
+   {"name":"%s","number":2,"status":"%s","conclusion":%s}]},
+ {"id":%s02,"name":"audit","status":"completed","conclusion":"success","started_at":"%s","completed_at":"%s",
+  "html_url":"https://github.com/acme/webapp/actions/runs/%s/job/%s02","steps":[]}]}' \
+    "$n" "$status" "$conclusion" "$(iso $(( now_s - 1200 )))" \
+    "$([ "$status" = completed ] && printf '"%s"' "$(iso $(( now_s - 1181 )))" || echo null)" \
+    "$n" "$n" "$step" "$status" "$conclusion" \
+    "$n" "$(iso $(( now_s - 1200 )))" "$(iso $(( now_s - 1000 )))" "$n" "$n"
+}
+jobs 312 in_progress null "Run cargo test" >"$home/jobs-312.json"
+jobs 311 completed '"failure"' "Run cargo test" >"$home/jobs-311.json"
+jobs 310 completed '"success"' "Run cargo test" >"$home/jobs-310.json"
+jobs 309 completed '"success"' "Run cargo test" >"$home/jobs-309.json"
 cat >"$home/bin/gh" <<SHIM
 #!/bin/sh
 case "\$*" in
@@ -78,6 +96,7 @@ case "\$*" in
   *'repo view'*) echo acme/webapp;;
   *'actions/workflows?'*) echo '{"workflows":[{"id":22,"name":"CI/CD","path":".github/workflows/cicd.yml"}]}';;
   *'actions/workflows/'*) cat "$home/runs.json";;
+  *actions/runs/*/jobs*) run=\$(printf '%s' "\$*" | sed -E 's#.*/actions/runs/([0-9]+)/jobs.*#\\1#'); cat "$home/jobs-\$run.json";;
   *'/commits/'*) sha=\$(printf '%s' "\$*" | sed -E 's#.*/commits/([0-9a-f]+)/pulls.*#\\1#'); cat "$home/pulls-\$sha.json";;
   *actions/runs*) echo '{"workflow_runs":[{"head_branch":"gh-readonly-queue/main/pr-4821-0000000000000000000000000000000000000000","status":"in_progress","conclusion":null,"html_url":"https://github.com/acme/webapp/actions/runs/1"}]}';;
   *) cat "$home/prs.json";;
@@ -165,10 +184,10 @@ shoot() {
   render "$name" --padding 20,64,20,20 --window
 }
 
-shoot columns 160 14 ""
-shoot details 160 22 "p"
-shoot queue   160 22 "lp"
-shoot builds  160 22 "llp"
-shoot deployed 160 22 "lllp"
-shoot tabs     80 14 ""
+shoot columns 160 18 ""
+shoot details 160 26 "p"
+shoot queue   160 26 "lp"
+shoot builds  160 26 "llp"
+shoot deployed 160 26 "lllp"
+shoot tabs     80 18 ""
 echo "wrote $out/columns.png $out/details.png $out/queue.png $out/builds.png $out/deployed.png $out/tabs.png"

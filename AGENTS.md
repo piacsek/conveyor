@@ -138,6 +138,14 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `refreshed just now` for 3 s, then `refreshed at HH:MM:SS` local time
   (`utc_offset_secs` from `chrono::Local` in `main`, 0 in tests). The bottom right holds the
   static `ui::logo()` with the crate version; nothing there changes between ticks.
+- **Cards, not rows.** `ui::card(selected, glyph, title, right, rest, width)` renders a title
+  line (`▌`/space, glyph, bold-when-selected title padded, right-aligned figure) plus one
+  indented line per `rest` entry, each a `Vec<Span>` so a line can be dim, red or a mix. A
+  per-stage row fn builds them (`pr_row`, `queue_row`, `build_row`, `deployed_row`) and
+  `draw_list` wraps each in `ListItem::new(Text::from(lines))` with no `highlight_symbol`:
+  the bar is drawn by the card from `Some(i) == column.list.selected()`. Cards carry what a
+  browser trip would otherwise cost: the unhappy checks, the failed job and step, the
+  deployed sha. Prefer adding a line there over adding one to the details pane.
 - **Colors** come from the ANSI palette so terminal themes apply. Do not hardcode hex.
 
 ## Testing traps hit so far
@@ -159,8 +167,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `SHIMS` mutex for its whole body. Any new test that writes an executable and runs it in the
   same test binary must do the same (or run it in a separate process such as tmux, as e2e
   does). Treat a green PR run as no proof against this class: it is timing-dependent.
-- Rows in a 40-column pane hold about 33 characters after the number, glyph, repo and age;
-  behaviour tests use short titles, snapshots carry the truncation.
+- A card's title line in a 40-column pane holds about 30 characters after the bar, glyph and
+  the right-aligned figure; behaviour tests use short titles, snapshots carry the truncation.
+  Card tests read line pairs or triples, not one line per row: with three-line cards row `n`
+  starts at screen line `1 + 3n`, and the helper that finds the selected card looks for `│▌`.
 
 ## Documentation rule
 

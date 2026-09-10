@@ -3,15 +3,15 @@ source: tests/snapshots.rs
 expression: h.screen()
 ---
 ┌My PRs (3)────────────────────────────┐┌Merge queue───────────────────────────┐┌Main builds───────────────────────────┐┌Deployed──────────────────────────────┐
-│> 1 ✗ #4821 webapp  Retry webhook … 2h││fetching…                             ││fetching…                             ││no [[repo.deploy]] configured         │
-│  2 ● #4830 auth  Add rate limit h… 2h││                                      ││                                      ││                                      │
-│  3 ○ #4790 webapp  Spike: paralle… 2h││                                      ││                                      ││                                      │
-│                                      ││                                      ││                                      ││                                      │
-│                                      ││                                      ││                                      ││                                      │
-│                                      ││                                      ││                                      ││                                      │
-│                                      ││                                      ││                                      ││                                      │
-│                                      ││                                      ││                                      ││                                      │
-│                                      ││                                      ││                                      ││                                      │
+│▌ ✗ #4821 Retry webhook delivery w… 2h││fetching…                             ││fetching…                             ││no [[repo.deploy]] configured         │
+│    webapp · webhook-retry-backoff · …││                                      ││                                      ││                                      │
+│    ✗ api / test                      ││                                      ││                                      ││                                      │
+│  ● #4830 Add rate limit headers t… 2h││                                      ││                                      ││                                      │
+│    auth                              ││                                      ││                                      ││                                      │
+│    checks: pending                   ││                                      ││                                      ││                                      │
+│  ○ #4790 Spike: parallel test run… 2h││                                      ││                                      ││                                      │
+│    webapp · draft                    ││                                      ││                                      ││                                      │
+│    checks: none                      ││                                      ││                                      ││                                      │
 └──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘
 ┌#4821 Retry webhook delivery with backoff─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │#4821 acme/webapp  webhook-retry-backoff  +12 −3                                                                                                              │

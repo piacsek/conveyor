@@ -13,6 +13,12 @@ pub enum BuildStatus {
     Unknown,
 }
 
+impl BuildStatus {
+    pub fn is_settled(self) -> bool {
+        !matches!(self, BuildStatus::Running | BuildStatus::Queued)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct PullRef {
     pub number: u64,
@@ -52,7 +58,7 @@ impl Build {
     }
 
     pub fn is_settled(&self) -> bool {
-        !matches!(self.status, BuildStatus::Running | BuildStatus::Queued)
+        self.status.is_settled()
     }
 }
 

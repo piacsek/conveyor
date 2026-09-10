@@ -3,6 +3,7 @@ use std::io;
 use std::time::{Duration, SystemTime};
 
 pub const OPEN_DEBOUNCE: Duration = Duration::from_secs(1);
+const EAGER_JOBS: usize = 5;
 
 use ratatui::Terminal;
 use ratatui::backend::Backend;
@@ -10,7 +11,7 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::widgets::ListState;
 
 use crate::config::Config;
-use crate::model::builds::{Build, Builds};
+use crate::model::builds::{Build, BuildStatus, Builds};
 use crate::model::deployed::{Deployed, Deployment};
 use crate::model::jobs::Job;
 use crate::model::prs::PullRequest;
@@ -403,15 +404,25 @@ impl App {
     }
 
     pub fn jobs_needed(&mut self) -> Option<u64> {
-        if !self.details || self.focus != Stage::Builds {
-            return None;
-        }
-        let run_id = self.builds.selected()?.id;
-        if self.jobs.contains_key(&run_id) {
-            return None;
-        }
+        let selected = match self.focus {
+            Stage::Builds => self.builds.selected().map(|build| build.id),
+            _ => None,
+        };
+        let run_id = selected
+            .filter(|run_id| !self.jobs.contains_key(run_id))
+            .or_else(|| self.failing_run_without_jobs())?;
         self.jobs.insert(run_id, JobsState::Loading);
         Some(run_id)
+    }
+
+    fn failing_run_without_jobs(&self) -> Option<u64> {
+        self.builds
+            .all()
+            .iter()
+            .filter(|build| build.status == BuildStatus::Failure)
+            .take(EAGER_JOBS)
+            .find(|build| !self.jobs.contains_key(&build.id))
+            .map(|build| build.id)
     }
 
     pub fn selected_jobs(&self) -> Option<&JobsState> {
@@ -674,10 +685,6 @@ impl App {
             KeyCode::Char('h') if self.focus != Stage::Prs => self.focus = self.focus.previous(),
             KeyCode::Tab => self.focus = self.focus.next(),
             KeyCode::BackTab => self.focus = self.focus.previous(),
-            KeyCode::Char(digit @ '1'..='9') => {
-                let index = digit.to_digit(10).unwrap_or(1) as usize - 1;
-                self.with_focused(|column| column.select_index_clamped(index));
-            }
             KeyCode::Char('j') | KeyCode::Down => self.with_focused(|c| c.next()),
             KeyCode::Char('k') | KeyCode::Up => self.with_focused(|c| c.previous()),
             KeyCode::Char('G') => self.with_focused(|c| c.last()),
