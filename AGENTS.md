@@ -106,7 +106,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `sha_from_image` also accepts). Errors are per row, never per column: an expired session
   or a missing deployment (`Error from server (NotFound): deployments.apps "x" not found`)
   marks that env `✗`, keeps its last known sha/PR (`App::keep_last_known`) and shows the
-  message in the footer when the row is selected. `behind_main` is the sha's index in the
+  message in the footer when the row is selected. The row glyph is `✓` at main, a yellow `◐`
+  when behind (deliberately not the `●` that means "running" in Main builds; a Deployed row
+  never reports a rollout in flight, only which sha is live), `○` for a sha that is not in the
+  builds list and `✗` on error. `behind_main` is the sha's index in the
   Main builds column (0 = `at main`), so it needs that column loaded and only sees the last
   `builds` runs. kubectl may itself start a teleport browser login when the session is
   expired; the 10 s timeout returns the row to an error instead of hanging.

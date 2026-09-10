@@ -28,8 +28,8 @@ The selected card wears a cyan bar and a bold title.
   `Enter` opens the PR it merged, `b` the run.
 - **Deployed**: one row per `[[repo.deploy.env]]`, read with `kubectl` (`--context`,
   `-n`, `get deploy -o jsonpath=…image`, 10 s timeout). The image tag must be the 40-hex
-  commit sha (or end with `-<sha>`). Card: the environment and `at main` or `↓n` builds behind
-  the Main builds column; then the PR that commit merged; then the sha and how long ago it was
+  commit sha (or end with `-<sha>`). Card: the environment, `✓` at main or a yellow `◐` with
+  `↓n` when it is n main builds behind (never the `●` of a running build); then the PR that commit merged; then the sha and how long ago it was
   read, or the error in red. A failed environment (expired session, missing deployment) keeps
   its last known sha with a red `✗`.
   `Enter` opens the PR, `b` the main build that matches the deployed sha.
