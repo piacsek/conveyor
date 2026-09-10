@@ -214,7 +214,11 @@ fn r_requests_a_refresh_and_the_footer_shows_the_data_age() {
     let mut h = Harness::new();
 
     h.run(vec![prs(three()), tick_at(NOW + 12)]).unwrap();
-    assert!(h.screen().contains("refreshed 12s ago"), "{}", h.screen());
+    assert!(
+        h.screen().contains("refreshed at 08:00:00"),
+        "{}",
+        h.screen()
+    );
 
     h.run(vec![key(KeyCode::Char('r'))]).unwrap();
     assert_eq!(h.refreshed, vec![Stage::Prs]);
@@ -451,5 +455,29 @@ fn a_held_enter_opens_the_same_row_only_once_per_second() {
             "https://github.com/acme/webapp/pull/1".to_string(),
             "https://github.com/acme/webapp/pull/2".to_string(),
         ]
+    );
+}
+
+#[test]
+fn the_footer_says_just_now_for_three_seconds_then_the_wall_clock_time() {
+    let mut h = Harness::new();
+
+    h.run(vec![prs(three()), tick_at(NOW + 2)]).unwrap();
+    assert!(h.screen().contains("refreshed just now"), "{}", h.screen());
+
+    h.run(vec![tick_at(NOW + 12)]).unwrap();
+    assert!(
+        h.screen().contains("refreshed at 08:00:00"),
+        "{}",
+        h.screen()
+    );
+    assert!(!h.screen().contains("ago"), "{}", h.screen());
+
+    h.app.utc_offset_secs = -3 * 3600;
+    h.run(vec![tick_at(NOW + 13)]).unwrap();
+    assert!(
+        h.screen().contains("refreshed at 05:00:00"),
+        "{}",
+        h.screen()
     );
 }

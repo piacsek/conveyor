@@ -35,3 +35,22 @@ pub fn duration(value: Duration) -> String {
         s => format!("{}d", s / 86_400),
     }
 }
+
+pub fn clock(at: SystemTime, utc_offset_secs: i32) -> String {
+    let secs = at
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+        + i64::from(utc_offset_secs);
+    let day = secs.rem_euclid(86_400);
+    format!("{:02}:{:02}:{:02}", day / 3600, day % 3600 / 60, day % 60)
+}
+
+pub fn refreshed(at: SystemTime, now: SystemTime, utc_offset_secs: i32) -> String {
+    let elapsed = now.duration_since(at).unwrap_or(Duration::ZERO);
+    if elapsed < Duration::from_secs(3) {
+        "refreshed just now".to_string()
+    } else {
+        format!("refreshed at {}", clock(at, utc_offset_secs))
+    }
+}

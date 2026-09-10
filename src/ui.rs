@@ -9,7 +9,7 @@ use ratatui::widgets::{Block, List, ListItem, Paragraph};
 use crate::app::{App, Column, Mode, Row, Stage};
 use crate::model::prs::{CheckConclusion, CheckState, PullRequest};
 use crate::model::queue::QueueEntry;
-use crate::text::{age, duration, pad_right};
+use crate::text::{age, duration, pad_right, refreshed};
 
 const HIGHLIGHT: &str = "> ";
 
@@ -352,7 +352,7 @@ fn footer_text(app: &App) -> String {
             let (visible, total) = app.focused_counts();
             format!("/{query}  {visible}/{total}")
         }
-        (None, Some(at)) => format!("refreshed {} ago", age(at, app.now)),
+        (None, Some(at)) => refreshed(at, app.now, app.utc_offset_secs),
         (None, None) => String::new(),
     }
 }

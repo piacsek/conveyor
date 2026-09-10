@@ -76,6 +76,7 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
     spawn_terminal_events(tx);
     let mut app = App::new(config);
     app.notice = config_error;
+    app.utc_offset_secs = chrono::Local::now().offset().local_minus_utc();
     let mut terminal = ratatui::init();
     let result = run(
         &mut terminal,
