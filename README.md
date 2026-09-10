@@ -9,7 +9,7 @@ Status: phase 6. All four columns are live: My PRs, Merge queue, Main builds, De
 Every item is a card of two or three lines: a title line with the status glyph and one
 right-aligned figure, then dim lines carrying what you would otherwise open a browser for.
 The selected card wears a cyan bar down its whole left edge and a bold title. `z` zooms the
-focused column to the full width.
+focused column to the full width; `z` again or `Esc` leaves it.
 
 ![columns](docs/columns.png)
 
@@ -69,8 +69,8 @@ Narrow terminals collapse the columns into tabs:
 
 Keys: `j/k` move, `h/l`/`Tab` focus a column, `Enter`/`o` open in the
 browser, `b` open the build behind the row, `y` copy the URL, `p` details pane, `z` zoom the
-focused column to the full width, `/` filter, `r` refresh the focused column, `R` refresh all
-of them, `?` help, `q` quit. Keys act on the focused column.
+focused column to the full width, `Esc` leave zoom, `/` filter, `r` refresh the focused column,
+`R` refresh all of them, `?` help, `q` quit. Keys act on the focused column.
 Below `4 × min_column_width` columns the four columns collapse into tabs (`h/l` switch). A failed fetch keeps
 the last rows, marks the column `⚠` and shows the error in the footer; the app never exits on
 it.

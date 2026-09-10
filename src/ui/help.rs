@@ -6,7 +6,7 @@ use ratatui::widgets::{Block, Paragraph};
 
 use crate::ui::style::dim;
 
-pub const KEYS: [(&str, &str); 12] = [
+pub const KEYS: [(&str, &str); 13] = [
     ("j/k ↓/↑", "move"),
     ("h/l Tab", "focus column"),
     ("Enter/o", "open in browser"),
@@ -14,11 +14,12 @@ pub const KEYS: [(&str, &str); 12] = [
     ("y", "copy URL"),
     ("p", "details"),
     ("z", "zoom the column"),
+    ("Esc", "leave zoom"),
     ("/", "filter"),
     ("r", "refresh"),
     ("R", "refresh all"),
     ("?", "this help"),
-    ("q Esc", "quit"),
+    ("q", "quit"),
 ];
 
 pub(crate) fn draw_help(frame: &mut Frame, area: Rect) {

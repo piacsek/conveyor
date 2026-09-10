@@ -151,6 +151,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   fetch thread behind `fetching…`.
 - **Zoom.** `z` toggles `App::zoom`; `ui::draw` then renders only `app.focus` across the whole
   body and skips the tabs check, so the narrow layout is unaffected. Nothing else reads the flag.
+- **`q` is the only quit key** (besides `Ctrl-C`). `Esc` leaves zoom and otherwise does
+  nothing in normal mode; in Filter mode it still drops the filter and in Help it still closes
+  the help, both handled before the normal-mode arm. `Esc` used to quit, which made an
+  accidental press lose the session.
 - **Row order is per column, and `merge_keeping_order` alone is not enough.** A refresh merges
   the fresh rows onto the old order and appends whatever is new **at the end**, which is right
   for My PRs (the search query owns the order) and for Deployed (config order), and wrong for
