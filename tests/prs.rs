@@ -135,3 +135,47 @@ fn y_copies_the_url_and_the_footer_confirms_it() {
     h.run(vec![key(KeyCode::Char('j'))]).unwrap();
     assert!(!h.screen().contains("copied #1"), "cleared by the next key");
 }
+
+#[test]
+fn p_toggles_a_details_pane_with_failed_checks_first() {
+    use conveyor::model::prs::{Check, CheckConclusion, MergeState, ReviewDecision};
+    let mut h = Harness::with_size(160, 24);
+    let mut detailed = pr(4821, "Retry hooks");
+    detailed.head_ref = "webhook-retry".to_string();
+    detailed.additions = 12;
+    detailed.deletions = 3;
+    detailed.review = ReviewDecision::Approved;
+    detailed.merge_state = MergeState::Blocked;
+    detailed.checks_detail = vec![
+        Check {
+            name: "lint".to_string(),
+            conclusion: CheckConclusion::Success,
+            url: "https://ci/lint".to_string(),
+        },
+        Check {
+            name: "api / test".to_string(),
+            conclusion: CheckConclusion::Failure,
+            url: "https://ci/test".to_string(),
+        },
+    ];
+
+    h.run(vec![prs(vec![detailed]), key(KeyCode::Char('p'))])
+        .unwrap();
+
+    let screen = h.screen();
+    assert!(
+        screen.contains("#4821 acme/webapp  webhook-retry  +12 −3"),
+        "{screen}"
+    );
+    assert!(screen.contains("review: approved"), "{screen}");
+    assert!(screen.contains("merge: blocked"), "{screen}");
+    let test_line = screen
+        .lines()
+        .position(|l| l.contains("✗ api / test"))
+        .unwrap();
+    let lint_line = screen.lines().position(|l| l.contains("✓ lint")).unwrap();
+    assert!(test_line < lint_line, "failures first: {screen}");
+
+    h.run(vec![key(KeyCode::Char('p'))]).unwrap();
+    assert!(!h.screen().contains("✗ api / test"), "{}", h.screen());
+}
