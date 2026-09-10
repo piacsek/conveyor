@@ -18,6 +18,7 @@ src/main.rs      CLI dispatch, config load, wiring
 src/cli.rs       `conveyor` (TUI) | `config` | `--help` | `--version`; hand-rolled, no clap
 src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
+scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
 scripts/homebrew-formula.sh   prints the tap formula for a released version
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend
 ```
@@ -87,9 +88,10 @@ Run the wrapper, not the commands: piping `gates.sh | tail` once hid a `cargo fm
 failure in tmux-agents and an unformatted commit slipped through. Chaining gates with `&&`
 and then `;` before `git commit` does the same (it happened on this repo's bootstrap commit).
 
-Install: `cargo install --path . --root ~/.local --locked`. A milestone is done only after
-the gates pass **and** the local binary has been reinstalled, so what you run is the
-committed code.
+Install: `scripts/dev-install.sh` builds the release binary and symlinks it as
+`~/.local/bin/conveyor-dev`; `conveyor` on PATH is always the Homebrew release. Never
+`cargo install` the crate into a PATH dir. A milestone is done only after the gates pass
+**and** `dev-install.sh` has run, so `conveyor-dev` is the committed code.
 
 ## Releasing
 
@@ -116,7 +118,9 @@ piacsek/conveyor`). CI also runs `rustsec/audit-check`.
    that job fails, run the script by hand and push the tap. Check with `brew audit --strict
    --online --formula piacsek/tap/conveyor` after changing the script.
 
-Installed copies: Homebrew puts the release binary in `$(brew --prefix)/bin`, `cargo install
---path .` puts dev builds in `~/.local/bin`. Keep only one on `PATH` while developing.
+Installed copies: Homebrew puts the release binary in `$(brew --prefix)/bin/conveyor`;
+dev builds are only reachable as `conveyor-dev`. `rustsec/audit-check` v2.0.0 (latest as of
+2026-09-10) still targets Node 20 and CI prints a deprecation annotation; bump the pin when a
+newer release exists.
 
 Semver: minor for new columns/keys/config, patch for fixes, major on a config-format break.

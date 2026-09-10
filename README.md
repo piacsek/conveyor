@@ -50,4 +50,5 @@ refresh_secs = 60
 
 ## Develop
 
-`scripts/gates.sh` runs fmt, clippy, tests and the ignored e2e tests. See `AGENTS.md`.
+`scripts/gates.sh` runs fmt, clippy, tests and the ignored e2e tests; `scripts/dev-install.sh`
+exposes the working tree as `conveyor-dev`. See `AGENTS.md`.
