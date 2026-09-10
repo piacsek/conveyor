@@ -35,6 +35,7 @@ pub enum Input {
 pub enum Action {
     Continue,
     Quit,
+    Open(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -80,6 +81,13 @@ impl App {
         }
     }
 
+    pub fn selected(&self) -> Option<&PullRequest> {
+        match &self.prs {
+            ColumnState::Ready(prs) => self.list.selected().and_then(|i| prs.get(i)),
+            ColumnState::Loading => None,
+        }
+    }
+
     fn select_next(&mut self) {
         let last = self.len().saturating_sub(1);
         let next = self.list.selected().map_or(0, |i| (i + 1).min(last));
@@ -93,6 +101,11 @@ impl App {
         let pending_g = std::mem::take(&mut self.pending_g);
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => return Action::Quit,
+            KeyCode::Enter | KeyCode::Char('o') => {
+                if let Some(pr) = self.selected() {
+                    return Action::Open(pr.url.clone());
+                }
+            }
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.list.select_previous(),
             KeyCode::Char('G') => self.list.select(self.len().checked_sub(1)),
@@ -115,7 +128,6 @@ where
     B::Error: Send + Sync + 'static,
     O: Opener,
 {
-    let _ = opener;
     let mut inputs = inputs;
     loop {
         terminal
@@ -129,6 +141,7 @@ where
             Input::Data(stage, data) => app.receive(stage, data),
             Input::Key(key) => match app.handle_key(key) {
                 Action::Quit => return Ok(()),
+                Action::Open(url) => opener.open(&url)?,
                 Action::Continue => {}
             },
         }
