@@ -224,6 +224,33 @@ Outside-in order (`tests/prs.rs` drives `run()` with scripted inputs; one failin
 
 Phase 1 exit: retro (see checkpoints), `AGENTS.md` updated, v0.1.0 tagged, plan phase 2.
 
+### Phase 0 outcome (2026-09-10)
+
+- v0.0.1 released and installable from the tap; attestation verified; `TAP_TOKEN` set after the
+  first `tap` job failed without it and the formula was pushed by hand.
+- Two process bugs, same root: gate guards hand-rolled in zsh (`PIPESTATUS` undefined) let a
+  fmt failure (bootstrap) and a clippy failure (task 2) into commits. `scripts/ship.sh` now
+  owns gates + dev-install + commit + push under `set -e`.
+- Dev builds are `conveyor-dev` (symlink to `target/release`), never `cargo install`ed, so the
+  Homebrew `conveyor` is the only `conveyor` on PATH.
+
+### Phase 1 outcome (2026-09-10)
+
+- All 16 behaviours shipped on `phase-1-my-prs` (PR #2): 18 TUI tests, 8 snapshots, 4 parse,
+  4 gh-seam, 2 fetch, 1 opener, 5 cli, 5 config, 2 ignored e2e (real binary, scratch tmux,
+  `gh` shim). e2e also runs on the Linux CI runner.
+- Fixture is public data only (PR #1 of this repo): the repository is public, so no
+  <employer> PR titles or logins may land in `tests/fixtures/` or `docs/`.
+- Live shapes seen: `mergeStateStatus` ∈ {UNKNOWN, BEHIND, BLOCKED, CLEAN}; `reviewDecision`
+  null on repos without required reviews; `StatusContext` has `state` and no `status`.
+- Traps: tmux pane login shells rebuild PATH (`respawn-pane -e PATH=…` silently ran the real
+  `gh`); `gh` must get a null stdin or it can hang the fetch thread; 40-column rows hold about
+  33 characters of text.
+- Added beyond the list: colored glyphs (green/red/yellow, ANSI), dim row number and age,
+  draft PR opened by `ship.sh` on the first push of a branch (user rule).
+- Not done, for the retro: draft marker and review glyph on the row (space is tight at 40
+  columns); `Tick` is 250 ms but only drives the age labels; `refresh_secs` is the only pacing.
+
 ## Phase 2 — Merge queue column (re-planned after the phase 1 retro)
 
 - Config lands: `[[repo]]` with `name`, fallback to cwd remote. Column title `Queue <repo>`.
