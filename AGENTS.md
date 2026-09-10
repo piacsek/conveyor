@@ -27,9 +27,10 @@ src/main.rs      CLI dispatch, config load, wiring
 src/cli.rs       `conveyor` (TUI) | `config` | `--help` | `--version`; hand-rolled, no clap
 src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override
 src/github.rs    Github trait (`graphql`, `rest`, `current_repo`), CliGh spawns `gh api …` / `gh repo view`, error mapping
-src/fetch.rs     repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST); queries in `src/queries/`
+src/fetch.rs     repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), BuildsSource (caches workflow id and sha→PR)
 src/model/prs.rs PullRequest, CheckState, Check, ReviewDecision, MergeState; lenient `parse` of gh JSON
 src/model/queue.rs Queue, QueueEntry, QueueState, MergeGroupRun; `parse`, `parse_merge_group_runs`, `attach_runs`
+src/model/builds.rs Build, BuildStatus, PullRef, Builds; `parse_runs`, `pr_number_from_title`, `parse_pull_numbers`
 src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode), Input::{Key, Data, Tick}, run()
 src/ui.rs        rendering: 4 columns or tabs below `4 × ui.min_column_width`; KEYS drives the help view
 src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`)
@@ -69,6 +70,14 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   workflows run on main (`issue_comment` bots, per-app deploys), so the build workflow is
   per-repo config (default `CI/CD`). Squash titles end in `(#N)`; `repos/{r}/commits/{sha}/pulls`
   maps the rest.
+- **Main builds**: `repos/{r}/actions/workflows/{id or file}/runs?branch=main&event=push&per_page=N`.
+  `main_workflow` may be a display name (resolved once through `actions/workflows?per_page=100`,
+  matched on `name` or the file basename) or a `.yml` file used directly. Each run's PR comes
+  from the squash suffix `(#N)` in `display_title`, else `repos/{r}/commits/{sha}/pulls`
+  (first PR; cached per sha for the life of the process; rebase merges have no suffix, which is
+  why this repo's own runs exercise the fallback). `updated_at` stands in for the finish time;
+  running and queued runs show elapsed time instead. `tests/fixtures/runs.json` and
+  `commit-pulls.json` are real captures from this repo. Jobs are not fetched (backlog).
 - **Deployed**: `kubectl --context C -n NS get deploy D -o jsonpath=…image`; the tag is the
   40-hex commit sha (Argo CD image-updater, `newest-build`). Teleport sessions expire daily,
   so a failed fetch is the normal case: keep the last rows dim and show the error.
@@ -94,6 +103,15 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `selected_target`, `with_focused`, `column_title`, `draw_column` and `draw_details`.
 - **The `gh` shim in e2e and screenshots dispatches on the query text.** Match the queue query
   on `repository(owner`, not `mergeQueue`: the PR query also contains `mergeQueueEntry`.
+- **Opens are debounced.** `Enter`/`o` on the same URL within `OPEN_DEBOUNCE` (1 s of
+  `app.now`) is ignored: terminals send a key-repeat stream for a held key, which opened a tab
+  per repeat.
+- **Refresh feedback.** Fetchers send `Input::Fetching(stage)` before each fetch; the column's
+  `refreshing` flag draws a braille spinner (frame from `app.now`, 100 ms per frame, so the 250
+  ms tick advances it) in the title and in the loading body; `Data` clears it. The footer says
+  `refreshed just now` for 3 s, then `refreshed at HH:MM:SS` local time
+  (`utc_offset_secs` from `chrono::Local` in `main`, 0 in tests). The belt at the bottom right
+  is `ui::belt(now)`, one frame per 250 ms.
 - **Colors** come from the ANSI palette so terminal themes apply. Do not hardcode hex.
 
 ## Testing traps hit so far
@@ -119,7 +137,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 
 ## Documentation rule
 
-`README.md` embeds `docs/columns.png`, `docs/details.png`, `docs/queue.png` and `docs/tabs.png`. After any
+`README.md` embeds `docs/columns.png`, `docs/details.png`, `docs/queue.png`, `docs/builds.png` and `docs/tabs.png`. After any
 visible layout change run `scripts/screenshots.sh` (needs `brew install
 charmbracelet/tap/freeze`, Google Chrome, and the FiraCode Nerd Font in `~/Library/Fonts`) and
 commit the new images. Freeze lays out an SVG with the font embedded; headless Chrome
@@ -168,7 +186,7 @@ cargo test
 cargo test -- --ignored        # e2e: real binary with a `gh` shim first on PATH
 ```
 
-Ship with `scripts/ship.sh "<message>"`: gates, `dev-install.sh`, commit, push, all under
+Ship with `scripts/ship.sh "<message>"`: `cargo fmt`, gates, `dev-install.sh`, commit, push, all under
 `set -e`, refusing to run on `main`, opening the draft PR on the first push of a branch. Do not hand-roll the chain: the interactive shell here is
 zsh, where `PIPESTATUS` is undefined and `test "" -eq 0` is true, so a `gates.sh | grep` guard
 silently passed a clippy failure into a commit on 2026-09-10.

@@ -4,7 +4,7 @@ A terminal view of where your changes are: open pull requests, the merge
 queue, the last main builds, and what each environment runs. One column per
 stage, one repo, one screen.
 
-Status: phase 2 (My PRs and Merge queue columns). Main builds and Deployed are placeholders.
+Status: phase 3 (My PRs, Merge queue and Main builds columns). Deployed is a placeholder.
 
 ![columns](docs/columns.png)
 
@@ -13,6 +13,12 @@ Status: phase 2 (My PRs and Merge queue columns). Main builds and Deployed are p
 - **Merge queue**: the queue of the first `[[repo]]`, or of the repository checked out in the
   current directory. Row: position, check glyph (from the merge-group run when one exists),
   number, author, title, ETA or state. A repo without a merge queue shows the error in place.
+- **Main builds**: the last `builds` runs of `main_workflow` pushed to `main`. Row: status
+  glyph, the PR it merged (from the squash `(#N)` suffix or the commit's pull requests) with
+  its author and title, duration or elapsed time, age. `Enter` opens the run.
+- Footer: `refreshed just now`, then `refreshed at HH:MM:SS` in local time, for the focused
+  column; a braille spinner in a column title while its fetch is in flight; a conveyor belt
+  rolling at the bottom right. Holding `Enter` opens a row once per second, not per repeat.
 
 `p` opens a details pane for the selected row: branch, diff size, review and merge state,
 checks with failures first.
@@ -23,6 +29,10 @@ On a queue entry it shows position, state, ETA, flags, enqueue age, head sha and
 merge-group run.
 
 ![queue details](docs/queue.png)
+
+On a build it shows the run, status, duration, start time, actor, the merged PR and the sha.
+
+![build details](docs/builds.png)
 
 Narrow terminals collapse the columns into tabs:
 
@@ -93,8 +103,8 @@ details_percent = 40
 
 [[repo]]                      # optional; default is the repository of the current directory
 name = "owner/name"
-main_workflow = "CI/CD"       # phase 3
-builds = 10                   # phase 3
+main_workflow = "CI/CD"       # workflow name or file, e.g. ci.yml
+builds = 10                   # runs shown in the Main builds column
 refresh_secs = 30
 ```
 
