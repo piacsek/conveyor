@@ -44,7 +44,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     } else {
         body
     };
-    frame.render_widget(Paragraph::new(footer_text(app)), footer);
+    draw_footer(frame, app, footer);
     if body.width < app.config.ui.min_column_width * Stage::ALL.len() as u16 {
         draw_tabs(frame, app, body);
     } else {
@@ -392,5 +392,31 @@ fn draw_help(frame: &mut Frame, area: Rect) {
     frame.render_widget(
         Paragraph::new(lines).block(Block::bordered().title("Keys")),
         area,
+    );
+}
+
+const BELT_WIDTH: usize = 12;
+
+pub fn belt(now: SystemTime) -> String {
+    let millis = now
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let offset = (millis / 250 % 3) as usize;
+    let rollers: String = (0..BELT_WIDTH)
+        .map(|i| if (i + offset) % 3 == 2 { '●' } else { '━' })
+        .collect();
+    format!("{rollers}▸")
+}
+
+fn draw_footer(frame: &mut Frame, app: &App, area: Rect) {
+    let belt = belt(app.now);
+    let belt_width = belt.chars().count() as u16 + 1;
+    let [text, right] =
+        Layout::horizontal([Constraint::Fill(1), Constraint::Length(belt_width)]).areas(area);
+    frame.render_widget(Paragraph::new(footer_text(app)), text);
+    frame.render_widget(
+        Paragraph::new(Span::styled(belt, dim())).right_aligned(),
+        right,
     );
 }
