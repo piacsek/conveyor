@@ -82,7 +82,15 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   (first PR; cached per sha for the life of the process; rebase merges have no suffix, which is
   why this repo's own runs exercise the fallback). `updated_at` stands in for the finish time;
   running and queued runs show elapsed time instead. `tests/fixtures/runs.json` and
-  `commit-pulls.json` are real captures from this repo. Jobs are not fetched (backlog).
+  `commit-pulls.json` are real captures from this repo.
+- **Jobs**, only for the build whose details pane is open: `repos/{r}/actions/runs/{id}/jobs?per_page=100`
+  (`fetch::fetch_jobs`, `model::jobs::parse_jobs`, failures first). `run()` asks through
+  `App::jobs_needed()` after every input, so `p`, a selection move and a Builds refresh all
+  trigger it; results land as `Input::Jobs` in `App::jobs` (`Loading`/`Ready`/`Failed`).
+  An unsettled run's cache entry is dropped on each `Data(Builds, …)` so it is asked again.
+  A job's failed step is the first step with a failing conclusion.
+  `tests/fixtures/jobs.json` is a real capture of this repo's run 34509123916, trimmed to
+  `id name status conclusion started_at completed_at html_url steps[]`.
 - **Deployed**: `kubectl --context C -n NS get deploy D -o jsonpath={.spec.template.spec.containers[0].image} --request-timeout=10s`
   per `[[repo.deploy.env]]`; verified live 2026-09-10: the tag is the bare 40-hex commit sha
   (a GitOps image updater writes it; preview deployments use `<label>-<sha>`, which
@@ -110,7 +118,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   wants to prompt (no auth, `HOME` pointing elsewhere) fails fast instead of hanging the
   fetch thread behind `fetching…`.
 - **Keys act on the focused column.** `App::with_focused` dispatches navigation to the
-  `Column` of `app.focus`; `Enter`/`y` use `selected_target`, `b` uses `build_url`.
+  `Column` of `app.focus`; `Enter`/`y` use `selected_target` (a build opens the PR it merged
+  when one is known, else the run), `b` uses `build_url`.
   `run()` reports work back through `FnMut(Request)`; `r` sends one `Request::Refresh`, `R`
   one per `Stage::ALL`, and `main` looks each stage up in `refreshers` (a stage without a
   thread is skipped). Adding a stage means a new

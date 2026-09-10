@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io;
 use std::time::{Duration, SystemTime};
 
@@ -11,6 +12,7 @@ use ratatui::widgets::ListState;
 use crate::config::Config;
 use crate::model::builds::{Build, Builds};
 use crate::model::deployed::{Deployed, Deployment};
+use crate::model::jobs::Job;
 use crate::model::prs::PullRequest;
 use crate::model::queue::{Queue, QueueEntry};
 use crate::open::Opener;
@@ -57,7 +59,15 @@ pub enum Input {
     Key(KeyEvent),
     Fetching(Stage),
     Data(Stage, Result<Rows, String>),
+    Jobs(u64, Result<Vec<Job>, String>),
     Tick(SystemTime),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum JobsState {
+    Loading,
+    Ready(Vec<Job>),
+    Failed(String),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -73,6 +83,7 @@ pub enum Action {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Request {
     Refresh(Stage),
+    Jobs { run_id: u64 },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -321,6 +332,7 @@ pub struct App {
     pub utc_offset_secs: i32,
     pub notice: Option<String>,
     pub details: bool,
+    pub jobs: HashMap<u64, JobsState>,
     pending_g: bool,
     last_open: Option<(String, SystemTime)>,
 }
@@ -346,6 +358,7 @@ impl App {
             utc_offset_secs: 0,
             notice: None,
             details: false,
+            jobs: HashMap::new(),
             pending_g: false,
             last_open: None,
         }
@@ -361,6 +374,7 @@ impl App {
             (Stage::Builds, Ok(Rows::Builds(builds))) => {
                 self.builds_repo = Some(builds.repo);
                 self.builds.receive(builds.builds, self.now);
+                self.forget_unsettled_jobs();
             }
             (Stage::Deployed, Ok(Rows::Deployed(deployed))) => {
                 self.deployed_system = Some(deployed.system);
@@ -373,6 +387,43 @@ impl App {
             (Stage::Deployed, Err(message)) => self.deployed.fail(message),
             _ => {}
         }
+    }
+
+    fn forget_unsettled_jobs(&mut self) {
+        let unsettled: Vec<u64> = self
+            .builds
+            .all()
+            .iter()
+            .filter(|build| !build.is_settled())
+            .map(|build| build.id)
+            .collect();
+        for run_id in unsettled {
+            self.jobs.remove(&run_id);
+        }
+    }
+
+    pub fn jobs_needed(&mut self) -> Option<u64> {
+        if !self.details || self.focus != Stage::Builds {
+            return None;
+        }
+        let run_id = self.builds.selected()?.id;
+        if self.jobs.contains_key(&run_id) {
+            return None;
+        }
+        self.jobs.insert(run_id, JobsState::Loading);
+        Some(run_id)
+    }
+
+    pub fn selected_jobs(&self) -> Option<&JobsState> {
+        self.jobs.get(&self.builds.selected()?.id)
+    }
+
+    pub fn receive_jobs(&mut self, run_id: u64, result: Result<Vec<Job>, String>) {
+        let state = match result {
+            Ok(jobs) => JobsState::Ready(jobs),
+            Err(message) => JobsState::Failed(message),
+        };
+        self.jobs.insert(run_id, state);
     }
 
     pub fn fetching(&mut self, stage: Stage) {
@@ -720,6 +771,7 @@ where
             Input::Tick(now) => app.now = now,
             Input::Fetching(stage) => app.fetching(stage),
             Input::Data(stage, data) => app.receive(stage, data),
+            Input::Jobs(run_id, result) => app.receive_jobs(run_id, result),
             Input::Key(key) => match app.handle_key(key) {
                 Action::Quit => return Ok(()),
                 Action::Open(url) => attempt(app, opener.open(&url)),
@@ -732,6 +784,9 @@ where
                 }
                 Action::Continue => {}
             },
+        }
+        if let Some(run_id) = app.jobs_needed() {
+            request(Request::Jobs { run_id });
         }
     }
 }

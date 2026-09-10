@@ -466,3 +466,35 @@ fn deploy_source_reads_each_environment_and_keeps_per_env_errors_on_the_row() {
         "sha lookup cached"
     );
 }
+
+#[test]
+fn fetch_jobs_reads_the_runs_jobs_route_and_parses_them() {
+    use conveyor::fetch::fetch_jobs;
+    let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    gh.rest_routes = vec![(
+        "repos/acme/webapp/actions/runs/1025/jobs".to_string(),
+        serde_json::from_str(include_str!("fixtures/jobs.json")).unwrap(),
+    )];
+
+    let jobs = fetch_jobs(&gh, "acme/webapp", 1025).unwrap();
+
+    assert_eq!(jobs.len(), 2);
+    assert_eq!(jobs[0].name, "check");
+    let calls = gh.calls.borrow().clone();
+    assert_eq!(
+        calls.first().map(|(q, _)| q.as_str()),
+        Some("GET repos/acme/webapp/actions/runs/1025/jobs?per_page=100")
+    );
+}
+
+#[test]
+fn fetch_jobs_turns_a_gh_error_into_a_message() {
+    let gh = FakeGithub {
+        rest_response: Err(io::Error::other("gh: HTTP 404")),
+        ..FakeGithub::with_response(Ok(serde_json::Value::Null))
+    };
+
+    let error = conveyor::fetch::fetch_jobs(&gh, "acme/webapp", 7).unwrap_err();
+
+    assert_eq!(error, "gh: HTTP 404");
+}

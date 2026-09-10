@@ -6,9 +6,10 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, List, ListItem, Paragraph};
 
-use crate::app::{App, Column, Mode, Row, Stage};
+use crate::app::{App, Column, JobsState, Mode, Row, Stage};
 use crate::model::builds::{Build, BuildStatus};
 use crate::model::deployed::Deployment;
+use crate::model::jobs::Job;
 use crate::model::prs::{CheckConclusion, CheckState, PullRequest};
 use crate::model::queue::QueueEntry;
 use crate::text::{age, clock, duration, pad_right, refreshed};
@@ -296,6 +297,33 @@ fn status_word(status: BuildStatus) -> &'static str {
     }
 }
 
+fn job_line(job: &Job) -> Line<'static> {
+    let took = job.duration().map(duration).unwrap_or_default();
+    let failed_at = job
+        .failed_step
+        .as_ref()
+        .map(|step| format!("  failed at: {step}"))
+        .unwrap_or_default();
+    let (glyph, color) = build_glyph(job.status);
+    Line::from(vec![
+        Span::styled(glyph.to_string(), Style::default().fg(color)),
+        Span::raw(format!(" {}  {took}{failed_at}  ", job.name)),
+        Span::styled(job.url.clone(), dim()),
+    ])
+}
+
+fn job_lines(jobs: Option<&JobsState>, room: usize) -> Vec<Line<'static>> {
+    match jobs {
+        None => Vec::new(),
+        Some(JobsState::Loading) => vec![Line::from(Span::styled("jobs: loading…", dim()))],
+        Some(JobsState::Failed(message)) => vec![Line::from(Span::styled(
+            format!("jobs: {message}"),
+            Style::default().fg(Color::Red),
+        ))],
+        Some(JobsState::Ready(jobs)) => jobs.iter().take(room).map(job_line).collect(),
+    }
+}
+
 fn build_details(build: &Build, now: SystemTime, utc_offset_secs: i32) -> Vec<Line<'static>> {
     let took = build
         .duration()
@@ -451,10 +479,10 @@ fn draw_details(frame: &mut Frame, app: &App, area: Rect) {
         Stage::Builds => match app.builds.selected() {
             Some(build) => {
                 let (label, _) = build_label(build);
-                (
-                    format!("{label} run {}", build.run_number),
-                    build_details(build, app.now, app.utc_offset_secs),
-                )
+                let mut lines = build_details(build, app.now, app.utc_offset_secs);
+                let room = usize::from(area.height).saturating_sub(2 + lines.len());
+                lines.extend(job_lines(app.selected_jobs(), room));
+                (format!("{label} run {}", build.run_number), lines)
             }
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
         },

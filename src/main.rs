@@ -10,7 +10,7 @@ use std::time::{Duration, SystemTime};
 use conveyor::app::{App, Input, Request, Rows, Stage, run};
 use conveyor::cli::{self, Command};
 use conveyor::config::{self, Config};
-use conveyor::fetch::{BuildsSource, DeploySource, fetch_prs, fetch_queue, repos};
+use conveyor::fetch::{BuildsSource, DeploySource, fetch_jobs, fetch_prs, fetch_queue, repos};
 use conveyor::github::CliGh;
 use conveyor::kube::CliKubectl;
 use conveyor::open::SystemOpener;
@@ -81,6 +81,7 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
     if let Some(refresh) = spawn_deploy_fetcher(config.clone(), tx.clone()) {
         refreshers.insert(Stage::Deployed, refresh);
     }
+    let jobs = spawn_jobs_fetcher(config.clone(), tx.clone());
     spawn_terminal_events(tx);
     let mut app = App::new(config);
     app.notice = config_error;
@@ -97,10 +98,37 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
                     let _ = refresh.send(());
                 }
             }
+            Request::Jobs { run_id } => {
+                let _ = jobs.send(run_id);
+            }
         },
     );
     ratatui::restore();
     result
+}
+
+fn spawn_jobs_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<u64> {
+    let (jobs_tx, jobs_rx) = mpsc::channel::<u64>();
+    thread::spawn(move || {
+        let gh = CliGh::default();
+        let mut repo: Option<String> = None;
+        while let Ok(run_id) = jobs_rx.recv() {
+            if repo.is_none() {
+                repo = repos(&gh, &config)
+                    .ok()
+                    .and_then(|repos| repos.into_iter().next())
+                    .map(|repo| repo.name);
+            }
+            let result = match &repo {
+                Some(name) => fetch_jobs(&gh, name, run_id),
+                None => Err("no repository to watch".to_string()),
+            };
+            if tx.send(Ok(Input::Jobs(run_id, result))).is_err() {
+                return;
+            }
+        }
+    });
+    jobs_tx
 }
 
 fn spawn_terminal_events(tx: Inputs) {

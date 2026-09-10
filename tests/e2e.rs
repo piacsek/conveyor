@@ -11,11 +11,15 @@ struct Server {
 
 impl Server {
     fn start(name: &str) -> Self {
+        Self::sized(name, "12")
+    }
+
+    fn sized(name: &str, height: &str) -> Self {
         let server = Self {
             socket: format!("conveyor-e2e-{name}-{}", std::process::id()),
         };
         let status = server
-            .tmux(&["new-session", "-d", "-s", "live", "-x", "160", "-y", "12"])
+            .tmux(&["new-session", "-d", "-s", "live", "-x", "160", "-y", height])
             .status()
             .unwrap_or_else(|err| {
                 panic!("the e2e tests drive a scratch tmux server; install tmux (brew install tmux) and rerun `cargo test -- --ignored`: {err}")
@@ -42,6 +46,14 @@ impl Server {
             .status()
             .unwrap();
         assert!(status.success());
+    }
+
+    fn send_keys(&self, keys: &[&str]) {
+        for key in keys {
+            let status = self.tmux(&["send-keys", key]).status().unwrap();
+            assert!(status.success());
+            sleep(Duration::from_millis(120));
+        }
     }
 
     fn wait_for_screen(&self, needle: &str) -> String {
@@ -130,6 +142,7 @@ fn dispatching_shim(home: &Path) -> String {
         include_str!("fixtures/commit-pulls.json"),
     )
     .unwrap();
+    fs::write(home.join("jobs.json"), include_str!("fixtures/jobs.json")).unwrap();
     fs::write(
         home.join("workflows.json"),
         r#"{"workflows":[{"id":22,"name":"CI/CD","path":".github/workflows/cicd.yml"}]}"#,
@@ -142,6 +155,7 @@ fn dispatching_shim(home: &Path) -> String {
             "case \"$*\" in \
              *'repository(owner'*) cat '{dir}/queue.json';; \
              *'repo view'*) echo acme/webapp;; \
+             *'actions/runs/'*'/jobs'*) cat '{dir}/jobs.json';; \
              *'actions/workflows?'*) cat '{dir}/workflows.json';; \
              *'actions/workflows/'*) cat '{dir}/runs.json';; \
              *'/commits/'*) cat '{dir}/pulls.json';; \
@@ -261,4 +275,26 @@ fn the_deployed_column_fills_from_kubectl_per_environment() {
     let screen = server.wait_for_screen("Deployed api (2)");
     assert!(screen.contains("staging  #3 piacsek"), "{screen}");
     assert!(screen.contains("prod  ERROR: Active profile"), "{screen}");
+}
+
+#[test]
+#[ignore]
+fn p_on_a_main_build_lists_the_runs_jobs() {
+    let home = tempfile::tempdir().unwrap();
+    let path = dispatching_shim(home.path());
+    let server = Server::sized("jobs", "30");
+
+    server.respawn(
+        &[
+            ("HOME", &home.path().display().to_string()),
+            ("PATH", &path),
+        ],
+        env!("CARGO_BIN_EXE_conveyor"),
+    );
+    server.wait_for_screen("Main webapp (4)");
+    server.send_keys(&["l", "l", "p"]);
+
+    let screen = server.wait_for_screen("failed at: Run cargo test");
+    assert!(screen.contains("✗ check"), "{screen}");
+    assert!(screen.contains("✓ audit"), "{screen}");
 }

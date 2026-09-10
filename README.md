@@ -37,7 +37,8 @@ merge-group run.
 
 ![queue details](docs/queue.png)
 
-On a build it shows the run, status, duration, start time, actor, the merged PR and the sha.
+On a build it shows the run, status, duration, start time, actor, the merged PR, the sha and
+the run's jobs, fetched on demand and listed failures first with the step that failed.
 
 ![build details](docs/builds.png)
 

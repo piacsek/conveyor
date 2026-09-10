@@ -123,14 +123,15 @@ README keys line too). Per focused column:
 started_at, completed_at, url, failed_step: Option<String> }`, `duration()`, `parse_jobs(value)`
 (failures first, then running, then the rest, as `checks_failures_first` does). `fetch.rs`:
 `fetch_jobs(gh, repo_name, run_id) -> Result<Vec<Job>, String>`.
-Flow: `run()` grows a second callback or, better, the existing refresh closure becomes
-`FnMut(Request)` with `enum Request { Refresh(Stage), Jobs { run_id: u64 } }`; update the
-harness to record `Vec<Request>` (rename `refreshed` → `requests`, fix the two tests that read
-it). App state: `jobs: HashMap<u64, JobsState>` with `JobsState::{Loading, Ready(Vec<Job>),
-Failed(String)}`. When `p` opens details with Builds focused, or the selection moves while
-details are open on Builds, and the selected run has no entry → insert `Loading` and emit
-`Action::LoadJobs(run_id)` → `Request::Jobs`. New `Input::Jobs(run_id, Result<Vec<Job>,
-String>)` stores the result. `main.rs`: one jobs thread with an `mpsc::Receiver<u64>`; it
+Flow: the refresh closure became `FnMut(Request)` with
+`enum Request { Refresh(Stage), Jobs { run_id: u64 } }` and the harness records
+`Vec<Request>` (`refreshed` → `requests`). App state: `jobs: HashMap<u64, JobsState>` with
+`JobsState::{Loading, Ready(Vec<Job>), Failed(String)}`. No `Action::LoadJobs`: `run()` calls
+`App::jobs_needed()` after **every** input, which inserts `Loading` and returns the run id
+when details are open on Builds and the selected run has no entry. That covers `p`, a
+selection move and the re-request after an unsettled run's entry is dropped, which an
+`Action` on a key alone would not. New `Input::Jobs(run_id, Result<Vec<Job>, String>)`
+stores the result. `main.rs`: one jobs thread with an `mpsc::Receiver<u64>`; it
 needs the repo name → resolve with the same `repos()` fallback the builds fetcher uses (share a
 small helper). Re-fetch when the build is not settled (`!build.is_settled()`) and details are
 still open: simplest is to drop the cache entry on each `Data(Builds, …)` for unsettled runs.
