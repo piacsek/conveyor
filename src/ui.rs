@@ -1,12 +1,15 @@
+use std::time::SystemTime;
+
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, List, ListItem, Paragraph};
 
-use crate::app::{App, ColumnState, Mode, Stage};
+use crate::app::{App, Column, Mode, Row, Stage};
 use crate::model::prs::{CheckConclusion, CheckState, PullRequest};
-use crate::text::{age, pad_right};
+use crate::model::queue::QueueEntry;
+use crate::text::{age, duration, pad_right};
 
 const HIGHLIGHT: &str = "> ";
 
@@ -70,19 +73,29 @@ fn draw_tabs(frame: &mut Frame, app: &mut App, area: Rect) {
     draw_column(frame, app, app.focus, body, false);
 }
 
+fn titled<T: Row>(base: &str, column: &Column<T>) -> String {
+    let warning = if column.error.is_some() { " ⚠" } else { "" };
+    if column.is_loading() {
+        format!("{base}{warning}")
+    } else {
+        format!("{base} ({}){warning}", column.all().len())
+    }
+}
+
 fn column_title(app: &App, stage: Stage) -> String {
     match stage {
-        Stage::Prs => {
-            let warning = if app.prs_error.is_some() { " ⚠" } else { "" };
-            match &app.prs {
-                ColumnState::Loading => format!("My PRs{warning}"),
-                ColumnState::Ready { rows, .. } => format!("My PRs ({}){warning}", rows.len()),
-            }
-        }
-        Stage::Queue => "Merge queue".to_string(),
+        Stage::Prs => titled("My PRs", &app.prs),
+        Stage::Queue => match &app.queue_repo {
+            Some(repo) => titled(&format!("Queue {}", short_repo(repo)), &app.queue),
+            None => titled("Merge queue", &app.queue),
+        },
         Stage::Builds => "Main builds".to_string(),
         Stage::Deployed => "Deployed".to_string(),
     }
+}
+
+fn short_repo(repo: &str) -> &str {
+    repo.rsplit('/').next().unwrap_or(repo)
 }
 
 fn column_block(app: &App, stage: Stage, titled: bool) -> Block<'static> {
@@ -99,70 +112,117 @@ fn column_block(app: &App, stage: Stage, titled: bool) -> Block<'static> {
 
 fn draw_column(frame: &mut Frame, app: &mut App, stage: Stage, area: Rect, titled: bool) {
     let block = column_block(app, stage, titled);
+    let now = app.now;
     match stage {
-        Stage::Prs => draw_prs(frame, app, area, block),
+        Stage::Prs => draw_list(
+            frame,
+            &mut app.prs,
+            area,
+            block,
+            "no open pull requests",
+            |i, pr, w| pr_row(i, pr, now, w),
+        ),
+        Stage::Queue => draw_list(
+            frame,
+            &mut app.queue,
+            area,
+            block,
+            "queue empty",
+            |_, entry, w| queue_row(entry, w),
+        ),
         _ => frame.render_widget(Paragraph::new("not configured").block(block), area),
     }
 }
 
-fn draw_prs(frame: &mut Frame, app: &mut App, area: Rect, block: Block<'static>) {
-    match &app.prs {
-        ColumnState::Loading => {
-            let body = app
-                .prs_error
-                .clone()
-                .unwrap_or_else(|| "fetching…".to_string());
-            frame.render_widget(Paragraph::new(body).block(block), area);
-        }
-        ColumnState::Ready { rows: prs, .. } if prs.is_empty() => {
-            frame.render_widget(Paragraph::new("no open pull requests").block(block), area);
-        }
-        ColumnState::Ready { .. } => {
-            let visible = app.visible();
-            if visible.is_empty() {
-                let query = app.filter().unwrap_or_default();
-                frame.render_widget(
-                    Paragraph::new(format!("no matches for /{query}")).block(block),
-                    area,
-                );
-                return;
-            }
-            let width = usize::from(area.width.saturating_sub(2 + HIGHLIGHT.len() as u16));
-            let items: Vec<ListItem> = visible
-                .iter()
-                .enumerate()
-                .map(|(i, pr)| ListItem::new(row(i, pr, app.now, width)))
-                .collect();
-            let list = List::new(items).block(block).highlight_symbol(HIGHLIGHT);
-            frame.render_stateful_widget(list, area, &mut app.list);
-        }
+fn draw_list<T: Row>(
+    frame: &mut Frame,
+    column: &mut Column<T>,
+    area: Rect,
+    block: Block<'static>,
+    empty: &str,
+    row: impl Fn(usize, &T, usize) -> Line<'static>,
+) {
+    if column.is_loading() {
+        let body = column
+            .error
+            .clone()
+            .unwrap_or_else(|| "fetching…".to_string());
+        frame.render_widget(Paragraph::new(body).block(block), area);
+        return;
     }
+    if column.all().is_empty() {
+        frame.render_widget(Paragraph::new(empty.to_string()).block(block), area);
+        return;
+    }
+    let visible = column.visible();
+    if visible.is_empty() {
+        let query = column.filter.clone().unwrap_or_default();
+        frame.render_widget(
+            Paragraph::new(format!("no matches for /{query}")).block(block),
+            area,
+        );
+        return;
+    }
+    let width = usize::from(area.width.saturating_sub(2 + HIGHLIGHT.len() as u16));
+    let items: Vec<ListItem> = visible
+        .iter()
+        .enumerate()
+        .map(|(i, item)| ListItem::new(row(i, item, width)))
+        .collect();
+    let list = List::new(items).block(block).highlight_symbol(HIGHLIGHT);
+    frame.render_stateful_widget(list, area, &mut column.list);
 }
 
 fn dim() -> Style {
     Style::default().add_modifier(Modifier::DIM)
 }
 
-fn row(index: usize, pr: &PullRequest, now: std::time::SystemTime, width: usize) -> Line<'static> {
-    let number = if index < 9 {
-        (index + 1).to_string()
-    } else {
-        " ".to_string()
-    };
-    let repo = pr.repo.rsplit('/').next().unwrap_or(&pr.repo);
-    let right = pr.updated_at.map(|at| age(at, now)).unwrap_or_default();
-    let text = format!("#{} {repo}  {}", pr.number, pr.title);
+fn line(
+    number: String,
+    glyph: (char, Color),
+    text: String,
+    right: String,
+    width: usize,
+) -> Line<'static> {
     let text_width = width.saturating_sub(number.chars().count() + 3 + right.chars().count() + 1);
-    let (glyph, color) = glyph(pr.checks);
     Line::from(vec![
         Span::styled(number, dim()),
         Span::raw(" "),
-        Span::styled(glyph.to_string(), Style::default().fg(color)),
+        Span::styled(glyph.0.to_string(), Style::default().fg(glyph.1)),
         Span::raw(" "),
         Span::raw(pad_right(&text, text_width)),
         Span::raw(" "),
         Span::styled(right, dim()),
     ])
+}
+
+fn row_number(index: usize) -> String {
+    if index < 9 {
+        (index + 1).to_string()
+    } else {
+        " ".to_string()
+    }
+}
+
+fn pr_row(index: usize, pr: &PullRequest, now: SystemTime, width: usize) -> Line<'static> {
+    let right = pr.updated_at.map(|at| age(at, now)).unwrap_or_default();
+    let text = format!("#{} {}  {}", pr.number, short_repo(&pr.repo), pr.title);
+    line(row_number(index), glyph(pr.checks), text, right, width)
+}
+
+fn queue_row(entry: &QueueEntry, width: usize) -> Line<'static> {
+    let right = match entry.eta {
+        Some(eta) => duration(eta),
+        None => entry.state.to_string(),
+    };
+    let text = format!("#{} {}  {}", entry.number, entry.author, entry.title);
+    line(
+        entry.position.to_string(),
+        glyph(entry.checks),
+        text,
+        right,
+        width,
+    )
 }
 
 fn glyph(checks: CheckState) -> (char, Color) {
@@ -176,13 +236,29 @@ fn glyph(checks: CheckState) -> (char, Color) {
 }
 
 fn draw_details(frame: &mut Frame, app: &App, area: Rect) {
-    let Some(pr) = app.selected() else {
-        frame.render_widget(
-            Paragraph::new("nothing selected").block(Block::bordered().title("Details")),
-            area,
-        );
-        return;
+    let (title, lines) = match app.focus {
+        Stage::Prs => match app.prs.selected() {
+            Some(pr) => (format!("#{} {}", pr.number, pr.title), pr_details(pr)),
+            None => ("Details".to_string(), vec![Line::from("nothing selected")]),
+        },
+        Stage::Queue => match app.queue.selected() {
+            Some(entry) => (
+                format!("#{} {}", entry.number, entry.title),
+                queue_details(entry, app.now),
+            ),
+            None => ("Details".to_string(), vec![Line::from("nothing selected")]),
+        },
+        Stage::Builds | Stage::Deployed => {
+            ("Details".to_string(), vec![Line::from("not configured")])
+        }
     };
+    frame.render_widget(
+        Paragraph::new(lines).block(Block::bordered().title(title)),
+        area,
+    );
+}
+
+fn pr_details(pr: &PullRequest) -> Vec<Line<'static>> {
     let mut lines = vec![
         Line::from(format!(
             "#{} {}  {}  +{} −{}",
@@ -198,11 +274,52 @@ fn draw_details(frame: &mut Frame, app: &App, area: Rect) {
             Span::styled(check.url.clone(), dim()),
         ])
     }));
-    let title = format!("#{} {}", pr.number, pr.title);
-    frame.render_widget(
-        Paragraph::new(lines).block(Block::bordered().title(title)),
-        area,
-    );
+    lines
+}
+
+fn queue_details(entry: &QueueEntry, now: SystemTime) -> Vec<Line<'static>> {
+    let enqueued = entry
+        .enqueued_at
+        .map(|at| format!("enqueued {} ago", age(at, now)))
+        .unwrap_or_default();
+    let eta = entry
+        .eta
+        .map(|eta| format!("  eta {}", duration(eta)))
+        .unwrap_or_default();
+    let mut flags = Vec::new();
+    if entry.solo {
+        flags.push("solo");
+    }
+    if entry.jump {
+        flags.push("jump");
+    }
+    let flags = if flags.is_empty() {
+        String::new()
+    } else {
+        format!("  {}", flags.join(" "))
+    };
+    vec![
+        Line::from(format!(
+            "#{} by {}  position {}  {}{eta}{flags}",
+            entry.number, entry.author, entry.position, entry.state
+        )),
+        Line::from(format!("{enqueued}  checks: {}", check_word(entry.checks))),
+        Line::from(vec![
+            Span::styled(entry.head_sha.clone(), dim()),
+            Span::raw("  "),
+            Span::styled(entry.url.clone(), dim()),
+        ]),
+    ]
+}
+
+fn check_word(checks: CheckState) -> &'static str {
+    match checks {
+        CheckState::Success => "success",
+        CheckState::Failure => "failure",
+        CheckState::Pending => "pending",
+        CheckState::None => "none",
+        CheckState::Unknown => "?",
+    }
 }
 
 fn conclusion_glyph(conclusion: CheckConclusion) -> (char, Color) {
@@ -219,11 +336,14 @@ fn footer_text(app: &App) -> String {
     if let Some(notice) = &app.notice {
         return notice.clone();
     }
-    if let Some(error) = &app.prs_error {
-        return error.clone();
+    if let Some(error) = app.focused_error() {
+        return error.to_string();
     }
-    match (app.filter(), app.fetched_at()) {
-        (Some(query), _) => format!("/{query}  {}/{}", app.visible().len(), app.all().len()),
+    match (app.filter(), app.focused_fetched_at()) {
+        (Some(query), _) => {
+            let (visible, total) = app.focused_counts();
+            format!("/{query}  {visible}/{total}")
+        }
         (None, Some(at)) => format!("refreshed {} ago", age(at, app.now)),
         (None, None) => String::new(),
     }

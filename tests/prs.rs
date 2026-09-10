@@ -334,11 +334,11 @@ fn narrow_terminals_collapse_the_columns_into_tabs_and_h_l_switch_them() {
         "{screen}"
     );
     assert!(screen.contains("#1 webapp  a"), "{screen}");
-    assert!(!screen.contains("not configured"), "{screen}");
+    assert!(!screen.contains("fetching…"), "{screen}");
 
     h.run(vec![key(KeyCode::Char('l'))]).unwrap();
     let screen = h.screen();
-    assert!(screen.contains("not configured"), "{screen}");
+    assert!(screen.contains("fetching…"), "the queue column: {screen}");
     assert!(!screen.contains("#1 webapp  a"), "{screen}");
 
     h.run(vec![key(KeyCode::Char('h')), key(KeyCode::Char('h'))])
@@ -371,7 +371,10 @@ fn a_failure_before_any_data_flags_the_column_and_shows_the_message_in_the_body(
 
     let screen = h.screen();
     assert!(screen.contains("My PRs ⚠"), "{screen}");
-    assert!(!screen.contains("fetching…"), "{screen}");
+    assert!(
+        !screen.lines().nth(1).unwrap().starts_with("│fetching…"),
+        "{screen}"
+    );
     assert!(
         screen
             .lines()

@@ -7,6 +7,7 @@ use std::time::{Duration, UNIX_EPOCH};
 use conveyor::app::{App, Input, Rows, Stage, run};
 use conveyor::config::Config;
 use conveyor::model::prs::{CheckState, PullRequest};
+use conveyor::model::queue::{Queue, QueueEntry, QueueState};
 use conveyor::open::Opener;
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
@@ -69,6 +70,34 @@ pub fn ctrl(c: char) -> io::Result<Input> {
 
 pub fn prs(prs: Vec<PullRequest>) -> io::Result<Input> {
     Ok(Input::Data(Stage::Prs, Ok(Rows::Prs(prs))))
+}
+
+pub fn queue(entries: Vec<QueueEntry>) -> io::Result<Input> {
+    Ok(Input::Data(
+        Stage::Queue,
+        Ok(Rows::Queue(Queue {
+            repo: "acme/webapp".to_string(),
+            url: "https://github.com/acme/webapp/queue/main".to_string(),
+            entries,
+        })),
+    ))
+}
+
+pub fn entry(position: u64, number: u64, author: &str, title: &str) -> QueueEntry {
+    QueueEntry {
+        position,
+        state: QueueState::Queued,
+        number,
+        title: title.to_string(),
+        author: author.to_string(),
+        url: format!("https://github.com/acme/webapp/pull/{number}"),
+        head_sha: format!("{number:040x}"),
+        checks: CheckState::None,
+        eta: None,
+        enqueued_at: Some(UNIX_EPOCH + Duration::from_secs(NOW - 20 * 60)),
+        solo: false,
+        jump: false,
+    }
 }
 
 pub fn failed(stage: Stage, message: &str) -> io::Result<Input> {

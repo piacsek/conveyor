@@ -8,6 +8,7 @@ use ratatui::widgets::ListState;
 
 use crate::config::Config;
 use crate::model::prs::PullRequest;
+use crate::model::queue::{Queue, QueueEntry};
 use crate::open::Opener;
 use crate::ui;
 
@@ -42,6 +43,7 @@ impl Stage {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Rows {
     Prs(Vec<PullRequest>),
+    Queue(Queue),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,6 +70,52 @@ pub enum Mode {
     Help,
 }
 
+pub trait Row: Clone {
+    fn key(&self) -> u64;
+    fn url(&self) -> &str;
+    fn matches(&self, query: &str) -> bool;
+}
+
+impl Row for PullRequest {
+    fn key(&self) -> u64 {
+        self.number
+    }
+
+    fn url(&self) -> &str {
+        &self.url
+    }
+
+    fn matches(&self, query: &str) -> bool {
+        [
+            format!("#{}", self.number),
+            self.title.to_lowercase(),
+            self.repo.to_lowercase(),
+        ]
+        .iter()
+        .any(|text| text.contains(query))
+    }
+}
+
+impl Row for QueueEntry {
+    fn key(&self) -> u64 {
+        self.number
+    }
+
+    fn url(&self) -> &str {
+        &self.url
+    }
+
+    fn matches(&self, query: &str) -> bool {
+        [
+            format!("#{}", self.number),
+            self.title.to_lowercase(),
+            self.author.to_lowercase(),
+        ]
+        .iter()
+        .any(|text| text.contains(query))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum ColumnState<T> {
     #[default]
@@ -87,11 +135,107 @@ impl<T> ColumnState<T> {
     }
 }
 
-pub struct App {
-    pub prs: ColumnState<PullRequest>,
-    pub prs_error: Option<String>,
-    pub focus: Stage,
+#[derive(Debug, Clone)]
+pub struct Column<T> {
+    pub state: ColumnState<T>,
+    pub error: Option<String>,
     pub list: ListState,
+    pub filter: Option<String>,
+}
+
+impl<T> Default for Column<T> {
+    fn default() -> Self {
+        Self {
+            state: ColumnState::Loading,
+            error: None,
+            list: ListState::default().with_selected(Some(0)),
+            filter: None,
+        }
+    }
+}
+
+impl<T: Row> Column<T> {
+    pub fn all(&self) -> &[T] {
+        match &self.state {
+            ColumnState::Ready { rows, .. } => rows,
+            ColumnState::Loading => &[],
+        }
+    }
+
+    pub fn is_loading(&self) -> bool {
+        matches!(self.state, ColumnState::Loading)
+    }
+
+    pub fn fetched_at(&self) -> Option<SystemTime> {
+        match &self.state {
+            ColumnState::Ready { fetched_at, .. } => Some(*fetched_at),
+            ColumnState::Loading => None,
+        }
+    }
+
+    pub fn visible(&self) -> Vec<&T> {
+        let query = self.filter.clone().unwrap_or_default().to_lowercase();
+        self.all()
+            .iter()
+            .filter(|row| row.matches(&query))
+            .collect()
+    }
+
+    pub fn selected(&self) -> Option<&T> {
+        self.list
+            .selected()
+            .and_then(|i| self.visible().get(i).copied())
+    }
+
+    pub fn receive(&mut self, rows: Vec<T>, now: SystemTime) {
+        let selected = self.selected().map(Row::key);
+        let current = std::mem::take(&mut self.state).into_rows();
+        self.state = ColumnState::Ready {
+            rows: merge_keeping_order(current, rows),
+            fetched_at: now,
+        };
+        self.error = None;
+        let index = selected
+            .and_then(|key| self.visible().iter().position(|row| row.key() == key))
+            .unwrap_or(0);
+        self.list.select(Some(index));
+    }
+
+    fn select_next(&mut self) {
+        let last = self.visible().len().saturating_sub(1);
+        let next = self.list.selected().map_or(0, |i| (i + 1).min(last));
+        self.list.select(Some(next));
+    }
+
+    fn select_last(&mut self) {
+        self.list.select(self.visible().len().checked_sub(1));
+    }
+
+    fn select_index(&mut self, index: usize) {
+        if index < self.visible().len() {
+            self.list.select(Some(index));
+        }
+    }
+}
+
+fn merge_keeping_order<T: Row>(current: Vec<T>, fresh: Vec<T>) -> Vec<T> {
+    let mut fresh = fresh;
+    let mut merged: Vec<T> = current
+        .iter()
+        .filter_map(|old| {
+            let index = fresh.iter().position(|new| new.key() == old.key())?;
+            Some(fresh.remove(index))
+        })
+        .collect();
+    merged.extend(fresh);
+    merged
+}
+
+pub struct App {
+    pub prs: Column<PullRequest>,
+    pub queue: Column<QueueEntry>,
+    pub queue_repo: Option<String>,
+    pub focus: Stage,
     pub mode: Mode,
     pub config: Config,
     pub now: SystemTime,
@@ -107,10 +251,10 @@ impl App {
 
     pub fn at(now: SystemTime, config: Config) -> Self {
         Self {
-            prs: ColumnState::Loading,
-            prs_error: None,
+            prs: Column::default(),
+            queue: Column::default(),
+            queue_repo: None,
             focus: Stage::Prs,
-            list: ListState::default().with_selected(Some(0)),
             mode: Mode::Normal,
             config,
             now,
@@ -122,20 +266,13 @@ impl App {
 
     pub fn receive(&mut self, stage: Stage, data: Result<Rows, String>) {
         match (stage, data) {
-            (Stage::Prs, Ok(Rows::Prs(prs))) => {
-                let selected = self.selected().map(|pr| pr.number);
-                let current = std::mem::take(&mut self.prs).into_rows();
-                self.prs = ColumnState::Ready {
-                    rows: merge_keeping_order(current, prs),
-                    fetched_at: self.now,
-                };
-                self.prs_error = None;
-                let index = selected
-                    .and_then(|number| self.visible().iter().position(|pr| pr.number == number))
-                    .unwrap_or(0);
-                self.list.select(Some(index));
+            (Stage::Prs, Ok(Rows::Prs(prs))) => self.prs.receive(prs, self.now),
+            (Stage::Queue, Ok(Rows::Queue(queue))) => {
+                self.queue_repo = Some(queue.repo);
+                self.queue.receive(queue.entries, self.now);
             }
-            (Stage::Prs, Err(message)) => self.prs_error = Some(message),
+            (Stage::Prs, Err(message)) => self.prs.error = Some(message),
+            (Stage::Queue, Err(message)) => self.queue.error = Some(message),
             _ => {}
         }
     }
@@ -147,35 +284,54 @@ impl App {
         }
     }
 
-    pub fn all(&self) -> &[PullRequest] {
-        match &self.prs {
-            ColumnState::Ready { rows, .. } => rows,
-            ColumnState::Loading => &[],
+    pub fn focused_error(&self) -> Option<&str> {
+        match self.focus {
+            Stage::Prs => self.prs.error.as_deref(),
+            Stage::Queue => self.queue.error.as_deref(),
+            Stage::Builds | Stage::Deployed => None,
         }
     }
 
-    pub fn fetched_at(&self) -> Option<SystemTime> {
-        match &self.prs {
-            ColumnState::Ready { fetched_at, .. } => Some(*fetched_at),
-            ColumnState::Loading => None,
+    pub fn focused_fetched_at(&self) -> Option<SystemTime> {
+        match self.focus {
+            Stage::Prs => self.prs.fetched_at(),
+            Stage::Queue => self.queue.fetched_at(),
+            Stage::Builds | Stage::Deployed => None,
         }
     }
 
-    pub fn visible(&self) -> Vec<&PullRequest> {
-        let query = self.filter().unwrap_or("").to_lowercase();
-        self.all().iter().filter(|pr| matches(pr, &query)).collect()
+    pub fn focused_counts(&self) -> (usize, usize) {
+        match self.focus {
+            Stage::Prs => (self.prs.visible().len(), self.prs.all().len()),
+            Stage::Queue => (self.queue.visible().len(), self.queue.all().len()),
+            Stage::Builds | Stage::Deployed => (0, 0),
+        }
     }
 
-    pub fn selected(&self) -> Option<&PullRequest> {
-        self.list
-            .selected()
-            .and_then(|i| self.visible().get(i).copied())
+    fn selected_target(&self) -> Option<(u64, String)> {
+        match self.focus {
+            Stage::Prs => self.prs.selected().map(|pr| (pr.key(), pr.url.clone())),
+            Stage::Queue => self
+                .queue
+                .selected()
+                .map(|entry| (entry.key(), entry.url.clone())),
+            Stage::Builds | Stage::Deployed => None,
+        }
     }
 
-    fn select_next(&mut self) {
-        let last = self.visible().len().saturating_sub(1);
-        let next = self.list.selected().map_or(0, |i| (i + 1).min(last));
-        self.list.select(Some(next));
+    fn with_focused(&mut self, act: impl Fn(&mut dyn Navigable)) {
+        match self.focus {
+            Stage::Prs => act(&mut self.prs),
+            Stage::Queue => act(&mut self.queue),
+            Stage::Builds | Stage::Deployed => {}
+        }
+    }
+
+    fn sync_filter(&mut self) {
+        let filter = self.filter().map(str::to_string);
+        self.prs.filter = filter.clone();
+        self.queue.filter = filter;
+        self.with_focused(|column| column.select_index_clamped(0));
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> Action {
@@ -201,7 +357,7 @@ impl App {
             }),
             KeyCode::Esc => {
                 self.mode = Mode::Normal;
-                self.list.select_first();
+                self.sync_filter();
                 Action::Continue
             }
             _ => self.handle_normal_key(key),
@@ -212,7 +368,7 @@ impl App {
         if let Mode::Filter(query) = &mut self.mode {
             edit(query);
         }
-        self.list.select_first();
+        self.sync_filter();
         Action::Continue
     }
 
@@ -220,35 +376,36 @@ impl App {
         let pending_g = std::mem::take(&mut self.pending_g);
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => return Action::Quit,
-            KeyCode::Char('/') => self.mode = Mode::Filter(String::new()),
+            KeyCode::Char('/') => {
+                self.mode = Mode::Filter(String::new());
+                self.sync_filter();
+            }
             KeyCode::Char('?') => self.mode = Mode::Help,
             KeyCode::Enter | KeyCode::Char('o') => {
-                if let Some(pr) = self.selected() {
-                    return Action::Open(pr.url.clone());
+                if let Some((_, url)) = self.selected_target() {
+                    return Action::Open(url);
                 }
             }
             KeyCode::Char('y') => {
-                if let Some((number, url)) = self.selected().map(|pr| (pr.number, pr.url.clone())) {
+                if let Some((number, url)) = self.selected_target() {
                     self.notice = Some(format!("copied #{number}"));
                     return Action::Copy(url);
                 }
             }
             KeyCode::Char('r') => return Action::Refresh(self.focus),
+            KeyCode::Char('p') => self.details = !self.details,
             KeyCode::Char('l') if self.focus != Stage::Deployed => self.focus = self.focus.next(),
             KeyCode::Char('h') if self.focus != Stage::Prs => self.focus = self.focus.previous(),
             KeyCode::Tab => self.focus = self.focus.next(),
             KeyCode::BackTab => self.focus = self.focus.previous(),
             KeyCode::Char(digit @ '1'..='9') => {
                 let index = digit.to_digit(10).unwrap_or(1) as usize - 1;
-                if index < self.visible().len() {
-                    self.list.select(Some(index));
-                }
+                self.with_focused(|column| column.select_index_clamped(index));
             }
-            KeyCode::Char('p') => self.details = !self.details,
-            KeyCode::Char('j') | KeyCode::Down => self.select_next(),
-            KeyCode::Char('k') | KeyCode::Up => self.list.select_previous(),
-            KeyCode::Char('G') => self.list.select(self.visible().len().checked_sub(1)),
-            KeyCode::Char('g') if pending_g => self.list.select_first(),
+            KeyCode::Char('j') | KeyCode::Down => self.with_focused(|c| c.next()),
+            KeyCode::Char('k') | KeyCode::Up => self.with_focused(|c| c.previous()),
+            KeyCode::Char('G') => self.with_focused(|c| c.last()),
+            KeyCode::Char('g') if pending_g => self.with_focused(|c| c.first()),
             KeyCode::Char('g') => self.pending_g = true,
             _ => {}
         }
@@ -256,33 +413,44 @@ impl App {
     }
 }
 
-fn merge_keeping_order(current: Vec<PullRequest>, fresh: Vec<PullRequest>) -> Vec<PullRequest> {
-    let mut fresh = fresh;
-    let mut merged: Vec<PullRequest> = current
-        .iter()
-        .filter_map(|old| {
-            let index = fresh.iter().position(|new| new.number == old.number)?;
-            Some(fresh.remove(index))
-        })
-        .collect();
-    merged.extend(fresh);
-    merged
+pub trait Navigable {
+    fn next(&mut self);
+    fn previous(&mut self);
+    fn first(&mut self);
+    fn last(&mut self);
+    fn select_index_clamped(&mut self, index: usize);
+}
+
+impl<T: Row> Navigable for Column<T> {
+    fn next(&mut self) {
+        self.select_next();
+    }
+
+    fn previous(&mut self) {
+        self.list.select_previous();
+    }
+
+    fn first(&mut self) {
+        self.list.select_first();
+    }
+
+    fn last(&mut self) {
+        self.select_last();
+    }
+
+    fn select_index_clamped(&mut self, index: usize) {
+        if index == 0 {
+            self.list.select_first();
+        } else {
+            self.select_index(index);
+        }
+    }
 }
 
 fn attempt(app: &mut App, result: io::Result<()>) {
     if let Err(err) = result {
         app.notice = Some(err.to_string());
     }
-}
-
-fn matches(pr: &PullRequest, query: &str) -> bool {
-    [
-        format!("#{}", pr.number),
-        pr.title.to_lowercase(),
-        pr.repo.to_lowercase(),
-    ]
-    .iter()
-    .any(|text| text.contains(query))
 }
 
 pub fn run<B, O, R>(
