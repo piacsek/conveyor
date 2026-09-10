@@ -15,7 +15,7 @@ use crate::text::{age, clock, duration, pad_right, refreshed};
 
 const HIGHLIGHT: &str = "> ";
 
-pub const KEYS: [(&str, &str); 11] = [
+pub const KEYS: [(&str, &str); 12] = [
     ("j/k ↓/↑", "move"),
     ("1-9", "jump to row"),
     ("h/l Tab", "focus column"),
@@ -25,6 +25,7 @@ pub const KEYS: [(&str, &str); 11] = [
     ("p", "details"),
     ("/", "filter"),
     ("r", "refresh"),
+    ("R", "refresh all"),
     ("?", "this help"),
     ("q Esc", "quit"),
 ];
@@ -76,42 +77,29 @@ fn draw_tabs(frame: &mut Frame, app: &mut App, area: Rect) {
     draw_column(frame, app, app.focus, body, false);
 }
 
-fn titled<T: Row>(base: &str, column: &Column<T>, spinner: char) -> String {
+fn titled<T: Row>(base: &str, column: &Column<T>) -> String {
     let warning = if column.error.is_some() { " ⚠" } else { "" };
-    let spin = if column.refreshing {
-        format!(" {spinner}")
-    } else {
-        String::new()
-    };
     if column.is_loading() {
-        format!("{base}{warning}{spin}")
+        format!("{base}{warning}")
     } else {
-        format!("{base} ({}){warning}{spin}", column.all().len())
+        format!("{base} ({}){warning}", column.all().len())
     }
 }
 
 fn column_title(app: &App, stage: Stage) -> String {
     match stage {
-        Stage::Prs => titled("My PRs", &app.prs, app.spinner()),
+        Stage::Prs => titled("My PRs", &app.prs),
         Stage::Queue => match &app.queue_repo {
-            Some(repo) => titled(
-                &format!("Queue {}", short_repo(repo)),
-                &app.queue,
-                app.spinner(),
-            ),
-            None => titled("Merge queue", &app.queue, app.spinner()),
+            Some(repo) => titled(&format!("Queue {}", short_repo(repo)), &app.queue),
+            None => titled("Merge queue", &app.queue),
         },
         Stage::Builds => match &app.builds_repo {
-            Some(repo) => titled(
-                &format!("Main {}", short_repo(repo)),
-                &app.builds,
-                app.spinner(),
-            ),
-            None => titled("Main builds", &app.builds, app.spinner()),
+            Some(repo) => titled(&format!("Main {}", short_repo(repo)), &app.builds),
+            None => titled("Main builds", &app.builds),
         },
         Stage::Deployed => match &app.deployed_system {
-            Some(system) => titled(&format!("Deployed {system}"), &app.deployed, app.spinner()),
-            None => titled("Deployed", &app.deployed, app.spinner()),
+            Some(system) => titled(&format!("Deployed {system}"), &app.deployed),
+            None => titled("Deployed", &app.deployed),
         },
     }
 }
@@ -135,7 +123,6 @@ fn column_block(app: &App, stage: Stage, titled: bool) -> Block<'static> {
 fn draw_column(frame: &mut Frame, app: &mut App, stage: Stage, area: Rect, titled: bool) {
     let block = column_block(app, stage, titled);
     let now = app.now;
-    let spinner = app.spinner();
     match stage {
         Stage::Prs => draw_list(
             frame,
@@ -143,7 +130,6 @@ fn draw_column(frame: &mut Frame, app: &mut App, stage: Stage, area: Rect, title
             area,
             block,
             "no open pull requests",
-            spinner,
             |i, pr, w| pr_row(i, pr, now, w),
         ),
         Stage::Queue => draw_list(
@@ -152,7 +138,6 @@ fn draw_column(frame: &mut Frame, app: &mut App, stage: Stage, area: Rect, title
             area,
             block,
             "queue empty",
-            spinner,
             |_, entry, w| queue_row(entry, w),
         ),
         Stage::Builds => draw_list(
@@ -161,7 +146,6 @@ fn draw_column(frame: &mut Frame, app: &mut App, stage: Stage, area: Rect, title
             area,
             block,
             "no builds on main",
-            spinner,
             |i, build, w| build_row(i, build, now, w),
         ),
         Stage::Deployed
@@ -187,7 +171,6 @@ fn draw_column(frame: &mut Frame, app: &mut App, stage: Stage, area: Rect, title
                 area,
                 block,
                 "no environments",
-                spinner,
                 |i, row, w| deployed_row(i, row, behind.get(i).copied().flatten(), w),
             )
         }
@@ -353,14 +336,13 @@ fn draw_list<T: Row>(
     area: Rect,
     block: Block<'static>,
     empty: &str,
-    spinner: char,
     row: impl Fn(usize, &T, usize) -> Line<'static>,
 ) {
     if column.is_loading() {
         let body = column
             .error
             .clone()
-            .unwrap_or_else(|| format!("{spinner} fetching…"));
+            .unwrap_or_else(|| "fetching…".to_string());
         frame.render_widget(Paragraph::new(body).block(block), area);
         return;
     }
@@ -622,11 +604,16 @@ pub fn logo() -> String {
 }
 
 fn draw_footer(frame: &mut Frame, app: &App, area: Rect) {
+    let text = if app.any_refreshing() {
+        format!("{} {}", app.spinner(), footer_text(app))
+    } else {
+        footer_text(app)
+    };
     let logo = logo();
     let logo_width = logo.chars().count() as u16 + 1;
-    let [text, right] =
+    let [left, right] =
         Layout::horizontal([Constraint::Fill(1), Constraint::Length(logo_width)]).areas(area);
-    frame.render_widget(Paragraph::new(footer_text(app)), text);
+    frame.render_widget(Paragraph::new(text), left);
     frame.render_widget(
         Paragraph::new(Span::styled(logo, dim())).right_aligned(),
         right,

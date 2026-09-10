@@ -221,7 +221,10 @@ fn r_requests_a_refresh_and_the_footer_shows_the_data_age() {
     );
 
     h.run(vec![key(KeyCode::Char('r'))]).unwrap();
-    assert_eq!(h.refreshed, vec![Stage::Prs]);
+    assert_eq!(
+        h.requests,
+        vec![conveyor::app::Request::Refresh(Stage::Prs)]
+    );
 }
 
 #[test]
@@ -295,6 +298,8 @@ fn question_mark_shows_the_key_help_and_any_key_returns() {
         "open in browser",
         "b",
         "open build",
+        "R",
+        "refresh all",
         "y",
         "copy URL",
         "p",
@@ -491,26 +496,32 @@ fn spinner_in(text: &str) -> Option<char> {
 }
 
 #[test]
-fn a_refreshing_column_spins_a_braille_glyph_in_its_title_until_data_arrives() {
+fn a_refreshing_column_spins_one_braille_glyph_at_the_start_of_the_footer() {
     use conveyor::app::Stage;
     use support::{fetching, tick_at_ms};
     let mut h = Harness::new();
 
     h.run(vec![prs(three()), fetching(Stage::Prs)]).unwrap();
-    let title = h.screen().lines().next().unwrap().to_string();
-    let first = spinner_in(&title).expect("a spinner in the title");
-    assert!(title.contains("My PRs (3)"), "{title}");
+    let footer = h.screen().lines().last().unwrap().to_string();
+    let first = spinner_in(&footer).expect("a spinner in the footer");
+    assert!(footer.starts_with(first), "at the very start: {footer:?}");
+    assert!(footer.contains("refreshed"), "{footer:?}");
+    assert_eq!(
+        spinner_in(h.screen().lines().next().unwrap()),
+        None,
+        "no spinner in the column title"
+    );
 
     h.run(vec![tick_at_ms(NOW * 1000 + 100)]).unwrap();
-    let second = spinner_in(h.screen().lines().next().unwrap()).unwrap();
+    let second = spinner_in(h.screen().lines().last().unwrap()).unwrap();
     assert_ne!(first, second, "the spinner advances with time");
 
     h.run(vec![prs(three())]).unwrap();
-    assert_eq!(spinner_in(h.screen().lines().next().unwrap()), None);
+    assert_eq!(spinner_in(h.screen().lines().last().unwrap()), None);
 }
 
 #[test]
-fn the_initial_fetch_spins_too() {
+fn the_initial_fetch_spins_too_and_the_loading_body_stays_plain() {
     use conveyor::app::Stage;
     use support::fetching;
     let mut h = Harness::new();
@@ -518,9 +529,43 @@ fn the_initial_fetch_spins_too() {
     h.run(vec![fetching(Stage::Prs)]).unwrap();
 
     let body = h.screen().lines().nth(1).unwrap().to_string();
+    assert!(body.contains("fetching…"), "{body}");
+    assert_eq!(spinner_in(&body), None, "{body}");
     assert!(
-        spinner_in(&body).is_some() && body.contains("fetching…"),
-        "{body}"
+        spinner_in(h.screen().lines().last().unwrap()).is_some(),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
+fn any_refreshing_column_spins_the_footer_even_when_another_one_is_focused() {
+    use conveyor::app::Stage;
+    use support::{fetching, queue};
+    let mut h = Harness::new();
+
+    h.run(vec![prs(three()), fetching(Stage::Queue)]).unwrap();
+    assert!(
+        spinner_in(h.screen().lines().last().unwrap()).is_some(),
+        "{}",
+        h.screen()
+    );
+
+    h.run(vec![queue(vec![])]).unwrap();
+    assert_eq!(spinner_in(h.screen().lines().last().unwrap()), None);
+}
+
+#[test]
+fn shift_r_refreshes_every_column() {
+    use conveyor::app::{Request, Stage};
+    let mut h = Harness::new();
+
+    h.run(vec![prs(three()), key(KeyCode::Char('R'))]).unwrap();
+
+    assert_eq!(
+        h.requests,
+        Stage::ALL.map(Request::Refresh).to_vec(),
+        "one request per column"
     );
 }
 

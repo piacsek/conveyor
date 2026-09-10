@@ -24,7 +24,7 @@ Status: phase 4. All four columns are live: My PRs, Merge queue, Main builds, De
   deployment) keeps its last known sha with a red `✗` and the error in the footer and details.
   `Enter` opens the PR, `b` the main build that matches the deployed sha.
 - Footer: `refreshed just now`, then `refreshed at HH:MM:SS` in local time, for the focused
-  column; a braille spinner in a column title while its fetch is in flight; a static
+  column; one braille spinner at the start of the footer while any fetch is in flight; a static
   `conveyor v<version>` logo at the bottom right. Holding `Enter` opens a row once per second, not per repeat.
 
 `p` opens a details pane for the selected row: branch, diff size, review and merge state,
@@ -51,7 +51,7 @@ Narrow terminals collapse the columns into tabs:
 
 Keys: `j/k` move, `1-9` jump to a row, `h/l`/`Tab` focus a column, `Enter`/`o` open in the
 browser, `b` open the build behind the row, `y` copy the URL, `p` details pane, `/` filter,
-`r` refresh the focused column, `?` help, `q` quit. Keys act on the focused column.
+`r` refresh the focused column, `R` refresh all of them, `?` help, `q` quit. Keys act on the focused column.
 Below `4 × min_column_width` columns the four columns collapse into tabs (`h/l` switch). A failed fetch keeps
 the last rows, marks the column `⚠` and shows the error in the footer; the app never exits on
 it.

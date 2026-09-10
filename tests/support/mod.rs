@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::io;
 use std::time::{Duration, UNIX_EPOCH};
 
-use conveyor::app::{App, Input, Rows, Stage, run};
+use conveyor::app::{App, Input, Request, Rows, Stage, run};
 use conveyor::config::Config;
 use conveyor::model::builds::{Build, BuildStatus, Builds, PullRef};
 use conveyor::model::deployed::{Deployed, Deployment};
@@ -190,7 +190,7 @@ pub struct Harness {
     pub terminal: Terminal<TestBackend>,
     pub app: App,
     pub opener: FakeOpener,
-    pub refreshed: Vec<Stage>,
+    pub requests: Vec<Request>,
 }
 
 impl Harness {
@@ -207,18 +207,18 @@ impl Harness {
             terminal: Terminal::new(TestBackend::new(width, height)).unwrap(),
             app: App::at(UNIX_EPOCH + Duration::from_secs(NOW), config),
             opener: FakeOpener::default(),
-            refreshed: Vec::new(),
+            requests: Vec::new(),
         }
     }
 
     pub fn run(&mut self, inputs: Vec<io::Result<Input>>) -> io::Result<()> {
-        let refreshed = &mut self.refreshed;
+        let requests = &mut self.requests;
         run(
             &mut self.terminal,
             &mut self.app,
             inputs.into_iter(),
             &self.opener,
-            |stage| refreshed.push(stage),
+            |request| requests.push(request),
         )
     }
 
