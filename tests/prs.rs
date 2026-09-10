@@ -49,3 +49,45 @@ fn rows_show_number_glyph_repo_title_and_age_with_the_first_highlighted() {
         "{screen}"
     );
 }
+
+fn three() -> Vec<conveyor::model::prs::PullRequest> {
+    vec![pr(1, "a"), pr(2, "b"), pr(3, "c")]
+}
+
+fn highlighted_row(screen: &str) -> usize {
+    screen
+        .lines()
+        .position(|line| line.starts_with("│> "))
+        .expect("a highlighted row")
+}
+
+#[test]
+fn j_k_arrows_gg_and_g_move_the_highlight_and_clamp() {
+    let mut h = Harness::new();
+    h.run(vec![
+        prs(three()),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Down),
+    ])
+    .unwrap();
+    assert_eq!(highlighted_row(&h.screen()), 3);
+
+    h.run(vec![key(KeyCode::Char('j')), key(KeyCode::Char('j'))])
+        .unwrap();
+    assert_eq!(highlighted_row(&h.screen()), 3, "clamps at the end");
+
+    h.run(vec![
+        key(KeyCode::Char('k')),
+        key(KeyCode::Up),
+        key(KeyCode::Up),
+    ])
+    .unwrap();
+    assert_eq!(highlighted_row(&h.screen()), 1, "clamps at the start");
+
+    h.run(vec![key(KeyCode::Char('G'))]).unwrap();
+    assert_eq!(highlighted_row(&h.screen()), 3);
+
+    h.run(vec![key(KeyCode::Char('g')), key(KeyCode::Char('g'))])
+        .unwrap();
+    assert_eq!(highlighted_row(&h.screen()), 1);
+}

@@ -49,6 +49,7 @@ pub struct App {
     pub list: ListState,
     pub config: Config,
     pub now: SystemTime,
+    pending_g: bool,
 }
 
 impl App {
@@ -62,6 +63,7 @@ impl App {
             list: ListState::default().with_selected(Some(0)),
             config,
             now,
+            pending_g: false,
         }
     }
 
@@ -71,14 +73,34 @@ impl App {
         }
     }
 
+    fn len(&self) -> usize {
+        match &self.prs {
+            ColumnState::Ready(prs) => prs.len(),
+            ColumnState::Loading => 0,
+        }
+    }
+
+    fn select_next(&mut self) {
+        let last = self.len().saturating_sub(1);
+        let next = self.list.selected().map_or(0, |i| (i + 1).min(last));
+        self.list.select(Some(next));
+    }
+
     pub fn handle_key(&mut self, key: KeyEvent) -> Action {
         if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
             return Action::Quit;
         }
+        let pending_g = std::mem::take(&mut self.pending_g);
         match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => Action::Quit,
-            _ => Action::Continue,
+            KeyCode::Char('q') | KeyCode::Esc => return Action::Quit,
+            KeyCode::Char('j') | KeyCode::Down => self.select_next(),
+            KeyCode::Char('k') | KeyCode::Up => self.list.select_previous(),
+            KeyCode::Char('G') => self.list.select(self.len().checked_sub(1)),
+            KeyCode::Char('g') if pending_g => self.list.select_first(),
+            KeyCode::Char('g') => self.pending_g = true,
+            _ => {}
         }
+        Action::Continue
     }
 }
 
