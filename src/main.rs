@@ -2,6 +2,7 @@ use std::env;
 use std::process::ExitCode;
 
 use conveyor::cli::{self, Command};
+use conveyor::config::Config;
 
 fn main() -> ExitCode {
     match cli::parse(env::args().skip(1)) {
@@ -13,7 +14,11 @@ fn main() -> ExitCode {
             println!("conveyor {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
-        Ok(Command::Tui | Command::Config) => fail("not implemented yet"),
+        Ok(Command::Config) => {
+            print!("{}", Config::default().to_toml());
+            ExitCode::SUCCESS
+        }
+        Ok(Command::Tui) => fail("not implemented yet"),
         Err(err) => fail(&err),
     }
 }

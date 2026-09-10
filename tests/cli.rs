@@ -44,3 +44,16 @@ fn an_unknown_argument_prints_usage_on_stderr_and_exits_one() {
     assert!(stderr.contains("usage: conveyor"), "{stderr}");
     assert!(out.stdout.is_empty());
 }
+
+#[test]
+fn config_prints_the_effective_defaults_as_toml() {
+    let out = binary(&["config"]);
+    assert!(out.status.success());
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("[prs]"), "{stdout}");
+    assert!(
+        stdout.contains("query = \"is:pr is:open author:@me archived:false\""),
+        "{stdout}"
+    );
+    assert!(stdout.contains("refresh_secs = 60"), "{stdout}");
+}
