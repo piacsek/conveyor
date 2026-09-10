@@ -57,6 +57,15 @@ pub enum ColumnState<T> {
     },
 }
 
+impl<T> ColumnState<T> {
+    pub fn into_rows(self) -> Vec<T> {
+        match self {
+            ColumnState::Ready { rows, .. } => rows,
+            ColumnState::Loading => Vec::new(),
+        }
+    }
+}
+
 pub struct App {
     pub prs: ColumnState<PullRequest>,
     pub prs_error: Option<String>,
@@ -91,11 +100,17 @@ impl App {
     pub fn receive(&mut self, stage: Stage, data: Result<Rows, String>) {
         match (stage, data) {
             (Stage::Prs, Ok(Rows::Prs(prs))) => {
+                let selected = self.selected().map(|pr| pr.number);
+                let current = std::mem::take(&mut self.prs).into_rows();
                 self.prs = ColumnState::Ready {
-                    rows: prs,
+                    rows: merge_keeping_order(current, prs),
                     fetched_at: self.now,
                 };
                 self.prs_error = None;
+                let index = selected
+                    .and_then(|number| self.visible().iter().position(|pr| pr.number == number))
+                    .unwrap_or(0);
+                self.list.select(Some(index));
             }
             (Stage::Prs, Err(message)) => self.prs_error = Some(message),
             _ => {}
@@ -201,6 +216,19 @@ impl App {
         }
         Action::Continue
     }
+}
+
+fn merge_keeping_order(current: Vec<PullRequest>, fresh: Vec<PullRequest>) -> Vec<PullRequest> {
+    let mut fresh = fresh;
+    let mut merged: Vec<PullRequest> = current
+        .iter()
+        .filter_map(|old| {
+            let index = fresh.iter().position(|new| new.number == old.number)?;
+            Some(fresh.remove(index))
+        })
+        .collect();
+    merged.extend(fresh);
+    merged
 }
 
 fn attempt(app: &mut App, result: io::Result<()>) {
