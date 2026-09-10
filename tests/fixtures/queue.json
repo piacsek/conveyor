@@ -1,0 +1,56 @@
+{
+  "data": {
+    "repository": {
+      "mergeQueue": {
+        "url": "https://github.com/acme/webapp/queue/main",
+        "configuration": {
+          "mergeMethod": "SQUASH",
+          "maximumEntriesToBuild": 5,
+          "minimumEntriesToMerge": 1,
+          "mergingStrategy": "ALLGREEN"
+        },
+        "entries": {
+          "totalCount": 2,
+          "nodes": [
+            {
+              "position": 1,
+              "state": "AWAITING_CHECKS",
+              "enqueuedAt": "2026-09-10T15:00:00Z",
+              "estimatedTimeToMerge": 720,
+              "solo": false,
+              "jump": false,
+              "headCommit": {
+                "oid": "6babeb79d61cce5208232c669505ea4b42300c6d",
+                "statusCheckRollup": { "state": "PENDING" }
+              },
+              "pullRequest": {
+                "number": 4821,
+                "title": "Retry webhook delivery with backoff",
+                "url": "https://github.com/acme/webapp/pull/4821",
+                "author": { "login": "alice" }
+              }
+            },
+            {
+              "position": 2,
+              "state": "QUEUED",
+              "enqueuedAt": "2026-09-10T15:10:00Z",
+              "estimatedTimeToMerge": null,
+              "solo": false,
+              "jump": true,
+              "headCommit": {
+                "oid": "45e321c57891a97cb45e61188d1ec3b960664e35",
+                "statusCheckRollup": null
+              },
+              "pullRequest": {
+                "number": 4830,
+                "title": "Add rate limit headers to the API",
+                "url": "https://github.com/acme/webapp/pull/4830",
+                "author": { "login": "carol" }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
