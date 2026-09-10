@@ -4,7 +4,7 @@ A terminal view of where your changes are: open pull requests, the merge
 queue, the last main builds, and what each environment runs. One column per
 stage, one repo, one screen.
 
-Status: phase 3 (My PRs, Merge queue and Main builds columns). Deployed is a placeholder.
+Status: phase 4. All four columns are live: My PRs, Merge queue, Main builds, Deployed.
 
 ![columns](docs/columns.png)
 
@@ -16,6 +16,12 @@ Status: phase 3 (My PRs, Merge queue and Main builds columns). Deployed is a pla
 - **Main builds**: the last `builds` runs of `main_workflow` pushed to `main`. Row: status
   glyph, the PR it merged (from the squash `(#N)` suffix or the commit's pull requests) with
   its author and title, duration or elapsed time, age. `Enter` opens the run.
+- **Deployed**: one row per `[[repo.deploy.env]]`, read with `kubectl` (`--context`,
+  `-n`, `get deploy -o jsonpath=…image`, 10 s timeout). The image tag must be the 40-hex
+  commit sha (or end with `-<sha>`); the row shows the PR that commit merged, `at main` or
+  `↓n` builds behind the Main builds column. A failed environment (expired session, missing
+  deployment) keeps its last known sha with a red `✗` and the error in the footer and details.
+  `Enter` opens the PR.
 - Footer: `refreshed just now`, then `refreshed at HH:MM:SS` in local time, for the focused
   column; a braille spinner in a column title while its fetch is in flight; a conveyor belt
   rolling at the bottom right. Holding `Enter` opens a row once per second, not per repeat.
@@ -33,6 +39,10 @@ merge-group run.
 On a build it shows the run, status, duration, start time, actor, the merged PR and the sha.
 
 ![build details](docs/builds.png)
+
+On an environment it shows the image, the merged PR, the sha, when it was last read and any error.
+
+![deployed details](docs/deployed.png)
 
 Narrow terminals collapse the columns into tabs:
 
@@ -79,7 +89,7 @@ Runtime:
   keyring login and SSO apply. Homebrew installs it as a dependency.
 - `open` and `pbcopy` (macOS) or `xdg-open` and `xclip` (Linux) for opening a row in the
   browser and copying its URL.
-- `kubectl` with a working context, only for the deployed column (phase 4).
+- `kubectl` with a working context, only for the Deployed column.
 
 Build: Rust 1.98 or newer. Tests need nothing else; the two opt-in end-to-end tests
 (`cargo test -- --ignored`) drive the real binary in a scratch `tmux` server and are the only
@@ -106,6 +116,17 @@ name = "owner/name"
 main_workflow = "CI/CD"       # workflow name or file, e.g. ci.yml
 builds = 10                   # runs shown in the Main builds column
 refresh_secs = 30
+
+[[repo.deploy]]               # optional; the Deployed column
+system = "api"
+refresh_secs = 120
+
+[[repo.deploy.env]]
+name = "staging"
+fetcher = "kubectl"           # the only fetcher so far
+context = "my-staging-context"
+namespace = "api"
+deployment = "api"
 ```
 
 ## Develop
