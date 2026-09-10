@@ -4,11 +4,12 @@ A terminal view of where your changes are: open pull requests, the merge
 queue, the last main builds, and what each environment runs. One column per
 stage, one repo, one screen.
 
-Status: phase 5. All four columns are live: My PRs, Merge queue, Main builds, Deployed.
+Status: phase 6. All four columns are live: My PRs, Merge queue, Main builds, Deployed.
 
 Every item is a card of two or three lines: a title line with the status glyph and one
 right-aligned figure, then dim lines carrying what you would otherwise open a browser for.
-The selected card wears a cyan bar and a bold title.
+The selected card wears a cyan bar down its whole left edge and a bold title. `z` zooms the
+focused column to the full width.
 
 ![columns](docs/columns.png)
 
@@ -55,6 +56,10 @@ the run's jobs, fetched on demand and listed failures first with the step that f
 On an environment it shows the image, the merged PR, the sha, when it was last read and any error.
 
 ![deployed details](docs/deployed.png)
+
+`z` zooms the focused column to the full width, so a long title or a wrapped card has room:
+
+![zoom](docs/zoom.png)
 
 Narrow terminals collapse the columns into tabs:
 
