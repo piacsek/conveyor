@@ -154,7 +154,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   static `ui::logo()` with the crate version; nothing there changes between ticks.
 - **Cards, not rows.** `ui::card(selected, glyph, title, right, rest, width)` renders a title
   line (`▌`/space, glyph, bold-when-selected title padded, right-aligned figure) plus one
-  indented line per `rest` entry, each a `Vec<Span>` so a line can be dim, red or a mix. A
+  indented line per `rest` entry, each a `Vec<Span>` so a line can be dim, red or a mix. The
+  cyan `▌` is drawn on **every** line of the selected card, so it reads as the card's left
+  edge; that plus the bold title is the whole highlight. No background, no reverse video: the
+  user asked for a minimal one, twice. A
   per-stage row fn builds them (`pr_row`, `queue_row`, `build_row`, `deployed_row`) and
   `draw_list` wraps each in `ListItem::new(Text::from(lines))` with no `highlight_symbol`:
   the bar is drawn by the card from `Some(i) == column.list.selected()`. Cards carry what a
