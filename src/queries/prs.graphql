@@ -1,0 +1,39 @@
+query($q: String!, $first: Int!) {
+  search(query: $q, type: ISSUE, first: $first) {
+    issueCount
+    nodes {
+      ... on PullRequest {
+        number
+        title
+        url
+        isDraft
+        updatedAt
+        headRefName
+        repository { nameWithOwner }
+        author { login }
+        reviewDecision
+        mergeStateStatus
+        additions
+        deletions
+        mergeQueueEntry { position state }
+        statusCheckRollup {
+          state
+          contexts(first: 100) {
+            totalCount
+            nodes {
+              ... on CheckRun { name status conclusion detailsUrl }
+              ... on StatusContext { context state targetUrl }
+            }
+          }
+        }
+        reviews(last: 20, states: [APPROVED, CHANGES_REQUESTED]) {
+          nodes { state author { login } }
+        }
+        reviewRequests(first: 10) {
+          nodes { requestedReviewer { ... on User { login } ... on Team { name } } }
+        }
+        comments { totalCount }
+      }
+    }
+  }
+}
