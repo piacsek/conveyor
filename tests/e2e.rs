@@ -84,6 +84,18 @@ fn fixture_path(home: &Path) -> String {
     path.display().to_string()
 }
 
+fn dispatching_shim(home: &Path) -> String {
+    fs::write(home.join("prs.json"), include_str!("fixtures/prs.json")).unwrap();
+    fs::write(home.join("queue.json"), include_str!("fixtures/queue.json")).unwrap();
+    let dir = home.display();
+    shim(
+        home,
+        &format!(
+            "case \"$*\" in *'repository(owner'*) cat '{dir}/queue.json';; *'repo view'*) echo acme/webapp;; *) cat '{dir}/prs.json';; esac"
+        ),
+    )
+}
+
 #[test]
 #[ignore]
 fn the_binary_draws_my_prs_from_gh_before_any_key() {
@@ -131,4 +143,24 @@ fn a_failing_gh_shows_in_the_column_and_the_binary_keeps_running() {
     sleep(Duration::from_millis(500));
     let again = server.wait_for_screen("Bad credentials");
     assert!(again.contains("Deployed"), "still running: {again}");
+}
+
+#[test]
+#[ignore]
+fn the_queue_column_fills_from_the_checked_out_repository() {
+    let home = tempfile::tempdir().unwrap();
+    let path = dispatching_shim(home.path());
+    let server = Server::start("queue");
+
+    server.respawn(
+        &[
+            ("HOME", &home.path().display().to_string()),
+            ("PATH", &path),
+        ],
+        env!("CARGO_BIN_EXE_conveyor"),
+    );
+
+    let screen = server.wait_for_screen("Queue webapp (2)");
+    assert!(screen.contains("#4821 alice  Retry webhook"), "{screen}");
+    assert!(screen.contains("#1 conveyor  Phase 0: setup"), "{screen}");
 }

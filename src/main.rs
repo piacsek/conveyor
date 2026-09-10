@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env;
 use std::io;
 use std::path::PathBuf;
@@ -9,7 +10,7 @@ use std::time::{Duration, SystemTime};
 use conveyor::app::{App, Input, Rows, Stage, run};
 use conveyor::cli::{self, Command};
 use conveyor::config::{self, Config};
-use conveyor::fetch::fetch_prs;
+use conveyor::fetch::{fetch_prs, fetch_queue, repos};
 use conveyor::github::CliGh;
 use conveyor::open::SystemOpener;
 use ratatui::crossterm::event::{self, Event};
@@ -62,22 +63,36 @@ fn fail(message: &str) -> ExitCode {
     ExitCode::FAILURE
 }
 
+type Inputs = mpsc::Sender<io::Result<Input>>;
+
 fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
-    let (inputs, refresh) = spawn_sources(config.clone());
+    let (tx, rx) = mpsc::channel::<io::Result<Input>>();
+    let mut refreshers: HashMap<Stage, mpsc::Sender<()>> = HashMap::new();
+    refreshers.insert(Stage::Prs, spawn_prs_fetcher(config.clone(), tx.clone()));
+    refreshers.insert(
+        Stage::Queue,
+        spawn_queue_fetcher(config.clone(), tx.clone()),
+    );
+    spawn_terminal_events(tx);
     let mut app = App::new(config);
     app.notice = config_error;
     let mut terminal = ratatui::init();
-    let result = run(&mut terminal, &mut app, inputs, &SystemOpener, |stage| {
-        let _ = refresh.send(stage);
-    });
+    let result = run(
+        &mut terminal,
+        &mut app,
+        rx.into_iter(),
+        &SystemOpener,
+        |stage| {
+            if let Some(refresh) = refreshers.get(&stage) {
+                let _ = refresh.send(());
+            }
+        },
+    );
     ratatui::restore();
     result
 }
 
-fn spawn_sources(config: Config) -> (impl Iterator<Item = io::Result<Input>>, mpsc::Sender<Stage>) {
-    let (tx, rx) = mpsc::channel::<io::Result<Input>>();
-    let (refresh_tx, refresh_rx) = mpsc::channel::<Stage>();
-    spawn_prs_fetcher(config, tx.clone(), refresh_rx);
+fn spawn_terminal_events(tx: Inputs) {
     thread::spawn(move || {
         loop {
             let input = match event::poll(Duration::from_millis(250)) {
@@ -100,26 +115,48 @@ fn spawn_sources(config: Config) -> (impl Iterator<Item = io::Result<Input>>, mp
             }
         }
     });
-    (rx.into_iter(), refresh_tx)
 }
 
-fn spawn_prs_fetcher(
-    config: Config,
-    tx: mpsc::Sender<io::Result<Input>>,
-    refresh: mpsc::Receiver<Stage>,
-) {
+fn spawn_fetcher(
+    stage: Stage,
+    interval: Duration,
+    tx: Inputs,
+    mut fetch: impl FnMut() -> Result<Rows, String> + Send + 'static,
+) -> mpsc::Sender<()> {
+    let (refresh_tx, refresh_rx) = mpsc::channel::<()>();
     thread::spawn(move || {
-        let gh = CliGh::default();
-        let interval = Duration::from_secs(config.prs.refresh_secs.max(1));
         loop {
-            let data = fetch_prs(&gh, &config).map(Rows::Prs);
-            if tx.send(Ok(Input::Data(Stage::Prs, data))).is_err() {
+            if tx.send(Ok(Input::Data(stage, fetch()))).is_err() {
                 return;
             }
-            match refresh.recv_timeout(interval) {
-                Ok(_) | Err(mpsc::RecvTimeoutError::Timeout) => {}
+            match refresh_rx.recv_timeout(interval.max(Duration::from_secs(1))) {
+                Ok(()) | Err(mpsc::RecvTimeoutError::Timeout) => {}
                 Err(mpsc::RecvTimeoutError::Disconnected) => return,
             }
         }
     });
+    refresh_tx
+}
+
+fn spawn_prs_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<()> {
+    let interval = Duration::from_secs(config.prs.refresh_secs);
+    let gh = CliGh::default();
+    spawn_fetcher(Stage::Prs, interval, tx, move || {
+        fetch_prs(&gh, &config).map(Rows::Prs)
+    })
+}
+
+fn spawn_queue_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<()> {
+    let gh = CliGh::default();
+    let interval = Duration::from_secs(config.repo.first().map_or(30, |repo| repo.refresh_secs));
+    let mut repo = None;
+    spawn_fetcher(Stage::Queue, interval, tx, move || {
+        if repo.is_none() {
+            repo = repos(&gh, &config)?.into_iter().next();
+        }
+        let repo = repo
+            .as_ref()
+            .ok_or_else(|| "no repository to watch".to_string())?;
+        fetch_queue(&gh, repo).map(Rows::Queue)
+    })
 }

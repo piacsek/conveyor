@@ -12,7 +12,7 @@ use crate::model::queue::{Queue, QueueEntry};
 use crate::open::Opener;
 use crate::ui;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Stage {
     Prs,
     Queue,
