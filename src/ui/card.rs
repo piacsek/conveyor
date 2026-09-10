@@ -13,16 +13,20 @@ pub(crate) fn card(
     width: usize,
 ) -> Vec<Line<'static>> {
     let title_width = width.saturating_sub(INDENT + right.chars().count() + 1);
-    let (bar, emphasis) = if selected {
-        (
-            Span::styled(BAR, Style::default().fg(Color::Cyan)),
-            Style::default().add_modifier(Modifier::BOLD),
-        )
+    let emphasis = if selected {
+        Style::default().add_modifier(Modifier::BOLD)
     } else {
-        (Span::raw(" "), Style::default())
+        Style::default()
+    };
+    let bar = || {
+        if selected {
+            Span::styled(BAR, Style::default().fg(Color::Cyan))
+        } else {
+            Span::raw(" ")
+        }
     };
     let mut lines = vec![Line::from(vec![
-        bar,
+        bar(),
         Span::raw(" "),
         Span::styled(glyph.0.to_string(), Style::default().fg(glyph.1)),
         Span::raw(" "),
@@ -31,7 +35,7 @@ pub(crate) fn card(
         Span::styled(right, dim()),
     ])];
     lines.extend(rest.into_iter().map(|spans| {
-        let mut line = vec![Span::raw(" ".repeat(INDENT))];
+        let mut line = vec![bar(), Span::raw(" ".repeat(INDENT - 1))];
         line.extend(spans);
         Line::from(line)
     }));

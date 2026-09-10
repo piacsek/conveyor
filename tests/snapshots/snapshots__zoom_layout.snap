@@ -4,8 +4,8 @@ expression: h.screen()
 ---
 ┌My PRs (3)────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │▌ ✗ #4821 Retry webhook delivery with backoff                                                                                                               2h│
-│    webapp · webhook-retry-backoff · approved · +12 −3                                                                                                        │
-│    ✗ api / test                                                                                                                                              │
+│▌   webapp · webhook-retry-backoff · approved · +12 −3                                                                                                        │
+│▌   ✗ api / test                                                                                                                                              │
 │  ● #4830 Add rate limit headers to the API                                                                                                                 2h│
 │    auth                                                                                                                                                      │
 │    checks: pending                                                                                                                                           │

@@ -46,10 +46,10 @@ fn cards_stack_a_title_a_dim_meta_line_and_the_unhappy_checks_under_a_selection_
     assert!(rows[1].starts_with("│▌ ✓ #4821 Retry hooks"), "{screen}");
     assert!(rows[1].contains("2h│"), "{screen}");
     assert!(
-        rows[2].starts_with("│    webapp · webhook-retry · +12 −3"),
+        rows[2].starts_with("│▌   webapp · webhook-retry · +12 −3"),
         "{screen}"
     );
-    assert!(rows[3].starts_with("│    checks: success"), "{screen}");
+    assert!(rows[3].starts_with("│▌   checks: success"), "{screen}");
     assert!(rows[4].starts_with("│  ✓ #4830 Rate limits"), "{screen}");
     assert!(!screen.contains("1 ✓"), "no row numbers: {screen}");
 }
@@ -666,4 +666,32 @@ fn a_zoomed_column_follows_the_focus_and_keeps_the_details_pane() {
     assert!(screen.contains("Merge queue"), "{screen}");
     assert!(!screen.contains("My PRs"), "{screen}");
     assert!(screen.contains("nothing selected"), "details: {screen}");
+}
+
+#[test]
+fn the_selection_bar_runs_down_every_line_of_the_selected_card() {
+    use ratatui::style::Color;
+    let mut h = Harness::new();
+
+    h.run(vec![prs(three()), key(KeyCode::Char('j'))]).unwrap();
+
+    let screen = h.screen();
+    let rows: Vec<&str> = screen.lines().collect();
+    for (y, row) in rows.iter().enumerate().take(7).skip(4) {
+        assert!(
+            row.starts_with("│▌"),
+            "line {y} of the selected card: {screen}"
+        );
+        assert_eq!(h.cell(1, y as u16).fg, Color::Cyan, "line {y} is cyan");
+    }
+    for y in [1, 2, 3, 7, 8, 9] {
+        assert!(
+            !rows[y].starts_with("│▌"),
+            "line {y} belongs to another card: {screen}"
+        );
+    }
+    assert!(
+        rows[5].starts_with("│▌   webapp"),
+        "the text still starts at the same column: {screen}"
+    );
 }
