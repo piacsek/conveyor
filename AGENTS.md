@@ -84,6 +84,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 
 ## Testing traps hit so far
 
+- tmux is a test harness, not a dependency: only the `#[ignore]` e2e tests use it, they panic
+  with an install hint when it is missing, and `gates.sh` skips them without tmux (CI has it).
 - `tests/e2e.rs` runs the real binary in a scratch tmux server (`-L`, `-f /dev/null`) with
   `HOME` in a tempdir and a `gh` shell shim that prints `tests/fixtures/prs.json`. The pane
   command must be `env HOME=… PATH=… <binary>`: `respawn-pane -e PATH=…` looked right but

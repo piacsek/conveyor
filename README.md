@@ -59,7 +59,9 @@ Runtime:
   browser and copying its URL.
 - `kubectl` with a working context, only for the deployed column (phase 4).
 
-Build: Rust 1.98 or newer. No other toolchain.
+Build: Rust 1.98 or newer. Tests need nothing else; the two opt-in end-to-end tests
+(`cargo test -- --ignored`) drive the real binary in a scratch `tmux` server and are the only
+place tmux is used. CI runs them on Linux.
 
 ## Configure
 
