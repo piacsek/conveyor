@@ -7,7 +7,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, SystemTime};
 
-use conveyor::app::{App, Input, Rows, Stage, run};
+use conveyor::app::{App, Input, Request, Rows, Stage, run};
 use conveyor::cli::{self, Command};
 use conveyor::config::{self, Config};
 use conveyor::fetch::{BuildsSource, DeploySource, fetch_prs, fetch_queue, repos};
@@ -91,9 +91,11 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
         &mut app,
         rx.into_iter(),
         &SystemOpener,
-        |stage| {
-            if let Some(refresh) = refreshers.get(&stage) {
-                let _ = refresh.send(());
+        |request| match request {
+            Request::Refresh(stage) => {
+                if let Some(refresh) = refreshers.get(&stage) {
+                    let _ = refresh.send(());
+                }
             }
         },
     );

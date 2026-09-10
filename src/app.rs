@@ -67,6 +67,12 @@ pub enum Action {
     Open(String),
     Copy(String),
     Refresh(Stage),
+    RefreshAll,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Request {
+    Refresh(Stage),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -378,6 +384,13 @@ impl App {
         }
     }
 
+    pub fn any_refreshing(&self) -> bool {
+        self.prs.refreshing
+            || self.queue.refreshing
+            || self.builds.refreshing
+            || self.deployed.refreshing
+    }
+
     pub fn spinner(&self) -> char {
         const FRAMES: [char; 10] = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
         let millis = self
@@ -604,6 +617,7 @@ impl App {
                 }
             }
             KeyCode::Char('r') => return Action::Refresh(self.focus),
+            KeyCode::Char('R') => return Action::RefreshAll,
             KeyCode::Char('p') => self.details = !self.details,
             KeyCode::Char('l') if self.focus != Stage::Deployed => self.focus = self.focus.next(),
             KeyCode::Char('h') if self.focus != Stage::Prs => self.focus = self.focus.previous(),
@@ -686,13 +700,13 @@ pub fn run<B, O, R>(
     app: &mut App,
     inputs: impl Iterator<Item = io::Result<Input>>,
     opener: &O,
-    mut refresh: R,
+    mut request: R,
 ) -> io::Result<()>
 where
     B: Backend,
     B::Error: Send + Sync + 'static,
     O: Opener,
-    R: FnMut(Stage),
+    R: FnMut(Request),
 {
     let mut inputs = inputs;
     loop {
@@ -710,7 +724,12 @@ where
                 Action::Quit => return Ok(()),
                 Action::Open(url) => attempt(app, opener.open(&url)),
                 Action::Copy(text) => attempt(app, opener.copy(&text)),
-                Action::Refresh(stage) => refresh(stage),
+                Action::Refresh(stage) => request(Request::Refresh(stage)),
+                Action::RefreshAll => {
+                    for stage in Stage::ALL {
+                        request(Request::Refresh(stage));
+                    }
+                }
                 Action::Continue => {}
             },
         }

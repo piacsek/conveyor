@@ -110,7 +110,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   wants to prompt (no auth, `HOME` pointing elsewhere) fails fast instead of hanging the
   fetch thread behind `fetching…`.
 - **Keys act on the focused column.** `App::with_focused` dispatches navigation to the
-  `Column` of `app.focus`; `Enter`/`y` use `selected_target`. Adding a stage means a new
+  `Column` of `app.focus`; `Enter`/`y` use `selected_target`, `b` uses `build_url`.
+  `run()` reports work back through `FnMut(Request)`; `r` sends one `Request::Refresh`, `R`
+  one per `Stage::ALL`, and `main` looks each stage up in `refreshers` (a stage without a
+  thread is skipped). Adding a stage means a new
   `Column<T>` field, a `Row` impl, a `Rows` variant, and arms in `receive`, `focused_*`,
   `selected_target`, `with_focused`, `column_title`, `draw_column` and `draw_details`.
 - **The `gh` shim in e2e and screenshots dispatches on the query text.** Match the queue query
@@ -118,9 +121,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 - **Opens are debounced.** `Enter`/`o` on the same URL within `OPEN_DEBOUNCE` (1 s of
   `app.now`) is ignored: terminals send a key-repeat stream for a held key, which opened a tab
   per repeat.
-- **Refresh feedback.** Fetchers send `Input::Fetching(stage)` before each fetch; the column's
-  `refreshing` flag draws a braille spinner (frame from `app.now`, 100 ms per frame, so the 250
-  ms tick advances it) in the title and in the loading body; `Data` clears it. The footer says
+- **Refresh feedback.** Fetchers send `Input::Fetching(stage)` before each fetch and set the
+  column's `refreshing` flag; `Data` clears it. One braille spinner (frame from `app.now`, 100
+  ms per frame, so the 250 ms tick advances it) is drawn at the very start of the footer while
+  `App::any_refreshing()` holds, whichever column is focused; column titles and loading bodies
+  carry no spinner. The footer says
   `refreshed just now` for 3 s, then `refreshed at HH:MM:SS` local time
   (`utc_offset_secs` from `chrono::Local` in `main`, 0 in tests). The bottom right holds the
   static `ui::logo()` with the crate version; nothing there changes between ticks.

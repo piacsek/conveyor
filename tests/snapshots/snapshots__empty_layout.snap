@@ -3,7 +3,7 @@ source: tests/snapshots.rs
 expression: h.screen()
 ---
 ┌My PRs (0)────────────────────────────┐┌Merge queue───────────────────────────┐┌Main builds───────────────────────────┐┌Deployed──────────────────────────────┐
-│no open pull requests                 ││⠋ fetching…                           ││⠋ fetching…                           ││no [[repo.deploy]] configured         │
+│no open pull requests                 ││fetching…                             ││fetching…                             ││no [[repo.deploy]] configured         │
 │                                      ││                                      ││                                      ││                                      │
 │                                      ││                                      ││                                      ││                                      │
 │                                      ││                                      ││                                      ││                                      │
