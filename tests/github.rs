@@ -1,7 +1,16 @@
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
+use std::sync::{Mutex, MutexGuard};
 
 use conveyor::github::{CliGh, Github};
+
+static SHIMS: Mutex<()> = Mutex::new(());
+
+fn serialized() -> MutexGuard<'static, ()> {
+    SHIMS
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 fn shim(dir: &tempfile::TempDir, script: &str) -> CliGh {
     let bin = dir.path().join("bin");
@@ -35,6 +44,7 @@ fn graphql_argv_passes_the_query_file_and_typed_variables() {
 
 #[test]
 fn graphql_returns_the_parsed_json_from_stdout() {
+    let _serialized = serialized();
     let dir = tempfile::tempdir().unwrap();
     let gh = shim(&dir, r#"echo '{"data":{"ok":true}}'"#);
 
@@ -48,6 +58,7 @@ fn graphql_returns_the_parsed_json_from_stdout() {
 
 #[test]
 fn a_failing_gh_reports_its_stderr() {
+    let _serialized = serialized();
     let dir = tempfile::tempdir().unwrap();
     let gh = shim(&dir, "echo 'gh: HTTP 401: Bad credentials' >&2; exit 1");
 
@@ -70,6 +81,7 @@ fn a_missing_gh_binary_says_how_to_install_it() {
 
 #[test]
 fn current_repo_asks_gh_for_the_checked_out_repository() {
+    let _serialized = serialized();
     assert_eq!(
         CliGh::current_repo_args(),
         vec![
@@ -88,6 +100,7 @@ fn current_repo_asks_gh_for_the_checked_out_repository() {
 
 #[test]
 fn rest_argv_and_json_parsing() {
+    let _serialized = serialized();
     assert_eq!(
         CliGh::rest_args("repos/acme/webapp/actions/runs?event=merge_group&per_page=20"),
         vec![

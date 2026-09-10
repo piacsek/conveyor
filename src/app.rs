@@ -1,5 +1,7 @@
 use std::io;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
+
+pub const OPEN_DEBOUNCE: Duration = Duration::from_secs(1);
 
 use ratatui::Terminal;
 use ratatui::backend::Backend;
@@ -242,6 +244,7 @@ pub struct App {
     pub notice: Option<String>,
     pub details: bool,
     pending_g: bool,
+    last_open: Option<(String, SystemTime)>,
 }
 
 impl App {
@@ -261,6 +264,7 @@ impl App {
             notice: None,
             details: false,
             pending_g: false,
+            last_open: None,
         }
     }
 
@@ -317,6 +321,16 @@ impl App {
                 .map(|entry| (entry.key(), entry.url.clone())),
             Stage::Builds | Stage::Deployed => None,
         }
+    }
+
+    fn opened_recently(&self, url: &str) -> bool {
+        self.last_open.as_ref().is_some_and(|(last, at)| {
+            last == url
+                && self
+                    .now
+                    .duration_since(*at)
+                    .is_ok_and(|elapsed| elapsed < OPEN_DEBOUNCE)
+        })
     }
 
     fn with_focused(&mut self, act: impl Fn(&mut dyn Navigable)) {
@@ -382,7 +396,10 @@ impl App {
             }
             KeyCode::Char('?') => self.mode = Mode::Help,
             KeyCode::Enter | KeyCode::Char('o') => {
-                if let Some((_, url)) = self.selected_target() {
+                if let Some((_, url)) = self.selected_target()
+                    && !self.opened_recently(&url)
+                {
+                    self.last_open = Some((url.clone(), self.now));
                     return Action::Open(url);
                 }
             }
