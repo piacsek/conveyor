@@ -284,7 +284,19 @@ fn builds_source_resolves_the_workflow_by_name_then_lists_main_runs_and_their_pu
             ),
             "{paths:?}"
         );
-        assert_eq!(paths.iter().filter(|p| p.contains("/commits/")).count(), 4);
+        assert_eq!(
+            paths.iter().filter(|p| p.ends_with("/pulls")).count(),
+            4,
+            "one association lookup per run: {paths:?}"
+        );
+        assert_eq!(
+            paths
+                .iter()
+                .filter(|p| p.contains("/commits/") && !p.ends_with("/pulls"))
+                .count(),
+            3,
+            "the three runs with no association fall back to the commit message: {paths:?}"
+        );
     }
 
     source.fetch(&gh).unwrap();
@@ -298,12 +310,9 @@ fn builds_source_resolves_the_workflow_by_name_then_lists_main_runs_and_their_pu
         "workflow id is cached"
     );
     assert_eq!(
-        calls
-            .iter()
-            .filter(|(q, _)| q.contains("/commits/"))
-            .count(),
-        4,
-        "sha lookups are cached"
+        calls.iter().filter(|(q, _)| q.ends_with("/pulls")).count(),
+        7,
+        "four the first time, then only the three that did not resolve: the hit is cached"
     );
 }
 
@@ -374,6 +383,14 @@ fn the_default_workflow_name_falls_back_to_common_ci_workflows() {
 
 struct FakeKube {
     images: Vec<(String, io::Result<String>)>,
+}
+
+impl FakeKube {
+    fn returning(image: &str) -> Self {
+        Self {
+            images: vec![("prod".to_string(), Ok(image.to_string()))],
+        }
+    }
 }
 
 impl conveyor::sources::kube::Kube for FakeKube {
@@ -497,4 +514,125 @@ fn fetch_jobs_turns_a_gh_error_into_a_message() {
     let error = conveyor::sources::fetch::fetch_jobs(&gh, "acme/webapp", 7).unwrap_err();
 
     assert_eq!(error, "gh: HTTP 404");
+}
+
+#[test]
+fn a_pull_lookup_that_comes_back_empty_is_asked_again_on_the_next_fetch() {
+    use conveyor::config::{Deploy, DeployEnv};
+    use conveyor::sources::fetch::DeploySource;
+    let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    gh.rest_routes = vec![(
+        "repos/acme/webapp/commits/".to_string(),
+        serde_json::json!([]),
+    )];
+    let kube = FakeKube::returning("ghcr.io/acme/api:0123456789abcdef0123456789abcdef01234567");
+    let deploy = Deploy {
+        env: vec![DeployEnv {
+            name: "prod".to_string(),
+            ..DeployEnv::default()
+        }],
+        ..Deploy::default()
+    };
+    let mut source = DeploySource::new("acme/webapp".to_string(), deploy);
+
+    for _ in 0..2 {
+        let deployed = source.fetch(&gh, &kube, std::time::SystemTime::UNIX_EPOCH);
+        assert_eq!(deployed.rows[0].pull, None);
+    }
+
+    let calls = gh.calls.borrow().clone();
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|(path, _)| path.contains("/pulls"))
+            .count(),
+        2,
+        "a miss is never cached, so the row heals itself: {calls:?}"
+    );
+}
+
+#[test]
+fn a_pull_lookup_that_succeeds_is_cached() {
+    use conveyor::config::{Deploy, DeployEnv};
+    use conveyor::sources::fetch::DeploySource;
+    let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    gh.rest_routes = vec![(
+        "repos/acme/webapp/commits/".to_string(),
+        serde_json::json!([{
+            "number": 4821, "title": "Retry hooks", "user": {"login": "alice"},
+            "html_url": "https://github.com/acme/webapp/pull/4821"
+        }]),
+    )];
+    let kube = FakeKube::returning("ghcr.io/acme/api:0123456789abcdef0123456789abcdef01234567");
+    let deploy = Deploy {
+        env: vec![DeployEnv {
+            name: "prod".to_string(),
+            ..DeployEnv::default()
+        }],
+        ..Deploy::default()
+    };
+    let mut source = DeploySource::new("acme/webapp".to_string(), deploy);
+
+    for _ in 0..2 {
+        let deployed = source.fetch(&gh, &kube, std::time::SystemTime::UNIX_EPOCH);
+        assert_eq!(
+            deployed.rows[0].pull.as_ref().map(|pull| pull.number),
+            Some(4821)
+        );
+    }
+
+    let calls = gh.calls.borrow().clone();
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|(path, _)| path.contains("/pulls"))
+            .count(),
+        1,
+        "asked once: {calls:?}"
+    );
+}
+
+#[test]
+fn a_commit_with_no_associated_pull_falls_back_to_the_squash_suffix() {
+    use conveyor::config::{Deploy, DeployEnv};
+    use conveyor::sources::fetch::DeploySource;
+    let sha = "0123456789abcdef0123456789abcdef01234567";
+    let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    gh.rest_routes = vec![
+        (
+            format!("repos/acme/webapp/commits/{sha}/pulls"),
+            serde_json::json!([]),
+        ),
+        (
+            format!("repos/acme/webapp/commits/{sha}"),
+            serde_json::json!({
+                "commit": {"message": "Fix the handbook share (#6882)\n\nlong body"}
+            }),
+        ),
+        (
+            "repos/acme/webapp/pulls/6882".to_string(),
+            serde_json::json!({
+                "number": 6882, "title": "Fix the handbook share",
+                "user": {"login": "ailin"},
+                "html_url": "https://github.com/acme/webapp/pull/6882"
+            }),
+        ),
+    ];
+    let kube = FakeKube::returning(&format!("ghcr.io/acme/api:{sha}"));
+    let deploy = Deploy {
+        env: vec![DeployEnv {
+            name: "prod".to_string(),
+            ..DeployEnv::default()
+        }],
+        ..Deploy::default()
+    };
+    let mut source = DeploySource::new("acme/webapp".to_string(), deploy);
+
+    let deployed = source.fetch(&gh, &kube, std::time::SystemTime::UNIX_EPOCH);
+
+    let pull = deployed.rows[0].pull.as_ref().expect("the squash suffix");
+    assert_eq!(pull.number, 6882);
+    assert_eq!(pull.title, "Fix the handbook share");
+    assert_eq!(pull.author, "ailin");
+    assert_eq!(pull.url, "https://github.com/acme/webapp/pull/6882");
 }

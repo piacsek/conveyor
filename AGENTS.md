@@ -88,7 +88,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   also tries `cicd.yml`, `CI`, `ci`, `ci.yml`, `build`, `build.yml`, `main.yml` in that order
   (`fetch::DEFAULT_WORKFLOWS`) so an unconfigured repo usually finds its build workflow. Each run's PR comes
   from the squash suffix `(#N)` in `display_title`, else `repos/{r}/commits/{sha}/pulls`
-  (first PR; cached per sha for the life of the process; rebase merges have no suffix, which is
+  (first PR; see the `Pulls` note below; rebase merges have no suffix, which is
   why this repo's own runs exercise the fallback). `updated_at` stands in for the finish time;
   running and queued runs show elapsed time instead. `tests/fixtures/runs.json` and
   `commit-pulls.json` are real captures from this repo.
@@ -113,6 +113,16 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   Main builds column (0 = `at main`), so it needs that column loaded and only sees the last
   `builds` runs. kubectl may itself start a teleport browser login when the session is
   expired; the 10 s timeout returns the row to an error instead of hanging.
+- **sha → pull request** goes through one shared `fetch::Pulls` (both `BuildsSource` and
+  `DeploySource` own one). It asks `repos/{r}/commits/{sha}/pulls` first, and when that comes
+  back empty it reads `repos/{r}/commits/{sha}`, takes `(#N)` off the first line of the commit
+  message and fetches `repos/{r}/pulls/{N}`. **Only a hit is cached.** An empty answer is
+  deliberately never cached: GitHub can report no associated pull request for a commit that a
+  merge queue has just landed, and the old code froze that miss for the life of the process, so
+  a Deployed row read seconds after a rollout said `no pull request found for this commit`
+  until conveyor was restarted, while Main builds showed the number because it also reads the
+  squash suffix. The cost of not caching misses is up to two extra calls per unresolved row per
+  refresh; a row that resolves is asked once.
 - Parse leniently: unknown fields ignored, unknown enum values → `Unknown`.
   `tests/fixtures/` carries verbatim `gh` output; refresh it when GitHub changes shape.
 
