@@ -113,15 +113,19 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   Main builds column (0 = `at main`), so it needs that column loaded and only sees the last
   `builds` runs. kubectl may itself start a teleport browser login when the session is
   expired; the 10 s timeout returns the row to an error instead of hanging.
-- **sha → pull request** goes through one shared `fetch::Pulls` (both `BuildsSource` and
-  `DeploySource` own one), in this order: `repos/{r}/commits/{sha}/pulls`; then, only when that
-  parsed to an **empty** answer, the `(#N)` the caller already knows (`Build.pr_number`, off
+- **sha → pull request** goes through `fetch::Pulls`; `BuildsSource` and `DeploySource` each
+  own one, so the same sha costs one association call per column and each keeps its own retry
+  window. The order is: `repos/{r}/commits/{sha}/pulls`; then, only when that did not parse to
+  a pull request (an empty array, but also a non-array or a first entry with no numeric
+  `number`), the `(#N)` the caller already knows (`Build.pr_number`, off
   the run's squash title) or else a read of `repos/{r}/commits/{sha}` to take `(#N)` from the
   first line of the message; then `repos/{r}/pulls/{N}`, which is **accepted only if its
   `merge_commit_sha` or `head.sha` is that sha**, so a cherry-pick that kept an upstream squash
   subject cannot attribute the wrong pull request to a row.
-  An error from `gh` is not an answer: it returns immediately without the fallback, so a rate
-  limit cannot triple the call volume, and it is not cached either.
+  An error from `gh` on the **association** call is not an answer: it returns immediately
+  without the fallback, so a rate limit cannot triple the call volume, and nothing is cached.
+  An error later in the chain (the commit read, the pull read) is indistinguishable from a
+  miss and does suppress the row for one window.
   A hit is cached for the life of the process. A miss is cached for `MISS_RETRY` (120 s) and
   then asked again — the middle ground that fixes the original bug without the cost. Caching a
   miss forever froze `no pull request found for this commit` on a Deployed row read seconds
