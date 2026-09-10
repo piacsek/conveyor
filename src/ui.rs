@@ -313,6 +313,10 @@ fn queue_details(entry: &QueueEntry, now: SystemTime) -> Vec<Line<'static>> {
             Span::raw("  "),
             Span::styled(entry.url.clone(), dim()),
         ]),
+        Line::from(match &entry.run_url {
+            Some(url) => format!("run: {url}"),
+            None => "run: none yet".to_string(),
+        }),
     ]
 }
 

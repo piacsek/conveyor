@@ -41,6 +41,7 @@ pub struct QueueEntry {
     pub enqueued_at: Option<SystemTime>,
     pub solo: bool,
     pub jump: bool,
+    pub run_url: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -108,6 +109,7 @@ fn parse_entry(node: &serde_json::Value) -> Option<QueueEntry> {
             .and_then(parse_timestamp),
         solo: node.get("solo").and_then(|v| v.as_bool()).unwrap_or(false),
         jump: node.get("jump").and_then(|v| v.as_bool()).unwrap_or(false),
+        run_url: None,
     })
 }
 
@@ -127,4 +129,56 @@ fn text(node: &serde_json::Value, key: &str) -> String {
         .and_then(|v| v.as_str())
         .unwrap_or_default()
         .to_string()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MergeGroupRun {
+    pub number: u64,
+    pub url: String,
+    pub checks: CheckState,
+}
+
+pub fn parse_merge_group_runs(value: &serde_json::Value) -> Vec<MergeGroupRun> {
+    value
+        .get("workflow_runs")
+        .and_then(|v| v.as_array())
+        .map(|runs| runs.iter().filter_map(parse_run).collect())
+        .unwrap_or_default()
+}
+
+fn parse_run(run: &serde_json::Value) -> Option<MergeGroupRun> {
+    let branch = run.get("head_branch")?.as_str()?;
+    let number = branch
+        .rsplit('/')
+        .next()?
+        .strip_prefix("pr-")?
+        .split('-')
+        .next()?
+        .parse()
+        .ok()?;
+    let checks = match (
+        run.get("status").and_then(|v| v.as_str()),
+        run.get("conclusion").and_then(|v| v.as_str()),
+    ) {
+        (Some("completed"), Some("success" | "neutral" | "skipped")) => CheckState::Success,
+        (Some("completed"), Some(_)) => CheckState::Failure,
+        (Some(_), _) => CheckState::Pending,
+        _ => CheckState::Unknown,
+    };
+    Some(MergeGroupRun {
+        number,
+        url: text(run, "html_url"),
+        checks,
+    })
+}
+
+impl Queue {
+    pub fn attach_runs(&mut self, runs: &[MergeGroupRun]) {
+        for entry in &mut self.entries {
+            if let Some(run) = runs.iter().find(|run| run.number == entry.number) {
+                entry.run_url = Some(run.url.clone());
+                entry.checks = run.checks;
+            }
+        }
+    }
 }

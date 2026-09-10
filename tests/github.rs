@@ -85,3 +85,18 @@ fn current_repo_asks_gh_for_the_checked_out_repository() {
     let gh = shim(&dir, "echo acme/webapp");
     assert_eq!(gh.current_repo().unwrap(), "acme/webapp");
 }
+
+#[test]
+fn rest_argv_and_json_parsing() {
+    assert_eq!(
+        CliGh::rest_args("repos/acme/webapp/actions/runs?event=merge_group&per_page=20"),
+        vec![
+            "api",
+            "repos/acme/webapp/actions/runs?event=merge_group&per_page=20"
+        ]
+    );
+    let dir = tempfile::tempdir().unwrap();
+    let gh = shim(&dir, r#"echo '{"total_count":0,"workflow_runs":[]}'"#);
+    let value = gh.rest("repos/acme/webapp/actions/runs").unwrap();
+    assert_eq!(value["total_count"], 0);
+}

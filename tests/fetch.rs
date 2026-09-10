@@ -10,6 +10,7 @@ type Call = (String, Vec<(String, Variable)>);
 struct FakeGithub {
     calls: RefCell<Vec<Call>>,
     response: io::Result<serde_json::Value>,
+    rest_response: io::Result<serde_json::Value>,
     cwd_repo: io::Result<String>,
 }
 
@@ -18,6 +19,7 @@ impl FakeGithub {
         Self {
             calls: RefCell::default(),
             response,
+            rest_response: Ok(serde_json::json!({"workflow_runs": []})),
             cwd_repo: Ok("acme/from-cwd".to_string()),
         }
     }
@@ -32,6 +34,16 @@ impl Github for FakeGithub {
                 .collect(),
         ));
         match &self.response {
+            Ok(value) => Ok(value.clone()),
+            Err(err) => Err(io::Error::new(err.kind(), err.to_string())),
+        }
+    }
+
+    fn rest(&self, path: &str) -> io::Result<serde_json::Value> {
+        self.calls
+            .borrow_mut()
+            .push((format!("GET {path}"), Vec::new()));
+        match &self.rest_response {
             Ok(value) => Ok(value.clone()),
             Err(err) => Err(io::Error::new(err.kind(), err.to_string())),
         }
@@ -151,4 +163,55 @@ fn fetch_queue_asks_for_the_repo_and_labels_the_result_with_it() {
     )
     .unwrap_err();
     assert!(err.contains("owner/name"), "{err}");
+}
+
+#[test]
+fn fetch_queue_attaches_the_merge_group_run_of_each_entry() {
+    use conveyor::config::Repo;
+    use conveyor::fetch::fetch_queue;
+    use conveyor::model::prs::CheckState;
+    let mut gh = FakeGithub::with_response(Ok(serde_json::from_str(include_str!(
+        "fixtures/queue.json"
+    ))
+    .unwrap()));
+    gh.rest_response = Ok(serde_json::json!({"workflow_runs": [
+        {"id": 1, "name": "CI/CD", "status": "in_progress", "conclusion": null,
+         "head_branch": "gh-readonly-queue/main/pr-4821-0000000000000000000000000000000000000000",
+         "html_url": "https://github.com/acme/webapp/actions/runs/1"},
+        {"id": 2, "name": "CI/CD", "status": "completed", "conclusion": "failure",
+         "head_branch": "gh-readonly-queue/main/pr-4821-1111111111111111111111111111111111111111",
+         "html_url": "https://github.com/acme/webapp/actions/runs/2"},
+        {"id": 3, "name": "CI/CD", "status": "completed", "conclusion": "success",
+         "head_branch": "gh-readonly-queue/main/pr-9999-1111111111111111111111111111111111111111",
+         "html_url": "https://github.com/acme/webapp/actions/runs/3"}
+    ]}));
+    let repo = Repo {
+        name: "acme/webapp".to_string(),
+        ..Repo::default()
+    };
+
+    let queue = fetch_queue(&gh, &repo).unwrap();
+
+    assert_eq!(
+        queue.entries[0].run_url.as_deref(),
+        Some("https://github.com/acme/webapp/actions/runs/1"),
+        "newest run for the PR wins"
+    );
+    assert_eq!(queue.entries[0].checks, CheckState::Pending);
+    assert_eq!(queue.entries[1].run_url, None);
+    let calls = gh.calls.borrow().clone();
+    assert!(
+        calls
+            .iter()
+            .any(|(q, _)| q == "GET repos/acme/webapp/actions/runs?event=merge_group&per_page=30"),
+        "{calls:?}"
+    );
+
+    gh.rest_response = Err(io::Error::other("gh: HTTP 403"));
+    let queue = fetch_queue(&gh, &repo).unwrap();
+    assert_eq!(
+        queue.entries.len(),
+        2,
+        "runs are optional: the queue still shows"
+    );
 }
