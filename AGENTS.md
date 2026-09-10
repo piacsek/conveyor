@@ -129,6 +129,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 - **`gh` never inherits the terminal.** `CliGh::run` gives it a null stdin, so a `gh` that
   wants to prompt (no auth, `HOME` pointing elsewhere) fails fast instead of hanging the
   fetch thread behind `fetching…`.
+- **Zoom.** `z` toggles `App::zoom`; `ui::draw` then renders only `app.focus` across the whole
+  body and skips the tabs check, so the narrow layout is unaffected. Nothing else reads the flag.
 - **Keys act on the focused column.** `App::with_focused` dispatches navigation to the
   `Column` of `app.focus`; `Enter`/`y` use `selected_target` (a build opens the PR it merged
   when one is known, else the run), `b` uses `build_url`.

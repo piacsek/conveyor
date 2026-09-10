@@ -6,13 +6,14 @@ use ratatui::widgets::{Block, Paragraph};
 
 use crate::ui::style::dim;
 
-pub const KEYS: [(&str, &str); 11] = [
+pub const KEYS: [(&str, &str); 12] = [
     ("j/k ↓/↑", "move"),
     ("h/l Tab", "focus column"),
     ("Enter/o", "open in browser"),
     ("b", "open build"),
     ("y", "copy URL"),
     ("p", "details"),
+    ("z", "zoom the column"),
     ("/", "filter"),
     ("r", "refresh"),
     ("R", "refresh all"),

@@ -129,3 +129,10 @@ fn help_layout() {
     h.run(vec![prs(sample()), key(KeyCode::Char('?'))]).unwrap();
     insta::assert_snapshot!(h.screen());
 }
+
+#[test]
+fn zoom_layout() {
+    let mut h = Harness::new();
+    h.run(vec![prs(sample()), key(KeyCode::Char('z'))]).unwrap();
+    insta::assert_snapshot!(h.screen());
+}

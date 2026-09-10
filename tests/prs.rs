@@ -305,6 +305,8 @@ fn question_mark_shows_the_key_help_and_any_key_returns() {
         "open build",
         "R",
         "refresh all",
+        "z",
+        "zoom",
         "y",
         "copy URL",
         "p",
@@ -621,4 +623,44 @@ fn b_opens_the_check_run_behind_a_pull_request_and_says_so_when_there_is_none() 
         .unwrap();
     assert_eq!(h.opener.opened().len(), 1, "no second open");
     assert!(h.screen().contains("no checks yet"), "{}", h.screen());
+}
+
+#[test]
+fn z_zooms_the_focused_column_and_toggles_back() {
+    let mut h = Harness::new();
+
+    h.run(vec![prs(three()), key(KeyCode::Char('z'))]).unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("My PRs (3)"), "{screen}");
+    for gone in ["Merge queue", "Main builds", "Deployed"] {
+        assert!(!screen.contains(gone), "{gone} is hidden: {screen}");
+    }
+    assert!(
+        screen.contains("#1 a"),
+        "the rows are still there: {screen}"
+    );
+    let title = screen.lines().next().unwrap();
+    assert_eq!(title.chars().count(), 160, "full width: {title}");
+
+    h.run(vec![key(KeyCode::Char('z'))]).unwrap();
+    assert!(h.screen().contains("Merge queue"), "{}", h.screen());
+}
+
+#[test]
+fn a_zoomed_column_follows_the_focus_and_keeps_the_details_pane() {
+    let mut h = Harness::with_size(160, 24);
+
+    h.run(vec![
+        prs(three()),
+        key(KeyCode::Char('z')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('p')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("Merge queue"), "{screen}");
+    assert!(!screen.contains("My PRs"), "{screen}");
+    assert!(screen.contains("nothing selected"), "details: {screen}");
 }
