@@ -2,8 +2,8 @@ use std::cell::RefCell;
 use std::io;
 
 use conveyor::config::Config;
-use conveyor::fetch::fetch_prs;
-use conveyor::github::{Github, Variable};
+use conveyor::sources::fetch::fetch_prs;
+use conveyor::sources::github::{Github, Variable};
 
 type Call = (String, Vec<(String, Variable)>);
 
@@ -106,7 +106,7 @@ fn fetch_prs_turns_gh_errors_into_a_message() {
 #[test]
 fn repos_come_from_the_config_or_else_from_the_current_directory() {
     use conveyor::config::Repo;
-    use conveyor::fetch::repos;
+    use conveyor::sources::fetch::repos;
     let gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
 
     let mut config = Config::default();
@@ -138,7 +138,7 @@ fn repos_come_from_the_config_or_else_from_the_current_directory() {
 #[test]
 fn fetch_queue_asks_for_the_repo_and_labels_the_result_with_it() {
     use conveyor::config::Repo;
-    use conveyor::fetch::fetch_queue;
+    use conveyor::sources::fetch::fetch_queue;
     let gh = FakeGithub::with_response(Ok(serde_json::from_str(include_str!(
         "fixtures/queue.json"
     ))
@@ -177,8 +177,8 @@ fn fetch_queue_asks_for_the_repo_and_labels_the_result_with_it() {
 #[test]
 fn fetch_queue_attaches_the_merge_group_run_of_each_entry() {
     use conveyor::config::Repo;
-    use conveyor::fetch::fetch_queue;
     use conveyor::model::prs::CheckState;
+    use conveyor::sources::fetch::fetch_queue;
     let mut gh = FakeGithub::with_response(Ok(serde_json::from_str(include_str!(
         "fixtures/queue.json"
     ))
@@ -228,7 +228,7 @@ fn fetch_queue_attaches_the_merge_group_run_of_each_entry() {
 #[test]
 fn builds_source_resolves_the_workflow_by_name_then_lists_main_runs_and_their_pull_requests() {
     use conveyor::config::Repo;
-    use conveyor::fetch::BuildsSource;
+    use conveyor::sources::fetch::BuildsSource;
     let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
     gh.rest_routes = vec![
         (
@@ -310,7 +310,7 @@ fn builds_source_resolves_the_workflow_by_name_then_lists_main_runs_and_their_pu
 #[test]
 fn builds_source_uses_a_workflow_file_name_directly_and_reports_unknown_names() {
     use conveyor::config::Repo;
-    use conveyor::fetch::BuildsSource;
+    use conveyor::sources::fetch::BuildsSource;
     let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
     gh.rest_routes = vec![
         (
@@ -344,7 +344,7 @@ fn builds_source_uses_a_workflow_file_name_directly_and_reports_unknown_names() 
 #[test]
 fn the_default_workflow_name_falls_back_to_common_ci_workflows() {
     use conveyor::config::Repo;
-    use conveyor::fetch::BuildsSource;
+    use conveyor::sources::fetch::BuildsSource;
     let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
     gh.rest_routes = vec![
         (
@@ -376,7 +376,7 @@ struct FakeKube {
     images: Vec<(String, io::Result<String>)>,
 }
 
-impl conveyor::kube::Kube for FakeKube {
+impl conveyor::sources::kube::Kube for FakeKube {
     fn image(&self, env: &conveyor::config::DeployEnv) -> io::Result<String> {
         match self.images.iter().find(|(name, _)| *name == env.name) {
             Some((_, Ok(image))) => Ok(image.clone()),
@@ -389,7 +389,7 @@ impl conveyor::kube::Kube for FakeKube {
 #[test]
 fn deploy_source_reads_each_environment_and_keeps_per_env_errors_on_the_row() {
     use conveyor::config::{Deploy, DeployEnv};
-    use conveyor::fetch::DeploySource;
+    use conveyor::sources::fetch::DeploySource;
     let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
     gh.rest_routes = vec![
         (
@@ -469,7 +469,7 @@ fn deploy_source_reads_each_environment_and_keeps_per_env_errors_on_the_row() {
 
 #[test]
 fn fetch_jobs_reads_the_runs_jobs_route_and_parses_them() {
-    use conveyor::fetch::fetch_jobs;
+    use conveyor::sources::fetch::fetch_jobs;
     let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
     gh.rest_routes = vec![(
         "repos/acme/webapp/actions/runs/1025/jobs".to_string(),
@@ -494,7 +494,7 @@ fn fetch_jobs_turns_a_gh_error_into_a_message() {
         ..FakeGithub::with_response(Ok(serde_json::Value::Null))
     };
 
-    let error = conveyor::fetch::fetch_jobs(&gh, "acme/webapp", 7).unwrap_err();
+    let error = conveyor::sources::fetch::fetch_jobs(&gh, "acme/webapp", 7).unwrap_err();
 
     assert_eq!(error, "gh: HTTP 404");
 }

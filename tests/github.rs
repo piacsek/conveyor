@@ -2,7 +2,7 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::sync::{Mutex, MutexGuard};
 
-use conveyor::github::{CliGh, Github};
+use conveyor::sources::github::{CliGh, Github};
 
 static SHIMS: Mutex<()> = Mutex::new(());
 

@@ -1,8 +1,8 @@
 use crate::config::{Config, Repo};
-use crate::github::Github;
 use crate::model::builds::Builds;
 use crate::model::prs::PullRequest;
 use crate::model::queue::{Queue, parse_merge_group_runs};
+use crate::sources::github::Github;
 
 pub const PRS_QUERY: &str = include_str!("queries/prs.graphql");
 pub const QUEUE_QUERY: &str = include_str!("queries/queue.graphql");
@@ -201,7 +201,7 @@ impl DeploySource {
     pub fn fetch(
         &mut self,
         gh: &impl Github,
-        kube: &impl crate::kube::Kube,
+        kube: &impl crate::sources::kube::Kube,
         now: std::time::SystemTime,
     ) -> crate::model::deployed::Deployed {
         let rows = self
@@ -220,7 +220,7 @@ impl DeploySource {
     fn fetch_env(
         &mut self,
         gh: &impl Github,
-        kube: &impl crate::kube::Kube,
+        kube: &impl crate::sources::kube::Kube,
         env: &crate::config::DeployEnv,
         now: std::time::SystemTime,
     ) -> crate::model::deployed::Deployment {

@@ -26,14 +26,17 @@ check is skipped where the file is absent, so CI does not enforce it).
 src/main.rs      CLI dispatch, config load, wiring
 src/cli.rs       `conveyor` (TUI) | `config` | `--help` | `--version`; hand-rolled, no clap
 src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override
-src/github.rs    Github trait (`graphql`, `rest`, `current_repo`), CliGh spawns `gh api …` / `gh repo view`, error mapping
-src/fetch.rs     repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), BuildsSource (caches workflow id and sha→PR), DeploySource (per-env kubectl + cached sha→PR)
+src/sources/     everything that reaches out to an external service, and nothing else
+src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`), CliGh spawns `gh api …` / `gh repo view`, error mapping
+src/sources/kube.rs   Kube trait (`image(env)`), CliKubectl (`kubectl --context … get deploy … -o jsonpath`, 10 s timeout)
+src/sources/fetch.rs  repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), fetch_jobs, BuildsSource (caches workflow id and sha→PR), DeploySource (per-env kubectl + cached sha→PR)
+src/sources/queries/  GraphQL documents, `include_str!`ed
 src/model/prs.rs PullRequest, CheckState, Check, ReviewDecision, MergeState; lenient `parse` of gh JSON
 src/model/queue.rs Queue, QueueEntry, QueueState, MergeGroupRun; `parse`, `parse_merge_group_runs`, `attach_runs`
 src/model/builds.rs Build, BuildStatus, PullRef, Builds; `parse_runs`, `pr_number_from_title`, `parse_pull_numbers`
 src/model/deployed.rs Deployment, Deployed; `sha_from_image` (40-hex tag or `-<sha>` suffix)
-src/kube.rs      Kube trait (`image(env)`), CliKubectl (`kubectl --context … get deploy … -o jsonpath`, 10 s timeout)
-src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode), Input::{Key, Data, Tick}, run()
+src/model/jobs.rs Job, `parse_jobs` (failures first), `failed_step`
+src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode, jobs), Input::{Key, Fetching, Data, Jobs, Tick}, Request::{Refresh, Jobs}, run()
 src/ui/mod.rs    draw: 4 columns or tabs below `4 × ui.min_column_width`
 src/ui/style.rs  the shared vocabulary: BAR, INDENT, dim(), glyphs and status words, short_repo, sha8
 src/ui/card.rs   card() and meta(): one title line plus indented span lines
@@ -42,9 +45,8 @@ src/ui/rows.rs   one card builder per stage: pr_row, queue_row, build_row, deplo
 src/ui/details.rs the `p` pane per stage, including the job list
 src/ui/footer.rs footer text, the refresh spinner and the static logo
 src/ui/help.rs   KEYS drives the help view
-src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`)
+src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`): the OS seam, not a service, so it stays out of `sources/`
 src/text.rs      truncate/pad_right with `…`, age()
-src/queries/     GraphQL documents, `include_str!`ed
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
