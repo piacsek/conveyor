@@ -4,6 +4,7 @@ use std::time::SystemTime;
 use ratatui::Terminal;
 use ratatui::backend::Backend;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ratatui::widgets::ListState;
 
 use crate::config::Config;
 use crate::model::prs::PullRequest;
@@ -45,6 +46,7 @@ pub enum ColumnState<T> {
 
 pub struct App {
     pub prs: ColumnState<PullRequest>,
+    pub list: ListState,
     pub config: Config,
     pub now: SystemTime,
 }
@@ -57,6 +59,7 @@ impl App {
     pub fn at(now: SystemTime, config: Config) -> Self {
         Self {
             prs: ColumnState::Loading,
+            list: ListState::default().with_selected(Some(0)),
             config,
             now,
         }

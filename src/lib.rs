@@ -3,4 +3,5 @@ pub mod cli;
 pub mod config;
 pub mod model;
 pub mod open;
+pub mod text;
 pub mod ui;
