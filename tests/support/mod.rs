@@ -8,6 +8,7 @@ use conveyor::app::{App, Input, Request, Rows, Stage, run};
 use conveyor::config::Config;
 use conveyor::model::builds::{Build, BuildStatus, Builds, PullRef};
 use conveyor::model::deployed::{Deployed, Deployment};
+use conveyor::model::jobs::Job;
 use conveyor::model::prs::{CheckState, PullRequest};
 use conveyor::model::queue::{Queue, QueueEntry, QueueState};
 use conveyor::open::Opener;
@@ -119,6 +120,27 @@ pub fn build(run_number: u64, status: BuildStatus, pr: Option<(u64, &str, &str)>
             author: author.to_string(),
             url: format!("https://github.com/acme/webapp/pull/{number}"),
         }),
+    }
+}
+
+pub fn jobs(run_id: u64, jobs: Vec<Job>) -> io::Result<Input> {
+    Ok(Input::Jobs(run_id, Ok(jobs)))
+}
+
+pub fn jobs_failed(run_id: u64, message: &str) -> io::Result<Input> {
+    Ok(Input::Jobs(run_id, Err(message.to_string())))
+}
+
+pub fn job(id: u64, name: &str, status: BuildStatus, failed_step: Option<&str>) -> Job {
+    let started = UNIX_EPOCH + Duration::from_secs(NOW - 3600);
+    Job {
+        id,
+        name: name.to_string(),
+        status,
+        started_at: Some(started),
+        completed_at: Some(started + Duration::from_secs(19)),
+        url: format!("https://github.com/acme/webapp/actions/runs/1025/job/{id}"),
+        failed_step: failed_step.map(str::to_string),
     }
 }
 

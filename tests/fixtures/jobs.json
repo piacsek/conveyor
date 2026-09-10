@@ -1,0 +1,135 @@
+{
+  "total_count": 2,
+  "jobs": [
+    {
+      "id": 102978569297,
+      "name": "check",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-10T17:35:22Z",
+      "completed_at": "2026-09-10T17:35:41Z",
+      "html_url": "https://github.com/piacsek/conveyor/actions/runs/34509123916/job/102978569297",
+      "steps": [
+        {
+          "name": "Set up job",
+          "number": 1,
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+          "number": 2,
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0",
+          "number": 3,
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run cargo fmt --check",
+          "number": 5,
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run cargo clippy --all-targets -- -D warnings",
+          "number": 6,
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run cargo test",
+          "number": 7,
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "name": "Run cargo build --release",
+          "number": 8,
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Run sudo apt-get update && sudo apt-get install -y tmux",
+          "number": 9,
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Run cargo test -- --ignored",
+          "number": 10,
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 19,
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Post Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+          "number": 20,
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "number": 21,
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 102978569498,
+      "name": "audit",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-10T17:35:22Z",
+      "completed_at": "2026-09-10T17:39:07Z",
+      "html_url": "https://github.com/piacsek/conveyor/actions/runs/34509123916/job/102978569498",
+      "steps": [
+        {
+          "name": "Set up job",
+          "number": 1,
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+          "number": 2,
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998",
+          "number": 3,
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+          "number": 6,
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "number": 7,
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ]
+}

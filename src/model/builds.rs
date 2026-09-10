@@ -94,7 +94,7 @@ fn parse_run(run: &serde_json::Value) -> Option<Build> {
     })
 }
 
-fn status(status: Option<&str>, conclusion: Option<&str>) -> BuildStatus {
+pub fn status(status: Option<&str>, conclusion: Option<&str>) -> BuildStatus {
     match (status, conclusion) {
         (Some("completed"), Some("success" | "neutral" | "skipped")) => BuildStatus::Success,
         (

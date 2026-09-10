@@ -1,9 +1,10 @@
 mod support;
 
+use conveyor::app::Request;
 use conveyor::app::Stage;
 use conveyor::model::builds::BuildStatus;
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, NOW, build, builds, failed, key, tick_at};
+use support::{Harness, NOW, build, builds, failed, job, jobs, jobs_failed, key, tick_at};
 
 fn column(screen: &str, index: usize) -> Vec<String> {
     screen
@@ -124,5 +125,115 @@ fn enter_falls_back_to_the_run_when_no_pull_request_is_known() {
     assert_eq!(
         h.opener.opened(),
         vec!["https://github.com/acme/webapp/actions/runs/1024".to_string()]
+    );
+}
+
+fn focus_builds() -> Vec<std::io::Result<conveyor::app::Input>> {
+    vec![
+        builds(three()),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+    ]
+}
+
+#[test]
+fn p_on_a_build_asks_for_its_jobs_and_lists_them_failures_first() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(key(KeyCode::Char('p')));
+
+    h.run(inputs).unwrap();
+
+    assert_eq!(h.requests, vec![Request::Jobs { run_id: 1026 }]);
+    assert!(h.screen().contains("jobs: loading…"), "{}", h.screen());
+
+    h.run(vec![jobs(
+        1026,
+        vec![
+            job(1, "check", BuildStatus::Failure, Some("Run cargo test")),
+            job(2, "audit", BuildStatus::Success, None),
+        ],
+    )])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(
+        screen.contains("✗ check  19s  failed at: Run cargo test"),
+        "{screen}"
+    );
+    assert!(screen.contains("✓ audit  19s"), "{screen}");
+    assert!(
+        screen.contains("https://github.com/acme/webapp/actions/runs/1025/job/1"),
+        "{screen}"
+    );
+    assert!(!screen.contains("jobs: loading…"), "{screen}");
+}
+
+#[test]
+fn moving_the_selection_with_details_open_asks_for_the_next_runs_jobs_once() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(key(KeyCode::Char('p')));
+    inputs.push(key(KeyCode::Char('j')));
+    inputs.push(key(KeyCode::Char('k')));
+    inputs.push(key(KeyCode::Char('j')));
+
+    h.run(inputs).unwrap();
+
+    assert_eq!(
+        h.requests,
+        vec![
+            Request::Jobs { run_id: 1026 },
+            Request::Jobs { run_id: 1025 },
+        ],
+        "each run is asked for once"
+    );
+}
+
+#[test]
+fn a_failed_jobs_fetch_shows_the_message_in_the_details_pane() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(key(KeyCode::Char('p')));
+    inputs.push(jobs_failed(1026, "gh: HTTP 404: Not Found"));
+
+    h.run(inputs).unwrap();
+
+    assert!(
+        h.screen().contains("jobs: gh: HTTP 404: Not Found"),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
+fn a_refresh_asks_again_for_an_unsettled_runs_jobs_and_keeps_the_settled_ones() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(key(KeyCode::Char('p')));
+    inputs.push(jobs(
+        1026,
+        vec![job(1, "check", BuildStatus::Running, None)],
+    ));
+    inputs.push(builds(three()));
+
+    h.run(inputs).unwrap();
+
+    assert_eq!(
+        h.requests,
+        vec![
+            Request::Jobs { run_id: 1026 },
+            Request::Jobs { run_id: 1026 },
+        ],
+        "the running run is asked again"
+    );
+
+    h.run(vec![key(KeyCode::Char('j')), builds(three())])
+        .unwrap();
+    assert_eq!(
+        h.requests.len(),
+        3,
+        "a settled run keeps its jobs: {:?}",
+        h.requests
     );
 }

@@ -21,6 +21,19 @@ pub fn fetch_prs(gh: &impl Github, config: &Config) -> Result<Vec<PullRequest>, 
     crate::model::prs::parse(&value)
 }
 
+pub fn fetch_jobs(
+    gh: &impl Github,
+    repo: &str,
+    run_id: u64,
+) -> Result<Vec<crate::model::jobs::Job>, String> {
+    let value = gh
+        .rest(&format!(
+            "repos/{repo}/actions/runs/{run_id}/jobs?per_page=100"
+        ))
+        .map_err(|err| err.to_string())?;
+    Ok(crate::model::jobs::parse_jobs(&value))
+}
+
 pub fn repos(gh: &impl Github, config: &Config) -> Result<Vec<Repo>, String> {
     if !config.repo.is_empty() {
         return Ok(config.repo.clone());
