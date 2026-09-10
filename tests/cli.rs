@@ -57,3 +57,31 @@ fn config_prints_the_effective_defaults_as_toml() {
     );
     assert!(stdout.contains("refresh_secs = 60"), "{stdout}");
 }
+
+#[test]
+fn config_reads_the_file_named_by_conveyor_config_and_reports_errors() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("mine.toml");
+    std::fs::write(&path, "[prs]\nlimit = 3\n").unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_conveyor"))
+        .arg("config")
+        .env("HOME", dir.path())
+        .env("CONVEYOR_CONFIG", &path)
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    assert!(String::from_utf8_lossy(&out.stdout).contains("limit = 3"));
+
+    std::fs::write(&path, "[prs]\nlimt = 3\n").unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_conveyor"))
+        .arg("config")
+        .env("HOME", dir.path())
+        .env("CONVEYOR_CONFIG", &path)
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("mine.toml"), "{stderr}");
+    assert!(stderr.contains("limt"), "{stderr}");
+    assert!(out.stdout.is_empty());
+}
