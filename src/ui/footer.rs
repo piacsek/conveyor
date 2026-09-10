@@ -26,7 +26,7 @@ pub(crate) fn footer_text(app: &App) -> String {
 
 pub fn logo() -> String {
     format!(
-        "\u{27e6}\u{25a3}\u{27e7}\u{2501}\u{27e6}\u{25a3}\u{27e7}\u{2501}\u{27e6}\u{25a3}\u{27e7}\u{2501}\u{25b8} conveyor v{}",
+        "\u{25aa}\u{2500}\u{25aa}\u{2500}\u{25aa}\u{25b8} conveyor v{}",
         env!("CARGO_PKG_VERSION")
     )
 }
