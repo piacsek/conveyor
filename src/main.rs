@@ -10,10 +10,12 @@ use std::time::{Duration, SystemTime};
 use conveyor::app::{App, Input, Request, Rows, Stage, run};
 use conveyor::cli::{self, Command};
 use conveyor::config::{self, Config};
-use conveyor::fetch::{BuildsSource, DeploySource, fetch_jobs, fetch_prs, fetch_queue, repos};
-use conveyor::github::CliGh;
-use conveyor::kube::CliKubectl;
 use conveyor::open::SystemOpener;
+use conveyor::sources::fetch::{
+    BuildsSource, DeploySource, fetch_jobs, fetch_prs, fetch_queue, repos,
+};
+use conveyor::sources::github::CliGh;
+use conveyor::sources::kube::CliKubectl;
 use ratatui::crossterm::event::{self, Event};
 
 fn main() -> ExitCode {

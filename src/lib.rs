@@ -1,10 +1,8 @@
 pub mod app;
 pub mod cli;
 pub mod config;
-pub mod fetch;
-pub mod github;
-pub mod kube;
 pub mod model;
 pub mod open;
+pub mod sources;
 pub mod text;
 pub mod ui;

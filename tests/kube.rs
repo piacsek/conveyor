@@ -3,8 +3,8 @@ use std::os::unix::fs::PermissionsExt;
 use std::sync::{Mutex, MutexGuard};
 
 use conveyor::config::DeployEnv;
-use conveyor::kube::{CliKubectl, Kube};
 use conveyor::model::deployed::sha_from_image;
+use conveyor::sources::kube::{CliKubectl, Kube};
 
 static SHIMS: Mutex<()> = Mutex::new(());
 
