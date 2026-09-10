@@ -221,3 +221,37 @@ fn r_requests_a_refresh_and_the_footer_shows_the_data_age() {
     h.run(vec![key(KeyCode::Char('r'))]).unwrap();
     assert_eq!(h.refreshed, vec![Stage::Prs]);
 }
+
+#[test]
+fn a_failed_fetch_keeps_the_old_rows_and_flags_the_column_until_the_next_success() {
+    use conveyor::app::Stage;
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(three()),
+        support::failed(Stage::Prs, "gh: HTTP 401: Bad credentials"),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("My PRs (3) ⚠"), "{screen}");
+    assert!(screen.contains("#1 webapp  a"), "rows kept: {screen}");
+    assert!(screen.contains("gh: HTTP 401: Bad credentials"), "{screen}");
+
+    h.run(vec![prs(three())]).unwrap();
+    let screen = h.screen();
+    assert!(!screen.contains("⚠"), "{screen}");
+    assert!(!screen.contains("Bad credentials"), "{screen}");
+}
+
+#[test]
+fn a_failed_open_shows_in_the_footer_and_the_app_stays_up() {
+    let mut h = Harness::new();
+    h.opener.fail_next("open: exec failed");
+
+    h.run(vec![prs(three()), key(KeyCode::Enter)]).unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("open: exec failed"), "{screen}");
+    assert!(screen.contains("#1 webapp  a"), "{screen}");
+}

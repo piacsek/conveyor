@@ -59,6 +59,7 @@ pub enum ColumnState<T> {
 
 pub struct App {
     pub prs: ColumnState<PullRequest>,
+    pub prs_error: Option<String>,
     pub list: ListState,
     pub mode: Mode,
     pub config: Config,
@@ -76,6 +77,7 @@ impl App {
     pub fn at(now: SystemTime, config: Config) -> Self {
         Self {
             prs: ColumnState::Loading,
+            prs_error: None,
             list: ListState::default().with_selected(Some(0)),
             mode: Mode::Normal,
             config,
@@ -87,11 +89,16 @@ impl App {
     }
 
     pub fn receive(&mut self, stage: Stage, data: Result<Rows, String>) {
-        if let (Stage::Prs, Ok(Rows::Prs(prs))) = (stage, data) {
-            self.prs = ColumnState::Ready {
-                rows: prs,
-                fetched_at: self.now,
-            };
+        match (stage, data) {
+            (Stage::Prs, Ok(Rows::Prs(prs))) => {
+                self.prs = ColumnState::Ready {
+                    rows: prs,
+                    fetched_at: self.now,
+                };
+                self.prs_error = None;
+            }
+            (Stage::Prs, Err(message)) => self.prs_error = Some(message),
+            _ => {}
         }
     }
 
@@ -196,6 +203,12 @@ impl App {
     }
 }
 
+fn attempt(app: &mut App, result: io::Result<()>) {
+    if let Err(err) = result {
+        app.notice = Some(err.to_string());
+    }
+}
+
 fn matches(pr: &PullRequest, query: &str) -> bool {
     [
         format!("#{}", pr.number),
@@ -232,8 +245,8 @@ where
             Input::Data(stage, data) => app.receive(stage, data),
             Input::Key(key) => match app.handle_key(key) {
                 Action::Quit => return Ok(()),
-                Action::Open(url) => opener.open(&url)?,
-                Action::Copy(text) => opener.copy(&text)?,
+                Action::Open(url) => attempt(app, opener.open(&url)),
+                Action::Copy(text) => attempt(app, opener.copy(&text)),
                 Action::Refresh(stage) => refresh(stage),
                 Action::Continue => {}
             },

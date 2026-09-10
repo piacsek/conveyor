@@ -50,7 +50,8 @@ fn draw_prs(frame: &mut Frame, app: &mut App, area: Rect) {
             );
         }
         ColumnState::Ready { rows: prs, .. } => {
-            let title = format!("My PRs ({})", prs.len());
+            let warning = if app.prs_error.is_some() { " ⚠" } else { "" };
+            let title = format!("My PRs ({}){warning}", prs.len());
             let visible = app.visible();
             if visible.is_empty() {
                 let query = app.filter().unwrap_or_default();
@@ -146,6 +147,9 @@ fn conclusion_glyph(conclusion: CheckConclusion) -> char {
 fn footer_text(app: &App) -> String {
     if let Some(notice) = &app.notice {
         return notice.clone();
+    }
+    if let Some(error) = &app.prs_error {
+        return error.clone();
     }
     match (app.filter(), app.fetched_at()) {
         (Some(query), _) => format!("/{query}  {}/{}", app.visible().len(), app.all().len()),

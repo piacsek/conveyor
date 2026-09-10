@@ -18,6 +18,7 @@ pub const NOW: u64 = 1_800_000_000;
 pub struct FakeOpener {
     opened: RefCell<Vec<String>>,
     copied: RefCell<Vec<String>>,
+    failure: RefCell<Option<String>>,
 }
 
 impl FakeOpener {
@@ -28,15 +29,28 @@ impl FakeOpener {
     pub fn copied(&self) -> Vec<String> {
         self.copied.borrow().clone()
     }
+
+    pub fn fail_next(&self, message: &str) {
+        *self.failure.borrow_mut() = Some(message.to_string());
+    }
+
+    fn maybe_fail(&self) -> io::Result<()> {
+        match self.failure.borrow_mut().take() {
+            Some(message) => Err(io::Error::other(message)),
+            None => Ok(()),
+        }
+    }
 }
 
 impl Opener for FakeOpener {
     fn open(&self, url: &str) -> io::Result<()> {
+        self.maybe_fail()?;
         self.opened.borrow_mut().push(url.to_string());
         Ok(())
     }
 
     fn copy(&self, text: &str) -> io::Result<()> {
+        self.maybe_fail()?;
         self.copied.borrow_mut().push(text.to_string());
         Ok(())
     }
