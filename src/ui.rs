@@ -1,6 +1,6 @@
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::{Modifier, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, List, ListItem, Paragraph};
 
@@ -47,7 +47,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     } else {
         let columns = Layout::horizontal([Constraint::Fill(1); 4]).split(body);
         for (stage, area) in Stage::ALL.into_iter().zip(columns.iter()) {
-            draw_column(frame, app, stage, *area);
+            draw_column(frame, app, stage, *area, true);
         }
     }
 }
@@ -62,12 +62,12 @@ fn draw_tabs(frame: &mut Frame, app: &mut App, area: Rect) {
         let style = if stage == app.focus {
             Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED)
         } else {
-            Style::default().add_modifier(Modifier::DIM)
+            dim()
         };
         spans.push(Span::styled(column_title(app, stage), style));
     }
     frame.render_widget(Paragraph::new(Line::from(spans)), bar);
-    draw_column(frame, app, app.focus, body);
+    draw_column(frame, app, app.focus, body, false);
 }
 
 fn column_title(app: &App, stage: Stage) -> String {
@@ -85,27 +85,27 @@ fn column_title(app: &App, stage: Stage) -> String {
     }
 }
 
-fn column_block(app: &App, stage: Stage) -> Block<'static> {
+fn column_block(app: &App, stage: Stage, titled: bool) -> Block<'static> {
+    if !titled {
+        return Block::bordered();
+    }
     let style = if stage == app.focus {
         Style::default().add_modifier(Modifier::BOLD)
     } else {
-        Style::default().add_modifier(Modifier::DIM)
+        dim()
     };
     Block::bordered().title(Span::styled(column_title(app, stage), style))
 }
 
-fn draw_column(frame: &mut Frame, app: &mut App, stage: Stage, area: Rect) {
+fn draw_column(frame: &mut Frame, app: &mut App, stage: Stage, area: Rect, titled: bool) {
+    let block = column_block(app, stage, titled);
     match stage {
-        Stage::Prs => draw_prs(frame, app, area),
-        _ => frame.render_widget(
-            Paragraph::new("not configured").block(column_block(app, stage)),
-            area,
-        ),
+        Stage::Prs => draw_prs(frame, app, area, block),
+        _ => frame.render_widget(Paragraph::new("not configured").block(block), area),
     }
 }
 
-fn draw_prs(frame: &mut Frame, app: &mut App, area: Rect) {
-    let block = column_block(app, Stage::Prs);
+fn draw_prs(frame: &mut Frame, app: &mut App, area: Rect, block: Block<'static>) {
     match &app.prs {
         ColumnState::Loading => {
             let body = app
@@ -139,31 +139,39 @@ fn draw_prs(frame: &mut Frame, app: &mut App, area: Rect) {
     }
 }
 
-fn row(index: usize, pr: &PullRequest, now: std::time::SystemTime, width: usize) -> String {
+fn dim() -> Style {
+    Style::default().add_modifier(Modifier::DIM)
+}
+
+fn row(index: usize, pr: &PullRequest, now: std::time::SystemTime, width: usize) -> Line<'static> {
     let number = if index < 9 {
         (index + 1).to_string()
     } else {
         " ".to_string()
     };
     let repo = pr.repo.rsplit('/').next().unwrap_or(&pr.repo);
-    let left = format!(
-        "{number} {} #{} {repo}  {}",
-        glyph(pr.checks),
-        pr.number,
-        pr.title
-    );
     let right = pr.updated_at.map(|at| age(at, now)).unwrap_or_default();
-    let left_width = width.saturating_sub(right.chars().count() + 1);
-    format!("{} {right}", pad_right(&left, left_width))
+    let text = format!("#{} {repo}  {}", pr.number, pr.title);
+    let text_width = width.saturating_sub(number.chars().count() + 3 + right.chars().count() + 1);
+    let (glyph, color) = glyph(pr.checks);
+    Line::from(vec![
+        Span::styled(number, dim()),
+        Span::raw(" "),
+        Span::styled(glyph.to_string(), Style::default().fg(color)),
+        Span::raw(" "),
+        Span::raw(pad_right(&text, text_width)),
+        Span::raw(" "),
+        Span::styled(right, dim()),
+    ])
 }
 
-fn glyph(checks: CheckState) -> char {
+fn glyph(checks: CheckState) -> (char, Color) {
     match checks {
-        CheckState::Success => '✓',
-        CheckState::Failure => '✗',
-        CheckState::Pending => '●',
-        CheckState::None => '○',
-        CheckState::Unknown => '?',
+        CheckState::Success => ('✓', Color::Green),
+        CheckState::Failure => ('✗', Color::Red),
+        CheckState::Pending => ('●', Color::Yellow),
+        CheckState::None => ('○', Color::DarkGray),
+        CheckState::Unknown => ('?', Color::DarkGray),
     }
 }
 
@@ -183,12 +191,12 @@ fn draw_details(frame: &mut Frame, app: &App, area: Rect) {
         Line::from(format!("review: {}  merge: {}", pr.review, pr.merge_state)),
     ];
     lines.extend(pr.checks_failures_first().into_iter().map(|check| {
-        Line::from(format!(
-            "{} {}  {}",
-            conclusion_glyph(check.conclusion),
-            check.name,
-            check.url
-        ))
+        let (glyph, color) = conclusion_glyph(check.conclusion);
+        Line::from(vec![
+            Span::styled(glyph.to_string(), Style::default().fg(color)),
+            Span::raw(format!(" {}  ", check.name)),
+            Span::styled(check.url.clone(), dim()),
+        ])
     }));
     let title = format!("#{} {}", pr.number, pr.title);
     frame.render_widget(
@@ -197,13 +205,13 @@ fn draw_details(frame: &mut Frame, app: &App, area: Rect) {
     );
 }
 
-fn conclusion_glyph(conclusion: CheckConclusion) -> char {
+fn conclusion_glyph(conclusion: CheckConclusion) -> (char, Color) {
     match conclusion {
-        CheckConclusion::Success => '✓',
-        CheckConclusion::Failure => '✗',
-        CheckConclusion::Pending => '●',
-        CheckConclusion::Skipped => '-',
-        CheckConclusion::Unknown => '?',
+        CheckConclusion::Success => ('✓', Color::Green),
+        CheckConclusion::Failure => ('✗', Color::Red),
+        CheckConclusion::Pending => ('●', Color::Yellow),
+        CheckConclusion::Skipped => ('-', Color::DarkGray),
+        CheckConclusion::Unknown => ('?', Color::DarkGray),
     }
 }
 
@@ -236,7 +244,7 @@ fn draw_help(frame: &mut Frame, area: Rect) {
                     Style::default().add_modifier(Modifier::BOLD),
                 ),
                 Span::raw("  "),
-                Span::styled(*what, Style::default().add_modifier(Modifier::DIM)),
+                Span::styled(*what, dim()),
             ])
         })
         .collect();

@@ -17,10 +17,19 @@ actions on the selected row. `conveyor config` prints the effective config.
 src/main.rs      CLI dispatch, config load, wiring
 src/cli.rs       `conveyor` (TUI) | `config` | `--help` | `--version`; hand-rolled, no clap
 src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override
+src/github.rs    Github trait (`graphql(query, vars)`), CliGh spawns `gh api graphql`, error mapping
+src/fetch.rs     fetch_prs(gh, config): the search query from `src/queries/prs.graphql` → parsed rows
+src/model/prs.rs PullRequest, CheckState, Check, ReviewDecision, MergeState; lenient `parse` of gh JSON
+src/app.rs       App state (Mode::{Normal, Filter, Help}, focus, details), Input::{Key, Data, Tick}, run()
+src/ui.rs        rendering: 4 columns or tabs below `4 × ui.min_column_width`; KEYS drives the help view
+src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`)
+src/text.rs      truncate/pad_right with `…`, age()
+src/queries/     GraphQL documents, `include_str!`ed
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
 scripts/ship.sh               gates + dev-install + commit + push, aborts on any failure
 scripts/homebrew-formula.sh   prints the tap formula for a released version
+scripts/screenshots.sh        renders docs/*.png from a gh shim + synthetic fixture (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend
 ```
 
@@ -76,9 +85,14 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 
 ## Documentation rule
 
-Phase 1 adds `scripts/screenshots.sh` (freeze → SVG → headless Chrome, fixtures only, never
-the real `gh` account) and `docs/*.png` embedded in the README; after any visible layout
-change re-render and commit the images.
+`README.md` embeds `docs/columns.png`, `docs/details.png` and `docs/tabs.png`. After any
+visible layout change run `scripts/screenshots.sh` (needs `brew install
+charmbracelet/tap/freeze`, Google Chrome, and the FiraCode Nerd Font in `~/Library/Fonts`) and
+commit the new images. Freeze lays out an SVG with the font embedded; headless Chrome
+rasterises it, because freeze's own PNG output cannot draw Nerd Font glyphs. The script never
+reads the real `gh` account: `HOME` is a tempdir and a `gh` shim printing a synthetic
+`acme/*` fixture is first on PATH (through `env`, see the e2e trap below). Do not screenshot
+real data: this repository is public.
 
 Whenever behaviour changes, check that `README.md` still covers it and is still true: a key,
 a default, a subcommand, a config key. The README must stay terse: one line per feature,

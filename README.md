@@ -6,9 +6,20 @@ stage, one repo, one screen.
 
 Status: phase 1 (My PRs column). The other three columns are placeholders.
 
+![columns](docs/columns.png)
+
+`p` opens a details pane for the selected row: branch, diff size, review and merge state,
+checks with failures first.
+
+![details](docs/details.png)
+
+Narrow terminals collapse the columns into tabs:
+
+![tabs](docs/tabs.png)
+
 Keys: `j/k` move, `1-9` jump to a row, `h/l`/`Tab` focus a column, `Enter`/`o` open in the
 browser, `y` copy the URL, `p` details pane, `/` filter, `r` refresh, `?` help, `q` quit.
-Below `4 × min_column_width` columns the four columns collapse into tabs. A failed fetch keeps
+Below `4 × min_column_width` columns the four columns collapse into tabs (`h/l` switch). A failed fetch keeps
 the last rows, marks the column `⚠` and shows the error in the footer; the app never exits on
 it.
 
@@ -70,4 +81,5 @@ details_percent = 40
 ## Develop
 
 `scripts/gates.sh` runs fmt, clippy, tests and the ignored e2e tests; `scripts/dev-install.sh`
-exposes the working tree as `conveyor-dev`. See `AGENTS.md`.
+exposes the working tree as `conveyor-dev`; `scripts/ship.sh` gates, installs, commits and
+pushes; `scripts/screenshots.sh` re-renders `docs/*.png` from a fixture. See `AGENTS.md`.
