@@ -23,8 +23,8 @@ Status: phase 4. All four columns are live: My PRs, Merge queue, Main builds, De
   deployment) keeps its last known sha with a red `✗` and the error in the footer and details.
   `Enter` opens the PR.
 - Footer: `refreshed just now`, then `refreshed at HH:MM:SS` in local time, for the focused
-  column; a braille spinner in a column title while its fetch is in flight; a conveyor belt
-  rolling at the bottom right. Holding `Enter` opens a row once per second, not per repeat.
+  column; a braille spinner in a column title while its fetch is in flight; a static
+  `conveyor v<version>` logo at the bottom right. Holding `Enter` opens a row once per second, not per repeat.
 
 `p` opens a details pane for the selected row: branch, diff size, review and merge state,
 checks with failures first.

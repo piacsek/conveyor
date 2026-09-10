@@ -523,41 +523,23 @@ fn the_initial_fetch_spins_too() {
 }
 
 #[test]
-fn a_dim_conveyor_belt_rolls_at_the_bottom_right() {
+fn a_static_dim_logo_with_the_version_sits_at_the_bottom_right() {
     use ratatui::style::Modifier;
     use support::tick_at_ms;
     let mut h = Harness::new();
 
     h.run(vec![prs(three()), tick_at_ms(NOW * 1000)]).unwrap();
     let footer = h.screen().lines().last().unwrap().to_string();
-    let belt: String = footer
-        .chars()
-        .rev()
-        .take(14)
-        .collect::<Vec<_>>()
-        .into_iter()
-        .rev()
-        .collect();
-    assert!(
-        belt.contains('●') && belt.contains('━'),
-        "belt at the right end: {footer:?}"
-    );
+    let expected = format!("conveyor v{}", env!("CARGO_PKG_VERSION"));
+    assert!(footer.ends_with(&expected), "{footer:?}");
+    assert!(footer.contains('\u{25a3}'), "a conveyor logo: {footer:?}");
     assert!(footer.starts_with("refreshed just now"), "{footer:?}");
     assert!(h.cell(159, 11).modifier.contains(Modifier::DIM));
 
     h.run(vec![tick_at_ms(NOW * 1000 + 250)]).unwrap();
-    let moved: String = h
-        .screen()
-        .lines()
-        .last()
-        .unwrap()
-        .chars()
-        .rev()
-        .take(14)
-        .collect();
-    assert_ne!(
-        moved,
-        belt.chars().rev().collect::<String>(),
-        "the belt moves every tick"
+    assert_eq!(
+        h.screen().lines().last().unwrap().to_string(),
+        footer,
+        "the footer does not move between ticks"
     );
 }
