@@ -84,6 +84,43 @@ fn fixture_path(home: &Path) -> String {
     path.display().to_string()
 }
 
+fn deploy_config(home: &Path) -> String {
+    let path = home.join("conveyor.toml");
+    fs::write(
+        &path,
+        r#"[[repo]]
+name = "acme/webapp"
+
+[[repo.deploy]]
+system = "api"
+
+[[repo.deploy.env]]
+name = "staging"
+context = "ctx-staging"
+namespace = "api"
+deployment = "api"
+
+[[repo.deploy.env]]
+name = "prod"
+context = "ctx-prod"
+namespace = "api"
+deployment = "api"
+"#,
+    )
+    .unwrap();
+    path.display().to_string()
+}
+
+fn kubectl_shim(home: &Path) {
+    let kubectl = home.join("bin").join("kubectl");
+    fs::write(
+        &kubectl,
+        "#!/bin/sh\ncase \"$*\" in *ctx-prod*) echo 'ERROR: Active profile expired.' >&2; exit 1;; *) printf 'ghcr.io/acme/api:b0b5136548f2d7c37a7c09c03e39e34aadad16bd';; esac\n",
+    )
+    .unwrap();
+    fs::set_permissions(&kubectl, fs::Permissions::from_mode(0o755)).unwrap();
+}
+
 fn dispatching_shim(home: &Path) -> String {
     fs::write(home.join("prs.json"), include_str!("fixtures/prs.json")).unwrap();
     fs::write(home.join("queue.json"), include_str!("fixtures/queue.json")).unwrap();
@@ -201,4 +238,27 @@ fn the_main_builds_column_fills_from_the_workflow_runs() {
     let screen = server.wait_for_screen("Main webapp (4)");
     assert!(screen.contains("✗ #3 piacsek  Phase 2"), "{screen}");
     assert!(screen.contains("Queue webapp (2)"), "{screen}");
+}
+
+#[test]
+#[ignore]
+fn the_deployed_column_fills_from_kubectl_per_environment() {
+    let home = tempfile::tempdir().unwrap();
+    let path = dispatching_shim(home.path());
+    kubectl_shim(home.path());
+    let config = deploy_config(home.path());
+    let server = Server::start("deployed");
+
+    server.respawn(
+        &[
+            ("HOME", &home.path().display().to_string()),
+            ("PATH", &path),
+            ("CONVEYOR_CONFIG", &config),
+        ],
+        env!("CARGO_BIN_EXE_conveyor"),
+    );
+
+    let screen = server.wait_for_screen("Deployed api (2)");
+    assert!(screen.contains("staging  #3 piacsek"), "{screen}");
+    assert!(screen.contains("prod  ERROR: Active profile"), "{screen}");
 }
