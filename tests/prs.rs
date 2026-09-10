@@ -107,10 +107,8 @@ fn enter_and_o_open_the_selected_pull_request_and_keep_running() {
 
     assert_eq!(
         h.opener.opened(),
-        vec![
-            "https://github.com/acme/webapp/pull/2".to_string(),
-            "https://github.com/acme/webapp/pull/2".to_string(),
-        ]
+        vec!["https://github.com/acme/webapp/pull/2".to_string()],
+        "the second press within a second is debounced"
     );
     assert_eq!(
         highlighted_row(&h.screen()),
@@ -428,4 +426,30 @@ fn a_pull_request_in_the_merge_queue_shows_its_position_on_the_row() {
     assert!(rows[1].contains("#4821 webapp  Retry hooks"), "{screen}");
     assert!(rows[1].contains("⇥2 2h"), "{screen}");
     assert!(!rows[2].contains("⇥"), "{screen}");
+}
+
+#[test]
+fn a_held_enter_opens_the_same_row_only_once_per_second() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(three()),
+        key(KeyCode::Enter),
+        key(KeyCode::Enter),
+        key(KeyCode::Char('o')),
+        tick_at(NOW + 2),
+        key(KeyCode::Enter),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Enter),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        h.opener.opened(),
+        vec![
+            "https://github.com/acme/webapp/pull/1".to_string(),
+            "https://github.com/acme/webapp/pull/1".to_string(),
+            "https://github.com/acme/webapp/pull/2".to_string(),
+        ]
+    );
 }

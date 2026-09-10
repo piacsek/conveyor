@@ -1,0 +1,85 @@
+{
+  "total_count": 4,
+  "workflow_runs": [
+    {
+      "id": 34509123916,
+      "name": "ci",
+      "display_title": "docs: merge queue column in README with screenshot; AGENTS.md data so\u2026",
+      "status": "completed",
+      "conclusion": "failure",
+      "head_sha": "b0b513654654b311044cebdd3a61d6ccc436c6fa",
+      "head_branch": "main",
+      "event": "push",
+      "run_number": 24,
+      "run_attempt": 1,
+      "html_url": "https://github.com/piacsek/conveyor/actions/runs/34509123916",
+      "created_at": "2026-09-10T17:35:19Z",
+      "updated_at": "2026-09-10T17:39:07Z",
+      "run_started_at": "2026-09-10T17:35:19Z",
+      "actor": {
+        "login": "piacsek"
+      },
+      "path": ".github/workflows/ci.yml"
+    },
+    {
+      "id": 34503827059,
+      "name": "ci",
+      "display_title": "test(e2e): clear install hint when tmux is missing; gates skip the e2\u2026",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "71861969e06a72c124f1852adc1db4c5408a795d",
+      "head_branch": "main",
+      "event": "push",
+      "run_number": 14,
+      "run_attempt": 1,
+      "html_url": "https://github.com/piacsek/conveyor/actions/runs/34503827059",
+      "created_at": "2026-09-10T16:43:22Z",
+      "updated_at": "2026-09-10T16:47:25Z",
+      "run_started_at": "2026-09-10T16:43:22Z",
+      "actor": {
+        "login": "piacsek"
+      },
+      "path": ".github/workflows/ci.yml"
+    },
+    {
+      "id": 34503131078,
+      "name": "ci",
+      "display_title": "docs: AGENTS.md, README and phase plan",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "4708ea8bd11d74972f68485cca77dd99d629de94",
+      "head_branch": "main",
+      "event": "push",
+      "run_number": 10,
+      "run_attempt": 1,
+      "html_url": "https://github.com/piacsek/conveyor/actions/runs/34503131078",
+      "created_at": "2026-09-10T16:36:23Z",
+      "updated_at": "2026-09-10T16:40:15Z",
+      "run_started_at": "2026-09-10T16:36:23Z",
+      "actor": {
+        "login": "piacsek"
+      },
+      "path": ".github/workflows/ci.yml"
+    },
+    {
+      "id": 34495565876,
+      "name": "ci",
+      "display_title": "docs: AGENTS.md, README and phase plan",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "1db1297e184dcfdd33ce33ce1756c70f76cc4980",
+      "head_branch": "main",
+      "event": "push",
+      "run_number": 3,
+      "run_attempt": 1,
+      "html_url": "https://github.com/piacsek/conveyor/actions/runs/34495565876",
+      "created_at": "2026-09-10T15:25:43Z",
+      "updated_at": "2026-09-10T15:28:05Z",
+      "run_started_at": "2026-09-10T15:25:43Z",
+      "actor": {
+        "login": "piacsek"
+      },
+      "path": ".github/workflows/ci.yml"
+    }
+  ]
+}
