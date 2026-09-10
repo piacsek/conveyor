@@ -85,3 +85,11 @@ fn a_response_without_search_nodes_is_an_error() {
     let err = parse(&value).unwrap_err();
     assert!(err.contains("data.search.nodes"), "{err}");
 }
+
+#[test]
+fn the_merge_queue_position_is_read_when_present() {
+    let queued = one(r#"{"number": 9, "mergeQueueEntry": {"position": 3, "state": "QUEUED"}}"#);
+    assert_eq!(queued.queue_position, Some(3));
+    let plain = one(r#"{"number": 9, "mergeQueueEntry": null}"#);
+    assert_eq!(plain.queue_position, None);
+}

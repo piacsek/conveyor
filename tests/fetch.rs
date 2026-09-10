@@ -113,3 +113,42 @@ fn repos_come_from_the_config_or_else_from_the_current_directory() {
     assert!(err.contains("not a git repository"), "{err}");
     assert!(err.contains("[[repo]]"), "hints at the config: {err}");
 }
+
+#[test]
+fn fetch_queue_asks_for_the_repo_and_labels_the_result_with_it() {
+    use conveyor::config::Repo;
+    use conveyor::fetch::fetch_queue;
+    let gh = FakeGithub::with_response(Ok(serde_json::from_str(include_str!(
+        "fixtures/queue.json"
+    ))
+    .unwrap()));
+    let repo = Repo {
+        name: "acme/webapp".to_string(),
+        ..Repo::default()
+    };
+
+    let queue = fetch_queue(&gh, &repo).unwrap();
+
+    assert_eq!(queue.repo, "acme/webapp");
+    assert_eq!(queue.entries.len(), 2);
+    let calls = gh.calls.borrow();
+    assert!(calls[0].0.contains("mergeQueue"));
+    assert_eq!(
+        calls[0].1,
+        vec![
+            ("owner".to_string(), Variable::from("acme")),
+            ("name".to_string(), Variable::from("webapp")),
+            ("first".to_string(), Variable::from(20usize)),
+        ]
+    );
+
+    let err = fetch_queue(
+        &gh,
+        &Repo {
+            name: "nope".to_string(),
+            ..Repo::default()
+        },
+    )
+    .unwrap_err();
+    assert!(err.contains("owner/name"), "{err}");
+}
