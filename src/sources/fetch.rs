@@ -86,9 +86,16 @@ const DEFAULT_WORKFLOWS: [&str; 8] = [
     "main.yml",
 ];
 
+const MISS_RETRY: std::time::Duration = std::time::Duration::from_secs(120);
+
+enum Known {
+    Pull(crate::model::builds::PullRef),
+    Missing(std::time::SystemTime),
+}
+
 pub struct Pulls {
     repo: String,
-    cache: std::collections::HashMap<String, crate::model::builds::PullRef>,
+    cache: std::collections::HashMap<String, Known>,
 }
 
 impl Pulls {
@@ -103,22 +110,27 @@ impl Pulls {
         &mut self,
         gh: &impl Github,
         sha: &str,
+        number: Option<u64>,
+        now: std::time::SystemTime,
     ) -> Option<crate::model::builds::PullRef> {
-        if let Some(cached) = self.cache.get(sha) {
-            return Some(cached.clone());
+        match self.cache.get(sha) {
+            Some(Known::Pull(pull)) => return Some(pull.clone()),
+            Some(Known::Missing(at)) if fresh(*at, now) => return None,
+            _ => {}
         }
-        let pull = self
-            .associated(gh, sha)
-            .or_else(|| self.by_squash_suffix(gh, sha))?;
-        self.cache.insert(sha.to_string(), pull.clone());
-        Some(pull)
-    }
-
-    fn associated(&self, gh: &impl Github, sha: &str) -> Option<crate::model::builds::PullRef> {
-        let value = gh
+        let associated = gh
             .rest(&format!("repos/{}/commits/{sha}/pulls", self.repo))
             .ok()?;
-        crate::model::builds::parse_pull_numbers(&value)
+        let pull = crate::model::builds::parse_pull_numbers(&associated).or_else(|| match number {
+            Some(number) => self.landed(gh, sha, number),
+            None => self.by_squash_suffix(gh, sha),
+        });
+        let known = match &pull {
+            Some(pull) => Known::Pull(pull.clone()),
+            None => Known::Missing(now),
+        };
+        self.cache.insert(sha.to_string(), known);
+        pull
     }
 
     fn by_squash_suffix(
@@ -131,11 +143,29 @@ impl Pulls {
             .ok()?;
         let message = commit.pointer("/commit/message")?.as_str()?;
         let number = crate::model::builds::pr_number_from_title(message.lines().next()?)?;
-        let pull = gh
+        self.landed(gh, sha, number)
+    }
+
+    fn landed(
+        &self,
+        gh: &impl Github,
+        sha: &str,
+        number: u64,
+    ) -> Option<crate::model::builds::PullRef> {
+        let value = gh
             .rest(&format!("repos/{}/pulls/{number}", self.repo))
             .ok()?;
-        crate::model::builds::parse_pull(&pull)
+        let is = |key: &str| value.pointer(key).and_then(|v| v.as_str()) == Some(sha);
+        if !is("/merge_commit_sha") && !is("/head/sha") {
+            return None;
+        }
+        crate::model::builds::parse_pull(&value)
     }
+}
+
+fn fresh(at: std::time::SystemTime, now: std::time::SystemTime) -> bool {
+    now.duration_since(at)
+        .is_ok_and(|elapsed| elapsed < MISS_RETRY)
 }
 
 pub struct BuildsSource {
@@ -153,7 +183,11 @@ impl BuildsSource {
         }
     }
 
-    pub fn fetch(&mut self, gh: &impl Github) -> Result<Vec<crate::model::builds::Build>, String> {
+    pub fn fetch(
+        &mut self,
+        gh: &impl Github,
+        now: std::time::SystemTime,
+    ) -> Result<Vec<crate::model::builds::Build>, String> {
         let workflow = self.workflow(gh)?;
         let runs = gh
             .rest(&format!(
@@ -163,7 +197,8 @@ impl BuildsSource {
             .map_err(|err| err.to_string())?;
         let mut builds = crate::model::builds::parse_runs(&runs);
         for build in &mut builds {
-            build.pull = self.pulls.for_sha(gh, &build.sha);
+            let sha = build.sha.clone();
+            build.pull = self.pulls.for_sha(gh, &sha, build.pr_number, now);
         }
         Ok(builds)
     }
@@ -274,7 +309,7 @@ impl DeploySource {
         row.image = Some(image.clone());
         match crate::model::deployed::sha_from_image(&image) {
             Ok(sha) => {
-                row.pull = self.pulls.for_sha(gh, &sha);
+                row.pull = self.pulls.for_sha(gh, &sha, None, now);
                 row.sha = Some(sha);
                 row.fetched_at = Some(now);
             }

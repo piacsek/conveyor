@@ -114,15 +114,21 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `builds` runs. kubectl may itself start a teleport browser login when the session is
   expired; the 10 s timeout returns the row to an error instead of hanging.
 - **sha → pull request** goes through one shared `fetch::Pulls` (both `BuildsSource` and
-  `DeploySource` own one). It asks `repos/{r}/commits/{sha}/pulls` first, and when that comes
-  back empty it reads `repos/{r}/commits/{sha}`, takes `(#N)` off the first line of the commit
-  message and fetches `repos/{r}/pulls/{N}`. **Only a hit is cached.** An empty answer is
-  deliberately never cached: GitHub can report no associated pull request for a commit that a
-  merge queue has just landed, and the old code froze that miss for the life of the process, so
-  a Deployed row read seconds after a rollout said `no pull request found for this commit`
-  until conveyor was restarted, while Main builds showed the number because it also reads the
-  squash suffix. The cost of not caching misses is up to two extra calls per unresolved row per
-  refresh; a row that resolves is asked once.
+  `DeploySource` own one), in this order: `repos/{r}/commits/{sha}/pulls`; then, only when that
+  parsed to an **empty** answer, the `(#N)` the caller already knows (`Build.pr_number`, off
+  the run's squash title) or else a read of `repos/{r}/commits/{sha}` to take `(#N)` from the
+  first line of the message; then `repos/{r}/pulls/{N}`, which is **accepted only if its
+  `merge_commit_sha` or `head.sha` is that sha**, so a cherry-pick that kept an upstream squash
+  subject cannot attribute the wrong pull request to a row.
+  An error from `gh` is not an answer: it returns immediately without the fallback, so a rate
+  limit cannot triple the call volume, and it is not cached either.
+  A hit is cached for the life of the process. A miss is cached for `MISS_RETRY` (120 s) and
+  then asked again — the middle ground that fixes the original bug without the cost. Caching a
+  miss forever froze `no pull request found for this commit` on a Deployed row read seconds
+  after a rollout, because GitHub can briefly report no associated pull request for a commit a
+  merge queue has just landed, and only a restart cleared it. Never caching a miss instead cost
+  up to two extra calls per unresolved row per refresh **forever**, which on a repo whose main
+  branch carries direct pushes ran to thousands of calls an hour against a 5,000/hour limit.
 - Parse leniently: unknown fields ignored, unknown enum values → `Unknown`.
   `tests/fixtures/` carries verbatim `gh` output; refresh it when GitHub changes shape.
 
@@ -240,6 +246,11 @@ agent's private memory. When the user says "update the guidelines", edit this fi
   what went stale without rewording the user's edits.
 - **Screenshots in PRs.** A PR with a visible change embeds the `docs/*.png` screenshots in
   its body as commit-pinned `raw.githubusercontent.com` URLs.
+- **Review before ready.** Marking a PR ready for review means spawning a sub agent first to
+  review the branch diff thoroughly, and acting on what it finds. Give it the intent of the
+  change, point it at this file, tell it to run the gates itself rather than trust the claim
+  that they pass, and forbid edits, commits and any call that touches the user's real GitHub
+  account or clusters. `gh pr ready` comes after the findings are addressed, not before.
 - **Merging and releasing.** Rebase-merge the phase PR into `main` when CI is green, then tag
   from `main` (see Releasing). Never push to `main` directly except the very first bootstrap
   commit of an empty repository, and never force-push.

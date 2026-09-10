@@ -220,7 +220,7 @@ fn spawn_builds_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<()> {
         let source = source
             .as_mut()
             .ok_or_else(|| "no repository to watch".to_string())?;
-        let builds = source.fetch(&gh)?;
+        let builds = source.fetch(&gh, SystemTime::now())?;
         Ok(Rows::Builds(source.into_builds(builds)))
     })
 }

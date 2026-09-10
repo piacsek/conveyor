@@ -97,7 +97,9 @@ case "\$*" in
   *'actions/workflows?'*) echo '{"workflows":[{"id":22,"name":"CI/CD","path":".github/workflows/cicd.yml"}]}';;
   *'actions/workflows/'*) cat "$home/runs.json";;
   *actions/runs/*/jobs*) run=\$(printf '%s' "\$*" | sed -E 's#.*/actions/runs/([0-9]+)/jobs.*#\\1#'); cat "$home/jobs-\$run.json";;
-  *'/commits/'*) sha=\$(printf '%s' "\$*" | sed -E 's#.*/commits/([0-9a-f]+)/pulls.*#\\1#'); cat "$home/pulls-\$sha.json";;
+  *'/commits/'*'/pulls'*) sha=\$(printf '%s' "\$*" | sed -E 's#.*/commits/([0-9a-f]+)/pulls.*#\\1#'); cat "$home/pulls-\$sha.json";;
+  *'/commits/'*) echo '{"commit":{"message":"no suffix here"}}';;
+  *'/pulls/'*) echo '{}';;
   *actions/runs*) echo '{"workflow_runs":[{"head_branch":"gh-readonly-queue/main/pr-4821-0000000000000000000000000000000000000000","status":"in_progress","conclusion":null,"html_url":"https://github.com/acme/webapp/actions/runs/1"}]}';;
   *) cat "$home/prs.json";;
 esac
