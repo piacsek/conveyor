@@ -19,6 +19,12 @@ Four requests from the user, verbatim where they set the design:
    line of the selected card as its left edge, the title stays bold, and nothing else changes:
    no background fill, no reverse video (reverse video was already rejected in phase 5).
 
+5. Mid-phase: **"you forgot to show me 3 candidates for logo. I really dislike the current
+   one"**. Offered a bare wordmark, `▰▰▰▸` belt segments and `▪─▪─▪▸` rollers on a rail; the
+   user picked the rollers. The old `⟦▣⟧━⟦▣⟧━⟦▣⟧━▸` drew as a boxed `[回]` in a Nerd Font,
+   which is why it read badly. Keep every logo glyph single-width: no brackets, no CJK-prone
+   code points.
+
 ## Design decisions
 
 **Zoom (task 1).** `App::zoom: bool`, toggled by `z`; `KEYS` gets `("z", "zoom the column")`.

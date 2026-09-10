@@ -577,7 +577,10 @@ fn a_static_dim_logo_with_the_version_sits_at_the_bottom_right() {
     let footer = h.screen().lines().last().unwrap().to_string();
     let expected = format!("conveyor v{}", env!("CARGO_PKG_VERSION"));
     assert!(footer.ends_with(&expected), "{footer:?}");
-    assert!(footer.contains('\u{25a3}'), "a conveyor logo: {footer:?}");
+    assert!(
+        footer.contains("\u{25aa}\u{2500}\u{25aa}\u{2500}\u{25aa}\u{25b8}"),
+        "rollers on a rail: {footer:?}"
+    );
     assert!(footer.starts_with("refreshed just now"), "{footer:?}");
     assert!(h.cell(159, 11).modifier.contains(Modifier::DIM));
 
