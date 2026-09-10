@@ -317,6 +317,19 @@ Phase 1 exit: retro (see checkpoints), `AGENTS.md` updated, v0.1.0 tagged, plan 
   (read `<gitops repo>/<app>/<env>/image-updater.yaml` through `gh api …/contents`, no cluster
   auth) and `github-deployments` slot in later without touching the column.
 
+### Phase 4 outcome (2026-09-10)
+
+- Shipped on `phase-4-deployed` (PR #5): `[[repo.deploy]]` / `[[repo.deploy.env]]` config with
+  a `Fetcher` enum (kubectl only); `Kube` seam with argv, stderr and not-found mapping;
+  `sha_from_image`; `DeploySource` with per-env errors and cached sha→PR; column rows with
+  `at main` / `↓n` from the builds column, last-known sha kept on failure, details with image
+  and error; fetcher thread only when a repo has deploy config; e2e with a kubectl shim.
+- Live: the real image tags are bare 40-hex shas; a missing deployment name and an expired
+  session both degraded to a red row with the message, the app kept running.
+- Deferred: `argocd-git` and `github-deployments` fetchers, more than one `[[repo.deploy]]`,
+  deploy age from the cluster (`fetched_at` is when conveyor read it, not when the rollout
+  happened).
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.

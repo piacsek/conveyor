@@ -27,10 +27,12 @@ src/main.rs      CLI dispatch, config load, wiring
 src/cli.rs       `conveyor` (TUI) | `config` | `--help` | `--version`; hand-rolled, no clap
 src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override
 src/github.rs    Github trait (`graphql`, `rest`, `current_repo`), CliGh spawns `gh api …` / `gh repo view`, error mapping
-src/fetch.rs     repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), BuildsSource (caches workflow id and sha→PR)
+src/fetch.rs     repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), BuildsSource (caches workflow id and sha→PR), DeploySource (per-env kubectl + cached sha→PR)
 src/model/prs.rs PullRequest, CheckState, Check, ReviewDecision, MergeState; lenient `parse` of gh JSON
 src/model/queue.rs Queue, QueueEntry, QueueState, MergeGroupRun; `parse`, `parse_merge_group_runs`, `attach_runs`
 src/model/builds.rs Build, BuildStatus, PullRef, Builds; `parse_runs`, `pr_number_from_title`, `parse_pull_numbers`
+src/model/deployed.rs Deployment, Deployed; `sha_from_image` (40-hex tag or `-<sha>` suffix)
+src/kube.rs      Kube trait (`image(env)`), CliKubectl (`kubectl --context … get deploy … -o jsonpath`, 10 s timeout)
 src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode), Input::{Key, Data, Tick}, run()
 src/ui.rs        rendering: 4 columns or tabs below `4 × ui.min_column_width`; KEYS drives the help view
 src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`)
@@ -80,9 +82,16 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   why this repo's own runs exercise the fallback). `updated_at` stands in for the finish time;
   running and queued runs show elapsed time instead. `tests/fixtures/runs.json` and
   `commit-pulls.json` are real captures from this repo. Jobs are not fetched (backlog).
-- **Deployed**: `kubectl --context C -n NS get deploy D -o jsonpath=…image`; the tag is the
-  40-hex commit sha (Argo CD image-updater, `newest-build`). Teleport sessions expire daily,
-  so a failed fetch is the normal case: keep the last rows dim and show the error.
+- **Deployed**: `kubectl --context C -n NS get deploy D -o jsonpath={.spec.template.spec.containers[0].image} --request-timeout=10s`
+  per `[[repo.deploy.env]]`; verified live 2026-09-10: the tag is the bare 40-hex commit sha
+  (a GitOps image updater writes it; preview deployments use `<label>-<sha>`, which
+  `sha_from_image` also accepts). Errors are per row, never per column: an expired session
+  or a missing deployment (`Error from server (NotFound): deployments.apps "x" not found`)
+  marks that env `✗`, keeps its last known sha/PR (`App::keep_last_known`) and shows the
+  message in the footer when the row is selected. `behind_main` is the sha's index in the
+  Main builds column (0 = `at main`), so it needs that column loaded and only sees the last
+  `builds` runs. kubectl may itself start a teleport browser login when the session is
+  expired; the 10 s timeout returns the row to an error instead of hanging.
 - Parse leniently: unknown fields ignored, unknown enum values → `Unknown`.
   `tests/fixtures/` carries verbatim `gh` output; refresh it when GitHub changes shape.
 
@@ -120,6 +129,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 
 - tmux is a test harness, not a dependency: only the `#[ignore]` e2e tests use it, they panic
   with an install hint when it is missing, and `gates.sh` skips them without tmux (CI has it).
+- `tests/kube.rs` shim tests take the same kind of mutex as `tests/github.rs` (fork race).
 - `tests/e2e.rs` runs the real binary in a scratch tmux server (`-L`, `-f /dev/null`) with
   `HOME` in a tempdir and a `gh` shell shim that prints `tests/fixtures/prs.json`. The pane
   command must be `env HOME=… PATH=… <binary>`: `respawn-pane -e PATH=…` looked right but
@@ -139,7 +149,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 
 ## Documentation rule
 
-`README.md` embeds `docs/columns.png`, `docs/details.png`, `docs/queue.png`, `docs/builds.png` and `docs/tabs.png`. After any
+`README.md` embeds `docs/columns.png`, `docs/details.png`, `docs/queue.png`, `docs/builds.png`,
+`docs/deployed.png` and `docs/tabs.png`. After any
 visible layout change run `scripts/screenshots.sh` (needs `brew install
 charmbracelet/tap/freeze`, Google Chrome, and the FiraCode Nerd Font in `~/Library/Fonts`) and
 commit the new images. Freeze lays out an SVG with the font embedded; headless Chrome
