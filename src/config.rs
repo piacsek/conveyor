@@ -54,6 +54,7 @@ pub struct Repo {
     pub main_workflow: String,
     pub builds: usize,
     pub refresh_secs: u64,
+    pub deploy: Vec<Deploy>,
 }
 
 impl Default for Repo {
@@ -63,8 +64,44 @@ impl Default for Repo {
             main_workflow: "CI/CD".to_string(),
             builds: 10,
             refresh_secs: 30,
+            deploy: Vec::new(),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Deploy {
+    pub system: String,
+    pub refresh_secs: u64,
+    pub env: Vec<DeployEnv>,
+}
+
+impl Default for Deploy {
+    fn default() -> Self {
+        Self {
+            system: String::new(),
+            refresh_secs: 120,
+            env: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct DeployEnv {
+    pub name: String,
+    pub fetcher: Fetcher,
+    pub context: String,
+    pub namespace: String,
+    pub deployment: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Fetcher {
+    #[default]
+    Kubectl,
 }
 
 impl Config {
