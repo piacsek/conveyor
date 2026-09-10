@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
     pub prs: Prs,
+    pub ui: Ui,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -25,6 +26,22 @@ impl Default for Prs {
             query: "is:pr is:open author:@me archived:false".to_string(),
             limit: 20,
             refresh_secs: 60,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Ui {
+    pub min_column_width: u16,
+    pub details_percent: u16,
+}
+
+impl Default for Ui {
+    fn default() -> Self {
+        Self {
+            min_column_width: 36,
+            details_percent: 40,
         }
     }
 }

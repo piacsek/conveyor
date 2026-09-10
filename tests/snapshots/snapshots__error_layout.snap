@@ -1,0 +1,16 @@
+---
+source: tests/snapshots.rs
+expression: h.screen()
+---
+┌My PRs (3) ⚠──────────────────────────┐┌Merge queue───────────────────────────┐┌Main builds───────────────────────────┐┌Deployed──────────────────────────────┐
+│> 1 ✗ #4821 webapp  Retry webhook d… 2h││not configured                        ││not configured                        ││not configured                        │
+│  2 ● #4830 auth  Add rate limit h… 2h││                                      ││                                      ││                                      │
+│  3 ○ #4790 webapp  Spike: parallel test runner  2h││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘
+gh: HTTP 401: Bad credentials
