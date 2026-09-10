@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     pub prs: Prs,
     pub ui: Ui,
+    pub repo: Vec<Repo>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -42,6 +43,26 @@ impl Default for Ui {
         Self {
             min_column_width: 36,
             details_percent: 40,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Repo {
+    pub name: String,
+    pub main_workflow: String,
+    pub builds: usize,
+    pub refresh_secs: u64,
+}
+
+impl Default for Repo {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            main_workflow: "CI/CD".to_string(),
+            builds: 10,
+            refresh_secs: 30,
         }
     }
 }
