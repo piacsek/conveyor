@@ -10,7 +10,7 @@ use std::time::{Duration, SystemTime};
 use conveyor::app::{App, Input, Rows, Stage, run};
 use conveyor::cli::{self, Command};
 use conveyor::config::{self, Config};
-use conveyor::fetch::{fetch_prs, fetch_queue, repos};
+use conveyor::fetch::{BuildsSource, fetch_prs, fetch_queue, repos};
 use conveyor::github::CliGh;
 use conveyor::open::SystemOpener;
 use ratatui::crossterm::event::{self, Event};
@@ -72,6 +72,10 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
     refreshers.insert(
         Stage::Queue,
         spawn_queue_fetcher(config.clone(), tx.clone()),
+    );
+    refreshers.insert(
+        Stage::Builds,
+        spawn_builds_fetcher(config.clone(), tx.clone()),
     );
     spawn_terminal_events(tx);
     let mut app = App::new(config);
@@ -162,5 +166,25 @@ fn spawn_queue_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<()> {
             .as_ref()
             .ok_or_else(|| "no repository to watch".to_string())?;
         fetch_queue(&gh, repo).map(Rows::Queue)
+    })
+}
+
+fn spawn_builds_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<()> {
+    let gh = CliGh::default();
+    let interval = Duration::from_secs(config.repo.first().map_or(30, |repo| repo.refresh_secs));
+    let mut source: Option<BuildsSource> = None;
+    spawn_fetcher(Stage::Builds, interval, tx, move || {
+        if source.is_none() {
+            let repo = repos(&gh, &config)?
+                .into_iter()
+                .next()
+                .ok_or_else(|| "no repository to watch".to_string())?;
+            source = Some(BuildsSource::new(repo));
+        }
+        let source = source
+            .as_mut()
+            .ok_or_else(|| "no repository to watch".to_string())?;
+        let builds = source.fetch(&gh)?;
+        Ok(Rows::Builds(source.into_builds(builds)))
     })
 }
