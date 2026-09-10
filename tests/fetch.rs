@@ -340,3 +340,34 @@ fn builds_source_uses_a_workflow_file_name_directly_and_reports_unknown_names() 
         "{err}"
     );
 }
+
+#[test]
+fn the_default_workflow_name_falls_back_to_common_ci_workflows() {
+    use conveyor::config::Repo;
+    use conveyor::fetch::BuildsSource;
+    let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    gh.rest_routes = vec![
+        (
+            "repos/acme/webapp/actions/workflows?".to_string(),
+            serde_json::json!({"workflows": [
+                {"id": 5, "name": "release", "path": ".github/workflows/release.yml"},
+                {"id": 7, "name": "ci", "path": ".github/workflows/ci.yml"}
+            ]}),
+        ),
+        (
+            "repos/acme/webapp/actions/workflows/7/runs".to_string(),
+            serde_json::json!({"workflow_runs": []}),
+        ),
+    ];
+    let mut source = BuildsSource::new(Repo {
+        name: "acme/webapp".to_string(),
+        ..Repo::default()
+    });
+
+    assert_eq!(source.fetch(&gh).unwrap(), vec![]);
+    let calls = gh.calls.borrow().clone();
+    assert!(
+        calls.iter().any(|(q, _)| q.contains("workflows/7/runs")),
+        "{calls:?}"
+    );
+}

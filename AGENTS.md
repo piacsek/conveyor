@@ -72,7 +72,9 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   maps the rest.
 - **Main builds**: `repos/{r}/actions/workflows/{id or file}/runs?branch=main&event=push&per_page=N`.
   `main_workflow` may be a display name (resolved once through `actions/workflows?per_page=100`,
-  matched on `name` or the file basename) or a `.yml` file used directly. Each run's PR comes
+  matched on `name` or the file basename) or a `.yml` file used directly. The default `CI/CD`
+  also tries `cicd.yml`, `CI`, `ci`, `ci.yml`, `build`, `build.yml`, `main.yml` in that order
+  (`fetch::DEFAULT_WORKFLOWS`) so an unconfigured repo usually finds its build workflow. Each run's PR comes
   from the squash suffix `(#N)` in `display_title`, else `repos/{r}/commits/{sha}/pulls`
   (first PR; cached per sha for the life of the process; rebase merges have no suffix, which is
   why this repo's own runs exercise the fallback). `updated_at` stands in for the finish time;
