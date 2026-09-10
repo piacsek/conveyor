@@ -4,21 +4,33 @@ A terminal view of where your changes are: open pull requests, the merge
 queue, the last main builds, and what each environment runs. One column per
 stage, one repo, one screen.
 
-Status: phase 1 (My PRs column). The other three columns are placeholders.
+Status: phase 2 (My PRs and Merge queue columns). Main builds and Deployed are placeholders.
 
 ![columns](docs/columns.png)
+
+- **My PRs**: the `[prs] query` search. Row: number, check glyph, repo, title, `⇥n` when the
+  PR sits at position n of a merge queue, age.
+- **Merge queue**: the queue of the first `[[repo]]`, or of the repository checked out in the
+  current directory. Row: position, check glyph (from the merge-group run when one exists),
+  number, author, title, ETA or state. A repo without a merge queue shows the error in place.
 
 `p` opens a details pane for the selected row: branch, diff size, review and merge state,
 checks with failures first.
 
 ![details](docs/details.png)
 
+On a queue entry it shows position, state, ETA, flags, enqueue age, head sha and the
+merge-group run.
+
+![queue details](docs/queue.png)
+
 Narrow terminals collapse the columns into tabs:
 
 ![tabs](docs/tabs.png)
 
 Keys: `j/k` move, `1-9` jump to a row, `h/l`/`Tab` focus a column, `Enter`/`o` open in the
-browser, `y` copy the URL, `p` details pane, `/` filter, `r` refresh, `?` help, `q` quit.
+browser, `y` copy the URL, `p` details pane, `/` filter, `r` refresh the focused column, `?` help,
+`q` quit. Keys act on the focused column.
 Below `4 × min_column_width` columns the four columns collapse into tabs (`h/l` switch). A failed fetch keeps
 the last rows, marks the column `⚠` and shows the error in the footer; the app never exits on
 it.
@@ -78,6 +90,12 @@ refresh_secs = 60
 [ui]
 min_column_width = 36
 details_percent = 40
+
+[[repo]]                      # optional; default is the repository of the current directory
+name = "owner/name"
+main_workflow = "CI/CD"       # phase 3
+builds = 10                   # phase 3
+refresh_secs = 30
 ```
 
 ## Develop

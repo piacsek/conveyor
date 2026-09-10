@@ -5,7 +5,7 @@ use conveyor::model::prs::{
     Check, CheckConclusion, CheckState, MergeState, PullRequest, ReviewDecision,
 };
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, failed, key, pr, prs};
+use support::{Harness, entry, failed, key, pr, prs, queue};
 
 fn sample() -> Vec<PullRequest> {
     let mut failing = pr(4821, "Retry webhook delivery with backoff");
@@ -36,10 +36,39 @@ fn sample() -> Vec<PullRequest> {
     vec![failing, pending, draft]
 }
 
+fn queue_sample() -> Vec<conveyor::model::queue::QueueEntry> {
+    let mut first = entry(1, 4821, "alice", "Retry webhook delivery with backoff");
+    first.state = conveyor::model::queue::QueueState::AwaitingChecks;
+    first.checks = CheckState::Pending;
+    first.eta = Some(std::time::Duration::from_secs(12 * 60));
+    first.run_url = Some("https://github.com/acme/webapp/actions/runs/1".to_string());
+    let mut second = entry(2, 4830, "carol", "Add rate limit headers to the API");
+    second.jump = true;
+    vec![first, second]
+}
+
 #[test]
 fn list_layout() {
     let mut h = Harness::new();
-    h.run(vec![prs(sample()), key(KeyCode::Char('j'))]).unwrap();
+    h.run(vec![
+        prs(sample()),
+        queue(queue_sample()),
+        key(KeyCode::Char('j')),
+    ])
+    .unwrap();
+    insta::assert_snapshot!(h.screen());
+}
+
+#[test]
+fn queue_details_layout() {
+    let mut h = Harness::with_size(160, 20);
+    h.run(vec![
+        prs(sample()),
+        queue(queue_sample()),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('p')),
+    ])
+    .unwrap();
     insta::assert_snapshot!(h.screen());
 }
 
