@@ -357,3 +357,27 @@ fn narrow_terminals_collapse_the_columns_into_tabs_and_h_l_switch_them() {
     .unwrap();
     assert!(h.screen().contains("#1 webapp  a"), "Tab wraps around");
 }
+
+#[test]
+fn a_failure_before_any_data_flags_the_column_and_shows_the_message_in_the_body() {
+    use conveyor::app::Stage;
+    let mut h = Harness::new();
+
+    h.run(vec![support::failed(
+        Stage::Prs,
+        "gh: HTTP 401: Bad credentials",
+    )])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("My PRs ⚠"), "{screen}");
+    assert!(!screen.contains("fetching…"), "{screen}");
+    assert!(
+        screen
+            .lines()
+            .nth(1)
+            .unwrap()
+            .contains("gh: HTTP 401: Bad credentials"),
+        "{screen}"
+    );
+}

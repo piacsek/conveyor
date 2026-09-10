@@ -72,13 +72,13 @@ fn draw_tabs(frame: &mut Frame, app: &mut App, area: Rect) {
 
 fn column_title(app: &App, stage: Stage) -> String {
     match stage {
-        Stage::Prs => match &app.prs {
-            ColumnState::Loading => "My PRs".to_string(),
-            ColumnState::Ready { rows, .. } => {
-                let warning = if app.prs_error.is_some() { " ⚠" } else { "" };
-                format!("My PRs ({}){warning}", rows.len())
+        Stage::Prs => {
+            let warning = if app.prs_error.is_some() { " ⚠" } else { "" };
+            match &app.prs {
+                ColumnState::Loading => format!("My PRs{warning}"),
+                ColumnState::Ready { rows, .. } => format!("My PRs ({}){warning}", rows.len()),
             }
-        },
+        }
         Stage::Queue => "Merge queue".to_string(),
         Stage::Builds => "Main builds".to_string(),
         Stage::Deployed => "Deployed".to_string(),
@@ -108,7 +108,11 @@ fn draw_prs(frame: &mut Frame, app: &mut App, area: Rect) {
     let block = column_block(app, Stage::Prs);
     match &app.prs {
         ColumnState::Loading => {
-            frame.render_widget(Paragraph::new("fetching…").block(block), area);
+            let body = app
+                .prs_error
+                .clone()
+                .unwrap_or_else(|| "fetching…".to_string());
+            frame.render_widget(Paragraph::new(body).block(block), area);
         }
         ColumnState::Ready { rows: prs, .. } if prs.is_empty() => {
             frame.render_widget(Paragraph::new("no open pull requests").block(block), area);
