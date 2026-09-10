@@ -7,6 +7,7 @@ use std::time::{Duration, UNIX_EPOCH};
 use conveyor::app::{App, Input, Rows, Stage, run};
 use conveyor::config::Config;
 use conveyor::model::builds::{Build, BuildStatus, Builds, PullRef};
+use conveyor::model::deployed::{Deployed, Deployment};
 use conveyor::model::prs::{CheckState, PullRequest};
 use conveyor::model::queue::{Queue, QueueEntry, QueueState};
 use conveyor::open::Opener;
@@ -118,6 +119,32 @@ pub fn build(run_number: u64, status: BuildStatus, pr: Option<(u64, &str, &str)>
             author: author.to_string(),
             url: format!("https://github.com/acme/webapp/pull/{number}"),
         }),
+    }
+}
+
+pub fn deployed(rows: Vec<Deployment>) -> io::Result<Input> {
+    Ok(Input::Data(
+        Stage::Deployed,
+        Ok(Rows::Deployed(Deployed {
+            system: "api".to_string(),
+            rows,
+        })),
+    ))
+}
+
+pub fn deployment(env: &str, sha_seed: u64, pr: Option<(u64, &str, &str)>) -> Deployment {
+    Deployment {
+        env: env.to_string(),
+        image: Some(format!("ghcr.io/acme/api:{sha_seed:040x}")),
+        sha: Some(format!("{sha_seed:040x}")),
+        pull: pr.map(|(number, author, title)| PullRef {
+            number,
+            title: title.to_string(),
+            author: author.to_string(),
+            url: format!("https://github.com/acme/webapp/pull/{number}"),
+        }),
+        error: None,
+        fetched_at: Some(UNIX_EPOCH + Duration::from_secs(NOW - 6 * 86_400)),
     }
 }
 

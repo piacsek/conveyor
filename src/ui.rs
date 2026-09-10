@@ -8,6 +8,7 @@ use ratatui::widgets::{Block, List, ListItem, Paragraph};
 
 use crate::app::{App, Column, Mode, Row, Stage};
 use crate::model::builds::{Build, BuildStatus};
+use crate::model::deployed::Deployment;
 use crate::model::prs::{CheckConclusion, CheckState, PullRequest};
 use crate::model::queue::QueueEntry;
 use crate::text::{age, clock, duration, pad_right, refreshed};
@@ -107,7 +108,10 @@ fn column_title(app: &App, stage: Stage) -> String {
             ),
             None => titled("Main builds", &app.builds, app.spinner()),
         },
-        Stage::Deployed => "Deployed".to_string(),
+        Stage::Deployed => match &app.deployed_system {
+            Some(system) => titled(&format!("Deployed {system}"), &app.deployed, app.spinner()),
+            None => titled("Deployed", &app.deployed, app.spinner()),
+        },
     }
 }
 
@@ -159,8 +163,101 @@ fn draw_column(frame: &mut Frame, app: &mut App, stage: Stage, area: Rect, title
             spinner,
             |i, build, w| build_row(i, build, now, w),
         ),
-        Stage::Deployed => frame.render_widget(Paragraph::new("not configured").block(block), area),
+        Stage::Deployed
+            if app.deployed.is_loading()
+                && app.deployed.error.is_none()
+                && !app.deploy_configured() =>
+        {
+            frame.render_widget(
+                Paragraph::new("no [[repo.deploy]] configured").block(block),
+                area,
+            )
+        }
+        Stage::Deployed => {
+            let behind: Vec<Option<usize>> = app
+                .deployed
+                .visible()
+                .iter()
+                .map(|row| app.behind_main(row))
+                .collect();
+            draw_list(
+                frame,
+                &mut app.deployed,
+                area,
+                block,
+                "no environments",
+                spinner,
+                |i, row, w| deployed_row(i, row, behind.get(i).copied().flatten(), w),
+            )
+        }
     }
+}
+
+fn deployed_row(
+    index: usize,
+    row: &Deployment,
+    behind: Option<usize>,
+    width: usize,
+) -> Line<'static> {
+    let (glyph, text) = match (&row.error, &row.sha) {
+        (Some(error), None) => (('✗', Color::Red), format!("{}  {error}", row.env)),
+        (error, _) => {
+            let glyph = match (error, behind) {
+                (Some(_), _) => ('✗', Color::Red),
+                (None, Some(0)) => ('✓', Color::Green),
+                (None, Some(_)) => ('●', Color::Yellow),
+                (None, None) => ('○', Color::DarkGray),
+            };
+            (glyph, format!("{}  {}", row.env, pull_text(row)))
+        }
+    };
+    let right = match behind {
+        Some(0) => "at main".to_string(),
+        Some(n) => format!("↓{n}"),
+        None => String::new(),
+    };
+    line(row_number(index), glyph, text, right, width)
+}
+
+fn pull_text(row: &Deployment) -> String {
+    match (&row.pull, &row.sha) {
+        (Some(pull), _) => format!("#{} {}  {}", pull.number, pull.author, pull.title),
+        (None, Some(sha)) => sha.chars().take(8).collect(),
+        (None, None) => "unknown".to_string(),
+    }
+}
+
+fn deployed_details(row: &Deployment, now: SystemTime) -> Vec<Line<'static>> {
+    let mut lines = vec![Line::from(format!(
+        "{}  {}",
+        row.env,
+        row.image.clone().unwrap_or_else(|| "no image".to_string())
+    ))];
+    match &row.pull {
+        Some(pull) => lines.push(Line::from(vec![
+            Span::raw(format!(
+                "#{} {}  {}  ",
+                pull.number, pull.author, pull.title
+            )),
+            Span::styled(pull.url.clone(), dim()),
+        ])),
+        None => lines.push(Line::from("no pull request found for this commit")),
+    }
+    let deployed = row
+        .fetched_at
+        .map(|at| format!("deployed {} ago", age(at, now)))
+        .unwrap_or_default();
+    lines.push(Line::from(vec![
+        Span::styled(row.sha.clone().unwrap_or_default(), dim()),
+        Span::raw(format!("  {deployed}")),
+    ]));
+    if let Some(error) = &row.error {
+        lines.push(Line::from(Span::styled(
+            error.clone(),
+            Style::default().fg(Color::Red),
+        )));
+    }
+    lines
 }
 
 fn build_label(build: &Build) -> (String, String) {
@@ -378,7 +475,17 @@ fn draw_details(frame: &mut Frame, app: &App, area: Rect) {
             }
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
         },
-        Stage::Deployed => ("Details".to_string(), vec![Line::from("not configured")]),
+        Stage::Deployed => match app.deployed.selected() {
+            Some(row) => (
+                format!(
+                    "{} ({})",
+                    row.env,
+                    app.deployed_system.clone().unwrap_or_default()
+                ),
+                deployed_details(row, app.now),
+            ),
+            None => ("Details".to_string(), vec![Line::from("nothing selected")]),
+        },
     };
     frame.render_widget(
         Paragraph::new(lines).block(Block::bordered().title(title)),

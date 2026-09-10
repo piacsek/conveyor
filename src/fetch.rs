@@ -169,3 +169,82 @@ impl BuildsSource {
         }
     }
 }
+
+pub struct DeploySource {
+    repo: String,
+    deploy: crate::config::Deploy,
+    pulls: std::collections::HashMap<String, Option<crate::model::builds::PullRef>>,
+}
+
+impl DeploySource {
+    pub fn new(repo: String, deploy: crate::config::Deploy) -> Self {
+        Self {
+            repo,
+            deploy,
+            pulls: std::collections::HashMap::new(),
+        }
+    }
+
+    pub fn fetch(
+        &mut self,
+        gh: &impl Github,
+        kube: &impl crate::kube::Kube,
+        now: std::time::SystemTime,
+    ) -> crate::model::deployed::Deployed {
+        let rows = self
+            .deploy
+            .env
+            .clone()
+            .iter()
+            .map(|env| self.fetch_env(gh, kube, env, now))
+            .collect();
+        crate::model::deployed::Deployed {
+            system: self.deploy.system.clone(),
+            rows,
+        }
+    }
+
+    fn fetch_env(
+        &mut self,
+        gh: &impl Github,
+        kube: &impl crate::kube::Kube,
+        env: &crate::config::DeployEnv,
+        now: std::time::SystemTime,
+    ) -> crate::model::deployed::Deployment {
+        let mut row = crate::model::deployed::Deployment {
+            env: env.name.clone(),
+            ..Default::default()
+        };
+        let image = match kube.image(env) {
+            Ok(image) => image,
+            Err(err) => {
+                row.error = Some(err.to_string());
+                return row;
+            }
+        };
+        row.image = Some(image.clone());
+        match crate::model::deployed::sha_from_image(&image) {
+            Ok(sha) => {
+                row.pull = self.pull_for(gh, &sha);
+                row.sha = Some(sha);
+                row.fetched_at = Some(now);
+            }
+            Err(err) => row.error = Some(err),
+        }
+        row
+    }
+
+    fn pull_for(&mut self, gh: &impl Github, sha: &str) -> Option<crate::model::builds::PullRef> {
+        if let Some(cached) = self.pulls.get(sha) {
+            return cached.clone();
+        }
+        match gh.rest(&format!("repos/{}/commits/{sha}/pulls", self.repo)) {
+            Ok(value) => {
+                let pull = crate::model::builds::parse_pull_numbers(&value);
+                self.pulls.insert(sha.to_string(), pull.clone());
+                pull
+            }
+            Err(_) => None,
+        }
+    }
+}
