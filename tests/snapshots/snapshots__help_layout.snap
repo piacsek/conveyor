@@ -10,11 +10,11 @@ expression: h.screen()
 │y        copy URL                                                                                                                                             │
 │p        details                                                                                                                                              │
 │z        zoom the column                                                                                                                                      │
+│Esc      leave zoom                                                                                                                                           │
 │/        filter                                                                                                                                               │
 │r        refresh                                                                                                                                              │
 │R        refresh all                                                                                                                                          │
 │?        this help                                                                                                                                            │
-│q Esc    quit                                                                                                                                                 │
-│                                                                                                                                                              │
+│q        quit                                                                                                                                                 │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 any key returns

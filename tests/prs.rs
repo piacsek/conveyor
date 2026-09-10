@@ -307,6 +307,8 @@ fn question_mark_shows_the_key_help_and_any_key_returns() {
         "refresh all",
         "z",
         "zoom",
+        "Esc",
+        "leave zoom",
         "y",
         "copy URL",
         "p",
@@ -693,5 +695,48 @@ fn the_selection_bar_runs_down_every_line_of_the_selected_card() {
     assert!(
         rows[5].starts_with("│▌   webapp"),
         "the text still starts at the same column: {screen}"
+    );
+}
+
+#[test]
+fn esc_leaves_zoom_and_never_quits() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(three()),
+        key(KeyCode::Char('z')),
+        key(KeyCode::Esc),
+    ])
+    .unwrap();
+
+    assert!(
+        h.screen().contains("Merge queue"),
+        "esc left zoom: {}",
+        h.screen()
+    );
+
+    h.run(vec![key(KeyCode::Esc), key(KeyCode::Esc)]).unwrap();
+    assert!(
+        h.screen().contains("Merge queue"),
+        "esc outside zoom does nothing: {}",
+        h.screen()
+    );
+
+    h.run(vec![key(KeyCode::Char('z')), key(KeyCode::Char('z'))])
+        .unwrap();
+    assert!(
+        h.screen().contains("Merge queue"),
+        "z still toggles zoom off: {}",
+        h.screen()
+    );
+
+    let mut quitter = Harness::new();
+    quitter
+        .run(vec![prs(three()), key(KeyCode::Char('q')), prs(vec![])])
+        .unwrap();
+    assert!(
+        quitter.screen().contains("#1 a"),
+        "q quit before the next input was read: {}",
+        quitter.screen()
     );
 }

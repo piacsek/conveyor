@@ -684,7 +684,8 @@ impl App {
     fn handle_normal_key(&mut self, key: KeyEvent) -> Action {
         let pending_g = std::mem::take(&mut self.pending_g);
         match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => return Action::Quit,
+            KeyCode::Char('q') => return Action::Quit,
+            KeyCode::Esc => self.zoom = false,
             KeyCode::Char('/') => {
                 self.mode = Mode::Filter(String::new());
                 self.sync_filter();
