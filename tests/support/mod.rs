@@ -62,13 +62,18 @@ pub fn failed(stage: Stage, message: &str) -> io::Result<Input> {
 }
 
 pub fn tick() -> io::Result<Input> {
-    Ok(Input::Tick(UNIX_EPOCH + Duration::from_secs(NOW)))
+    tick_at(NOW)
+}
+
+pub fn tick_at(secs: u64) -> io::Result<Input> {
+    Ok(Input::Tick(UNIX_EPOCH + Duration::from_secs(secs)))
 }
 
 pub struct Harness {
     pub terminal: Terminal<TestBackend>,
     pub app: App,
     pub opener: FakeOpener,
+    pub refreshed: Vec<Stage>,
 }
 
 impl Harness {
@@ -85,15 +90,18 @@ impl Harness {
             terminal: Terminal::new(TestBackend::new(width, height)).unwrap(),
             app: App::at(UNIX_EPOCH + Duration::from_secs(NOW), config),
             opener: FakeOpener::default(),
+            refreshed: Vec::new(),
         }
     }
 
     pub fn run(&mut self, inputs: Vec<io::Result<Input>>) -> io::Result<()> {
+        let refreshed = &mut self.refreshed;
         run(
             &mut self.terminal,
             &mut self.app,
             inputs.into_iter(),
             &self.opener,
+            |stage| refreshed.push(stage),
         )
     }
 

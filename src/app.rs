@@ -37,6 +37,7 @@ pub enum Action {
     Quit,
     Open(String),
     Copy(String),
+    Refresh(Stage),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -50,7 +51,10 @@ pub enum Mode {
 pub enum ColumnState<T> {
     #[default]
     Loading,
-    Ready(Vec<T>),
+    Ready {
+        rows: Vec<T>,
+        fetched_at: SystemTime,
+    },
 }
 
 pub struct App {
@@ -84,7 +88,10 @@ impl App {
 
     pub fn receive(&mut self, stage: Stage, data: Result<Rows, String>) {
         if let (Stage::Prs, Ok(Rows::Prs(prs))) = (stage, data) {
-            self.prs = ColumnState::Ready(prs);
+            self.prs = ColumnState::Ready {
+                rows: prs,
+                fetched_at: self.now,
+            };
         }
     }
 
@@ -97,8 +104,15 @@ impl App {
 
     pub fn all(&self) -> &[PullRequest] {
         match &self.prs {
-            ColumnState::Ready(prs) => prs,
+            ColumnState::Ready { rows, .. } => rows,
             ColumnState::Loading => &[],
+        }
+    }
+
+    pub fn fetched_at(&self) -> Option<SystemTime> {
+        match &self.prs {
+            ColumnState::Ready { fetched_at, .. } => Some(*fetched_at),
+            ColumnState::Loading => None,
         }
     }
 
@@ -169,6 +183,7 @@ impl App {
                     return Action::Copy(url);
                 }
             }
+            KeyCode::Char('r') => return Action::Refresh(Stage::Prs),
             KeyCode::Char('p') => self.details = !self.details,
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.list.select_previous(),
@@ -191,16 +206,18 @@ fn matches(pr: &PullRequest, query: &str) -> bool {
     .any(|text| text.contains(query))
 }
 
-pub fn run<B, O>(
+pub fn run<B, O, R>(
     terminal: &mut Terminal<B>,
     app: &mut App,
     inputs: impl Iterator<Item = io::Result<Input>>,
     opener: &O,
+    mut refresh: R,
 ) -> io::Result<()>
 where
     B: Backend,
     B::Error: Send + Sync + 'static,
     O: Opener,
+    R: FnMut(Stage),
 {
     let mut inputs = inputs;
     loop {
@@ -217,6 +234,7 @@ where
                 Action::Quit => return Ok(()),
                 Action::Open(url) => opener.open(&url)?,
                 Action::Copy(text) => opener.copy(&text)?,
+                Action::Refresh(stage) => refresh(stage),
                 Action::Continue => {}
             },
         }

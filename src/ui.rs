@@ -42,14 +42,14 @@ fn draw_prs(frame: &mut Frame, app: &mut App, area: Rect) {
                 area,
             );
         }
-        ColumnState::Ready(prs) if prs.is_empty() => {
+        ColumnState::Ready { rows: prs, .. } if prs.is_empty() => {
             frame.render_widget(
                 Paragraph::new("no open pull requests")
                     .block(Block::bordered().title("My PRs (0)")),
                 area,
             );
         }
-        ColumnState::Ready(prs) => {
+        ColumnState::Ready { rows: prs, .. } => {
             let title = format!("My PRs ({})", prs.len());
             let visible = app.visible();
             if visible.is_empty() {
@@ -147,8 +147,9 @@ fn footer_text(app: &App) -> String {
     if let Some(notice) = &app.notice {
         return notice.clone();
     }
-    match app.filter() {
-        Some(query) => format!("/{query}  {}/{}", app.visible().len(), app.all().len()),
-        None => String::new(),
+    match (app.filter(), app.fetched_at()) {
+        (Some(query), _) => format!("/{query}  {}/{}", app.visible().len(), app.all().len()),
+        (None, Some(at)) => format!("refreshed {} ago", age(at, app.now)),
+        (None, None) => String::new(),
     }
 }

@@ -1,7 +1,7 @@
 mod support;
 
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, key, pr, prs};
+use support::{Harness, NOW, key, pr, prs, tick_at};
 
 #[test]
 fn no_pull_requests_shows_an_empty_column_and_q_quits() {
@@ -208,4 +208,16 @@ fn slash_filters_rows_by_number_title_or_repo_and_shows_the_count() {
         "{screen}"
     );
     assert!(!screen.contains("/amz"), "{screen}");
+}
+
+#[test]
+fn r_requests_a_refresh_and_the_footer_shows_the_data_age() {
+    use conveyor::app::Stage;
+    let mut h = Harness::new();
+
+    h.run(vec![prs(three()), tick_at(NOW + 12)]).unwrap();
+    assert!(h.screen().contains("refreshed 12s ago"), "{}", h.screen());
+
+    h.run(vec![key(KeyCode::Char('r'))]).unwrap();
+    assert_eq!(h.refreshed, vec![Stage::Prs]);
 }
