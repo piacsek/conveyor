@@ -21,10 +21,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         body
     };
     let columns = Layout::horizontal([Constraint::Fill(1); 4]).split(body);
-    frame.render_widget(
-        Paragraph::new(app.notice.clone().unwrap_or_default()),
-        footer,
-    );
+    frame.render_widget(Paragraph::new(footer_text(app)), footer);
     draw_prs(frame, app, columns[0]);
     for (area, name) in columns[1..]
         .iter()
@@ -53,14 +50,25 @@ fn draw_prs(frame: &mut Frame, app: &mut App, area: Rect) {
             );
         }
         ColumnState::Ready(prs) => {
+            let title = format!("My PRs ({})", prs.len());
+            let visible = app.visible();
+            if visible.is_empty() {
+                let query = app.filter().unwrap_or_default();
+                frame.render_widget(
+                    Paragraph::new(format!("no matches for /{query}"))
+                        .block(Block::bordered().title(title)),
+                    area,
+                );
+                return;
+            }
             let width = usize::from(area.width.saturating_sub(2 + HIGHLIGHT.len() as u16));
-            let items: Vec<ListItem> = prs
+            let items: Vec<ListItem> = visible
                 .iter()
                 .enumerate()
                 .map(|(i, pr)| ListItem::new(row(i, pr, app.now, width)))
                 .collect();
             let list = List::new(items)
-                .block(Block::bordered().title(format!("My PRs ({})", prs.len())))
+                .block(Block::bordered().title(title))
                 .highlight_symbol(HIGHLIGHT);
             frame.render_stateful_widget(list, area, &mut app.list);
         }
@@ -132,5 +140,15 @@ fn conclusion_glyph(conclusion: CheckConclusion) -> char {
         CheckConclusion::Pending => '●',
         CheckConclusion::Skipped => '-',
         CheckConclusion::Unknown => '?',
+    }
+}
+
+fn footer_text(app: &App) -> String {
+    if let Some(notice) = &app.notice {
+        return notice.clone();
+    }
+    match app.filter() {
+        Some(query) => format!("/{query}  {}/{}", app.visible().len(), app.all().len()),
+        None => String::new(),
     }
 }

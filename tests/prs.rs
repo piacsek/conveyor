@@ -179,3 +179,33 @@ fn p_toggles_a_details_pane_with_failed_checks_first() {
     h.run(vec![key(KeyCode::Char('p'))]).unwrap();
     assert!(!h.screen().contains("✗ api / test"), "{}", h.screen());
 }
+
+#[test]
+fn slash_filters_rows_by_number_title_or_repo_and_shows_the_count() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(vec![pr(1, "alpha"), pr(2, "beta"), pr(3, "gamma")]),
+        key(KeyCode::Char('/')),
+        key(KeyCode::Char('a')),
+        key(KeyCode::Char('m')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("#3 webapp  gamma"), "{screen}");
+    assert!(!screen.contains("alpha"), "{screen}");
+    assert!(screen.contains("/am  1/3"), "{screen}");
+
+    h.run(vec![key(KeyCode::Char('z'))]).unwrap();
+    let screen = h.screen();
+    assert!(screen.contains("no matches for /amz"), "{screen}");
+
+    h.run(vec![key(KeyCode::Esc)]).unwrap();
+    let screen = h.screen();
+    assert!(
+        screen.contains("alpha") && screen.contains("gamma"),
+        "{screen}"
+    );
+    assert!(!screen.contains("/amz"), "{screen}");
+}
