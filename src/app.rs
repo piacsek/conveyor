@@ -535,31 +535,35 @@ impl App {
         }
     }
 
-    fn selected_target(&self) -> Option<(u64, String)> {
+    fn pull_target(&self) -> Result<(u64, String), String> {
+        let nothing = || "nothing selected".to_string();
         match self.focus {
-            Stage::Prs => self.prs.selected().map(|pr| (pr.key(), pr.url.clone())),
+            Stage::Prs => self
+                .prs
+                .selected()
+                .map(|pr| (pr.key(), pr.url.clone()))
+                .ok_or_else(nothing),
             Stage::Queue => self
                 .queue
                 .selected()
-                .map(|entry| (entry.key(), entry.url.clone())),
-            Stage::Builds => self.builds.selected().map(|build| {
-                (
-                    build
-                        .pr_number
-                        .or(build.pull.as_ref().map(|p| p.number))
-                        .unwrap_or(build.run_number),
-                    build
-                        .pull
-                        .as_ref()
-                        .map(|pull| pull.url.clone())
-                        .unwrap_or_else(|| build.url.clone()),
-                )
-            }),
+                .map(|entry| (entry.key(), entry.url.clone()))
+                .ok_or_else(nothing),
+            Stage::Builds => self
+                .builds
+                .selected()
+                .ok_or_else(nothing)?
+                .pull
+                .as_ref()
+                .map(|pull| (pull.number, pull.url.clone()))
+                .ok_or_else(|| "no pull request for this run".to_string()),
             Stage::Deployed => self
                 .deployed
                 .selected()
-                .and_then(|row| row.pull.as_ref())
-                .map(|pull| (pull.number, pull.url.clone())),
+                .ok_or_else(nothing)?
+                .pull
+                .as_ref()
+                .map(|pull| (pull.number, pull.url.clone()))
+                .ok_or_else(|| "no pull request for this commit".to_string()),
         }
     }
 
@@ -613,6 +617,14 @@ impl App {
 
     pub fn deploy_configured(&self) -> bool {
         self.config.repo.iter().any(|repo| !repo.deploy.is_empty())
+    }
+
+    fn open(&mut self, url: String) -> Action {
+        if self.opened_recently(&url) {
+            return Action::Continue;
+        }
+        self.last_open = Some((url.clone(), self.now));
+        Action::Open(url)
     }
 
     fn opened_recently(&self, url: &str) -> bool {
@@ -691,31 +703,31 @@ impl App {
                 self.sync_filter();
             }
             KeyCode::Char('?') => self.mode = Mode::Help,
-            KeyCode::Enter | KeyCode::Char('o') => {
-                if let Some((_, url)) = self.selected_target()
-                    && !self.opened_recently(&url)
-                {
-                    self.last_open = Some((url.clone(), self.now));
-                    return Action::Open(url);
-                }
-            }
-            KeyCode::Char('b') => match self.build_url() {
-                Ok(url) if !self.opened_recently(&url) => {
-                    self.last_open = Some((url.clone(), self.now));
-                    return Action::Open(url);
-                }
-                Ok(_) => {}
+            KeyCode::Char('p') => match self.pull_target() {
+                Ok((_, url)) => return self.open(url),
                 Err(message) => self.notice = Some(message),
             },
-            KeyCode::Char('y') => {
-                if let Some((number, url)) = self.selected_target() {
+            KeyCode::Char('b') => match self.build_url() {
+                Ok(url) => return self.open(url),
+                Err(message) => self.notice = Some(message),
+            },
+            KeyCode::Char('y') => match self.pull_target() {
+                Ok((number, url)) => {
                     self.notice = Some(format!("copied #{number}"));
                     return Action::Copy(url);
                 }
-            }
+                Err(message) => self.notice = Some(message),
+            },
+            KeyCode::Char('Y') => match self.build_url() {
+                Ok(url) => {
+                    self.notice = Some("copied the build URL".to_string());
+                    return Action::Copy(url);
+                }
+                Err(message) => self.notice = Some(message),
+            },
             KeyCode::Char('r') => return Action::Refresh(self.focus),
             KeyCode::Char('R') => return Action::RefreshAll,
-            KeyCode::Char('p') => self.details = !self.details,
+            KeyCode::Char('d') => self.details = !self.details,
             KeyCode::Char('z') => self.zoom = !self.zoom,
             KeyCode::Char('l') if self.focus != Stage::Deployed => self.focus = self.focus.next(),
             KeyCode::Char('h') if self.focus != Stage::Prs => self.focus = self.focus.previous(),

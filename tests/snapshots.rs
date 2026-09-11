@@ -66,7 +66,7 @@ fn queue_details_layout() {
         prs(sample()),
         queue(queue_sample()),
         key(KeyCode::Char('l')),
-        key(KeyCode::Char('p')),
+        key(KeyCode::Char('d')),
     ])
     .unwrap();
     insta::assert_snapshot!(h.screen());
@@ -87,7 +87,7 @@ fn filter_layout() {
 #[test]
 fn details_layout() {
     let mut h = Harness::with_size(160, 20);
-    h.run(vec![prs(sample()), key(KeyCode::Char('p'))]).unwrap();
+    h.run(vec![prs(sample()), key(KeyCode::Char('d'))]).unwrap();
     insta::assert_snapshot!(h.screen());
 }
 

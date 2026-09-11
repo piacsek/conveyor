@@ -97,12 +97,13 @@ fn j_k_arrows_gg_and_g_move_the_highlight_and_clamp() {
 }
 
 #[test]
-fn enter_and_o_open_the_selected_pull_request_and_keep_running() {
+fn p_opens_the_selected_pull_request_and_enter_and_o_do_nothing() {
     let mut h = Harness::new();
 
     h.run(vec![
         prs(three()),
         key(KeyCode::Char('j')),
+        key(KeyCode::Char('p')),
         key(KeyCode::Enter),
         key(KeyCode::Char('o')),
         key(KeyCode::Char('q')),
@@ -112,7 +113,7 @@ fn enter_and_o_open_the_selected_pull_request_and_keep_running() {
     assert_eq!(
         h.opener.opened(),
         vec!["https://github.com/acme/webapp/pull/2".to_string()],
-        "the second press within a second is debounced"
+        "Enter and o open nothing"
     );
     assert_eq!(
         highlighted_row(&h.screen()),
@@ -139,7 +140,7 @@ fn y_copies_the_url_and_the_footer_confirms_it() {
 }
 
 #[test]
-fn p_toggles_a_details_pane_with_failed_checks_first() {
+fn d_toggles_a_details_pane_with_failed_checks_first() {
     use conveyor::model::prs::{Check, CheckConclusion, MergeState, ReviewDecision};
     let mut h = Harness::with_size(160, 24);
     let mut detailed = pr(4821, "Retry hooks");
@@ -161,7 +162,7 @@ fn p_toggles_a_details_pane_with_failed_checks_first() {
         },
     ];
 
-    h.run(vec![prs(vec![detailed]), key(KeyCode::Char('p'))])
+    h.run(vec![prs(vec![detailed]), key(KeyCode::Char('d'))])
         .unwrap();
 
     let screen = h.screen();
@@ -179,7 +180,7 @@ fn p_toggles_a_details_pane_with_failed_checks_first() {
     assert!(test_line < lint_line, "failures first: {screen}");
     assert!(!screen.contains("https://"), "no check URLs: {screen}");
 
-    h.run(vec![key(KeyCode::Char('p'))]).unwrap();
+    h.run(vec![key(KeyCode::Char('d'))]).unwrap();
     assert!(!h.screen().contains("review: approved"), "{}", h.screen());
     assert!(!h.screen().contains("✓ lint"), "{}", h.screen());
 }
@@ -260,7 +261,7 @@ fn a_failed_open_shows_in_the_footer_and_the_app_stays_up() {
     let mut h = Harness::new();
     h.opener.fail_next("open: exec failed");
 
-    h.run(vec![prs(three()), key(KeyCode::Enter)]).unwrap();
+    h.run(vec![prs(three()), key(KeyCode::Char('p'))]).unwrap();
 
     let screen = h.screen();
     assert!(screen.contains("open: exec failed"), "{screen}");
@@ -300,8 +301,8 @@ fn question_mark_shows_the_key_help_and_any_key_returns() {
     let screen = h.screen();
     for needle in [
         "j/k",
-        "Enter/o",
-        "open in browser",
+        "p",
+        "open pull request",
         "b",
         "open build",
         "R",
@@ -310,9 +311,9 @@ fn question_mark_shows_the_key_help_and_any_key_returns() {
         "zoom",
         "Esc",
         "leave zoom",
-        "y",
-        "copy URL",
-        "p",
+        "y/Y",
+        "copy pull request / build URL",
+        "d",
         "details",
         "/",
         "filter",
@@ -441,18 +442,18 @@ fn a_pull_request_in_the_merge_queue_shows_its_position_on_the_row() {
 }
 
 #[test]
-fn a_held_enter_opens_the_same_row_only_once_per_second() {
+fn a_held_p_opens_the_same_row_only_once_per_second() {
     let mut h = Harness::new();
 
     h.run(vec![
         prs(three()),
-        key(KeyCode::Enter),
-        key(KeyCode::Enter),
-        key(KeyCode::Char('o')),
+        key(KeyCode::Char('p')),
+        key(KeyCode::Char('p')),
+        key(KeyCode::Char('p')),
         tick_at(NOW + 2),
-        key(KeyCode::Enter),
+        key(KeyCode::Char('p')),
         key(KeyCode::Char('j')),
-        key(KeyCode::Enter),
+        key(KeyCode::Char('p')),
     ])
     .unwrap();
 
@@ -661,7 +662,7 @@ fn a_zoomed_column_follows_the_focus_and_keeps_the_details_pane() {
         prs(three()),
         key(KeyCode::Char('z')),
         key(KeyCode::Char('l')),
-        key(KeyCode::Char('p')),
+        key(KeyCode::Char('d')),
     ])
     .unwrap();
 

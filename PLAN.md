@@ -406,6 +406,12 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   the branch diff first, and its findings are addressed before `gh pr ready`. Written into
   AGENTS.md.
 
+- v0.8.0: four asks from the user in one phase. Only the focused column highlights its
+  selected card (four cards used to look selected at once). The details pane carries no URLs.
+  `Enter` and `o` do nothing; the keymap pairs the two destinations instead: `p` opens the
+  pull request, `b` the build, `y`/`Y` copy either URL, and the details pane moved to `d`.
+  `p` and `y` no longer fall back to the run when a build has no pull request; they say so.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.

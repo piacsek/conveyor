@@ -308,7 +308,7 @@ fn p_on_a_main_build_lists_the_runs_jobs() {
         env!("CARGO_BIN_EXE_conveyor"),
     );
     server.wait_for_screen("Main webapp (4)");
-    server.send_keys(&["l", "l", "p"]);
+    server.send_keys(&["l", "l", "d"]);
 
     let screen = server.wait_for_screen("failed at: Run cargo test");
     assert!(screen.contains("✗ check"), "{screen}");

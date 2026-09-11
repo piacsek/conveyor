@@ -138,7 +138,7 @@ fn a_failed_env_keeps_its_last_known_sha_from_the_previous_fetch() {
 }
 
 #[test]
-fn enter_opens_the_pull_request_and_p_shows_the_image_and_target() {
+fn p_opens_the_pull_request_and_d_shows_the_image_and_target() {
     let mut h = Harness::with_size(160, 20);
 
     h.run(vec![
@@ -146,8 +146,8 @@ fn enter_opens_the_pull_request_and_p_shows_the_image_and_target() {
         key(KeyCode::Char('l')),
         key(KeyCode::Char('l')),
         key(KeyCode::Char('l')),
-        key(KeyCode::Enter),
         key(KeyCode::Char('p')),
+        key(KeyCode::Char('d')),
     ])
     .unwrap();
 

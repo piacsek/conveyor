@@ -42,7 +42,7 @@ src/ui/style.rs  the shared vocabulary: BAR, INDENT, dim(), glyphs and status wo
 src/ui/card.rs   card() and meta(): one title line plus indented span lines
 src/ui/columns.rs column titles, blocks and draw_list
 src/ui/rows.rs   one card builder per stage: pr_row, queue_row, build_row, deployed_row
-src/ui/details.rs the `p` pane per stage, including the job list
+src/ui/details.rs the `d` pane per stage, including the job list; no URLs
 src/ui/footer.rs footer text, the refresh spinner and the static logo
 src/ui/help.rs   KEYS drives the help view
 src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`): the OS seam, not a service, so it stays out of `sources/`
@@ -94,7 +94,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `commit-pulls.json` are real captures from this repo.
 - **Jobs**, only for the build whose details pane is open: `repos/{r}/actions/runs/{id}/jobs?per_page=100`
   (`fetch::fetch_jobs`, `model::jobs::parse_jobs`, failures first). `run()` asks through
-  `App::jobs_needed()` after every input, so `p`, a selection move and a Builds refresh all
+  `App::jobs_needed()` after every input, so `d`, a selection move and a Builds refresh all
   trigger it; results land as `Input::Jobs` in `App::jobs` (`Loading`/`Ready`/`Failed`).
   An unsettled run's cache entry is dropped on each `Data(Builds, …)` so it is asked again.
   A job's failed step is the first step with a failing conclusion.
@@ -170,8 +170,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   the first draw through every incremental refresh and never depends on what order the API
   happened to return.
 - **Keys act on the focused column.** `App::with_focused` dispatches navigation to the
-  `Column` of `app.focus`; `Enter`/`y` use `selected_target` (a build opens the PR it merged
-  when one is known, else the run), `b` uses `build_url`.
+  `Column` of `app.focus`; `p`/`y` use `pull_target` (the pull request of the row, an `Err`
+  message when the run or the deployed commit has none — they never fall back to the run),
+  `b`/`Y` use `build_url`. `Enter` and `o` do nothing: opening a browser on `Enter` surprised
+  the user, and the open UX is to be revisited.
   `run()` reports work back through `FnMut(Request)`; `r` sends one `Request::Refresh`, `R`
   one per `Stage::ALL`, and `main` looks each stage up in `refreshers` (a stage without a
   thread is skipped). Adding a stage means a new
@@ -179,7 +181,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `selected_target`, `with_focused`, `column_title`, `draw_column` and `draw_details`.
 - **The `gh` shim in e2e and screenshots dispatches on the query text.** Match the queue query
   on `repository(owner`, not `mergeQueue`: the PR query also contains `mergeQueueEntry`.
-- **Opens are debounced.** `Enter`/`o` on the same URL within `OPEN_DEBOUNCE` (1 s of
+- **Opens are debounced.** `p`/`b` on the same URL within `OPEN_DEBOUNCE` (1 s of
   `app.now`) is ignored: terminals send a key-repeat stream for a held key, which opened a tab
   per repeat.
 - **Refresh feedback.** Fetchers send `Input::Fetching(stage)` before each fetch and set the
@@ -210,6 +212,9 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 - **No URLs in the details pane.** Every line there is text a person reads: the checks, the
   jobs, the sha, the pull request. A URL is 60 columns of noise nobody retypes, and both keys
   that need one (`b`, `p`) already hand it to the browser. `y`/`Y` copy them.
+- **The keymap pairs the pull request and the build.** `p`/`b` open them, `y`/`Y` copy them,
+  `d` is the details pane. `KEYS` stays 13 lines (`y/Y` share one) so the help still fits a
+  16-row terminal.
 - **Colors** come from the ANSI palette so terminal themes apply. Do not hardcode hex.
 
 ## Testing traps hit so far
