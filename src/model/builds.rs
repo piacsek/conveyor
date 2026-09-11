@@ -70,7 +70,7 @@ pub fn parse_runs(value: &serde_json::Value) -> Vec<Build> {
         .unwrap_or_default()
 }
 
-fn parse_run(run: &serde_json::Value) -> Option<Build> {
+pub fn parse_run(run: &serde_json::Value) -> Option<Build> {
     let title = text(run, "display_title");
     Some(Build {
         id: run.get("id")?.as_u64()?,

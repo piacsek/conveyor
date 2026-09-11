@@ -406,6 +406,7 @@ impl App {
             (Stage::Queue, Ok(Rows::Queue(queue))) => {
                 self.queue_repo = Some(queue.repo);
                 self.queue.receive(queue.entries, self.now);
+                self.forget_unsettled_jobs();
             }
             (Stage::Builds, Ok(Rows::Builds(builds))) => {
                 self.builds_repo = Some(builds.repo);
@@ -426,10 +427,16 @@ impl App {
     }
 
     fn forget_unsettled_jobs(&mut self) {
+        let queued = self
+            .queue
+            .all()
+            .iter()
+            .filter_map(|entry| entry.run.as_ref());
         let unsettled: Vec<u64> = self
             .builds
             .all()
             .iter()
+            .chain(queued)
             .filter(|build| !build.is_settled())
             .map(|build| build.id)
             .collect();
@@ -438,11 +445,16 @@ impl App {
         }
     }
 
-    pub fn jobs_needed(&mut self) -> Option<u64> {
-        let selected = match self.focus {
-            Stage::Builds => self.builds.selected().map(|build| build.id),
+    pub fn selected_run(&self) -> Option<&Build> {
+        match self.focus {
+            Stage::Builds => self.builds.selected(),
+            Stage::Queue => self.queue.selected()?.run.as_ref(),
             _ => None,
-        };
+        }
+    }
+
+    pub fn jobs_needed(&mut self) -> Option<u64> {
+        let selected = self.selected_run().map(|run| run.id);
         let run_id = selected
             .filter(|run_id| !self.jobs.contains_key(run_id))
             .or_else(|| self.failing_run_without_jobs())?;
@@ -461,7 +473,7 @@ impl App {
     }
 
     pub fn selected_jobs(&self) -> Option<&JobsState> {
-        self.jobs.get(&self.builds.selected()?.id)
+        self.jobs.get(&self.selected_run()?.id)
     }
 
     pub fn receive_jobs(&mut self, run_id: u64, result: Result<Vec<Job>, String>) {
@@ -585,7 +597,8 @@ impl App {
             Stage::Queue => self
                 .queue
                 .selected()
-                .and_then(|entry| entry.run_url.clone())
+                .and_then(|entry| entry.run.as_ref())
+                .map(|run| run.url.clone())
                 .ok_or_else(|| "no merge-group run yet".to_string()),
             Stage::Builds => self
                 .builds

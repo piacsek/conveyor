@@ -203,13 +203,19 @@ fn fetch_queue_attaches_the_merge_group_run_of_each_entry() {
 
     let queue = fetch_queue(&gh, &repo).unwrap();
 
+    let run = queue.entries[0]
+        .run
+        .as_ref()
+        .expect("the newest run for the PR wins");
+    assert_eq!(run.id, 1);
+    assert_eq!(run.url, "https://github.com/acme/webapp/actions/runs/1");
     assert_eq!(
-        queue.entries[0].run_url.as_deref(),
-        Some("https://github.com/acme/webapp/actions/runs/1"),
-        "newest run for the PR wins"
+        run.status,
+        conveyor::model::builds::BuildStatus::Running,
+        "the whole run comes along, not just its URL"
     );
     assert_eq!(queue.entries[0].checks, CheckState::Pending);
-    assert_eq!(queue.entries[1].run_url, None);
+    assert!(queue.entries[1].run.is_none());
     let calls = gh.calls.borrow().clone();
     assert!(
         calls

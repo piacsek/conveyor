@@ -2,11 +2,13 @@ mod support;
 
 use std::time::Duration;
 
+use conveyor::app::Request;
 use conveyor::app::Stage;
+use conveyor::model::builds::BuildStatus;
 use conveyor::model::prs::CheckState;
 use conveyor::model::queue::QueueState;
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, entry, failed, key, queue};
+use support::{Harness, build, entry, failed, job, jobs, key, queue};
 
 fn two() -> Vec<conveyor::model::queue::QueueEntry> {
     let mut first = entry(1, 4821, "alice", "Retry webhooks");
@@ -135,7 +137,9 @@ fn d_shows_queue_entry_details_for_the_focused_queue_column() {
 fn b_opens_the_merge_group_run_of_the_selected_entry() {
     let mut h = Harness::new();
     let mut entries = two();
-    entries[0].run_url = Some("https://github.com/acme/webapp/actions/runs/99".to_string());
+    let mut run = build(99, BuildStatus::Running, None);
+    run.url = "https://github.com/acme/webapp/actions/runs/99".to_string();
+    entries[0].run = Some(run);
 
     h.run(vec![
         queue(entries),
@@ -177,4 +181,94 @@ fn queue_entries_stay_in_position_order_across_refreshes() {
         h.screen()
     );
     assert!(col[4].contains("#4821 Retry webhooks"), "{}", h.screen());
+}
+
+fn queued_run() -> Vec<conveyor::model::queue::QueueEntry> {
+    let mut entries = two();
+    let mut run = build(312, BuildStatus::Failure, None);
+    run.id = 4242;
+    run.actor = "github-merge-queue[bot]".to_string();
+    entries[0].run = Some(run);
+    entries
+}
+
+#[test]
+fn d_on_a_queue_entry_shows_its_merge_group_run_and_asks_for_the_jobs() {
+    let mut h = Harness::with_size(160, 24);
+
+    h.run(vec![
+        queue(queued_run()),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('d')),
+        jobs(
+            4242,
+            vec![
+                job(1, "audit", BuildStatus::Success, None),
+                job(2, "check", BuildStatus::Failure, Some("Run cargo test")),
+            ],
+        ),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        h.requests,
+        vec![Request::Jobs { run_id: 4242 }],
+        "the selected entry's run is asked for"
+    );
+    let screen = h.screen();
+    assert!(
+        screen.contains("run 312  failure"),
+        "the run line: {screen}"
+    );
+    assert!(screen.contains("by github-merge-queue[bot]"), "{screen}");
+    assert!(
+        screen.contains("✗ check  19s  failed at: Run cargo test"),
+        "the failed job and step: {screen}"
+    );
+    assert!(screen.contains("✓ audit  19s"), "{screen}");
+    assert!(!screen.contains("https://"), "still no URLs: {screen}");
+}
+
+#[test]
+fn an_entry_without_a_run_says_so_and_asks_for_no_jobs() {
+    let mut h = Harness::with_size(160, 24);
+
+    h.run(vec![
+        queue(two()),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('d')),
+    ])
+    .unwrap();
+
+    assert!(h.requests.is_empty(), "{:?}", h.requests);
+    assert!(
+        h.screen().contains("no merge-group run yet"),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
+fn moving_off_a_queue_entry_asks_for_the_next_runs_jobs() {
+    let mut h = Harness::with_size(160, 24);
+    let mut entries = queued_run();
+    let mut second = build(313, BuildStatus::Running, None);
+    second.id = 4343;
+    entries[1].run = Some(second);
+
+    h.run(vec![
+        queue(entries),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('d')),
+        key(KeyCode::Char('j')),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        h.requests,
+        vec![
+            Request::Jobs { run_id: 4242 },
+            Request::Jobs { run_id: 4343 },
+        ]
+    );
 }

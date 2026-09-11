@@ -65,6 +65,13 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `contexts` is a union of `CheckRun` (`name status conclusion detailsUrl`) and
   `StatusContext` (`context state targetUrl`). `mergeStateStatus` is often `UNKNOWN`
   (GitHub computes it lazily): show it as `—`, never as an error.
+- **A queue entry carries its whole merge-group run.** `parse_merge_group_runs` builds a
+  `Build` per run through `builds::parse_run` (the two endpoints return the same run shape) and
+  `attach_runs` hangs it on `QueueEntry::run`, so the queue's details pane shows the run line
+  and its jobs exactly as Main builds does, `b` opens it, and the card carries its run number.
+  The entry's `checks` still comes from the run's status (`checks_of`), which outranks the
+  GraphQL rollup. `App::selected_run` is what the jobs machinery keys on, so jobs are fetched
+  for whichever of the two columns is focused, and `forget_unsettled_jobs` sweeps both.
 - **Merge queue**: one query per repo (`src/queries/queue.graphql`) plus one REST call
   `repos/{r}/actions/runs?event=merge_group&per_page=30`; runs are matched to entries by the
   `pr-<N>-` segment of `head_branch` and the newest run wins. The REST call is optional: a
