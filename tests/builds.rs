@@ -511,3 +511,19 @@ fn the_details_title_says_which_way_there_is_more_to_scroll() {
     assert!(screen.contains("run 26 ↑"), "{screen}");
     assert!(!screen.contains("↑↓"), "nothing below any more: {screen}");
 }
+
+#[test]
+fn a_cancelled_main_build_gets_its_own_glyph_not_the_skipped_dash() {
+    let mut h = Harness::new();
+
+    h.run(vec![builds(vec![build(
+        26,
+        BuildStatus::Cancelled,
+        Some((4840, "bob", "Speed up CI")),
+    )])])
+    .unwrap();
+
+    let col = column(&h.screen(), 2);
+    assert!(col[1].contains("⊘ #4840"), "{}", h.screen());
+    assert!(col[2].contains("cancelled"), "{}", h.screen());
+}

@@ -69,12 +69,18 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `Build` per run through `builds::parse_run` (the two endpoints return the same run shape) and
   `attach_runs` hangs it on `QueueEntry::run`, so the queue's details pane shows the run line
   and its jobs exactly as Main builds does, `b` opens it, and the card carries its run number.
-  The entry's `checks` still comes from the run's status (`checks_of`), which outranks the
-  GraphQL rollup: a **cancelled** run reads as `Unknown`, not as a failure — a queue that
-  re-batches cancels runs routinely, and the pane right below the card would be saying
-  `cancelled` while the card said `failure`. `App::selected_run` is what the jobs machinery
-  keys on, so jobs are fetched for whichever of the two columns is focused, and
-  `forget_unsettled_jobs` sweeps both.
+  Once an entry has a run, **the run speaks for the entry**: the card's glyph and status word
+  come from `Build::status` (`build_glyph`/`status_word`), not from `CheckState`, and the pane
+  drops its `checks:` line because the run line carries the same fact. `CheckState` has no word
+  for a cancelled run — a merge queue cancels runs routinely when it re-batches — and squeezing
+  one in made the card say `✗ failure` while the pane below it said `cancelled`. The GraphQL
+  rollup is left untouched on the entry and is what a run-less entry still reads from.
+  `App::selected_run` is what the jobs machinery keys on, so jobs are fetched for whichever of
+  the two columns is focused, and `forget_unsettled_jobs` sweeps both.
+- **`⊘` means cancelled, everywhere.** `build_glyph` gives `BuildStatus::Cancelled` its own
+  glyph; the grey `-` stays for a *skipped* check (`conclusion_glyph`), which is a different
+  fact. Never collapse the two: a cancelled run is work that was stopped, a skipped check is
+  work that was never required.
 - **Merge queue**: one query per repo (`src/queries/queue.graphql`) plus one REST call
   `repos/{r}/actions/runs?event=merge_group&per_page=30`; runs are matched to entries by the
   `pr-<N>-` segment of `head_branch` and the newest run wins. The REST call is optional: a

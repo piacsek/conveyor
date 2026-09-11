@@ -59,7 +59,7 @@ fn unknown_states_degrade_to_unknown() {
 }
 
 #[test]
-fn a_merge_group_run_carries_the_whole_run_and_outranks_the_rollup() {
+fn a_merge_group_run_attaches_whole_to_the_entry_it_belongs_to() {
     use conveyor::model::builds::BuildStatus;
     use conveyor::model::queue::parse_merge_group_runs;
 
@@ -79,53 +79,46 @@ fn a_merge_group_run_carries_the_whole_run_and_outranks_the_rollup() {
     assert_eq!(runs[0].build.actor, "merge-bot");
 
     let mut queue = parse(&fixture(include_str!("fixtures/queue.json"))).unwrap();
-    assert_eq!(queue.entries[0].checks, CheckState::Pending, "the rollup");
 
     queue.attach_runs(&runs);
 
+    let attached = queue.entries[0].run.as_ref().expect("attached by number");
+    assert_eq!(attached.id, 4242);
+    assert_eq!(attached.status, BuildStatus::Failure);
+    assert!(queue.entries[1].run.is_none(), "no run for this entry");
     assert_eq!(
         queue.entries[0].checks,
-        CheckState::Failure,
-        "the run outranks the rollup"
+        CheckState::Pending,
+        "the rollup is left alone: the card and the pane read the run itself"
     );
-    assert_eq!(queue.entries[0].run.as_ref().map(|run| run.id), Some(4242));
-    assert!(queue.entries[1].run.is_none(), "no run for this entry");
 }
 
 #[test]
-fn a_cancelled_or_unrecognised_run_never_claims_the_checks_failed() {
+fn a_cancelled_run_keeps_its_own_status_instead_of_becoming_a_failure() {
+    use conveyor::model::builds::BuildStatus;
     use conveyor::model::queue::parse_merge_group_runs;
 
-    let run = |conclusion: serde_json::Value| {
+    let status_of = |conclusion: serde_json::Value| {
         parse_merge_group_runs(&serde_json::json!({"workflow_runs": [
             {"id": 1, "run_number": 1, "status": "completed", "conclusion": conclusion,
              "head_branch": "gh-readonly-queue/main/pr-4821-0000000000000000000000000000000000000000"}
-        ]}))
-    };
-    let checks_after = |runs: &[conveyor::model::queue::MergeGroupRun]| {
-        let mut queue = parse(&fixture(include_str!("fixtures/queue.json"))).unwrap();
-        queue.attach_runs(runs);
-        queue.entries[0].checks
+        ]}))[0]
+            .build
+            .status
     };
 
     assert_eq!(
-        checks_after(&run(serde_json::json!("cancelled"))),
-        CheckState::Unknown,
+        status_of(serde_json::json!("cancelled")),
+        BuildStatus::Cancelled,
         "a re-batched queue cancels runs; that is not a failure"
     );
     assert_eq!(
-        checks_after(&run(serde_json::json!("neither_here_nor_there"))),
-        CheckState::Unknown,
-        "a conclusion we do not know is not a failure either"
+        status_of(serde_json::json!("failure")),
+        BuildStatus::Failure
     );
     assert_eq!(
-        checks_after(&run(serde_json::json!("failure"))),
-        CheckState::Failure,
-        "a real failure still reads as one"
-    );
-    assert_eq!(
-        checks_after(&run(serde_json::json!(null))),
-        CheckState::Unknown,
+        status_of(serde_json::json!(null)),
+        BuildStatus::Unknown,
         "completed with no conclusion is unknown, not failed"
     );
 }

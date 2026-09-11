@@ -22,8 +22,10 @@ focused column to the full width; `z` again or `Esc` leaves it.
   current directory, in position order. Card: check glyph (from the merge-group run when one
   exists), number and
   title, ETA or state; then author, position and enqueue age; then the run number and its
-  checks or `no merge-group run yet`, the `solo`/`jump` flags and the head sha; then the job
-  that failed and the step it failed at. `b` opens the merge-group run and `d` shows it:
+  status or `no merge-group run yet`, the `solo`/`jump` flags and the head sha; then the job
+  that failed and the step it failed at. The glyph and the status word come from the run
+  itself once there is one, so a run the queue cancelled while re-batching reads `⊘ cancelled`
+  and never `✗ failure`. `b` opens the merge-group run and `d` shows it:
   status, duration, who started it, and every job, the same as a main build. A repo without a merge queue shows the error in place.
 - **Main builds**: the last `builds` runs of `main_workflow` pushed to `main`, newest first at
   every refresh. Card: status

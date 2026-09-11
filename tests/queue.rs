@@ -350,3 +350,52 @@ fn a_refresh_while_the_jobs_are_in_flight_does_not_ask_twice() {
         "the answer is still on its way"
     );
 }
+
+fn with_run(status: BuildStatus) -> Vec<conveyor::model::queue::QueueEntry> {
+    let mut entries = vec![entry(1, 4821, "alice", "Retry webhooks")];
+    let mut run = build(312, status, None);
+    run.id = 4242;
+    entries[0].run = Some(run);
+    entries
+}
+
+#[test]
+fn a_cancelled_run_reads_as_cancelled_and_never_as_a_failure() {
+    let mut h = Harness::new();
+
+    h.run(vec![queue(with_run(BuildStatus::Cancelled))])
+        .unwrap();
+
+    let col = column(&h.screen(), 1);
+    assert!(
+        col[1].contains("⊘ #4821"),
+        "its own glyph, not the skipped dash: {}",
+        h.screen()
+    );
+    assert!(col[3].contains("run 312 · cancelled"), "{}", h.screen());
+    assert!(!h.screen().contains("✗"), "nothing failed: {}", h.screen());
+}
+
+#[test]
+fn a_failed_run_still_reads_as_a_failure() {
+    let mut h = Harness::new();
+
+    h.run(vec![queue(with_run(BuildStatus::Failure))]).unwrap();
+
+    let col = column(&h.screen(), 1);
+    assert!(col[1].contains("✗ #4821"), "{}", h.screen());
+    assert!(col[3].contains("run 312 · failure"), "{}", h.screen());
+}
+
+#[test]
+fn an_entry_with_no_run_still_reads_from_the_rollup() {
+    let mut h = Harness::new();
+    let mut entries = vec![entry(1, 4821, "alice", "Retry webhooks")];
+    entries[0].checks = CheckState::Success;
+
+    h.run(vec![queue(entries)]).unwrap();
+
+    let col = column(&h.screen(), 1);
+    assert!(col[1].contains("✓ #4821"), "{}", h.screen());
+    assert!(col[3].contains("no merge-group run yet"), "{}", h.screen());
+}

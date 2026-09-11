@@ -27,7 +27,7 @@ pub(crate) fn build_glyph(status: BuildStatus) -> (char, Color) {
         BuildStatus::Failure => ('✗', Color::Red),
         BuildStatus::Running => ('●', Color::Yellow),
         BuildStatus::Queued => ('○', Color::Yellow),
-        BuildStatus::Cancelled => ('-', Color::DarkGray),
+        BuildStatus::Cancelled => ('⊘', Color::DarkGray),
         BuildStatus::Unknown => ('?', Color::DarkGray),
     }
 }

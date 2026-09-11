@@ -128,7 +128,7 @@ pub(crate) fn queue_row(
         flags.push("jump".to_string());
     }
     let run = match &entry.run {
-        Some(run) => format!("run {} · {}", run.run_number, check_word(entry.checks)),
+        Some(run) => format!("run {} · {}", run.run_number, status_word(run.status)),
         None => "no merge-group run yet".to_string(),
     };
     let below = [run, flags.join(" "), sha8(&entry.head_sha)];
@@ -136,7 +136,10 @@ pub(crate) fn queue_row(
     lines.extend(failed_job(jobs, width));
     card(
         selected,
-        glyph(entry.checks),
+        match &entry.run {
+            Some(run) => build_glyph(run.status),
+            None => glyph(entry.checks),
+        },
         format!("#{} {}", entry.number, entry.title),
         right,
         lines,

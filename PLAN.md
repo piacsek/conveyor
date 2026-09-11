@@ -419,6 +419,10 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   run line and its jobs (with the failed step) exactly as a main build does, and the card shows
   the run number. No extra `gh` call: the run was already fetched for the check glyph.
 
+- v0.11.0: a cancelled merge-group run is told apart from a failed one. The queue card takes
+  its glyph and word from the run itself, `⊘` is the cancelled glyph in every column (the grey
+  `-` goes back to meaning a skipped check), and the lossy `checks_of` map is gone.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
