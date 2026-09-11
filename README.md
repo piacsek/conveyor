@@ -4,7 +4,7 @@ A terminal view of where your changes are: open pull requests, the merge
 queue, the last main builds, and what each environment runs. One column per
 stage, one repo, one screen.
 
-Status: phase 7. All four columns are live: My PRs, Merge queue, Main builds, Deployed.
+Status: phase 8. All four columns are live: My PRs, Merge queue, Main builds, Deployed.
 
 Every item is a card of two or three lines: a title line with the status glyph and one
 right-aligned figure, then dim lines carrying what you would otherwise open a browser for.
