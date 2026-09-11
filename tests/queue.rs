@@ -374,6 +374,19 @@ fn a_cancelled_run_reads_as_cancelled_and_never_as_a_failure() {
     );
     assert!(col[3].contains("run 312 · cancelled"), "{}", h.screen());
     assert!(!h.screen().contains("✗"), "nothing failed: {}", h.screen());
+    let glyph = h
+        .screen()
+        .lines()
+        .nth(1)
+        .unwrap()
+        .chars()
+        .position(|c| c == '⊘')
+        .unwrap() as u16;
+    assert_eq!(
+        h.cell(glyph, 1).fg,
+        ratatui::style::Color::DarkGray,
+        "grey, not red"
+    );
 }
 
 #[test]

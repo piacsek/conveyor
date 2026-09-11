@@ -77,6 +77,16 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   rollup is left untouched on the entry and is what a run-less entry still reads from.
   `App::selected_run` is what the jobs machinery keys on, so jobs are fetched for whichever of
   the two columns is focused, and `forget_unsettled_jobs` sweeps both.
+- **A run that parses to `BuildStatus::Unknown` still speaks for the entry**, so the card reads
+  `? · ?` even when the GraphQL rollup had an opinion. That is the contract, not an oversight:
+  one source per entry beats two that can disagree, and an unrecognised `status`/`conclusion`
+  pair from GitHub is a reason to say "I do not know", not to quietly fall back to a rollup
+  computed at a different moment.
+- **The newest run wins, by `id`.** `attach_runs` takes the `max_by_key(id)` among the runs
+  matching an entry's number, never the first match: a queue that re-batches leaves two runs on
+  the same `pr-<N>-` branch prefix, and REST order is not a promise. Ids are monotonic in time
+  across the whole of GitHub, which `run_number` is not (it is per workflow, and a merge group
+  can run more than one).
 - **`⊘` means cancelled, everywhere.** `build_glyph` gives `BuildStatus::Cancelled` its own
   glyph; the grey `-` stays for a *skipped* check (`conclusion_glyph`), which is a different
   fact. Never collapse the two: a cancelled run is work that was stopped, a skipped check is

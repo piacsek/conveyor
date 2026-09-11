@@ -186,12 +186,12 @@ fn fetch_queue_attaches_the_merge_group_run_of_each_entry() {
     ))
     .unwrap()));
     gh.rest_response = Ok(serde_json::json!({"workflow_runs": [
-        {"id": 1, "name": "CI/CD", "status": "in_progress", "conclusion": null,
+        {"id": 2, "name": "CI/CD", "status": "in_progress", "conclusion": null,
          "head_branch": "gh-readonly-queue/main/pr-4821-0000000000000000000000000000000000000000",
-         "html_url": "https://github.com/acme/webapp/actions/runs/1"},
-        {"id": 2, "name": "CI/CD", "status": "completed", "conclusion": "failure",
-         "head_branch": "gh-readonly-queue/main/pr-4821-1111111111111111111111111111111111111111",
          "html_url": "https://github.com/acme/webapp/actions/runs/2"},
+        {"id": 1, "name": "CI/CD", "status": "completed", "conclusion": "failure",
+         "head_branch": "gh-readonly-queue/main/pr-4821-1111111111111111111111111111111111111111",
+         "html_url": "https://github.com/acme/webapp/actions/runs/1"},
         {"id": 3, "name": "CI/CD", "status": "completed", "conclusion": "success",
          "head_branch": "gh-readonly-queue/main/pr-9999-1111111111111111111111111111111111111111",
          "html_url": "https://github.com/acme/webapp/actions/runs/3"}
@@ -207,8 +207,8 @@ fn fetch_queue_attaches_the_merge_group_run_of_each_entry() {
         .run
         .as_ref()
         .expect("the newest run for the PR wins");
-    assert_eq!(run.id, 1);
-    assert_eq!(run.url, "https://github.com/acme/webapp/actions/runs/1");
+    assert_eq!(run.id, 2, "the higher id is the newer run");
+    assert_eq!(run.url, "https://github.com/acme/webapp/actions/runs/2");
     assert_eq!(
         run.status,
         conveyor::model::builds::BuildStatus::Running,

@@ -19,8 +19,8 @@ focused column to the full width; `z` again or `Esc` leaves it.
   diff size; then the checks that are not green, or the merge state. `b` opens a check run,
   failures first.
 - **Merge queue**: the queue of the first `[[repo]]`, or of the repository checked out in the
-  current directory, in position order. Card: check glyph (from the merge-group run when one
-  exists), number and
+  current directory, in position order. Card: the merge-group run's status glyph when there is
+  a run, else the check rollup's; number and
   title, ETA or state; then author, position and enqueue age; then the run number and its
   status or `no merge-group run yet`, the `solo`/`jump` flags and the head sha; then the job
   that failed and the step it failed at. The glyph and the status word come from the run
@@ -28,7 +28,8 @@ focused column to the full width; `z` again or `Esc` leaves it.
   and never `✗ failure`. `b` opens the merge-group run and `d` shows it:
   status, duration, who started it, and every job, the same as a main build. A repo without a merge queue shows the error in place.
 - **Main builds**: the last `builds` runs of `main_workflow` pushed to `main`, newest first at
-  every refresh. Card: status
+  every refresh. `⊘` is a cancelled run in every column — the grey `-` only ever means a
+  skipped check. Card: status
   glyph, the PR it merged (from the squash `(#N)` suffix or the commit's pull requests) and
   its title, age; then author, run number, duration and status; then the job that failed and
   the step it failed at, fetched on demand for the selected run and for every failing one.

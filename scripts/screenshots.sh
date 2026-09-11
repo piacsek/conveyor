@@ -102,7 +102,7 @@ case "\$*" in
   *'/commits/'*'/pulls'*) sha=\$(printf '%s' "\$*" | sed -E 's#.*/commits/([0-9a-f]+)/pulls.*#\\1#'); cat "$home/pulls-\$sha.json";;
   *'/commits/'*) echo '{"commit":{"message":"no suffix here"}}';;
   *'/pulls/'*) echo '{}';;
-  *actions/runs*) echo '{"workflow_runs":[{"id":313,"run_number":313,"head_branch":"gh-readonly-queue/main/pr-4821-0000000000000000000000000000000000000000","status":"in_progress","conclusion":null,"display_title":"CI/CD","actor":{"login":"github-merge-queue[bot]"},"run_started_at":"$mg_started","updated_at":"$mg_started","html_url":"https://github.com/acme/webapp/actions/runs/313"}]}';;
+  *actions/runs*) echo '{"workflow_runs":[{"id":313,"run_number":313,"head_branch":"gh-readonly-queue/main/pr-4821-0000000000000000000000000000000000000000","status":"in_progress","conclusion":null,"display_title":"CI/CD","actor":{"login":"github-merge-queue[bot]"},"run_started_at":"$mg_started","updated_at":"$mg_started","html_url":"https://github.com/acme/webapp/actions/runs/313"},{"id":314,"run_number":314,"head_branch":"gh-readonly-queue/main/pr-4830-0000000000000000000000000000000000000000","status":"completed","conclusion":"cancelled","display_title":"CI/CD","actor":{"login":"github-merge-queue[bot]"},"run_started_at":"$mg_started","updated_at":"$mg_started","html_url":"https://github.com/acme/webapp/actions/runs/314"}]}';;
   *) cat "$home/prs.json";;
 esac
 SHIM
