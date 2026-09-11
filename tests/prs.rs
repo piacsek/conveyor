@@ -856,3 +856,22 @@ fn only_the_focused_column_highlights_its_selected_card() {
     );
     assert_eq!(screen.matches('▌').count(), 3, "still only one card");
 }
+
+#[test]
+fn a_skipped_check_keeps_the_dash_that_never_meant_cancelled() {
+    use conveyor::model::prs::{Check, CheckConclusion};
+    let mut h = Harness::with_size(160, 20);
+    let mut skipping = pr(4821, "Retry hooks");
+    skipping.checks_detail = vec![Check {
+        name: "e2e".to_string(),
+        conclusion: CheckConclusion::Skipped,
+        url: String::new(),
+    }];
+
+    h.run(vec![prs(vec![skipping]), key(KeyCode::Char('d'))])
+        .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("- e2e"), "{screen}");
+    assert!(!screen.contains("⊘"), "⊘ is only ever cancelled: {screen}");
+}

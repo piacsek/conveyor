@@ -165,7 +165,11 @@ fn parse_merge_group_run(run: &serde_json::Value) -> Option<MergeGroupRun> {
 impl Queue {
     pub fn attach_runs(&mut self, runs: &[MergeGroupRun]) {
         for entry in &mut self.entries {
-            if let Some(run) = runs.iter().find(|run| run.number == entry.number) {
+            if let Some(run) = runs
+                .iter()
+                .filter(|run| run.number == entry.number)
+                .max_by_key(|run| run.build.id)
+            {
                 entry.run = Some(run.build.clone());
             }
         }

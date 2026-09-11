@@ -24,3 +24,12 @@ stopped, a skipped check is work that was never required.
 1. The queue card's glyph and word come from the run when there is one.
 2. The pane's `checks:` line is for run-less entries only; `checks_of` deleted.
 3. `⊘` for cancelled, everywhere; `-` stays for skipped.
+
+## Found in review
+
+`attach_runs` took the **first** run matching an entry's number, never the newest, and the
+phase made that much more expensive: a stale run is now the card's glyph, its status word and
+the pane's run line, so an entry whose fresh run was running could read `⊘ cancelled` with
+confidence. Re-batching — the very thing this phase is about — is what produces the second run.
+It now takes `max_by_key(id)`: ids are monotonic in time across GitHub, which `run_number` is
+not (per workflow, and a merge group can run more than one).

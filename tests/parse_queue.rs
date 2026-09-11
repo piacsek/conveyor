@@ -122,3 +122,24 @@ fn a_cancelled_run_keeps_its_own_status_instead_of_becoming_a_failure() {
         "completed with no conclusion is unknown, not failed"
     );
 }
+
+#[test]
+fn the_newest_run_for_a_pull_request_wins_whatever_order_they_arrive_in() {
+    use conveyor::model::builds::BuildStatus;
+    use conveyor::model::queue::parse_merge_group_runs;
+
+    let branch = "gh-readonly-queue/main/pr-4821-0000000000000000000000000000000000000000";
+    let runs = parse_merge_group_runs(&serde_json::json!({"workflow_runs": [
+        {"id": 10, "run_number": 10, "status": "completed", "conclusion": "cancelled",
+         "head_branch": branch},
+        {"id": 11, "run_number": 11, "status": "in_progress", "conclusion": null,
+         "head_branch": branch}
+    ]}));
+    let mut queue = parse(&fixture(include_str!("fixtures/queue.json"))).unwrap();
+
+    queue.attach_runs(&runs);
+
+    let attached = queue.entries[0].run.as_ref().expect("a run");
+    assert_eq!(attached.id, 11, "the re-batched run, not the cancelled one");
+    assert_eq!(attached.status, BuildStatus::Running);
+}
