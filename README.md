@@ -43,6 +43,7 @@ focused column to the full width; `z` again or `Esc` leaves it.
 
 `d` opens a details pane for the selected card: branch, diff size, review and merge state,
 checks with failures first. It carries no URLs: `p` and `b` open them, `y` and `Y` copy them.
+`Ctrl-d` and `Ctrl-u` scroll it half a page; the title grows `↑`/`↓` while there is more.
 
 ![details](docs/details.png)
 
@@ -69,7 +70,8 @@ Narrow terminals collapse the columns into tabs:
 ![tabs](docs/tabs.png)
 
 Keys: `j/k` move, `h/l`/`Tab` focus a column, `p` open the pull request,
-`b` open the build, `y`/`Y` copy the pull request / build URL, `d` details pane, `z` zoom the
+`b` open the build, `y`/`Y` copy the pull request / build URL, `d` details pane,
+`Ctrl-d`/`Ctrl-u` scroll it half a page, `z` zoom the
 focused column to the full width, `Esc` leave zoom, `/` filter, `r` refresh the focused column,
 `R` refresh all of them, `?` help, `q` quit. Keys act on the focused column.
 Below `4 × min_column_width` columns the four columns collapse into tabs (`h/l` switch). A failed fetch keeps

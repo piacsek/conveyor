@@ -16,7 +16,7 @@ use crate::text::{age, clock, duration};
 use crate::ui::rows::build_label;
 use crate::ui::style::{build_glyph, check_word, conclusion_glyph, dim, status_word};
 
-pub(crate) fn draw_details(frame: &mut Frame, app: &App, area: Rect) {
+pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
     let (title, lines) = match app.focus {
         Stage::Prs => match app.prs.selected() {
             Some(pr) => (format!("#{} {}", pr.number, pr.title), pr_details(pr)),
@@ -33,8 +33,7 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &App, area: Rect) {
             Some(build) => {
                 let (label, _) = build_label(build);
                 let mut lines = build_details(build, app.now, app.utc_offset_secs);
-                let room = usize::from(area.height).saturating_sub(2 + lines.len());
-                lines.extend(job_lines(app.selected_jobs(), room));
+                lines.extend(job_lines(app.selected_jobs()));
                 (format!("{label} run {}", build.run_number), lines)
             }
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
@@ -51,8 +50,24 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &App, area: Rect) {
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
         },
     };
+    let page = area.height.saturating_sub(2);
+    let overflow = (lines.len() as u16).saturating_sub(page);
+    app.details_page = page;
+    app.details_overflow = overflow;
+    app.details_scroll = app.details_scroll.min(overflow);
+    let scroll = app.details_scroll;
+    let arrows = match (scroll > 0, scroll < overflow) {
+        (false, false) => String::new(),
+        (above, below) => format!(
+            " {}{}",
+            if above { "↑" } else { "" },
+            if below { "↓" } else { "" }
+        ),
+    };
     frame.render_widget(
-        Paragraph::new(lines).block(Block::bordered().title(title)),
+        Paragraph::new(lines)
+            .scroll((scroll, 0))
+            .block(Block::bordered().title(format!("{title}{arrows}"))),
         area,
     );
 }
@@ -181,7 +196,7 @@ fn job_line(job: &Job) -> Line<'static> {
     ])
 }
 
-fn job_lines(jobs: Option<&JobsState>, room: usize) -> Vec<Line<'static>> {
+fn job_lines(jobs: Option<&JobsState>) -> Vec<Line<'static>> {
     match jobs {
         None => Vec::new(),
         Some(JobsState::Loading) => vec![Line::from(Span::styled("jobs: loading…", dim()))],
@@ -189,6 +204,6 @@ fn job_lines(jobs: Option<&JobsState>, room: usize) -> Vec<Line<'static>> {
             format!("jobs: {message}"),
             Style::default().fg(Color::Red),
         ))],
-        Some(JobsState::Ready(jobs)) => jobs.iter().take(room).map(job_line).collect(),
+        Some(JobsState::Ready(jobs)) => jobs.iter().map(job_line).collect(),
     }
 }
