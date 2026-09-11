@@ -1,7 +1,7 @@
 use std::fmt;
 use std::time::{Duration, SystemTime};
 
-use crate::model::builds::{Build, BuildStatus, parse_run};
+use crate::model::builds::{Build, parse_run};
 use crate::model::prs::{CheckState, parse_timestamp};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -162,21 +162,10 @@ fn parse_merge_group_run(run: &serde_json::Value) -> Option<MergeGroupRun> {
     })
 }
 
-fn checks_of(status: BuildStatus) -> CheckState {
-    match status {
-        BuildStatus::Success => CheckState::Success,
-        BuildStatus::Failure => CheckState::Failure,
-        BuildStatus::Cancelled => CheckState::Unknown,
-        BuildStatus::Running | BuildStatus::Queued => CheckState::Pending,
-        BuildStatus::Unknown => CheckState::Unknown,
-    }
-}
-
 impl Queue {
     pub fn attach_runs(&mut self, runs: &[MergeGroupRun]) {
         for entry in &mut self.entries {
             if let Some(run) = runs.iter().find(|run| run.number == entry.number) {
-                entry.checks = checks_of(run.build.status);
                 entry.run = Some(run.build.clone());
             }
         }

@@ -125,7 +125,10 @@ fn queue_details(entry: &QueueEntry, now: SystemTime) -> Vec<Line<'static>> {
             "#{} by {}  position {}  {}{eta}{flags}",
             entry.number, entry.author, entry.position, entry.state
         )),
-        Line::from(format!("{enqueued}  checks: {}", check_word(entry.checks))),
+        Line::from(match entry.run {
+            Some(_) => enqueued,
+            None => format!("{enqueued}  checks: {}", check_word(entry.checks)),
+        }),
         Line::from(Span::styled(entry.head_sha.clone(), dim())),
     ]
 }
