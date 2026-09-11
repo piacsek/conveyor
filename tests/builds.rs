@@ -62,7 +62,7 @@ fn build_cards_show_the_pull_request_the_run_and_the_sha() {
 }
 
 #[test]
-fn enter_opens_the_pull_request_b_opens_the_run_and_p_shows_its_details() {
+fn p_opens_the_pull_request_b_opens_the_run_and_d_shows_its_details() {
     let mut h = Harness::with_size(160, 20);
 
     h.run(vec![
@@ -70,9 +70,9 @@ fn enter_opens_the_pull_request_b_opens_the_run_and_p_shows_its_details() {
         key(KeyCode::Char('l')),
         key(KeyCode::Char('l')),
         key(KeyCode::Char('j')),
-        key(KeyCode::Enter),
-        key(KeyCode::Char('b')),
         key(KeyCode::Char('p')),
+        key(KeyCode::Char('b')),
+        key(KeyCode::Char('d')),
     ])
     .unwrap();
 
@@ -113,7 +113,7 @@ fn a_failed_builds_fetch_flags_the_column() {
 }
 
 #[test]
-fn enter_falls_back_to_the_run_when_no_pull_request_is_known() {
+fn p_says_so_when_no_pull_request_is_known_and_b_still_opens_the_run() {
     let mut h = Harness::new();
 
     h.run(vec![
@@ -121,9 +121,18 @@ fn enter_falls_back_to_the_run_when_no_pull_request_is_known() {
         key(KeyCode::Char('l')),
         key(KeyCode::Char('l')),
         key(KeyCode::Char('G')),
-        key(KeyCode::Enter),
+        key(KeyCode::Char('p')),
     ])
     .unwrap();
+
+    assert!(
+        h.screen().contains("no pull request for this run"),
+        "{}",
+        h.screen()
+    );
+    assert!(h.opener.opened().is_empty(), "p opened nothing");
+
+    h.run(vec![key(KeyCode::Char('b'))]).unwrap();
 
     assert_eq!(
         h.opener.opened(),
@@ -143,7 +152,7 @@ fn focus_builds() -> Vec<std::io::Result<conveyor::app::Input>> {
 fn p_on_a_build_asks_for_its_jobs_and_lists_them_failures_first() {
     let mut h = Harness::with_size(160, 30);
     let mut inputs = focus_builds();
-    inputs.push(key(KeyCode::Char('p')));
+    inputs.push(key(KeyCode::Char('d')));
 
     h.run(inputs).unwrap();
 
@@ -183,7 +192,7 @@ fn p_on_a_build_asks_for_its_jobs_and_lists_them_failures_first() {
 fn moving_the_selection_asks_for_each_runs_jobs_once() {
     let mut h = Harness::with_size(160, 30);
     let mut inputs = focus_builds();
-    inputs.push(key(KeyCode::Char('p')));
+    inputs.push(key(KeyCode::Char('d')));
     inputs.push(key(KeyCode::Char('j')));
     inputs.push(key(KeyCode::Char('k')));
     inputs.push(key(KeyCode::Char('j')));
@@ -204,7 +213,7 @@ fn moving_the_selection_asks_for_each_runs_jobs_once() {
 fn a_failed_jobs_fetch_shows_the_message_in_the_details_pane() {
     let mut h = Harness::with_size(160, 30);
     let mut inputs = focus_builds();
-    inputs.push(key(KeyCode::Char('p')));
+    inputs.push(key(KeyCode::Char('d')));
     inputs.push(jobs_failed(1026, "gh: HTTP 404: Not Found"));
 
     h.run(inputs).unwrap();
@@ -286,4 +295,32 @@ fn main_builds_stay_newest_first_across_refreshes() {
     );
     assert!(col[4].contains("#4821 Retry"), "{}", h.screen());
     assert!(col[7].contains("run 24"), "{}", h.screen());
+}
+
+#[test]
+fn y_copies_the_pull_request_url_and_shift_y_the_build_url() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        builds(three()),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('y')),
+        key(KeyCode::Char('Y')),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        h.opener.copied(),
+        vec![
+            "https://github.com/acme/webapp/pull/4821".to_string(),
+            "https://github.com/acme/webapp/actions/runs/1025".to_string(),
+        ]
+    );
+    assert!(
+        h.screen().contains("copied the build URL"),
+        "{}",
+        h.screen()
+    );
 }

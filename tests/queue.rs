@@ -66,7 +66,7 @@ fn keys_act_on_the_focused_queue_column() {
         queue(two()),
         key(KeyCode::Char('l')),
         key(KeyCode::Char('j')),
-        key(KeyCode::Enter),
+        key(KeyCode::Char('p')),
         key(KeyCode::Char('y')),
     ])
     .unwrap();
@@ -104,7 +104,7 @@ fn a_failed_queue_fetch_flags_the_column_and_shows_the_message() {
 }
 
 #[test]
-fn p_shows_queue_entry_details_for_the_focused_queue_column() {
+fn d_shows_queue_entry_details_for_the_focused_queue_column() {
     let mut h = Harness::with_size(160, 20);
     let mut entries = two();
     entries[0].jump = true;
@@ -112,7 +112,7 @@ fn p_shows_queue_entry_details_for_the_focused_queue_column() {
     h.run(vec![
         queue(entries),
         key(KeyCode::Char('l')),
-        key(KeyCode::Char('p')),
+        key(KeyCode::Char('d')),
     ])
     .unwrap();
 

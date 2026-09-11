@@ -187,10 +187,10 @@ shoot() {
 }
 
 shoot columns 160 18 ""
-shoot details 160 26 "p"
-shoot queue   160 26 "lp"
-shoot builds  160 26 "llp"
-shoot deployed 160 26 "lllp"
+shoot details 160 26 "d"
+shoot queue   160 26 "ld"
+shoot builds  160 26 "lld"
+shoot deployed 160 26 "llld"
 shoot zoom   160 18 "llz"
 shoot tabs     80 18 ""
 echo "wrote $out/columns.png $out/details.png $out/queue.png $out/builds.png $out/deployed.png $out/zoom.png $out/tabs.png"

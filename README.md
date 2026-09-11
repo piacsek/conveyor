@@ -29,20 +29,20 @@ focused column to the full width; `z` again or `Esc` leaves it.
   glyph, the PR it merged (from the squash `(#N)` suffix or the commit's pull requests) and
   its title, age; then author, run number, duration and status; then the job that failed and
   the step it failed at, fetched on demand for the selected run and for every failing one.
-  `Enter` opens the PR it merged, `b` the run.
+  `p` opens the PR it merged, `b` the run.
 - **Deployed**: one row per `[[repo.deploy.env]]`, read with `kubectl` (`--context`,
   `-n`, `get deploy -o jsonpath=…image`, 10 s timeout). The image tag must be the 40-hex
   commit sha (or end with `-<sha>`). Card: the environment, `✓` at main or a yellow `◐` with
   `↓n` when it is n main builds behind (never the `●` of a running build); then the PR that commit merged; then the sha and how long ago it was
   read, or the error in red. A failed environment (expired session, missing deployment) keeps
   its last known sha with a red `✗`.
-  `Enter` opens the PR, `b` the main build that matches the deployed sha.
+  `p` opens the PR, `b` the main build that matches the deployed sha.
 - Footer: `refreshed just now`, then `refreshed at HH:MM:SS` in local time, for the focused
   column; one braille spinner at the start of the footer while any fetch is in flight; a static
-  `conveyor v<version>` logo at the bottom right. Holding `Enter` opens a row once per second, not per repeat.
+  `conveyor v<version>` logo at the bottom right. Holding `p` opens a row once per second, not per repeat.
 
-`p` opens a details pane for the selected card: branch, diff size, review and merge state,
-checks with failures first.
+`d` opens a details pane for the selected card: branch, diff size, review and merge state,
+checks with failures first. It carries no URLs: `p` and `b` open them, `y` and `Y` copy them.
 
 ![details](docs/details.png)
 
@@ -68,8 +68,8 @@ Narrow terminals collapse the columns into tabs:
 
 ![tabs](docs/tabs.png)
 
-Keys: `j/k` move, `h/l`/`Tab` focus a column, `Enter`/`o` open in the
-browser, `b` open the build behind the row, `y` copy the URL, `p` details pane, `z` zoom the
+Keys: `j/k` move, `h/l`/`Tab` focus a column, `p` open the pull request,
+`b` open the build, `y`/`Y` copy the pull request / build URL, `d` details pane, `z` zoom the
 focused column to the full width, `Esc` leave zoom, `/` filter, `r` refresh the focused column,
 `R` refresh all of them, `?` help, `q` quit. Keys act on the focused column.
 Below `4 × min_column_width` columns the four columns collapse into tabs (`h/l` switch). A failed fetch keeps
