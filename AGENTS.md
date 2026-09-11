@@ -170,15 +170,16 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   the first draw through every incremental refresh and never depends on what order the API
   happened to return.
 - **Keys act on the focused column.** `App::with_focused` dispatches navigation to the
-  `Column` of `app.focus`; `p`/`y` use `pull_target` (the pull request of the row, an `Err`
-  message when the run or the deployed commit has none — they never fall back to the run),
+  `Column` of `app.focus`; `p`/`y` use `pull_target` (the pull request of the row — the
+  associated one, else the `(#N)` the run's squash title already showed on the card, built
+  from `builds_repo`; an `Err` message when neither exists, never the run itself),
   `b`/`Y` use `build_url`. `Enter` and `o` do nothing: opening a browser on `Enter` surprised
   the user, and the open UX is to be revisited.
   `run()` reports work back through `FnMut(Request)`; `r` sends one `Request::Refresh`, `R`
   one per `Stage::ALL`, and `main` looks each stage up in `refreshers` (a stage without a
   thread is skipped). Adding a stage means a new
   `Column<T>` field, a `Row` impl, a `Rows` variant, and arms in `receive`, `focused_*`,
-  `selected_target`, `with_focused`, `column_title`, `draw_column` and `draw_details`.
+  `pull_target`, `build_url`, `with_focused`, `column_title`, `draw_column` and `draw_details`.
 - **The `gh` shim in e2e and screenshots dispatches on the query text.** Match the queue query
   on `repository(owner`, not `mergeQueue`: the PR query also contains `mergeQueueEntry`.
 - **Opens are debounced.** `p`/`b` on the same URL within `OPEN_DEBOUNCE` (1 s of

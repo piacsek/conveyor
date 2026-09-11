@@ -103,9 +103,9 @@ fn p_opens_the_selected_pull_request_and_enter_and_o_do_nothing() {
     h.run(vec![
         prs(three()),
         key(KeyCode::Char('j')),
-        key(KeyCode::Char('p')),
         key(KeyCode::Enter),
         key(KeyCode::Char('o')),
+        key(KeyCode::Char('p')),
         key(KeyCode::Char('q')),
     ])
     .unwrap();
@@ -113,7 +113,7 @@ fn p_opens_the_selected_pull_request_and_enter_and_o_do_nothing() {
     assert_eq!(
         h.opener.opened(),
         vec!["https://github.com/acme/webapp/pull/2".to_string()],
-        "Enter and o open nothing"
+        "Enter and o opened nothing before p did"
     );
     assert_eq!(
         highlighted_row(&h.screen()),

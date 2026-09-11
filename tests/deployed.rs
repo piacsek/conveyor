@@ -217,3 +217,30 @@ fn b_opens_the_main_build_that_matches_the_deployed_sha() {
         h.screen()
     );
 }
+
+#[test]
+fn p_says_which_lookup_failed_and_y_says_nothing_is_selected() {
+    let mut h = Harness::with_size(160, 20);
+
+    h.run(vec![
+        deployed(vec![deployment("dev", 0x1a, None)]),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('p')),
+    ])
+    .unwrap();
+
+    assert!(
+        h.screen().contains("no pull request for this commit"),
+        "{}",
+        h.screen()
+    );
+    assert!(h.opener.opened().is_empty());
+
+    h.run(vec![deployed(vec![]), key(KeyCode::Char('y'))])
+        .unwrap();
+
+    assert!(h.screen().contains("nothing selected"), "{}", h.screen());
+    assert!(h.opener.copied().is_empty());
+}

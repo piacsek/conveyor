@@ -295,7 +295,7 @@ fn the_deployed_column_fills_from_kubectl_per_environment() {
 
 #[test]
 #[ignore]
-fn p_on_a_main_build_lists_the_runs_jobs() {
+fn d_on_a_main_build_lists_the_runs_jobs() {
     let home = tempfile::tempdir().unwrap();
     let path = dispatching_shim(home.path());
     let server = Server::sized("jobs", "30");

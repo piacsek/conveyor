@@ -149,7 +149,7 @@ fn focus_builds() -> Vec<std::io::Result<conveyor::app::Input>> {
 }
 
 #[test]
-fn p_on_a_build_asks_for_its_jobs_and_lists_them_failures_first() {
+fn d_on_a_build_asks_for_its_jobs_and_lists_them_failures_first() {
     let mut h = Harness::with_size(160, 30);
     let mut inputs = focus_builds();
     inputs.push(key(KeyCode::Char('d')));
@@ -322,5 +322,26 @@ fn y_copies_the_pull_request_url_and_shift_y_the_build_url() {
         h.screen().contains("copied the build URL"),
         "{}",
         h.screen()
+    );
+}
+
+#[test]
+fn p_falls_back_to_the_squash_number_while_the_pull_request_is_unassociated() {
+    let mut h = Harness::new();
+    let mut pending = build(26, BuildStatus::Success, Some((4840, "bob", "Speed up CI")));
+    pending.pull = None;
+
+    h.run(vec![
+        builds(vec![pending]),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('p')),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        h.opener.opened(),
+        vec!["https://github.com/acme/webapp/pull/4840".to_string()],
+        "the card shows #4840, so p opens #4840"
     );
 }

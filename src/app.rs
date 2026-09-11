@@ -111,17 +111,12 @@ pub trait Row: Clone {
         0
     }
 
-    fn url(&self) -> &str;
     fn matches(&self, query: &str) -> bool;
 }
 
 impl Row for PullRequest {
     fn key(&self) -> u64 {
         self.number
-    }
-
-    fn url(&self) -> &str {
-        &self.url
     }
 
     fn matches(&self, query: &str) -> bool {
@@ -146,10 +141,6 @@ impl Row for QueueEntry {
         self.position
     }
 
-    fn url(&self) -> &str {
-        &self.url
-    }
-
     fn matches(&self, query: &str) -> bool {
         [
             format!("#{}", self.number),
@@ -170,10 +161,6 @@ impl Row for Build {
 
     fn rank(&self) -> u64 {
         self.run_number
-    }
-
-    fn url(&self) -> &str {
-        &self.url
     }
 
     fn matches(&self, query: &str) -> bool {
@@ -198,13 +185,6 @@ impl Row for Deployment {
         let mut hasher = std::hash::DefaultHasher::new();
         self.env.hash(&mut hasher);
         hasher.finish()
-    }
-
-    fn url(&self) -> &str {
-        self.pull
-            .as_ref()
-            .map(|p| p.url.as_str())
-            .unwrap_or_default()
     }
 
     fn matches(&self, query: &str) -> bool {
@@ -548,14 +528,16 @@ impl App {
                 .selected()
                 .map(|entry| (entry.key(), entry.url.clone()))
                 .ok_or_else(nothing),
-            Stage::Builds => self
-                .builds
-                .selected()
-                .ok_or_else(nothing)?
-                .pull
-                .as_ref()
-                .map(|pull| (pull.number, pull.url.clone()))
-                .ok_or_else(|| "no pull request for this run".to_string()),
+            Stage::Builds => {
+                let build = self.builds.selected().ok_or_else(nothing)?;
+                match (&build.pull, build.pr_number, &self.builds_repo) {
+                    (Some(pull), _, _) => Ok((pull.number, pull.url.clone())),
+                    (None, Some(number), Some(repo)) => {
+                        Ok((number, format!("https://github.com/{repo}/pull/{number}")))
+                    }
+                    _ => Err("no pull request for this run".to_string()),
+                }
+            }
             Stage::Deployed => self
                 .deployed
                 .selected()
