@@ -423,6 +423,10 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   its glyph and word from the run itself, `⊘` is the cancelled glyph in every column (the grey
   `-` goes back to meaning a skipped check), and the lossy `checks_of` map is gone.
 
+- v0.11.1: a cancelled run no longer blames the jobs its cancellation killed — GitHub marks
+  them failed, and the card was carrying a red `✗ <job> · <step>` line for work that never
+  failed on its own. The card falls back to the sha; the details pane still lists every job.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.

@@ -87,6 +87,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   the same `pr-<N>-` branch prefix, and REST order is not a promise. Ids are monotonic in time
   across the whole of GitHub, which `run_number` is not (it is per workflow, and a merge group
   can run more than one).
+- **A cancelled run blames nobody.** GitHub marks the jobs a cancellation killed as failed, so
+  a cancelled card used to carry a red `✗ <job> · <step>` line for work that never actually
+  failed. `build_jobs`/`failed_job` drop the job line when the run is `Cancelled` and fall back
+  to the sha; the details pane still lists every job, where the conclusions are stated as facts
+  rather than as a headline.
 - **`⊘` means cancelled, everywhere.** `build_glyph` gives `BuildStatus::Cancelled` its own
   glyph; the grey `-` stays for a *skipped* check (`conclusion_glyph`), which is a different
   fact. Never collapse the two: a cancelled run is work that was stopped, a skipped check is

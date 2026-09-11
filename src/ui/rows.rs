@@ -133,7 +133,9 @@ pub(crate) fn queue_row(
     };
     let below = [run, flags.join(" "), sha8(&entry.head_sha)];
     let mut lines = vec![meta(&parts, width), meta(&below, width)];
-    lines.extend(failed_job(jobs, width));
+    if let Some(run) = &entry.run {
+        lines.extend(failed_job(run, jobs, width));
+    }
     card(
         selected,
         match &entry.run {
@@ -185,8 +187,8 @@ pub(crate) fn build_row(
     )
 }
 
-fn failed_job(jobs: Option<&JobsState>, width: usize) -> Option<Vec<Span<'static>>> {
-    let Some(JobsState::Ready(jobs)) = jobs else {
+fn failed_job(run: &Build, jobs: Option<&JobsState>, width: usize) -> Option<Vec<Span<'static>>> {
+    let Some(JobsState::Ready(jobs)) = jobs.filter(|_| !cancelled(run)) else {
         return None;
     };
     let failed = jobs.iter().find(|job| job.status == BuildStatus::Failure)?;
@@ -209,8 +211,12 @@ fn job_span(job: &Job, width: usize) -> Vec<Span<'static>> {
     )]
 }
 
+fn cancelled(build: &Build) -> bool {
+    build.status == BuildStatus::Cancelled
+}
+
 fn build_jobs(build: &Build, jobs: Option<&JobsState>, width: usize) -> Vec<Span<'static>> {
-    match jobs {
+    match jobs.filter(|_| !cancelled(build)) {
         Some(JobsState::Ready(jobs)) => {
             let worst = jobs
                 .iter()
