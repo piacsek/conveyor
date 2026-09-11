@@ -75,7 +75,10 @@ pub(crate) fn draw_column(
             block,
             focused,
             "queue empty",
-            |_, entry, on, w| queue_row(entry, now, on, w),
+            |_, entry, on, w| {
+                let jobs = entry.run.as_ref().and_then(|run| jobs.get(&run.id));
+                queue_row(entry, jobs, now, on, w)
+            },
         ),
         Stage::Builds => draw_list(
             frame,

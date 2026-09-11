@@ -441,7 +441,9 @@ impl App {
             .map(|build| build.id)
             .collect();
         for run_id in unsettled {
-            self.jobs.remove(&run_id);
+            if self.jobs.get(&run_id) != Some(&JobsState::Loading) {
+                self.jobs.remove(&run_id);
+            }
         }
     }
 

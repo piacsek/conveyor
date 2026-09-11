@@ -25,9 +25,12 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
         Stage::Queue => match app.queue.selected() {
             Some(entry) => {
                 let mut lines = queue_details(entry, app.now);
-                if let Some(run) = &entry.run {
-                    lines.push(run_line(run, app.now, app.utc_offset_secs));
-                    lines.extend(job_lines(app.selected_jobs()));
+                match &entry.run {
+                    Some(run) => {
+                        lines.push(run_line(run, app.now, app.utc_offset_secs));
+                        lines.extend(job_lines(app.selected_jobs()));
+                    }
+                    None => lines.push(Line::from("no merge-group run yet")),
                 }
                 (format!("#{} {}", entry.number, entry.title), lines)
             }

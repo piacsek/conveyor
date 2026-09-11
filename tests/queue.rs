@@ -193,7 +193,7 @@ fn queued_run() -> Vec<conveyor::model::queue::QueueEntry> {
 }
 
 #[test]
-fn d_on_a_queue_entry_shows_its_merge_group_run_and_asks_for_the_jobs() {
+fn the_pane_shows_the_merge_group_run_of_the_selected_entry_and_its_jobs() {
     let mut h = Harness::with_size(160, 24);
 
     h.run(vec![
@@ -230,26 +230,27 @@ fn d_on_a_queue_entry_shows_its_merge_group_run_and_asks_for_the_jobs() {
 }
 
 #[test]
-fn an_entry_without_a_run_says_so_and_asks_for_no_jobs() {
+fn an_entry_without_a_run_says_so_in_the_pane_and_asks_for_no_jobs() {
     let mut h = Harness::with_size(160, 24);
 
     h.run(vec![
-        queue(two()),
+        queue(vec![entry(1, 4821, "alice", "Retry webhooks")]),
         key(KeyCode::Char('l')),
         key(KeyCode::Char('d')),
     ])
     .unwrap();
 
     assert!(h.requests.is_empty(), "{:?}", h.requests);
-    assert!(
-        h.screen().contains("no merge-group run yet"),
-        "{}",
-        h.screen()
+    let screen = h.screen();
+    assert_eq!(
+        screen.matches("no merge-group run yet").count(),
+        2,
+        "on the card and in the pane: {screen}"
     );
 }
 
 #[test]
-fn moving_off_a_queue_entry_asks_for_the_next_runs_jobs() {
+fn selecting_a_queue_entry_asks_for_its_runs_jobs_pane_or_no_pane() {
     let mut h = Harness::with_size(160, 24);
     let mut entries = queued_run();
     let mut second = build(313, BuildStatus::Running, None);
@@ -270,5 +271,82 @@ fn moving_off_a_queue_entry_asks_for_the_next_runs_jobs() {
             Request::Jobs { run_id: 4242 },
             Request::Jobs { run_id: 4343 },
         ]
+    );
+}
+
+#[test]
+fn a_failing_merge_group_run_shows_its_failed_job_on_the_card() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        queue(queued_run()),
+        key(KeyCode::Char('l')),
+        jobs(
+            4242,
+            vec![
+                job(1, "audit", BuildStatus::Success, None),
+                job(2, "check", BuildStatus::Failure, Some("Run cargo test")),
+            ],
+        ),
+    ])
+    .unwrap();
+
+    let col = column(&h.screen(), 1);
+    assert!(
+        col[4].contains("✗ check · Run cargo test"),
+        "the card, not just the pane: {}",
+        h.screen()
+    );
+}
+
+#[test]
+fn a_queue_refresh_asks_again_for_an_unsettled_run_and_keeps_a_settled_one() {
+    let mut h = Harness::new();
+    let mut settled = queued_run();
+    let mut running = build(313, BuildStatus::Running, None);
+    running.id = 4343;
+    settled[1].run = Some(running);
+
+    h.run(vec![
+        queue(settled.clone()),
+        key(KeyCode::Char('l')),
+        jobs(4242, vec![job(1, "audit", BuildStatus::Success, None)]),
+        key(KeyCode::Char('j')),
+        jobs(4343, vec![job(2, "check", BuildStatus::Success, None)]),
+        queue(settled),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        h.requests,
+        vec![
+            Request::Jobs { run_id: 4242 },
+            Request::Jobs { run_id: 4343 },
+            Request::Jobs { run_id: 4343 },
+        ],
+        "only the run still in flight is asked again"
+    );
+}
+
+#[test]
+fn a_refresh_while_the_jobs_are_in_flight_does_not_ask_twice() {
+    let mut h = Harness::new();
+    let mut entries = two();
+    let mut running = build(313, BuildStatus::Running, None);
+    running.id = 4343;
+    entries[0].run = Some(running);
+
+    h.run(vec![
+        queue(entries.clone()),
+        key(KeyCode::Char('l')),
+        queue(entries.clone()),
+        queue(entries),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        h.requests,
+        vec![Request::Jobs { run_id: 4343 }],
+        "the answer is still on its way"
     );
 }

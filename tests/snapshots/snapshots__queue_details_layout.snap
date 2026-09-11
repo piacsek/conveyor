@@ -5,7 +5,7 @@ expression: h.screen()
 ┌My PRs (3)────────────────────────────┐┌Queue webapp (2)──────────────────────┐┌Main builds───────────────────────────┐┌Deployed──────────────────────────────┐
 │  ✗ #4821 Retry webhook delivery w… 2h││▌ ● #4821 Retry webhook delivery … 12m││fetching…                             ││no [[repo.deploy]] configured         │
 │    webapp · webhook-retry-backoff · …││▌   alice · position 1 · enqueued 20m…││                                      ││                                      │
-│    ✗ api / test                      ││▌   run 312 · checks: pending · 00000…││                                      ││                                      │
+│    ✗ api / test                      ││▌   run 312 · pending · 00000000      ││                                      ││                                      │
 │  ● #4830 Add rate limit headers t… 2h││  ○ #4830 Add rate limit heade… queued││                                      ││                                      │
 │    auth                              ││    carol · position 2 · enqueued 20m…││                                      ││                                      │
 │    checks: pending                   ││    no merge-group run yet · jump · 0…││                                      ││                                      │

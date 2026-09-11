@@ -99,11 +99,17 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   why this repo's own runs exercise the fallback). `updated_at` stands in for the finish time;
   running and queued runs show elapsed time instead. `tests/fixtures/runs.json` and
   `commit-pulls.json` are real captures from this repo.
-- **Jobs**, only for the build whose details pane is open: `repos/{r}/actions/runs/{id}/jobs?per_page=100`
+- **Jobs**, for the selected run of whichever of Main builds and Merge queue is focused
+  (`App::selected_run`) and eagerly for the first `EAGER_JOBS` failing main builds:
+  `repos/{r}/actions/runs/{id}/jobs?per_page=100`
   (`fetch::fetch_jobs`, `model::jobs::parse_jobs`, failures first). `run()` asks through
-  `App::jobs_needed()` after every input, so `d`, a selection move and a Builds refresh all
-  trigger it; results land as `Input::Jobs` in `App::jobs` (`Loading`/`Ready`/`Failed`).
-  An unsettled run's cache entry is dropped on each `Data(Builds, …)` so it is asked again.
+  `App::jobs_needed()` after every input, so a selection move, a focus change and a refresh of
+  either column all trigger it; results land as `Input::Jobs` in `App::jobs`
+  (`Loading`/`Ready`/`Failed`). The pane being open is **not** a condition: both columns' cards
+  render the failing job, which is the whole point of fetching it.
+  An unsettled run's cache entry is dropped on each `Data(Builds, …)` and `Data(Queue, …)` so it
+  is asked again — **unless it is still `Loading`**, which would put a second identical request
+  in flight on every refresh while the first is unanswered.
   A job's failed step is the first step with a failing conclusion.
   `tests/fixtures/jobs.json` is a real capture of this repo's run 34509123916, trimmed to
   `id name status conclusion started_at completed_at html_url steps[]`.
@@ -200,7 +206,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   one per `Stage::ALL`, and `main` looks each stage up in `refreshers` (a stage without a
   thread is skipped). Adding a stage means a new
   `Column<T>` field, a `Row` impl, a `Rows` variant, and arms in `receive`, `focused_*`,
-  `pull_target`, `build_url`, `with_focused`, `column_title`, `draw_column` and `draw_details`.
+  `pull_target`, `build_url`, `selected_key`, `with_focused`, `column_title`, `draw_column` and
+  `draw_details`; a stage that owns a run also needs an arm in `selected_run`.
 - **The `gh` shim in e2e and screenshots dispatches on the query text.** Match the queue query
   on `repository(owner`, not `mergeQueue`: the PR query also contains `mergeQueueEntry`.
 - **Opens are debounced.** `p`/`b` on the same URL within `OPEN_DEBOUNCE` (1 s of

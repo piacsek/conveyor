@@ -165,7 +165,8 @@ fn parse_merge_group_run(run: &serde_json::Value) -> Option<MergeGroupRun> {
 fn checks_of(status: BuildStatus) -> CheckState {
     match status {
         BuildStatus::Success => CheckState::Success,
-        BuildStatus::Failure | BuildStatus::Cancelled => CheckState::Failure,
+        BuildStatus::Failure => CheckState::Failure,
+        BuildStatus::Cancelled => CheckState::Unknown,
         BuildStatus::Running | BuildStatus::Queued => CheckState::Pending,
         BuildStatus::Unknown => CheckState::Unknown,
     }
