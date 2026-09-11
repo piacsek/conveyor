@@ -423,7 +423,9 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   its glyph and word from the run itself, `⊘` is the cancelled glyph in every column (the grey
   `-` goes back to meaning a skipped check), and the lossy `checks_of` map is gone.
 
-- v0.11.1: a cancelled run no longer blames the jobs its cancellation killed — GitHub marks
+- v0.12.0: build cards are four lines — the title gets a line of its own at full width instead
+  of sharing the first line with the number and the age, which is what clipped it.
+- v0.11.1 (folded into v0.12.0): a cancelled run no longer blames the jobs its cancellation killed — GitHub marks
   them failed, and the card was carrying a red `✗ <job> · <step>` line for work that never
   failed on its own. The card falls back to the sha; the details pane still lists every job.
 
