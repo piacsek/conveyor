@@ -527,3 +527,41 @@ fn a_cancelled_main_build_gets_its_own_glyph_not_the_skipped_dash() {
     assert!(col[1].contains("⊘ #4840"), "{}", h.screen());
     assert!(col[2].contains("cancelled"), "{}", h.screen());
 }
+
+#[test]
+fn a_cancelled_build_does_not_blame_the_job_the_cancellation_killed() {
+    let mut h = Harness::new();
+    let mut cancelled = build(
+        26,
+        BuildStatus::Cancelled,
+        Some((4840, "bob", "Speed up CI")),
+    );
+    cancelled.id = 1026;
+
+    h.run(vec![
+        builds(vec![cancelled]),
+        jobs(
+            1026,
+            vec![job(
+                1,
+                "Nx / Status",
+                BuildStatus::Failure,
+                Some("Check Nx workflow status"),
+            )],
+        ),
+    ])
+    .unwrap();
+
+    let col = column(&h.screen(), 2);
+    assert!(col[1].contains("⊘ #4840"), "{}", h.screen());
+    assert!(
+        !col[3].contains("Nx / Status"),
+        "the job died with the run, it did not fail on its own: {}",
+        h.screen()
+    );
+    assert!(
+        col[3].contains("00000000"),
+        "the sha instead: {}",
+        h.screen()
+    );
+}

@@ -32,7 +32,8 @@ focused column to the full width; `z` again or `Esc` leaves it.
   skipped check. Card: status
   glyph, the PR it merged (from the squash `(#N)` suffix or the commit's pull requests) and
   its title, age; then author, run number, duration and status; then the job that failed and
-  the step it failed at, fetched on demand for the selected run and for every failing one.
+  the step it failed at, fetched on demand for the selected run and for every failing one; a
+  cancelled run shows its sha instead, since the jobs it killed did not fail on their own.
   `p` opens the PR it merged, `b` the run.
 - **Deployed**: one row per `[[repo.deploy.env]]`, read with `kubectl` (`--context`,
   `-n`, `get deploy -o jsonpath=…image`, 10 s timeout). The image tag must be the 40-hex

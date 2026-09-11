@@ -412,3 +412,27 @@ fn an_entry_with_no_run_still_reads_from_the_rollup() {
     assert!(col[1].contains("✓ #4821"), "{}", h.screen());
     assert!(col[3].contains("no merge-group run yet"), "{}", h.screen());
 }
+
+#[test]
+fn a_cancelled_merge_group_run_does_not_blame_its_jobs_either() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        queue(with_run(BuildStatus::Cancelled)),
+        key(KeyCode::Char('l')),
+        jobs(
+            4242,
+            vec![job(
+                1,
+                "Nx / Status",
+                BuildStatus::Failure,
+                Some("Check Nx workflow status"),
+            )],
+        ),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(!screen.contains("Nx / Status"), "{screen}");
+    assert!(screen.contains("run 312 · cancelled"), "{screen}");
+}
