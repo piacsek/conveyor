@@ -14,11 +14,11 @@ pub const KEYS: [(&str, &str); 13] = [
     ("b", "open build"),
     ("y/Y", "copy pull request / build URL"),
     ("d", "details"),
+    ("C-d/C-u", "scroll details"),
     ("z", "zoom the column"),
     ("Esc", "leave zoom"),
     ("/", "filter"),
-    ("r", "refresh"),
-    ("R", "refresh all"),
+    ("r/R", "refresh focused / all"),
     ("?", "this help"),
 ];
 

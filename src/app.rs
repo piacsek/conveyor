@@ -345,6 +345,9 @@ pub struct App {
     pub utc_offset_secs: i32,
     pub notice: Option<String>,
     pub details: bool,
+    pub details_scroll: u16,
+    pub details_page: u16,
+    pub details_overflow: u16,
     pub zoom: bool,
     pub jobs: HashMap<u64, JobsState>,
     pending_g: bool,
@@ -372,6 +375,9 @@ impl App {
             utc_offset_secs: 0,
             notice: None,
             details: false,
+            details_scroll: 0,
+            details_page: 0,
+            details_overflow: 0,
             zoom: false,
             jobs: HashMap::new(),
             pending_g: false,
@@ -619,7 +625,19 @@ impl App {
         })
     }
 
+    fn refocus(&mut self, step: impl Fn(Stage) -> Stage) {
+        self.focus = step(self.focus);
+        self.details_scroll = 0;
+    }
+
+    fn scroll_details(&mut self, half_pages: i32) {
+        let step = (self.details_page / 2).max(1) as i32;
+        let scroll = i32::from(self.details_scroll) + half_pages * step;
+        self.details_scroll = scroll.clamp(0, i32::from(self.details_overflow)) as u16;
+    }
+
     fn with_focused(&mut self, act: impl Fn(&mut dyn Navigable)) {
+        self.details_scroll = 0;
         match self.focus {
             Stage::Prs => act(&mut self.prs),
             Stage::Queue => act(&mut self.queue),
@@ -639,8 +657,19 @@ impl App {
 
     pub fn handle_key(&mut self, key: KeyEvent) -> Action {
         self.notice = None;
-        if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
-            return Action::Quit;
+        if key.modifiers.contains(KeyModifiers::CONTROL) {
+            match key.code {
+                KeyCode::Char('c') => return Action::Quit,
+                KeyCode::Char('d') => {
+                    self.scroll_details(1);
+                    return Action::Continue;
+                }
+                KeyCode::Char('u') => {
+                    self.scroll_details(-1);
+                    return Action::Continue;
+                }
+                _ => {}
+            }
         }
         match self.mode {
             Mode::Help => {
@@ -709,12 +738,15 @@ impl App {
             },
             KeyCode::Char('r') => return Action::Refresh(self.focus),
             KeyCode::Char('R') => return Action::RefreshAll,
-            KeyCode::Char('d') => self.details = !self.details,
+            KeyCode::Char('d') => {
+                self.details = !self.details;
+                self.details_scroll = 0;
+            }
             KeyCode::Char('z') => self.zoom = !self.zoom,
-            KeyCode::Char('l') if self.focus != Stage::Deployed => self.focus = self.focus.next(),
-            KeyCode::Char('h') if self.focus != Stage::Prs => self.focus = self.focus.previous(),
-            KeyCode::Tab => self.focus = self.focus.next(),
-            KeyCode::BackTab => self.focus = self.focus.previous(),
+            KeyCode::Char('l') if self.focus != Stage::Deployed => self.refocus(Stage::next),
+            KeyCode::Char('h') if self.focus != Stage::Prs => self.refocus(Stage::previous),
+            KeyCode::Tab => self.refocus(Stage::next),
+            KeyCode::BackTab => self.refocus(Stage::previous),
             KeyCode::Char('j') | KeyCode::Down => self.with_focused(|c| c.next()),
             KeyCode::Char('k') | KeyCode::Up => self.with_focused(|c| c.previous()),
             KeyCode::Char('G') => self.with_focused(|c| c.last()),

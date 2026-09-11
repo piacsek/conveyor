@@ -4,7 +4,7 @@ use conveyor::app::Request;
 use conveyor::app::Stage;
 use conveyor::model::builds::BuildStatus;
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, NOW, build, builds, failed, job, jobs, jobs_failed, key, tick_at};
+use support::{Harness, NOW, build, builds, ctrl, failed, job, jobs, jobs_failed, key, tick_at};
 
 fn column(screen: &str, index: usize) -> Vec<String> {
     screen
@@ -344,4 +344,78 @@ fn p_falls_back_to_the_squash_number_while_the_pull_request_is_unassociated() {
         vec!["https://github.com/acme/webapp/pull/4840".to_string()],
         "the card shows #4840, so p opens #4840"
     );
+}
+
+fn many_jobs() -> Vec<conveyor::model::jobs::Job> {
+    (1..=12)
+        .map(|i| job(i, &format!("job {i}"), BuildStatus::Success, None))
+        .collect()
+}
+
+fn long_details() -> Vec<std::io::Result<conveyor::app::Input>> {
+    let mut inputs = focus_builds();
+    inputs.push(key(KeyCode::Char('d')));
+    inputs.push(jobs(1026, many_jobs()));
+    inputs
+}
+
+#[test]
+fn ctrl_d_and_ctrl_u_scroll_the_details_pane_and_stop_at_both_ends() {
+    let mut h = Harness::with_size(160, 30);
+
+    h.run(long_details()).unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("bob  Speed up CI"), "the head: {screen}");
+    assert!(screen.contains("job 1  19s"), "{screen}");
+    assert!(!screen.contains("job 12  19s"), "below the fold: {screen}");
+
+    h.run(vec![ctrl('d')]).unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("job 12  19s"), "scrolled down: {screen}");
+    assert!(
+        !screen.contains("bob  Speed up CI"),
+        "the head left: {screen}"
+    );
+
+    h.run(vec![ctrl('d'), ctrl('d')]).unwrap();
+    assert!(
+        h.screen().contains("job 12  19s"),
+        "the bottom holds: {}",
+        h.screen()
+    );
+
+    h.run(vec![ctrl('u'), ctrl('u'), ctrl('u')]).unwrap();
+    let screen = h.screen();
+    assert!(
+        screen.contains("bob  Speed up CI"),
+        "back at the top: {screen}"
+    );
+    assert!(screen.contains("job 1  19s"), "{screen}");
+}
+
+#[test]
+fn moving_the_selection_returns_the_details_pane_to_the_top() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = long_details();
+    inputs.push(ctrl('d'));
+    inputs.push(key(KeyCode::Char('j')));
+    inputs.push(key(KeyCode::Char('k')));
+    inputs.push(jobs(1026, many_jobs()));
+
+    h.run(inputs).unwrap();
+
+    assert!(h.screen().contains("bob  Speed up CI"), "{}", h.screen());
+}
+
+#[test]
+fn the_details_title_says_there_is_more_to_scroll() {
+    let mut h = Harness::with_size(160, 30);
+
+    h.run(long_details()).unwrap();
+    assert!(h.screen().contains("run 26 ↓"), "{}", h.screen());
+
+    h.run(vec![ctrl('d')]).unwrap();
+    assert!(h.screen().contains("run 26 ↑"), "{}", h.screen());
 }

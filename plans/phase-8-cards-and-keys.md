@@ -36,3 +36,11 @@ terminal.
    its pull, deployment, jobs).
 3. `Enter` is a no-op.
 4. The keymap above, plus help, README, AGENTS and screenshots.
+
+## Follow-up: scrolling the details pane (v0.9.0)
+
+`Ctrl-d` / `Ctrl-u` move the details pane half a page, clamped to the content, with `↑`/`↓`
+in the title while there is more. Handled beside `Ctrl-C`, before the mode dispatch, so they
+also work while a filter is being typed. The scroll returns to the top on every selection
+move, focus change and `d`. The job list is no longer truncated to the pane height: it is
+scrollable, so `job_lines` renders every job.

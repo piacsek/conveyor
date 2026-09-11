@@ -412,6 +412,9 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   pull request, `b` the build, `y`/`Y` copy either URL, and the details pane moved to `d`.
   `p` and `y` no longer fall back to the run when a build has no pull request; they say so.
 
+- v0.9.0: `Ctrl-d`/`Ctrl-u` scroll the details pane half a page, so a run with more jobs than
+  the pane is tall is readable without a browser trip; the job list lost its height cap.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
