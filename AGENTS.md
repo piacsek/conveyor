@@ -70,8 +70,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `attach_runs` hangs it on `QueueEntry::run`, so the queue's details pane shows the run line
   and its jobs exactly as Main builds does, `b` opens it, and the card carries its run number.
   The entry's `checks` still comes from the run's status (`checks_of`), which outranks the
-  GraphQL rollup. `App::selected_run` is what the jobs machinery keys on, so jobs are fetched
-  for whichever of the two columns is focused, and `forget_unsettled_jobs` sweeps both.
+  GraphQL rollup: a **cancelled** run reads as `Unknown`, not as a failure — a queue that
+  re-batches cancels runs routinely, and the pane right below the card would be saying
+  `cancelled` while the card said `failure`. `App::selected_run` is what the jobs machinery
+  keys on, so jobs are fetched for whichever of the two columns is focused, and
+  `forget_unsettled_jobs` sweeps both.
 - **Merge queue**: one query per repo (`src/queries/queue.graphql`) plus one REST call
   `repos/{r}/actions/runs?event=merge_group&per_page=30`; runs are matched to entries by the
   `pr-<N>-` segment of `head_branch` and the newest run wins. The REST call is optional: a
