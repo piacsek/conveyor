@@ -21,9 +21,10 @@ focused column to the full width; `z` again or `Esc` leaves it.
 - **Merge queue**: the queue of the first `[[repo]]`, or of the repository checked out in the
   current directory, in position order. Card: check glyph (from the merge-group run when one
   exists), number and
-  title, ETA or state; then author, position and enqueue age; then the run's checks or
-  `no merge-group run yet`, the `solo`/`jump` flags and the head sha. `b` opens the
-  merge-group run. A repo without a merge queue shows the error in place.
+  title, ETA or state; then author, position and enqueue age; then the run number and its
+  checks or `no merge-group run yet`, the `solo`/`jump` flags and the head sha. `b` opens the
+  merge-group run and `d` shows it: status, duration, who started it, and its jobs with the
+  failed step, the same as a main build. A repo without a merge queue shows the error in place.
 - **Main builds**: the last `builds` runs of `main_workflow` pushed to `main`, newest first at
   every refresh. Card: status
   glyph, the PR it merged (from the squash `(#N)` suffix or the commit's pull requests) and

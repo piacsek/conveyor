@@ -415,6 +415,10 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
 - v0.9.0: `Ctrl-d`/`Ctrl-u` scroll the details pane half a page, so a run with more jobs than
   the pane is tall is readable without a browser trip; the job list lost its height cap.
 
+- v0.10.0: a queue entry carries its whole merge-group run, so `d` on a queue card shows the
+  run line and its jobs (with the failed step) exactly as a main build does, and the card shows
+  the run number. No extra `gh` call: the run was already fetched for the check glyph.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.

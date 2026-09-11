@@ -23,10 +23,14 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
         },
         Stage::Queue => match app.queue.selected() {
-            Some(entry) => (
-                format!("#{} {}", entry.number, entry.title),
-                queue_details(entry, app.now),
-            ),
+            Some(entry) => {
+                let mut lines = queue_details(entry, app.now);
+                if let Some(run) = &entry.run {
+                    lines.push(run_line(run, app.now, app.utc_offset_secs));
+                    lines.extend(job_lines(app.selected_jobs()));
+                }
+                (format!("#{} {}", entry.number, entry.title), lines)
+            }
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
         },
         Stage::Builds => match app.builds.selected() {
@@ -120,14 +124,10 @@ fn queue_details(entry: &QueueEntry, now: SystemTime) -> Vec<Line<'static>> {
         )),
         Line::from(format!("{enqueued}  checks: {}", check_word(entry.checks))),
         Line::from(Span::styled(entry.head_sha.clone(), dim())),
-        Line::from(match entry.run_url {
-            Some(_) => "run: b opens it",
-            None => "run: none yet",
-        }),
     ]
 }
 
-fn build_details(build: &Build, now: SystemTime, utc_offset_secs: i32) -> Vec<Line<'static>> {
+fn run_line(build: &Build, now: SystemTime, utc_offset_secs: i32) -> Line<'static> {
     let took = build
         .duration()
         .or_else(|| build.elapsed(now))
@@ -137,12 +137,16 @@ fn build_details(build: &Build, now: SystemTime, utc_offset_secs: i32) -> Vec<Li
         .started_at
         .map(|at| format!("started at {}", clock(at, utc_offset_secs)))
         .unwrap_or_default();
-    let mut lines = vec![Line::from(format!(
+    Line::from(format!(
         "run {}  {}  {took}  {started}  by {}",
         build.run_number,
         status_word(build.status),
         build.actor
-    ))];
+    ))
+}
+
+fn build_details(build: &Build, now: SystemTime, utc_offset_secs: i32) -> Vec<Line<'static>> {
+    let mut lines = vec![run_line(build, now, utc_offset_secs)];
     match &build.pull {
         Some(pull) => lines.push(Line::from(format!(
             "#{} {}  {}",

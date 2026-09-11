@@ -5,7 +5,7 @@ use conveyor::model::prs::{
     Check, CheckConclusion, CheckState, MergeState, PullRequest, ReviewDecision,
 };
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, entry, failed, key, pr, prs, queue};
+use support::{Harness, build, entry, failed, key, pr, prs, queue};
 
 fn sample() -> Vec<PullRequest> {
     let mut failing = pr(4821, "Retry webhook delivery with backoff");
@@ -41,7 +41,10 @@ fn queue_sample() -> Vec<conveyor::model::queue::QueueEntry> {
     first.state = conveyor::model::queue::QueueState::AwaitingChecks;
     first.checks = CheckState::Pending;
     first.eta = Some(std::time::Duration::from_secs(12 * 60));
-    first.run_url = Some("https://github.com/acme/webapp/actions/runs/1".to_string());
+    let mut run = build(312, conveyor::model::builds::BuildStatus::Running, None);
+    run.id = 4242;
+    run.actor = "github-merge-queue[bot]".to_string();
+    first.run = Some(run);
     let mut second = entry(2, 4830, "carol", "Add rate limit headers to the API");
     second.jump = true;
     vec![first, second]

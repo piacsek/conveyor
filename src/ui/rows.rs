@@ -125,8 +125,12 @@ pub(crate) fn queue_row(
     if entry.jump {
         flags.push("jump".to_string());
     }
-    let run = match entry.run_url {
-        Some(_) => format!("checks: {}", check_word(entry.checks)),
+    let run = match &entry.run {
+        Some(run) => format!(
+            "run {} · checks: {}",
+            run.run_number,
+            check_word(entry.checks)
+        ),
         None => "no merge-group run yet".to_string(),
     };
     let below = [run, flags.join(" "), sha8(&entry.head_sha)];

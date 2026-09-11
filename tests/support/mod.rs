@@ -184,7 +184,7 @@ pub fn entry(position: u64, number: u64, author: &str, title: &str) -> QueueEntr
         enqueued_at: Some(UNIX_EPOCH + Duration::from_secs(NOW - 20 * 60)),
         solo: false,
         jump: false,
-        run_url: None,
+        run: None,
     }
 }
 

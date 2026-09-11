@@ -85,6 +85,8 @@ jobs() {
     "$n" "$n" "$step" "$status" "$conclusion" \
     "$n" "$(iso $(( now_s - 1200 )))" "$(iso $(( now_s - 1000 )))" "$n" "$n"
 }
+mg_started="$(iso $(( now_s - 480 )))"
+jobs 313 in_progress null "Run cargo test" >"$home/jobs-313.json"
 jobs 312 in_progress null "Run cargo test" >"$home/jobs-312.json"
 jobs 311 completed '"failure"' "Run cargo test" >"$home/jobs-311.json"
 jobs 310 completed '"success"' "Run cargo test" >"$home/jobs-310.json"
@@ -100,7 +102,7 @@ case "\$*" in
   *'/commits/'*'/pulls'*) sha=\$(printf '%s' "\$*" | sed -E 's#.*/commits/([0-9a-f]+)/pulls.*#\\1#'); cat "$home/pulls-\$sha.json";;
   *'/commits/'*) echo '{"commit":{"message":"no suffix here"}}';;
   *'/pulls/'*) echo '{}';;
-  *actions/runs*) echo '{"workflow_runs":[{"head_branch":"gh-readonly-queue/main/pr-4821-0000000000000000000000000000000000000000","status":"in_progress","conclusion":null,"html_url":"https://github.com/acme/webapp/actions/runs/1"}]}';;
+  *actions/runs*) echo '{"workflow_runs":[{"id":313,"run_number":313,"head_branch":"gh-readonly-queue/main/pr-4821-0000000000000000000000000000000000000000","status":"in_progress","conclusion":null,"display_title":"CI/CD","actor":{"login":"github-merge-queue[bot]"},"run_started_at":"$mg_started","updated_at":"$mg_started","html_url":"https://github.com/acme/webapp/actions/runs/313"}]}';;
   *) cat "$home/prs.json";;
 esac
 SHIM
