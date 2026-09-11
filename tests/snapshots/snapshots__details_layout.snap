@@ -16,8 +16,8 @@ expression: h.screen()
 ┌#4821 Retry webhook delivery with backoff─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │#4821 acme/webapp  webhook-retry-backoff  +12 −3                                                                                                              │
 │review: approved  merge: blocked                                                                                                                              │
-│✗ api / test  https://github.com/acme/webapp/actions/runs/1/job/3                                                                                             │
-│✓ lint  https://github.com/acme/webapp/actions/runs/1/job/2                                                                                                   │
+│✗ api / test                                                                                                                                                  │
+│✓ lint                                                                                                                                                        │
 │                                                                                                                                                              │
 │                                                                                                                                                              │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

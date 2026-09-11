@@ -87,8 +87,8 @@ fn enter_opens_the_pull_request_b_opens_the_run_and_p_shows_its_details() {
     assert!(screen.contains("run 25  failure  3m"), "{screen}");
     assert!(screen.contains("#4821 alice  Retry hooks"), "{screen}");
     assert!(
-        screen.contains("https://github.com/acme/webapp/pull/4821"),
-        "{screen}"
+        !screen.contains("https://"),
+        "no URLs in the pane: {screen}"
     );
     assert!(screen.contains("started at 06:00:00"), "{screen}");
 }
@@ -172,10 +172,7 @@ fn p_on_a_build_asks_for_its_jobs_and_lists_them_failures_first() {
         "{screen}"
     );
     assert!(screen.contains("✓ audit  19s"), "{screen}");
-    assert!(
-        screen.contains("https://github.com/acme/webapp/actions/runs/1025/job/1"),
-        "{screen}"
-    );
+    assert!(!screen.contains("https://"), "no job URLs: {screen}");
     assert!(
         screen.contains("✗ check · Run cargo test"),
         "and on the card itself: {screen}"

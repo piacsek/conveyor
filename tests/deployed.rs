@@ -162,6 +162,10 @@ fn enter_opens_the_pull_request_and_p_shows_the_image_and_target() {
     );
     assert!(screen.contains("#4840 bob  Speed up CI"), "{screen}");
     assert!(screen.contains("deployed 6d ago"), "{screen}");
+    assert!(
+        !screen.contains("https://"),
+        "no URLs in the pane: {screen}"
+    );
 }
 
 #[test]

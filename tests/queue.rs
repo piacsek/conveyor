@@ -126,8 +126,8 @@ fn p_shows_queue_entry_details_for_the_focused_queue_column() {
         "{screen}"
     );
     assert!(
-        screen.contains("https://github.com/acme/webapp/pull/4821"),
-        "{screen}"
+        !screen.contains("https://"),
+        "no URLs in the pane: {screen}"
     );
 }
 
