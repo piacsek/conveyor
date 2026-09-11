@@ -1,0 +1,24 @@
+---
+source: tests/snapshots.rs
+expression: h.screen()
+---
+┌My PRs────────────────────────────────┐┌Merge queue───────────────────────────┐┌Main webapp (3)───────────────────────┐┌Deployed──────────────────────────────┐
+│fetching…                             ││fetching…                             ││▌ ● #4840                           2h││no [[repo.deploy]] configured         │
+│                                      ││                                      ││▌   Speed up CI with a warm cache     ││                                      │
+│                                      ││                                      ││▌   bob · run 312 · 2h · running      ││                                      │
+│                                      ││                                      ││▌   jobs: loading…                    ││                                      │
+│                                      ││                                      ││  ✗ #4821                           2h││                                      │
+│                                      ││                                      ││    [AIE-65] Retry webhook delivery w…││                                      │
+│                                      ││                                      ││    alice · run 311 · 3m · failure    ││                                      │
+│                                      ││                                      ││    ✗ Nx / Status · Check Nx workflow…││                                      │
+│                                      ││                                      ││  ⊘ #4830                           2h││                                      │
+│                                      ││                                      ││    Add rate limit headers to the API ││                                      │
+│                                      ││                                      ││    carol · run 310 · 3m · cancelled  ││                                      │
+│                                      ││                                      ││    00000000                          ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘
+refreshed just now                                                                                                                       ▪─▪─▪▸ conveyor v0.12.0
