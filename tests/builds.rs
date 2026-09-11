@@ -571,6 +571,42 @@ fn a_cancelled_build_does_not_blame_the_job_the_cancellation_killed() {
 }
 
 #[test]
+fn the_pane_still_lists_the_jobs_a_cancelled_card_stops_blaming() {
+    let mut h = Harness::with_size(160, 24);
+    let mut cancelled = build(
+        26,
+        BuildStatus::Cancelled,
+        Some((4840, "bob", "Speed up CI")),
+    );
+    cancelled.id = 1026;
+
+    h.run(vec![
+        builds(vec![cancelled]),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('d')),
+        jobs(
+            1026,
+            vec![job(
+                1,
+                "Nx / Status",
+                BuildStatus::Failure,
+                Some("Check Nx workflow status"),
+            )],
+        ),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    let col = column(&screen, 2);
+    assert!(!col[4].contains("Nx / Status"), "not on the card: {screen}");
+    assert!(
+        screen.contains("✗ Nx / Status  19s  failed at: Check Nx workflow status"),
+        "but the pane still has it: {screen}"
+    );
+}
+
+#[test]
 fn a_build_card_gives_the_title_its_own_line_under_the_number() {
     let mut h = Harness::new();
     let long = build(

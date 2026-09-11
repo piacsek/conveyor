@@ -5,7 +5,7 @@ use conveyor::model::prs::{
     Check, CheckConclusion, CheckState, MergeState, PullRequest, ReviewDecision,
 };
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, build, entry, failed, key, pr, prs, queue};
+use support::{Harness, build, builds, entry, failed, job, jobs, key, pr, prs, queue};
 
 fn sample() -> Vec<PullRequest> {
     let mut failing = pr(4821, "Retry webhook delivery with backoff");
@@ -57,6 +57,57 @@ fn list_layout() {
         prs(sample()),
         queue(queue_sample()),
         key(KeyCode::Char('j')),
+    ])
+    .unwrap();
+    insta::assert_snapshot!(h.screen());
+}
+
+#[test]
+fn builds_layout() {
+    let mut h = Harness::with_size(160, 20);
+    let mut running = build(
+        312,
+        conveyor::model::builds::BuildStatus::Running,
+        Some((4840, "bob", "Speed up CI with a warm cache")),
+    );
+    running.finished_at = None;
+    let failed = build(
+        311,
+        conveyor::model::builds::BuildStatus::Failure,
+        Some((
+            4821,
+            "alice",
+            "[AIE-65] Retry webhook delivery with backoff and a jitter window",
+        )),
+    );
+    let cancelled = build(
+        310,
+        conveyor::model::builds::BuildStatus::Cancelled,
+        Some((4830, "carol", "Add rate limit headers to the API")),
+    );
+
+    h.run(vec![
+        builds(vec![running, failed, cancelled]),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        jobs(
+            1311,
+            vec![job(
+                1,
+                "Nx / Status",
+                conveyor::model::builds::BuildStatus::Failure,
+                Some("Check Nx workflow status"),
+            )],
+        ),
+        jobs(
+            1310,
+            vec![job(
+                2,
+                "Nx / Status",
+                conveyor::model::builds::BuildStatus::Failure,
+                Some("Check Nx workflow status"),
+            )],
+        ),
     ])
     .unwrap();
     insta::assert_snapshot!(h.screen());

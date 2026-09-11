@@ -264,10 +264,17 @@ fn the_main_builds_column_fills_from_the_workflow_runs() {
     );
 
     let screen = server.wait_for_screen("Main webapp (4)");
-    assert!(screen.contains("✗ #3"), "{screen}");
+    let headline = screen
+        .lines()
+        .find(|line| line.contains("✗ #3"))
+        .unwrap_or_else(|| panic!("{screen}"));
     assert!(
-        screen.contains("Phase 2"),
-        "the title on its own line: {screen}"
+        !headline.contains("Phase 2"),
+        "the first line is the number and the age: {screen}"
+    );
+    assert!(
+        screen.lines().any(|line| line.contains("Phase 2")),
+        "the title has a line of its own: {screen}"
     );
     assert!(screen.contains("piacsek · run "), "{screen}");
     assert!(screen.contains("Queue webapp (2)"), "{screen}");

@@ -93,6 +93,13 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   part that got clipped — the one thing on the card you cannot reconstruct from the others.
   Row `n` therefore starts at screen line `1 + 4n`; tests that index a card's lines and any
   test asserting a third card need a terminal taller than the 12-row default.
+  It costs density, deliberately: `List` drops an item that does not fully fit, so a card needs
+  **four whole rows** — a Main builds pane under 6 rows draws a title over an empty body, and
+  the last card of a full column vanishes whole rather than half-drawn. The bold that marks the
+  selection moved with the title (`card()` only bolds its first line, which is now just the
+  number), so `build_row` styles the title line itself.
+  An empty `display_title` renders no title line at all rather than a blank one inside the
+  card.
 - **A cancelled run blames nobody.** GitHub marks the jobs a cancellation killed as failed, so
   a cancelled card used to carry a red `✗ <job> · <step>` line for work that never actually
   failed. `build_jobs`/`failed_job` drop the job line when the run is `Cancelled` and fall back
@@ -295,10 +302,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `SHIMS` mutex for its whole body. Any new test that writes an executable and runs it in the
   same test binary must do the same (or run it in a separate process such as tmux, as e2e
   does). Treat a green PR run as no proof against this class: it is timing-dependent.
-- A card's title line in a 40-column pane holds about 30 characters after the bar, glyph and
-  the right-aligned figure; behaviour tests use short titles, snapshots carry the truncation.
-  Card tests read line pairs or triples, not one line per row: with three-line cards row `n`
-  starts at screen line `1 + 3n`, and the helper that finds the selected card looks for `│▌`.
+- A card's first line in a 40-column pane holds about 30 characters after the bar, glyph and
+  the right-aligned figure; a build card's title gets a line of its own and about `width - 4`.
+  Card tests read line groups, not one line per row: a build card is four lines, so row `n`
+  starts at screen line `1 + 4n` and a test that wants a third card needs a terminal taller
+  than the 12-row default. The helper that finds the selected card looks for `│▌`.
 
 ## Documentation rule
 

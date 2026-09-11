@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use ratatui::style::{Color, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
 use crate::app::JobsState;
@@ -173,11 +173,19 @@ pub(crate) fn build_row(
         took,
         status_word(build.status).to_string(),
     ];
-    let lines = vec![
-        vec![Span::raw(truncate(&title, width.saturating_sub(INDENT)))],
-        meta(&parts, width),
-        build_jobs(build, jobs, width),
-    ];
+    let emphasis = match selected {
+        true => Style::default().add_modifier(Modifier::BOLD),
+        false => Style::default(),
+    };
+    let mut lines: Vec<Vec<Span<'static>>> = Vec::new();
+    if !title.trim().is_empty() {
+        lines.push(vec![Span::styled(
+            truncate(&title, width.saturating_sub(INDENT)),
+            emphasis,
+        )]);
+    }
+    lines.push(meta(&parts, width));
+    lines.push(build_jobs(build, jobs, width));
     card(
         selected,
         build_glyph(build.status),

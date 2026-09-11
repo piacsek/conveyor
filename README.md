@@ -23,18 +23,18 @@ focused column to the full width; `z` again or `Esc` leaves it.
   a run, else the check rollup's; number and
   title, ETA or state; then author, position and enqueue age; then the run number and its
   status or `no merge-group run yet`, the `solo`/`jump` flags and the head sha; then the job
-  that failed and the step it failed at. The glyph and the status word come from the run
-  itself once there is one, so a run the queue cancelled while re-batching reads `⊘ cancelled`
+  that failed and the step it failed at, unless the run was cancelled — then the sha, as in
+  Main builds. The glyph and the status word come from the run itself once there is one, so a run the queue cancelled while re-batching reads `⊘ cancelled`
   and never `✗ failure`. `b` opens the merge-group run and `d` shows it:
   status, duration, who started it, and every job, the same as a main build. A repo without a merge queue shows the error in place.
 - **Main builds**: the last `builds` runs of `main_workflow` pushed to `main`, newest first at
   every refresh. `⊘` is a cancelled run in every column — the grey `-` only ever means a
-  skipped check. Card, four lines: status
-  glyph, the PR it merged (from the squash `(#N)` suffix or the commit's pull requests) and the
-  age; then its title, on a line of its own; then author, run number, duration and status;
-  then the job that failed and
-  the step it failed at, fetched on demand for the selected run and for every failing one; a
-  cancelled run shows its sha instead, since the jobs it killed did not fail on their own.
+  skipped check. Card, four lines: the status glyph, the PR it merged (from the squash `(#N)`
+  suffix or the commit's pull requests) and the age; then its title, on a line of its own;
+  then author, run number, duration and status; then the job that failed and the step it failed
+  at, fetched on demand for the selected run and for every failing one. A cancelled run shows
+  its sha instead: the jobs a cancellation kills are marked failed, and they did not fail on
+  their own.
   `p` opens the PR it merged, `b` the run.
 - **Deployed**: one row per `[[repo.deploy.env]]`, read with `kubectl` (`--context`,
   `-n`, `get deploy -o jsonpath=…image`, 10 s timeout). The image tag must be the 40-hex
