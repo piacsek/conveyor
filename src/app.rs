@@ -347,7 +347,6 @@ pub struct App {
     pub details: bool,
     pub details_scroll: u16,
     pub details_page: u16,
-    pub details_overflow: u16,
     pub zoom: bool,
     pub jobs: HashMap<u64, JobsState>,
     pending_g: bool,
@@ -377,7 +376,6 @@ impl App {
             details: false,
             details_scroll: 0,
             details_page: 0,
-            details_overflow: 0,
             zoom: false,
             jobs: HashMap::new(),
             pending_g: false,
@@ -386,6 +384,23 @@ impl App {
     }
 
     pub fn receive(&mut self, stage: Stage, data: Result<Rows, String>) {
+        let selected = self.selected_key();
+        self.receive_rows(stage, data);
+        if self.selected_key() != selected {
+            self.details_scroll = 0;
+        }
+    }
+
+    fn selected_key(&self) -> Option<u64> {
+        match self.focus {
+            Stage::Prs => self.prs.selected().map(Row::key),
+            Stage::Queue => self.queue.selected().map(Row::key),
+            Stage::Builds => self.builds.selected().map(Row::key),
+            Stage::Deployed => self.deployed.selected().map(Row::key),
+        }
+    }
+
+    fn receive_rows(&mut self, stage: Stage, data: Result<Rows, String>) {
         match (stage, data) {
             (Stage::Prs, Ok(Rows::Prs(prs))) => self.prs.receive(prs, self.now),
             (Stage::Queue, Ok(Rows::Queue(queue))) => {
@@ -633,7 +648,7 @@ impl App {
     fn scroll_details(&mut self, half_pages: i32) {
         let step = (self.details_page / 2).max(1) as i32;
         let scroll = i32::from(self.details_scroll) + half_pages * step;
-        self.details_scroll = scroll.clamp(0, i32::from(self.details_overflow)) as u16;
+        self.details_scroll = scroll.clamp(0, i32::from(u16::MAX)) as u16;
     }
 
     fn with_focused(&mut self, act: impl Fn(&mut dyn Navigable)) {
@@ -657,23 +672,21 @@ impl App {
 
     pub fn handle_key(&mut self, key: KeyEvent) -> Action {
         self.notice = None;
-        if key.modifiers.contains(KeyModifiers::CONTROL) {
-            match key.code {
-                KeyCode::Char('c') => return Action::Quit,
-                KeyCode::Char('d') => {
-                    self.scroll_details(1);
-                    return Action::Continue;
-                }
-                KeyCode::Char('u') => {
-                    self.scroll_details(-1);
-                    return Action::Continue;
-                }
-                _ => {}
-            }
+        let control = key.modifiers.contains(KeyModifiers::CONTROL);
+        if control && key.code == KeyCode::Char('c') {
+            return Action::Quit;
         }
         match self.mode {
             Mode::Help => {
                 self.mode = Mode::Normal;
+                Action::Continue
+            }
+            _ if control && key.code == KeyCode::Char('d') => {
+                self.scroll_details(1);
+                Action::Continue
+            }
+            _ if control && key.code == KeyCode::Char('u') => {
+                self.scroll_details(-1);
                 Action::Continue
             }
             Mode::Filter(_) => self.handle_filter_key(key),

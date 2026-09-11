@@ -51,9 +51,11 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
         },
     };
     let page = area.height.saturating_sub(2);
-    let overflow = (lines.len() as u16).saturating_sub(page);
+    let overflow = match page {
+        0 => 0,
+        page => (lines.len() as u16).saturating_sub(page),
+    };
     app.details_page = page;
-    app.details_overflow = overflow;
     app.details_scroll = app.details_scroll.min(overflow);
     let scroll = app.details_scroll;
     let arrows = match (scroll > 0, scroll < overflow) {

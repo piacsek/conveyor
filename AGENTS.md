@@ -152,12 +152,19 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 - **Zoom.** `z` toggles `App::zoom`; `ui::draw` then renders only `app.focus` across the whole
   body and skips the tabs check, so the narrow layout is unaffected. Nothing else reads the flag.
 - **The details pane scrolls, the columns do not.** `Ctrl-d`/`Ctrl-u` move `App::details_scroll`
-  by half of `details_page` (the pane's inner height, written by `draw_details` along with
-  `details_overflow`), clamped to the content; the title grows `↑`/`↓` while there is more in
-  that direction. Both keys are handled next to `Ctrl-C`, before the mode dispatch, so they
-  work while a filter is being typed instead of landing in the query. The scroll returns to the
-  top on every selection move, focus change and `d`. Because the pane scrolls, the job list is
-  no longer truncated to what fits: `job_lines` renders every job.
+  by half of `details_page` (the pane's inner height, written by `draw_details`); the title
+  grows `↑`/`↓` while there is more in that direction. **`draw_details` owns the clamp**
+  (`details_scroll.min(overflow)` each frame), so the key handler only ever adds or subtracts:
+  the geometry it reads is last frame's, which is fine because `run()` draws before every
+  input, and a press with the pane closed is forgotten because `d` resets the scroll. A pane
+  too short to have an inside (`height < 2`) reports `page = 0`, no overflow and no arrows,
+  so a pane that shows nothing never advertises more. The scroll returns to the top on every
+  selection move, focus change, `d`, and on a refresh that lands a different row under the
+  selection (`App::receive` compares `selected_key` across the update).
+  The keys are handled next to `Ctrl-C` but **after** the `Mode::Help` arm, so the help pane
+  keeps its "any key returns" contract; in Filter mode they scroll instead of typing `d`/`u`
+  into the query. Because the pane scrolls, the job list is no longer truncated to what fits:
+  `job_lines` renders every job.
 - **The help pane does not scroll.** `draw_help` renders `KEYS` through a `Paragraph`, so a
   list longer than the pane is silently clipped from the bottom: 13 keys plus two borders
   exactly fills a 16-row terminal. `("q", "quit")` is therefore first in `KEYS`, so the one
@@ -221,8 +228,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   jobs, the sha, the pull request. A URL is 60 columns of noise nobody retypes, and both keys
   that need one (`b`, `p`) already hand it to the browser. `y`/`Y` copy them.
 - **The keymap pairs the pull request and the build.** `p`/`b` open them, `y`/`Y` copy them,
-  `d` is the details pane. `KEYS` stays 13 lines (`y/Y` share one) so the help still fits a
-  16-row terminal.
+  `d` is the details pane, `Ctrl-d`/`Ctrl-u` scroll it. `KEYS` stays 13 lines — `y/Y`, `r/R`
+  and `C-d/C-u` each share one — so the help still fits a 16-row terminal.
 - **Colors** come from the ANSI palette so terminal themes apply. Do not hardcode hex.
 
 ## Testing traps hit so far
