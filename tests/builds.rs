@@ -229,10 +229,10 @@ fn a_failed_jobs_fetch_shows_the_message_in_the_details_pane() {
 fn a_refresh_asks_again_for_an_unsettled_runs_jobs_and_keeps_the_settled_ones() {
     let mut h = Harness::with_size(160, 30);
     let mut inputs = focus_builds();
-    inputs.push(jobs(
-        1026,
-        vec![job(1, "check", BuildStatus::Running, None)],
-    ));
+    let running = || jobs(1026, vec![job(1, "check", BuildStatus::Running, None)]);
+    inputs.push(running());
+    inputs.push(builds(three()));
+    inputs.push(running());
     inputs.push(builds(three()));
     inputs.push(builds(three()));
 
@@ -244,7 +244,11 @@ fn a_refresh_asks_again_for_an_unsettled_runs_jobs_and_keeps_the_settled_ones() 
             .filter(|request| **request == Request::Jobs { run_id })
             .count()
     };
-    assert_eq!(asked(1026), 3, "the running run is asked on every refresh");
+    assert_eq!(
+        asked(1026),
+        3,
+        "asked again after each answer, but never while one is in flight"
+    );
     assert_eq!(asked(1025), 1, "the settled run keeps its jobs");
 }
 

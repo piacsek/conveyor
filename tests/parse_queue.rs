@@ -57,3 +57,75 @@ fn unknown_states_degrade_to_unknown() {
     assert_eq!(queue.entries[0].state, QueueState::Unknown);
     assert_eq!(queue.entries[0].author, "");
 }
+
+#[test]
+fn a_merge_group_run_carries_the_whole_run_and_outranks_the_rollup() {
+    use conveyor::model::builds::BuildStatus;
+    use conveyor::model::queue::parse_merge_group_runs;
+
+    let runs = parse_merge_group_runs(&serde_json::json!({"workflow_runs": [
+        {"id": 4242, "run_number": 313, "status": "completed", "conclusion": "failure",
+         "head_branch": "gh-readonly-queue/main/pr-4821-0000000000000000000000000000000000000000",
+         "display_title": "CI/CD", "actor": {"login": "merge-bot"},
+         "html_url": "https://github.com/acme/webapp/actions/runs/4242"},
+        {"id": 7, "head_branch": "main", "status": "completed", "conclusion": "success"}
+    ]}));
+
+    assert_eq!(runs.len(), 1, "only merge-group branches count");
+    assert_eq!(runs[0].number, 4821, "the pull request number");
+    assert_eq!(runs[0].build.run_number, 313, "the run number");
+    assert_eq!(runs[0].build.id, 4242);
+    assert_eq!(runs[0].build.status, BuildStatus::Failure);
+    assert_eq!(runs[0].build.actor, "merge-bot");
+
+    let mut queue = parse(&fixture(include_str!("fixtures/queue.json"))).unwrap();
+    assert_eq!(queue.entries[0].checks, CheckState::Pending, "the rollup");
+
+    queue.attach_runs(&runs);
+
+    assert_eq!(
+        queue.entries[0].checks,
+        CheckState::Failure,
+        "the run outranks the rollup"
+    );
+    assert_eq!(queue.entries[0].run.as_ref().map(|run| run.id), Some(4242));
+    assert!(queue.entries[1].run.is_none(), "no run for this entry");
+}
+
+#[test]
+fn a_cancelled_or_unrecognised_run_never_claims_the_checks_failed() {
+    use conveyor::model::queue::parse_merge_group_runs;
+
+    let run = |conclusion: serde_json::Value| {
+        parse_merge_group_runs(&serde_json::json!({"workflow_runs": [
+            {"id": 1, "run_number": 1, "status": "completed", "conclusion": conclusion,
+             "head_branch": "gh-readonly-queue/main/pr-4821-0000000000000000000000000000000000000000"}
+        ]}))
+    };
+    let checks_after = |runs: &[conveyor::model::queue::MergeGroupRun]| {
+        let mut queue = parse(&fixture(include_str!("fixtures/queue.json"))).unwrap();
+        queue.attach_runs(runs);
+        queue.entries[0].checks
+    };
+
+    assert_eq!(
+        checks_after(&run(serde_json::json!("cancelled"))),
+        CheckState::Unknown,
+        "a re-batched queue cancels runs; that is not a failure"
+    );
+    assert_eq!(
+        checks_after(&run(serde_json::json!("neither_here_nor_there"))),
+        CheckState::Unknown,
+        "a conclusion we do not know is not a failure either"
+    );
+    assert_eq!(
+        checks_after(&run(serde_json::json!("failure"))),
+        CheckState::Failure,
+        "a real failure still reads as one"
+    );
+    assert_eq!(
+        checks_after(&run(serde_json::json!(null))),
+        CheckState::Unknown,
+        "completed with no conclusion is unknown, not failed"
+    );
+}

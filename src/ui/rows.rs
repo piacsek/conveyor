@@ -6,6 +6,7 @@ use ratatui::text::{Line, Span};
 use crate::app::JobsState;
 use crate::model::builds::{Build, BuildStatus};
 use crate::model::deployed::Deployment;
+use crate::model::jobs::Job;
 use crate::model::prs::{Check, CheckConclusion, MergeState, PullRequest, ReviewDecision};
 use crate::model::queue::QueueEntry;
 use crate::text::{age, duration, truncate, wrap};
@@ -102,6 +103,7 @@ fn pr_checks(pr: &PullRequest, width: usize) -> Vec<Span<'static>> {
 
 pub(crate) fn queue_row(
     entry: &QueueEntry,
+    jobs: Option<&JobsState>,
     now: SystemTime,
     selected: bool,
     width: usize,
@@ -126,20 +128,18 @@ pub(crate) fn queue_row(
         flags.push("jump".to_string());
     }
     let run = match &entry.run {
-        Some(run) => format!(
-            "run {} · checks: {}",
-            run.run_number,
-            check_word(entry.checks)
-        ),
+        Some(run) => format!("run {} · {}", run.run_number, check_word(entry.checks)),
         None => "no merge-group run yet".to_string(),
     };
     let below = [run, flags.join(" "), sha8(&entry.head_sha)];
+    let mut lines = vec![meta(&parts, width), meta(&below, width)];
+    lines.extend(failed_job(jobs, width));
     card(
         selected,
         glyph(entry.checks),
         format!("#{} {}", entry.number, entry.title),
         right,
-        vec![meta(&parts, width), meta(&below, width)],
+        lines,
         width,
     )
 }
@@ -182,6 +182,30 @@ pub(crate) fn build_row(
     )
 }
 
+fn failed_job(jobs: Option<&JobsState>, width: usize) -> Option<Vec<Span<'static>>> {
+    let Some(JobsState::Ready(jobs)) = jobs else {
+        return None;
+    };
+    let failed = jobs.iter().find(|job| job.status == BuildStatus::Failure)?;
+    Some(job_span(failed, width))
+}
+
+fn job_span(job: &Job, width: usize) -> Vec<Span<'static>> {
+    let (glyph, color) = build_glyph(job.status);
+    let step = job
+        .failed_step
+        .as_ref()
+        .map(|step| format!(" · {step}"))
+        .unwrap_or_default();
+    vec![Span::styled(
+        truncate(
+            &format!("{glyph} {}{step}", job.name),
+            width.saturating_sub(INDENT),
+        ),
+        Style::default().fg(color),
+    )]
+}
+
 fn build_jobs(build: &Build, jobs: Option<&JobsState>, width: usize) -> Vec<Span<'static>> {
     match jobs {
         Some(JobsState::Ready(jobs)) => {
@@ -190,21 +214,7 @@ fn build_jobs(build: &Build, jobs: Option<&JobsState>, width: usize) -> Vec<Span
                 .find(|job| job.status == BuildStatus::Failure)
                 .or_else(|| jobs.iter().find(|job| !job.status.is_settled()));
             match worst {
-                Some(job) => {
-                    let (glyph, color) = build_glyph(job.status);
-                    let step = job
-                        .failed_step
-                        .as_ref()
-                        .map(|step| format!(" · {step}"))
-                        .unwrap_or_default();
-                    vec![Span::styled(
-                        truncate(
-                            &format!("{glyph} {}{step}", job.name),
-                            width.saturating_sub(INDENT),
-                        ),
-                        Style::default().fg(color),
-                    )]
-                }
+                Some(job) => job_span(job, width),
                 None => meta(&[format!("{} jobs ok", jobs.len())], width),
             }
         }

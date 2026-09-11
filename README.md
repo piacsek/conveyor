@@ -22,9 +22,9 @@ focused column to the full width; `z` again or `Esc` leaves it.
   current directory, in position order. Card: check glyph (from the merge-group run when one
   exists), number and
   title, ETA or state; then author, position and enqueue age; then the run number and its
-  checks or `no merge-group run yet`, the `solo`/`jump` flags and the head sha. `b` opens the
-  merge-group run and `d` shows it: status, duration, who started it, and its jobs with the
-  failed step, the same as a main build. A repo without a merge queue shows the error in place.
+  checks or `no merge-group run yet`, the `solo`/`jump` flags and the head sha; then the job
+  that failed and the step it failed at. `b` opens the merge-group run and `d` shows it:
+  status, duration, who started it, and every job, the same as a main build. A repo without a merge queue shows the error in place.
 - **Main builds**: the last `builds` runs of `main_workflow` pushed to `main`, newest first at
   every refresh. Card: status
   glyph, the PR it merged (from the squash `(#N)` suffix or the commit's pull requests) and
