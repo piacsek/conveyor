@@ -194,7 +194,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   line (`▌`/space, glyph, bold-when-selected title padded, right-aligned figure) plus one
   indented line per `rest` entry, each a `Vec<Span>` so a line can be dim, red or a mix. The
   cyan `▌` is drawn on **every** line of the selected card, so it reads as the card's left
-  edge; that plus the bold title is the whole highlight. No background, no reverse video: the
+  edge; that plus the bold title is the whole highlight. **Only the focused column draws it**:
+  `draw_list` takes `focused` and filters `column.list.selected()` on it, so four cards never
+  look selected at once. The unfocused column keeps its selection (and the list keeps it in
+  view); it just does not paint it. No background, no reverse video: the
   user asked for a minimal one, twice. A
   per-stage row fn builds them (`pr_row`, `queue_row`, `build_row`, `deployed_row`) and
   `draw_list` wraps each in `ListItem::new(Text::from(lines))` with no `highlight_symbol`:

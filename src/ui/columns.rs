@@ -55,6 +55,7 @@ pub(crate) fn draw_column(
     titled: bool,
 ) {
     let block = column_block(app, stage, titled);
+    let focused = stage == app.focus;
     let now = app.now;
     let jobs = std::mem::take(&mut app.jobs);
     match stage {
@@ -63,6 +64,7 @@ pub(crate) fn draw_column(
             &mut app.prs,
             area,
             block,
+            focused,
             "no open pull requests",
             |_, pr, on, w| pr_row(pr, now, on, w),
         ),
@@ -71,6 +73,7 @@ pub(crate) fn draw_column(
             &mut app.queue,
             area,
             block,
+            focused,
             "queue empty",
             |_, entry, on, w| queue_row(entry, now, on, w),
         ),
@@ -79,6 +82,7 @@ pub(crate) fn draw_column(
             &mut app.builds,
             area,
             block,
+            focused,
             "no builds on main",
             |_, build, on, w| build_row(build, jobs.get(&build.id), now, on, w),
         ),
@@ -104,6 +108,7 @@ pub(crate) fn draw_column(
                 &mut app.deployed,
                 area,
                 block,
+                focused,
                 "no environments",
                 |i, row, on, w| deployed_row(row, behind.get(i).copied().flatten(), now, on, w),
             )
@@ -117,6 +122,7 @@ fn draw_list<T: Row>(
     column: &mut Column<T>,
     area: Rect,
     block: Block<'static>,
+    focused: bool,
     empty: &str,
     row: impl Fn(usize, &T, bool, usize) -> Vec<Line<'static>>,
 ) {
@@ -142,7 +148,7 @@ fn draw_list<T: Row>(
         return;
     }
     let width = usize::from(area.width.saturating_sub(2));
-    let selected = column.list.selected();
+    let selected = column.list.selected().filter(|_| focused);
     let items: Vec<ListItem> = visible
         .iter()
         .enumerate()

@@ -35,11 +35,7 @@ fn queue_cards_show_the_entry_its_position_age_and_eta_or_state() {
 
     let col = column(&h.screen(), 1);
     assert!(col[0].contains("Queue webapp (2)"), "{}", h.screen());
-    assert!(
-        col[1].contains("▌ ● #4821 Retry webhooks"),
-        "{}",
-        h.screen()
-    );
+    assert!(col[1].contains("● #4821 Retry webhooks"), "{}", h.screen());
     assert!(col[1].contains("12m"), "{}", h.screen());
     assert!(
         col[2].contains("alice · position 1 · enqueued 20m"),

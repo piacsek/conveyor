@@ -1,7 +1,7 @@
 mod support;
 
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, NOW, key, pr, prs, tick_at};
+use support::{Harness, NOW, entry, key, pr, prs, queue, tick_at};
 
 #[test]
 fn no_pull_requests_shows_an_empty_column_and_q_quits() {
@@ -820,4 +820,37 @@ fn leaving_a_filter_or_the_help_does_not_disturb_zoom() {
         "and now esc leaves zoom: {}",
         h.screen()
     );
+}
+
+#[test]
+fn only_the_focused_column_highlights_its_selected_card() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(three()),
+        queue(vec![entry(1, 4821, "alice", "Retry webhooks")]),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    let rows: Vec<&str> = screen.lines().collect();
+    assert!(rows[1].starts_with("│▌ ✓ #1 a"), "{screen}");
+    assert_eq!(
+        screen.matches('▌').count(),
+        3,
+        "one bar per line of the one selected card: {screen}"
+    );
+
+    h.run(vec![key(KeyCode::Tab)]).unwrap();
+
+    let screen = h.screen();
+    assert!(
+        !screen.lines().nth(1).unwrap().starts_with("│▌"),
+        "the PR card lost its bar: {screen}"
+    );
+    assert!(
+        screen.contains("▌ ○ #4821 Retry webhooks"),
+        "the queue card took it: {screen}"
+    );
+    assert_eq!(screen.matches('▌').count(), 3, "still only one card");
 }

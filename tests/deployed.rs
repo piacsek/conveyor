@@ -54,7 +54,7 @@ fn deployed_cards_give_each_field_its_own_line_with_the_title_before_the_author(
 
     let col = column(&h.screen(), 3);
     assert!(col[0].contains("Deployed api"), "{}", h.screen());
-    assert!(col[1].contains("▌ ✓ staging"), "{}", h.screen());
+    assert!(col[1].contains("✓ staging"), "{}", h.screen());
     assert!(col[1].contains("at main"), "{}", h.screen());
     assert!(col[2].contains("#4840 Speed up CI"), "{}", h.screen());
     assert!(col[3].contains("bob"), "the author below: {}", h.screen());
