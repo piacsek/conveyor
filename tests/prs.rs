@@ -177,6 +177,7 @@ fn p_toggles_a_details_pane_with_failed_checks_first() {
         .unwrap();
     let lint_line = screen.lines().position(|l| l.contains("✓ lint")).unwrap();
     assert!(test_line < lint_line, "failures first: {screen}");
+    assert!(!screen.contains("https://"), "no check URLs: {screen}");
 
     h.run(vec![key(KeyCode::Char('p'))]).unwrap();
     assert!(!h.screen().contains("review: approved"), "{}", h.screen());

@@ -69,8 +69,7 @@ fn pr_details(pr: &PullRequest) -> Vec<Line<'static>> {
         let (glyph, color) = conclusion_glyph(check.conclusion);
         Line::from(vec![
             Span::styled(glyph.to_string(), Style::default().fg(color)),
-            Span::raw(format!(" {}  ", check.name)),
-            Span::styled(check.url.clone(), dim()),
+            Span::raw(format!(" {}", check.name)),
         ])
     }));
     lines
@@ -103,14 +102,10 @@ fn queue_details(entry: &QueueEntry, now: SystemTime) -> Vec<Line<'static>> {
             entry.number, entry.author, entry.position, entry.state
         )),
         Line::from(format!("{enqueued}  checks: {}", check_word(entry.checks))),
-        Line::from(vec![
-            Span::styled(entry.head_sha.clone(), dim()),
-            Span::raw("  "),
-            Span::styled(entry.url.clone(), dim()),
-        ]),
-        Line::from(match &entry.run_url {
-            Some(url) => format!("run: {url}"),
-            None => "run: none yet".to_string(),
+        Line::from(Span::styled(entry.head_sha.clone(), dim())),
+        Line::from(match entry.run_url {
+            Some(_) => "run: b opens it",
+            None => "run: none yet",
         }),
     ]
 }
@@ -132,20 +127,13 @@ fn build_details(build: &Build, now: SystemTime, utc_offset_secs: i32) -> Vec<Li
         build.actor
     ))];
     match &build.pull {
-        Some(pull) => lines.push(Line::from(vec![
-            Span::raw(format!(
-                "#{} {}  {}  ",
-                pull.number, pull.author, pull.title
-            )),
-            Span::styled(pull.url.clone(), dim()),
-        ])),
+        Some(pull) => lines.push(Line::from(format!(
+            "#{} {}  {}",
+            pull.number, pull.author, pull.title
+        ))),
         None => lines.push(Line::from(build.title.clone())),
     }
-    lines.push(Line::from(vec![
-        Span::styled(build.sha.clone(), dim()),
-        Span::raw("  "),
-        Span::styled(build.url.clone(), dim()),
-    ]));
+    lines.push(Line::from(Span::styled(build.sha.clone(), dim())));
     lines
 }
 
@@ -156,13 +144,10 @@ fn deployed_details(row: &Deployment, now: SystemTime) -> Vec<Line<'static>> {
         row.image.clone().unwrap_or_else(|| "no image".to_string())
     ))];
     match &row.pull {
-        Some(pull) => lines.push(Line::from(vec![
-            Span::raw(format!(
-                "#{} {}  {}  ",
-                pull.number, pull.author, pull.title
-            )),
-            Span::styled(pull.url.clone(), dim()),
-        ])),
+        Some(pull) => lines.push(Line::from(format!(
+            "#{} {}  {}",
+            pull.number, pull.author, pull.title
+        ))),
         None => lines.push(Line::from("no pull request found for this commit")),
     }
     let deployed = row
@@ -192,8 +177,7 @@ fn job_line(job: &Job) -> Line<'static> {
     let (glyph, color) = build_glyph(job.status);
     Line::from(vec![
         Span::styled(glyph.to_string(), Style::default().fg(color)),
-        Span::raw(format!(" {}  {took}{failed_at}  ", job.name)),
-        Span::styled(job.url.clone(), dim()),
+        Span::raw(format!(" {}  {took}{failed_at}", job.name)),
     ])
 }
 

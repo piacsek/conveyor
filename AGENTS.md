@@ -207,6 +207,9 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   go further: one field per line rather than a joined-and-truncated `meta()`, the PR title
   before the author, wrapped with `text::wrap` over at most `DEPLOYED_TITLE_LINES` lines. Card
   height varies per row; the list widget handles it.
+- **No URLs in the details pane.** Every line there is text a person reads: the checks, the
+  jobs, the sha, the pull request. A URL is 60 columns of noise nobody retypes, and both keys
+  that need one (`b`, `p`) already hand it to the browser. `y`/`Y` copy them.
 - **Colors** come from the ANSI palette so terminal themes apply. Do not hardcode hex.
 
 ## Testing traps hit so far
