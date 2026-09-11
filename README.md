@@ -8,7 +8,8 @@ Status: phase 7. All four columns are live: My PRs, Merge queue, Main builds, De
 
 Every item is a card of two or three lines: a title line with the status glyph and one
 right-aligned figure, then dim lines carrying what you would otherwise open a browser for.
-The selected card wears a cyan bar down its whole left edge and a bold title. `z` zooms the
+The selected card of the focused column wears a cyan bar down its whole left edge and a
+bold title; the other columns keep their place without a highlight. `z` zooms the
 focused column to the full width; `z` again or `Esc` leaves it.
 
 ![columns](docs/columns.png)

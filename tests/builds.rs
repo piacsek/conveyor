@@ -39,7 +39,7 @@ fn build_cards_show_the_pull_request_the_run_and_the_sha() {
 
     let col = column(&h.screen(), 2);
     assert!(col[0].contains("Main webapp (3)"), "{}", h.screen());
-    assert!(col[1].contains("▌ ● #4840 Speed up CI"), "{}", h.screen());
+    assert!(col[1].contains("● #4840 Speed up CI"), "{}", h.screen());
     assert!(col[1].contains("1m"), "elapsed age: {}", h.screen());
     assert!(
         col[2].contains("bob · run 26 · 1m · running"),
