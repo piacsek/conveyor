@@ -29,9 +29,10 @@ focused column to the full width; `z` again or `Esc` leaves it.
   status, duration, who started it, and every job, the same as a main build. A repo without a merge queue shows the error in place.
 - **Main builds**: the last `builds` runs of `main_workflow` pushed to `main`, newest first at
   every refresh. `⊘` is a cancelled run in every column — the grey `-` only ever means a
-  skipped check. Card: status
-  glyph, the PR it merged (from the squash `(#N)` suffix or the commit's pull requests) and
-  its title, age; then author, run number, duration and status; then the job that failed and
+  skipped check. Card, four lines: status
+  glyph, the PR it merged (from the squash `(#N)` suffix or the commit's pull requests) and the
+  age; then its title, on a line of its own; then author, run number, duration and status;
+  then the job that failed and
   the step it failed at, fetched on demand for the selected run and for every failing one; a
   cancelled run shows its sha instead, since the jobs it killed did not fail on their own.
   `p` opens the PR it merged, `b` the run.

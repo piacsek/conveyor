@@ -173,16 +173,17 @@ pub(crate) fn build_row(
         took,
         status_word(build.status).to_string(),
     ];
-    let headline = match build.pull.is_some() || build.pr_number.is_some() {
-        true => format!("{label} {title}"),
-        false => title,
-    };
+    let lines = vec![
+        vec![Span::raw(truncate(&title, width.saturating_sub(INDENT)))],
+        meta(&parts, width),
+        build_jobs(build, jobs, width),
+    ];
     card(
         selected,
         build_glyph(build.status),
-        headline,
+        label,
         build.started_at.map(|at| age(at, now)).unwrap_or_default(),
-        vec![meta(&parts, width), build_jobs(build, jobs, width)],
+        lines,
         width,
     )
 }

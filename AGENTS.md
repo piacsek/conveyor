@@ -87,6 +87,12 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   the same `pr-<N>-` branch prefix, and REST order is not a promise. Ids are monotonic in time
   across the whole of GitHub, which `run_number` is not (it is per workflow, and a merge group
   can run more than one).
+- **A build card is four lines**: the number (or `run N` when no pull request is known) with
+  the age on the right, then the **title on a line of its own**, then the meta line, then the
+  jobs line. The title used to share the first line with the number and the age and was the
+  part that got clipped — the one thing on the card you cannot reconstruct from the others.
+  Row `n` therefore starts at screen line `1 + 4n`; tests that index a card's lines and any
+  test asserting a third card need a terminal taller than the 12-row default.
 - **A cancelled run blames nobody.** GitHub marks the jobs a cancellation killed as failed, so
   a cancelled card used to carry a red `✗ <job> · <step>` line for work that never actually
   failed. `build_jobs`/`failed_job` drop the job line when the run is `Cancelled` and fall back

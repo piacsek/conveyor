@@ -264,7 +264,11 @@ fn the_main_builds_column_fills_from_the_workflow_runs() {
     );
 
     let screen = server.wait_for_screen("Main webapp (4)");
-    assert!(screen.contains("✗ #3 Phase 2"), "{screen}");
+    assert!(screen.contains("✗ #3"), "{screen}");
+    assert!(
+        screen.contains("Phase 2"),
+        "the title on its own line: {screen}"
+    );
     assert!(screen.contains("piacsek · run "), "{screen}");
     assert!(screen.contains("Queue webapp (2)"), "{screen}");
 }
