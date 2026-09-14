@@ -393,6 +393,35 @@ Install: `scripts/dev-install.sh` builds the release binary and symlinks it as
 `cargo install` the crate into a PATH dir. A milestone is done only after the gates pass
 **and** `dev-install.sh` has run, so `conveyor-dev` is the committed code.
 
+## CI
+
+`.github/workflows/ci.yml` runs on every push to `main` and every pull request: a `check` job
+(fmt, clippy `-D warnings`, `cargo test -- --include-ignored` with tmux installed for the e2e
+suite) and an `audit` job (`cargo audit`). Learnings from the 2026-09-14 speed-up, when the
+pipeline went from ~3 min 20 s to 37 s:
+
+- **Measure before touching anything.** Per-step timings are one call away:
+  `gh run view <run id> --json jobs --jq '.jobs[] | .name, (.steps[] | "  \(.name): \(.startedAt) -> \(.completedAt)")'`.
+  The whole pipeline was bound by one step: `rustsec/audit-check` ran `cargo install cargo-audit`
+  from source on every run (3 min 05 s of compile); everything else together was under 45 s.
+- **Never `cargo install` a tool in CI.** Take the release binary instead:
+  `taiki-e/install-action` with `tool: <name>` downloads the checksum-verified binary in about a
+  second. `audit` is now 8 s. The same applies to any future tool (`cargo-insta`, `cargo-deny`).
+- **Do not build what another workflow already builds.** `check` ran `cargo build --release`
+  (14 s) although nothing consumed it: the e2e tests take the debug binary from
+  `CARGO_BIN_EXE_conveyor`, and `release.yml` is what proves the release profile.
+- **One test invocation.** `cargo test -- --include-ignored` runs the unit, TUI and e2e suites in
+  one pass; two invocations rebuilt the test harness twice for nothing.
+- **The floor is setup.** In the 33 s `check` job, about 13 s is checkout + toolchain +
+  `Swatinem/rust-cache` restore and 6 s is `apt-get install tmux`; fmt + clippy + tests are
+  about 8 s. Shaving further means caching the apt package or a container image, not touching
+  cargo.
+- **Trade-off taken.** `rustsec/audit-check` opened a GitHub issue when a new advisory hit
+  `main`; with plain `cargo audit` a red `audit` check is the only signal. Add a `schedule`
+  trigger if advisories should be caught between pushes.
+- **Pins.** Every action stays pinned to a commit SHA with the tag in a trailing comment (see
+  Releasing for how to bump one).
+
 ## Releasing
 
 Releases are GitHub Releases built by `.github/workflows/release.yml` on a `v*` tag: one flat
