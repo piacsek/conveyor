@@ -50,6 +50,10 @@ cat >"$home/prs.json" <<JSON
 ]}}}
 JSON
 cp "$root/tests/fixtures/queue.json" "$home/queue.json"
+sha_4840=8c1f2a7d94e3b06f5a2c9d18e7b4f0a3c6d5e291
+sha_4821=b7e4d2c9a1f08635e9d47c2ab3f61d0e8a95c4f7
+sha_4830=d94a7c31e5f2b8069c4d1ea7f3b5c082d6e9a1b4
+sha_4790=5e2c8b9f1a47d3e06b8f4c2d9a1e7f35c0b6d8a2
 now_s="$(date -u +%s)"
 iso() { date -u -r "$1" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d "@$1" +%Y-%m-%dT%H:%M:%SZ; }
 run() {
@@ -60,17 +64,17 @@ run() {
 }
 {
   printf '{"workflow_runs":['
-  run 312 in_progress null 3333333333333333333333333333333333333333 "Speed up CI with a warm cache (#4840)" 95 0; printf ','
-  run 311 completed '"failure"' 2222222222222222222222222222222222222222 "Retry webhook delivery with backoff (#4821)" 3600 1097; printf ','
-  run 310 completed '"success"' 1111111111111111111111111111111111111111 "Add rate limit headers to the API (#4830)" 7200 1002; printf ','
-  run 309 completed '"success"' 0000000000000000000000000000000000000000 "Spike: parallel test runner (#4790)" 90000 930
+  run 312 in_progress null $sha_4840 "Speed up CI with a warm cache (#4840)" 95 0; printf ','
+  run 311 completed '"failure"' $sha_4821 "Retry webhook delivery with backoff (#4821)" 3600 1097; printf ','
+  run 310 completed '"success"' $sha_4830 "Add rate limit headers to the API (#4830)" 7200 1002; printf ','
+  run 309 completed '"success"' $sha_4790 "Spike: parallel test runner (#4790)" 90000 930
   printf ']}'
 } >"$home/runs.json"
 pulls() { printf '[{"number":%s,"title":"%s","html_url":"https://github.com/acme/webapp/pull/%s","user":{"login":"%s"}}]' "$1" "$2" "$1" "$3"; }
-pulls 4840 "Speed up CI with a warm cache" bob >"$home/pulls-3333333333333333333333333333333333333333.json"
-pulls 4821 "Retry webhook delivery with backoff" alice >"$home/pulls-2222222222222222222222222222222222222222.json"
-pulls 4830 "Add rate limit headers to the API" carol >"$home/pulls-1111111111111111111111111111111111111111.json"
-pulls 4790 "Spike: parallel test runner" dave >"$home/pulls-0000000000000000000000000000000000000000.json"
+pulls 4840 "Speed up CI with a warm cache" bob >"$home/pulls-$sha_4840.json"
+pulls 4821 "Retry webhook delivery with backoff" alice >"$home/pulls-$sha_4821.json"
+pulls 4830 "Add rate limit headers to the API" carol >"$home/pulls-$sha_4830.json"
+pulls 4790 "Spike: parallel test runner" dave >"$home/pulls-$sha_4790.json"
 jobs() {
   local n="$1" status="$2" conclusion="$3" step="$4"
   printf '{"total_count":2,"jobs":[
@@ -108,12 +112,12 @@ esac
 SHIM
 chmod +x "$home/bin/gh"
 
-cat >"$home/bin/kubectl" <<'KUBE'
+cat >"$home/bin/kubectl" <<KUBE
 #!/bin/sh
-case "$*" in
-  *ctx-dev*) printf 'ghcr.io/acme/api:3333333333333333333333333333333333333333';;
-  *ctx-staging*) printf 'ghcr.io/acme/api:2222222222222222222222222222222222222222';;
-  *ctx-prod*) printf 'ghcr.io/acme/api:0000000000000000000000000000000000000000';;
+case "\$*" in
+  *ctx-dev*) printf 'ghcr.io/acme/api:$sha_4840';;
+  *ctx-staging*) printf 'ghcr.io/acme/api:$sha_4821';;
+  *ctx-prod*) printf 'ghcr.io/acme/api:$sha_4790';;
   *) echo 'ERROR: Active profile expired.' >&2; exit 1;;
 esac
 KUBE
@@ -171,6 +175,9 @@ render() {
   fi
   freeze "$home/$name.ansi" -o "$svg" --theme catppuccin-mocha "${font[@]}" \
     --font.family "FiraCode Nerd Font" --font.size 14 --margin 0 "$@" </dev/null
+  # FiraCode has no ✗ ⊘ ▸; Chrome's default fallback is wider and shifts the rest of the row, so
+  # the borders jog. Menlo has them at (almost) the same advance, and DejaVu is its Linux twin.
+  sed -i.bak 's/font-family="FiraCode Nerd Font"/font-family="FiraCode Nerd Font, Menlo, DejaVu Sans Mono, monospace"/' "$svg"
   local w h
   w="$(grep -o 'width="[0-9.]*"' "$svg" | head -1 | grep -o '[0-9]*' | head -1)"
   h="$(grep -o 'height="[0-9.]*"' "$svg" | head -1 | grep -o '[0-9]*' | head -1)"
