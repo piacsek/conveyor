@@ -31,10 +31,20 @@ fn only_web_urls_reach_the_platform_opener() {
     ] {
         let err = web_url(url).expect_err(url).to_string();
         assert!(err.contains("not an http(s) URL"), "{url}: {err}");
-        let err = SystemOpener
+        // A program that does not exist: a regression would surface as `not found on PATH`,
+        // never as a launched app.
+        let opener = SystemOpener::with_open_program("/nonexistent/conveyor-test-open".into());
+        let err = opener
             .open(url)
             .expect_err("the system opener refuses before it spawns")
             .to_string();
         assert!(err.starts_with("refusing to open"), "{url}: {err}");
     }
+}
+
+#[test]
+fn the_system_opener_spawns_the_injected_program_for_a_web_url() {
+    let opener = SystemOpener::with_open_program("/nonexistent/conveyor-test-open".into());
+    let err = opener.open("https://ci/test").unwrap_err().to_string();
+    assert!(err.contains("not found on PATH"), "{err}");
 }

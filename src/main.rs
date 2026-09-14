@@ -93,7 +93,7 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
         &mut terminal,
         &mut app,
         rx.into_iter(),
-        &SystemOpener,
+        &SystemOpener::default(),
         |request| match request {
             Request::Refresh(stage) => {
                 if let Some(refresh) = refreshers.get(&stage) {

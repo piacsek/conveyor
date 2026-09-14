@@ -1,5 +1,6 @@
 use std::io;
 use std::io::Write;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 pub trait Opener {
@@ -7,8 +8,15 @@ pub trait Opener {
     fn copy(&self, text: &str) -> io::Result<()>;
 }
 
-#[derive(Default)]
-pub struct SystemOpener;
+pub struct SystemOpener {
+    open_program: PathBuf,
+}
+
+impl Default for SystemOpener {
+    fn default() -> Self {
+        Self::with_open_program(Self::default_open_program().into())
+    }
+}
 
 /// Accept a URL for the browser only when it is a web URL. Check URLs come from whatever
 /// GitHub App or CI posted the check, not from GitHub itself, and `open`/`xdg-open` would
@@ -29,13 +37,22 @@ pub fn web_url(url: &str) -> io::Result<&str> {
 }
 
 impl SystemOpener {
-    pub fn open_args(url: &str) -> Vec<String> {
-        let program = if cfg!(target_os = "macos") {
+    /// The browser launcher to spawn instead of the platform's `open`/`xdg-open`; tests
+    /// point it at a program that does not exist so nothing is ever launched.
+    pub fn with_open_program(open_program: PathBuf) -> Self {
+        Self { open_program }
+    }
+
+    fn default_open_program() -> &'static str {
+        if cfg!(target_os = "macos") {
             "open"
         } else {
             "xdg-open"
-        };
-        vec![program.to_string(), url.to_string()]
+        }
+    }
+
+    pub fn open_args(url: &str) -> Vec<String> {
+        vec![Self::default_open_program().to_string(), url.to_string()]
     }
 
     pub fn copy_args() -> Vec<String> {
@@ -67,14 +84,14 @@ fn not_found(name: &str, err: io::Error) -> io::Error {
 
 impl Opener for SystemOpener {
     fn open(&self, url: &str) -> io::Result<()> {
-        let args = Self::open_args(web_url(url)?);
-        let status = Command::new(&args[0])
-            .args(&args[1..])
+        let name = self.open_program.display().to_string();
+        let status = Command::new(&self.open_program)
+            .arg(web_url(url)?)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status()
-            .map_err(|err| not_found(&args[0], err))?;
-        check(&args[0], status)
+            .map_err(|err| not_found(&name, err))?;
+        check(&name, status)
     }
 
     fn copy(&self, text: &str) -> io::Result<()> {
