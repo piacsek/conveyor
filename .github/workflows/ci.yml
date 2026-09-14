@@ -38,4 +38,5 @@ jobs:
       - uses: taiki-e/install-action@3f74d7c16a4242f1c95561e98edc25d36adb4375 # v2.87.12
         with:
           tool: cargo-audit
-      - run: cargo audit
+          fallback: none # never fall back to cargo-binstall / a source build
+      - run: cargo-audit audit
