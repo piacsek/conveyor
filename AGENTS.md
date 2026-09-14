@@ -204,10 +204,15 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   Every column title reads `(visible/total)` while a query is live.
 - **`Esc` closes one thing per press**, in order: details pane, zoom, live filter; then it is a
   no-op. It never quits. `1`–`4` focus a column in both layouts.
-- **`L` is read-only.** It asks `gh run view <run> --job <job> --log-failed` for the first
-  failed job of the selected run (Main builds or Merge queue), keeps the last `LOG_TAIL` lines
-  per job id in `App.logs`, and toggles `App.log_open`. No failed job known yet → footer notice,
-  no request. Rerunning a job stays a backlog item (write action, confirm UX).
+- **`L` is read-only, and the log has a pane of its own.** It asks `gh run view <run> --job
+  <job> --log-failed` for the first failed job of the selected run (Main builds or Merge
+  queue), keeps the last `LOG_TAIL` lines per job id in `App.logs`, and toggles `App.log_open`.
+  While open, the details area splits in two: details left, `log: <job> · <step>` right,
+  scrolled to its last line (`log_scroll = u16::MAX` means "the end", clamped at draw like
+  the details), and `Ctrl-d`/`Ctrl-u` move the log pane instead of the details. v0.13.0
+  appended the log under the job list, where a 37-job run hid it below the fold: never put
+  the thing a key opens where the user has to scroll to find it. No failed job known yet →
+  footer notice, no request. Rerunning a job stays a backlog item (write action, confirm UX).
 - **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
   the deploy repo (`App::deploy_repo`: the `[[repo]]` with a deploy, else `builds_repo`).
 - **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by

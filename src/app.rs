@@ -363,6 +363,9 @@ pub struct App {
     /// Failed-step log tails by job id, and whether the pane shows one for the selected run.
     pub logs: HashMap<u64, LogState>,
     pub log_open: bool,
+    /// The log pane's scroll; `u16::MAX` means "the end", clamped at draw like the details.
+    pub log_scroll: u16,
+    pub log_page: u16,
     /// The live filter applied to every column; `Mode::Filter` means it is being edited.
     pub query: Option<String>,
     pending_g: bool,
@@ -396,6 +399,8 @@ impl App {
             jobs: HashMap::new(),
             logs: HashMap::new(),
             log_open: false,
+            log_scroll: u16::MAX,
+            log_page: 0,
             query: None,
             pending_g: false,
             last_open: None,
@@ -531,7 +536,7 @@ impl App {
         };
         self.log_open = true;
         self.details = true;
-        self.details_scroll = 0;
+        self.log_scroll = u16::MAX;
         // A failed fetch is not cached: the next `L` asks again.
         if matches!(
             self.logs.get(&job_id),
@@ -549,6 +554,7 @@ impl App {
             Err(message) => LogState::Failed(message),
         };
         self.logs.insert(job_id, state);
+        self.log_scroll = u16::MAX;
     }
 
     pub fn receive_jobs(&mut self, run_id: u64, result: Result<Vec<Job>, String>) {
@@ -752,10 +758,16 @@ impl App {
         self.details_scroll = 0;
     }
 
+    /// `Ctrl-d`/`Ctrl-u` move the log pane while it is open, else the details pane.
     fn scroll_details(&mut self, half_pages: i32) {
-        let step = (self.details_page / 2).max(1) as i32;
-        let scroll = i32::from(self.details_scroll) + half_pages * step;
-        self.details_scroll = scroll.clamp(0, i32::from(u16::MAX)) as u16;
+        let (scroll, page) = if self.selected_log().is_some() {
+            (&mut self.log_scroll, self.log_page)
+        } else {
+            (&mut self.details_scroll, self.details_page)
+        };
+        let step = (page / 2).max(1) as i32;
+        let next = i32::from(*scroll) + half_pages * step;
+        *scroll = next.clamp(0, i32::from(u16::MAX)) as u16;
     }
 
     fn with_focused(&mut self, act: impl Fn(&mut dyn Navigable)) {
