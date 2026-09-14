@@ -19,7 +19,7 @@ pub const KEYS: [(&str, &str); 13] = [
     ("Esc", "leave zoom"),
     ("/", "filter"),
     ("r/R", "refresh focused / all"),
-    ("?", "this help"),
+    ("?", "help"),
 ];
 
 pub(crate) fn draw_help(frame: &mut Frame, area: Rect) {

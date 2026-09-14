@@ -53,8 +53,9 @@ scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-d
 scripts/ship.sh               gates + dev-install + commit + push, aborts on any failure
 plans/                        one versioned plan file per phase (see Working agreements)
 scripts/homebrew-formula.sh   prints the tap formula for a released version
-scripts/screenshots.sh        renders docs/*.png from a gh shim + synthetic fixture (truecolor.py converts ANSI)
-tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend
+scripts/screenshots.sh        renders docs/details.png from a gh shim + synthetic fixture (truecolor.py converts ANSI)
+tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
+                 `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`
 ```
 
 ## Data sources (verified 2026-09-10, all through `gh`)
@@ -315,9 +316,14 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 
 ## Documentation rule
 
-`README.md` embeds `docs/columns.png`, `docs/details.png`, `docs/queue.png`, `docs/builds.png`,
-`docs/deployed.png`, `docs/zoom.png` and `docs/tabs.png`. After any
-visible layout change run `scripts/screenshots.sh` (needs `brew install
+`README.md` is minimal and holds only what a user needs, in this order and nothing else: two
+sentences on what conveyor does, the one screenshot `docs/details.png` right below them (all
+four columns with the details pane open), then `## Installation`, `## Usage` (commands, the key
+table, the default config) and `## Development`. The key table is generated from
+`ui::help::KEYS` word for word; `tests/readme.rs` fails when the README and the help view
+drift, when a second screenshot or section appears, or when the description grows past two
+sentences. Feature depth, glyph meanings and data-source notes belong here, not there. After
+any visible layout change run `scripts/screenshots.sh` (needs `brew install
 charmbracelet/tap/freeze`, Google Chrome, and the FiraCode Nerd Font in `~/Library/Fonts`) and
 commit the new images. Freeze lays out an SVG with the font embedded; headless Chrome
 rasterises it, because freeze's own PNG output cannot draw Nerd Font glyphs. The script never
@@ -325,9 +331,9 @@ reads the real `gh` account: `HOME` is a tempdir and a `gh` shim printing a synt
 `acme/*` fixture is first on PATH (through `env`, see the e2e trap below). Do not screenshot
 real data: this repository is public.
 
-Whenever behaviour changes, check that `README.md` still covers it and is still true: a key,
-a default, a subcommand, a config key. The README must stay terse: one line per feature,
-defaults in the TOML block, no prose that repeats the code. Depth belongs here.
+Whenever behaviour changes, check that `README.md` is still true: a key, a default, a
+subcommand, a config key. Do not add prose for a feature; if it needs explaining, the card or
+the help view should carry it.
 
 ## Working agreements
 
@@ -345,8 +351,8 @@ agent's private memory. When the user says "update the guidelines", edit this fi
 - **Draft PR first.** The first ship on a branch opens the draft PR assigned to the user;
   every later commit lands on that PR. Before merging, re-read the PR title and body and fix
   what went stale without rewording the user's edits.
-- **Screenshots in PRs.** A PR with a visible change embeds the `docs/*.png` screenshots in
-  its body as commit-pinned `raw.githubusercontent.com` URLs.
+- **Screenshots in PRs.** A PR with a visible change embeds `docs/details.png` in its body as
+  a commit-pinned `raw.githubusercontent.com` URL.
 - **Review before ready.** Marking a PR ready for review means spawning a sub agent first to
   review the branch diff thoroughly, and acting on what it finds. Give it the intent of the
   change, point it at this file, tell it to run the gates itself rather than trust the claim
@@ -440,6 +446,11 @@ piacsek/conveyor`). CI also runs `cargo audit` (a prebuilt binary via `taiki-e/i
 the `rustsec/audit-check` action compiled cargo-audit from source on every run, ~3 min of a
 ~3.5 min pipeline). The `check` job runs `cargo test -- --include-ignored` in one pass; the e2e
 tests take the debug binary from `CARGO_BIN_EXE_conveyor`, so no release build there.
+
+Only behaviour changes get packaged. A release (version bump, tag, tarballs, tap) follows a
+change a user can observe in the binary: a key, a card, a default, a fix, a config key. Docs,
+CI, tests, scripts, refactors and guideline edits merge to `main` without a bump and ride the
+next behaviour release. Do not tag a docs-only or CI-only `main`.
 
 1. Bump `version` in `Cargo.toml` (`Cargo.lock` follows on the next build).
 2. Run the gates, commit `Release vX.Y.Z`, merge to `main`.

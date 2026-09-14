@@ -2,7 +2,7 @@ mod card;
 mod columns;
 mod details;
 mod footer;
-mod help;
+pub mod help;
 mod rows;
 mod style;
 
