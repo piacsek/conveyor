@@ -12,6 +12,12 @@ fn titled<T: Row>(base: &str, column: &Column<T>) -> String {
     let warning = if column.error.is_some() { " ⚠" } else { "" };
     if column.is_loading() {
         format!("{base}{warning}")
+    } else if column.filter.is_some() {
+        format!(
+            "{base} ({}/{}){warning}",
+            column.visible().len(),
+            column.all().len()
+        )
     } else {
         format!("{base} ({}){warning}", column.all().len())
     }

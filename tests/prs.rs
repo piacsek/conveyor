@@ -256,6 +256,41 @@ fn enter_commits_the_filter_so_keys_move_again_and_esc_then_clears_it() {
 }
 
 #[test]
+fn a_live_filter_puts_visible_over_total_in_every_column_title() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(vec![pr(1, "alpha"), pr(2, "beta"), pr(3, "delta")]),
+        queue(vec![
+            entry(1, 10, "alice", "beta rate limits"),
+            entry(2, 11, "bob", "gamma"),
+        ]),
+        key(KeyCode::Char('/')),
+        key(KeyCode::Char('t')),
+        key(KeyCode::Char('a')),
+    ])
+    .unwrap();
+    let screen = h.screen();
+    assert!(screen.contains("My PRs (2/3)"), "{screen}");
+    assert!(
+        screen.contains("(1/2)"),
+        "the unfocused queue says so too: {screen}"
+    );
+
+    h.run(vec![key(KeyCode::Enter)]).unwrap();
+    assert!(
+        h.screen().contains("My PRs (2/3)"),
+        "committed too: {}",
+        h.screen()
+    );
+
+    h.run(vec![key(KeyCode::Esc)]).unwrap();
+    let screen = h.screen();
+    assert!(screen.contains("My PRs (3)"), "{screen}");
+    assert!(screen.contains("(2)"), "{screen}");
+}
+
+#[test]
 fn slash_reopens_a_committed_filter_for_editing() {
     let mut h = Harness::new();
 
