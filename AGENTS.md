@@ -37,7 +37,7 @@ src/model/builds.rs Build, BuildStatus, PullRef, Builds; `parse_runs`, `pr_numbe
 src/model/deployed.rs Deployment, Deployed; `sha_from_image` (40-hex tag or `-<sha>` suffix)
 src/model/jobs.rs Job, `parse_jobs` (failures first), `failed_step`
 src/model/log.rs  `tail`: the failed step's log as gh prints it, minus job/step/timestamp prefixes and ANSI
-src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode, query, jobs, logs, log_open), Input::{Key, Fetching, Data, Jobs, Log, Tick}, Request::{Refresh, Jobs, Log}, run()
+src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Input::{Key, Fetching, Data, Jobs, Log, Tick}, Request::{Refresh, Jobs, Log}, run()
 src/ui/mod.rs    draw: 4 columns or tabs below `4 × ui.min_column_width`
 src/ui/style.rs  the shared vocabulary: BAR, INDENT, dim(), glyphs and status words, short_repo, sha8
 src/ui/card.rs   card() and meta(): one title line plus indented span lines
@@ -209,7 +209,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   queue), keeps the last `LOG_TAIL` lines per job id in `App.logs`, and toggles `App.log_open`.
   While open, the details area splits in two: details left, `log: <job> · <step>` right,
   scrolled to its last line (`log_scroll = u16::MAX` means "the end", clamped at draw like
-  the details), and `Ctrl-d`/`Ctrl-u` move the log pane instead of the details. v0.13.0
+  the details), and `Ctrl-d`/`Ctrl-u` move the log pane instead of the details while the pane
+  is open. `reset_scroll` puts both panes back at rest on every selection move, focus change,
+  refresh, `d` and `Esc`; a log arriving for a run that is not selected does not move the one
+  on screen. v0.13.0
   appended the log under the job list, where a 37-job run hid it below the fold: never put
   the thing a key opens where the user has to scroll to find it. No failed job known yet →
   footer notice, no request. Rerunning a job stays a backlog item (write action, confirm UX).
