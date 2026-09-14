@@ -22,20 +22,20 @@ jobs:
           toolchain: 1.98.1
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tmux
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
-      - run: cargo test
-      - run: cargo build --release
-      - run: sudo apt-get update && sudo apt-get install -y tmux
-      - run: cargo test -- --ignored
+      # One test run covers the unit, TUI and tmux e2e suites; the release profile is
+      # exercised by release.yml, not here.
+      - run: cargo test -- --include-ignored
 
   audit:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0
+      # A prebuilt, checksum-verified cargo-audit binary: seconds instead of the ~3 min
+      # rustsec/audit-check spent on `cargo install cargo-audit` every run.
+      - uses: taiki-e/install-action@3f74d7c16a4242f1c95561e98edc25d36adb4375 # v2.87.12
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          tool: cargo-audit
+      - run: cargo audit
