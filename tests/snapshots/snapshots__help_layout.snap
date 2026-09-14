@@ -3,18 +3,18 @@ source: tests/snapshots.rs
 expression: h.screen()
 ---
 ┌Keys — My PRs─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│q        quit                                                                                                                                                 │
-│j/k ↓/↑  move                                                                                                                                                 │
-│h/l Tab  focus column                                                                                                                                         │
-│p        open pull request                                                                                                                                    │
-│b        open the failing check, else the first                                                                                                               │
-│y/Y      copy pull request / build URL                                                                                                                        │
-│d        details                                                                                                                                              │
-│C-d/C-u  scroll details                                                                                                                                       │
-│z        zoom the column                                                                                                                                      │
-│Esc      leave zoom                                                                                                                                           │
-│/        filter                                                                                                                                               │
-│r/R      refresh focused / all                                                                                                                                │
-│?        help                                                                                                                                                 │
+│q            quit                                                                                                                                             │
+│j/k ↓/↑      move                                                                                                                                             │
+│h/l Tab 1-4  focus column                                                                                                                                     │
+│p            open pull request                                                                                                                                │
+│b            open the failing check, else the first                                                                                                           │
+│y/Y          copy pull request / build URL                                                                                                                    │
+│d C-d/C-u    details / scroll them                                                                                                                            │
+│L            log of the failed step                                                                                                                           │
+│z            zoom the column                                                                                                                                  │
+│Esc          close details / zoom / filter                                                                                                                    │
+│/            filter (Enter keeps, Esc clears)                                                                                                                 │
+│r/R          refresh focused / all                                                                                                                            │
+│?            help                                                                                                                                             │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 any key returns
