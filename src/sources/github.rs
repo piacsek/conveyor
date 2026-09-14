@@ -36,6 +36,8 @@ pub trait Github {
     fn graphql(&self, query: &str, vars: &[(&str, Variable)]) -> io::Result<serde_json::Value>;
     fn rest(&self, path: &str) -> io::Result<serde_json::Value>;
     fn current_repo(&self) -> io::Result<String>;
+    /// The raw `gh run view --log-failed` text for one job of a run.
+    fn log_failed(&self, repo: &str, run_id: u64, job_id: u64) -> io::Result<String>;
 }
 
 pub const MISSING: &str =
@@ -80,6 +82,21 @@ impl CliGh {
 
     pub fn rest_args(path: &str) -> Vec<String> {
         vec!["api".to_string(), path.to_string()]
+    }
+
+    pub fn log_failed_args(repo: &str, run_id: u64, job_id: u64) -> Vec<String> {
+        [
+            "run",
+            "view",
+            &run_id.to_string(),
+            "--job",
+            &job_id.to_string(),
+            "--log-failed",
+            "-R",
+            repo,
+        ]
+        .map(str::to_string)
+        .to_vec()
     }
 
     pub fn current_repo_args() -> Vec<String> {
@@ -136,5 +153,9 @@ impl Github for CliGh {
 
     fn current_repo(&self) -> io::Result<String> {
         Ok(self.run(&Self::current_repo_args())?.trim().to_string())
+    }
+
+    fn log_failed(&self, repo: &str, run_id: u64, job_id: u64) -> io::Result<String> {
+        self.run(&Self::log_failed_args(repo, run_id, job_id))
     }
 }

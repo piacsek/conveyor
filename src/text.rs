@@ -91,3 +91,38 @@ pub fn refreshed(at: SystemTime, now: SystemTime, utc_offset_secs: i32) -> Strin
         format!("refreshed at {}", clock(at, utc_offset_secs))
     }
 }
+
+/// Drop ANSI escape sequences (colour, cursor movement) so a log line is plain text.
+pub fn strip_ansi(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c != '\u{1b}' {
+            out.push(c);
+            continue;
+        }
+        match chars.next() {
+            // CSI: parameters and intermediates, then one final byte in 0x40..=0x7e.
+            Some('[') => {
+                for next in chars.by_ref() {
+                    if ('\u{40}'..='\u{7e}').contains(&next) {
+                        break;
+                    }
+                }
+            }
+            // OSC: up to BEL or ST.
+            Some(']') => {
+                let mut previous = ' ';
+                for next in chars.by_ref() {
+                    if next == '\u{7}' || (previous == '\u{1b}' && next == '\\') {
+                        break;
+                    }
+                    previous = next;
+                }
+            }
+            // Any other two-byte escape.
+            Some(_) | None => {}
+        }
+    }
+    out
+}

@@ -61,6 +61,8 @@ pub enum Input {
     Fetching(Stage),
     Data(Stage, Result<Rows, String>),
     Jobs(u64, Result<Vec<Job>, String>),
+    /// The tail of one job's failed-step log, keyed by job id.
+    Log(u64, Result<Vec<String>, String>),
     Tick(SystemTime),
 }
 
@@ -68,6 +70,13 @@ pub enum Input {
 pub enum JobsState {
     Loading,
     Ready(Vec<Job>),
+    Failed(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LogState {
+    Loading,
+    Ready(Vec<String>),
     Failed(String),
 }
 
@@ -79,12 +88,14 @@ pub enum Action {
     Copy(String),
     Refresh(Stage),
     RefreshAll,
+    Log { run_id: u64, job_id: u64 },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Request {
     Refresh(Stage),
     Jobs { run_id: u64 },
+    Log { run_id: u64, job_id: u64 },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -349,6 +360,9 @@ pub struct App {
     pub details_page: u16,
     pub zoom: bool,
     pub jobs: HashMap<u64, JobsState>,
+    /// Failed-step log tails by job id, and whether the pane shows one for the selected run.
+    pub logs: HashMap<u64, LogState>,
+    pub log_open: bool,
     /// The live filter applied to every column; `Mode::Filter` means it is being edited.
     pub query: Option<String>,
     pending_g: bool,
@@ -380,6 +394,8 @@ impl App {
             details_page: 0,
             zoom: false,
             jobs: HashMap::new(),
+            logs: HashMap::new(),
+            log_open: false,
             query: None,
             pending_g: false,
             last_open: None,
@@ -479,6 +495,54 @@ impl App {
 
     pub fn selected_jobs(&self) -> Option<&JobsState> {
         self.jobs.get(&self.selected_run()?.id)
+    }
+
+    /// The first failed job of the selected run, once its jobs are known.
+    pub fn selected_failed_job(&self) -> Option<&Job> {
+        match self.selected_jobs()? {
+            JobsState::Ready(jobs) => jobs.iter().find(|job| job.status == BuildStatus::Failure),
+            JobsState::Loading | JobsState::Failed(_) => None,
+        }
+    }
+
+    /// The log the pane shows for the selected run: only while `L` has it open.
+    pub fn selected_log(&self) -> Option<(&Job, &LogState)> {
+        if !self.log_open {
+            return None;
+        }
+        let job = self.selected_failed_job()?;
+        Some((job, self.logs.get(&job.id)?))
+    }
+
+    fn toggle_log(&mut self) -> Action {
+        if self.log_open {
+            self.log_open = false;
+            return Action::Continue;
+        }
+        let Some(run_id) = self.selected_run().map(|run| run.id) else {
+            self.notice = Some("nothing selected".to_string());
+            return Action::Continue;
+        };
+        let Some(job_id) = self.selected_failed_job().map(|job| job.id) else {
+            self.notice = Some("no failed job to show".to_string());
+            return Action::Continue;
+        };
+        self.log_open = true;
+        self.details = true;
+        self.details_scroll = 0;
+        if self.logs.contains_key(&job_id) {
+            return Action::Continue;
+        }
+        self.logs.insert(job_id, LogState::Loading);
+        Action::Log { run_id, job_id }
+    }
+
+    pub fn receive_log(&mut self, job_id: u64, result: Result<Vec<String>, String>) {
+        let state = match result {
+            Ok(lines) => LogState::Ready(lines),
+            Err(message) => LogState::Failed(message),
+        };
+        self.logs.insert(job_id, state);
     }
 
     pub fn receive_jobs(&mut self, run_id: u64, result: Result<Vec<Job>, String>) {
@@ -823,6 +887,7 @@ impl App {
                 self.details = !self.details;
                 self.details_scroll = 0;
             }
+            KeyCode::Char('L') => return self.toggle_log(),
             KeyCode::Char('z') => self.zoom = !self.zoom,
             KeyCode::Char('l') if self.focus != Stage::Deployed => self.refocus(Stage::next),
             KeyCode::Char('h') if self.focus != Stage::Prs => self.refocus(Stage::previous),
@@ -922,6 +987,7 @@ where
             Input::Fetching(stage) => app.fetching(stage),
             Input::Data(stage, data) => app.receive(stage, data),
             Input::Jobs(run_id, result) => app.receive_jobs(run_id, result),
+            Input::Log(job_id, result) => app.receive_log(job_id, result),
             Input::Key(key) => match app.handle_key(key) {
                 Action::Quit => return Ok(()),
                 Action::Open(url) => attempt(app, opener.open(&url)),
@@ -932,6 +998,7 @@ where
                         request(Request::Refresh(stage));
                     }
                 }
+                Action::Log { run_id, job_id } => request(Request::Log { run_id, job_id }),
                 Action::Continue => {}
             },
         }

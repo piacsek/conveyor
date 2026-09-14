@@ -34,6 +34,21 @@ pub fn fetch_jobs(
     Ok(crate::model::jobs::parse_jobs(&value))
 }
 
+/// How many lines of the failed step's log the details pane keeps.
+pub const LOG_TAIL: usize = 40;
+
+pub fn fetch_log(
+    gh: &impl Github,
+    repo: &str,
+    run_id: u64,
+    job_id: u64,
+) -> Result<Vec<String>, String> {
+    let text = gh
+        .log_failed(repo, run_id, job_id)
+        .map_err(|err| err.to_string())?;
+    Ok(crate::model::log::tail(&text, LOG_TAIL))
+}
+
 pub fn repos(gh: &impl Github, config: &Config) -> Result<Vec<Repo>, String> {
     if !config.repo.is_empty() {
         return Ok(config.repo.clone());

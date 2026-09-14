@@ -6,7 +6,7 @@ use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
 
-use crate::app::{App, JobsState, Stage};
+use crate::app::{App, JobsState, LogState, Stage};
 use crate::model::builds::Build;
 use crate::model::deployed::Deployment;
 use crate::model::jobs::Job;
@@ -29,6 +29,7 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
                     Some(run) => {
                         lines.push(run_line(run, app.now, app.utc_offset_secs));
                         lines.extend(job_lines(app.selected_jobs()));
+                        lines.extend(log_lines(app));
                     }
                     None => lines.push(Line::from("no merge-group run yet")),
                 }
@@ -41,6 +42,7 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
                 let (label, _) = build_label(build);
                 let mut lines = build_details(build, app.now, app.utc_offset_secs);
                 lines.extend(job_lines(app.selected_jobs()));
+                lines.extend(log_lines(app));
                 (format!("{label} run {}", build.run_number), lines)
             }
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
@@ -217,5 +219,28 @@ fn job_lines(jobs: Option<&JobsState>) -> Vec<Line<'static>> {
             Style::default().fg(Color::Red),
         ))],
         Some(JobsState::Ready(jobs)) => jobs.iter().map(job_line).collect(),
+    }
+}
+
+/// The failed step's log below the jobs, while `L` has it open.
+fn log_lines(app: &App) -> Vec<Line<'static>> {
+    let Some((job, state)) = app.selected_log() else {
+        return Vec::new();
+    };
+    match state {
+        LogState::Loading => vec![Line::from(Span::styled("log: loading…", dim()))],
+        LogState::Failed(message) => vec![Line::from(Span::styled(
+            format!("log: {message}"),
+            Style::default().fg(Color::Red),
+        ))],
+        LogState::Ready(lines) => {
+            let step = job.failed_step.clone().unwrap_or_default();
+            let mut out = vec![Line::from(Span::styled(
+                format!("log: {} · {step}", job.name),
+                dim(),
+            ))];
+            out.extend(lines.iter().map(|line| Line::from(line.clone())));
+            out
+        }
     }
 }

@@ -127,6 +127,13 @@ pub fn jobs(run_id: u64, jobs: Vec<Job>) -> io::Result<Input> {
     Ok(Input::Jobs(run_id, Ok(jobs)))
 }
 
+pub fn log(job_id: u64, lines: Vec<&str>) -> io::Result<Input> {
+    Ok(Input::Log(
+        job_id,
+        Ok(lines.into_iter().map(str::to_string).collect()),
+    ))
+}
+
 pub fn jobs_failed(run_id: u64, message: &str) -> io::Result<Input> {
     Ok(Input::Jobs(run_id, Err(message.to_string())))
 }

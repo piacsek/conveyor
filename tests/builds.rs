@@ -151,6 +151,88 @@ fn focus_builds() -> Vec<std::io::Result<conveyor::app::Input>> {
 }
 
 #[test]
+fn shift_l_shows_the_failed_steps_log_in_the_pane_and_again_hides_it() {
+    use support::log;
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(key(KeyCode::Char('j')));
+    inputs.push(jobs(
+        1025,
+        vec![
+            job(1, "check", BuildStatus::Failure, Some("Run cargo test")),
+            job(2, "audit", BuildStatus::Success, None),
+        ],
+    ));
+    inputs.push(key(KeyCode::Char('L')));
+    h.run(inputs).unwrap();
+
+    assert!(
+        h.requests.contains(&Request::Log {
+            run_id: 1025,
+            job_id: 1
+        }),
+        "{:?}",
+        h.requests
+    );
+    assert!(h.app.details, "L opens the pane");
+    assert!(h.screen().contains("log: loading…"), "{}", h.screen());
+
+    h.run(vec![log(1, vec!["line one", "line two"])]).unwrap();
+    let screen = h.screen();
+    assert!(screen.contains("log: check · Run cargo test"), "{screen}");
+    assert!(
+        screen.contains("line one") && screen.contains("line two"),
+        "{screen}"
+    );
+
+    h.run(vec![key(KeyCode::Char('L'))]).unwrap();
+    let screen = h.screen();
+    assert!(
+        !screen.contains("line two"),
+        "L again hides the log: {screen}"
+    );
+    assert!(h.app.details, "the pane stays open");
+
+    h.run(vec![key(KeyCode::Char('L'))]).unwrap();
+    assert!(
+        h.screen().contains("line two"),
+        "and it comes back without a second fetch"
+    );
+    assert_eq!(
+        h.requests
+            .iter()
+            .filter(|request| matches!(request, Request::Log { .. }))
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn shift_l_says_so_when_the_run_has_no_failed_job() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(jobs(
+        1026,
+        vec![job(3, "check", BuildStatus::Running, None)],
+    ));
+    inputs.push(key(KeyCode::Char('L')));
+    h.run(inputs).unwrap();
+
+    assert!(
+        h.screen().contains("no failed job to show"),
+        "{}",
+        h.screen()
+    );
+    assert!(
+        !h.requests
+            .iter()
+            .any(|request| matches!(request, Request::Log { .. })),
+        "{:?}",
+        h.requests
+    );
+}
+
+#[test]
 fn d_on_a_build_asks_for_its_jobs_and_lists_them_failures_first() {
     let mut h = Harness::with_size(160, 30);
     let mut inputs = focus_builds();
