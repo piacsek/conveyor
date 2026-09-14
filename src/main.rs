@@ -12,7 +12,7 @@ use conveyor::cli::{self, Command};
 use conveyor::config::{self, Config};
 use conveyor::open::SystemOpener;
 use conveyor::sources::fetch::{
-    BuildsSource, DeploySource, fetch_jobs, fetch_prs, fetch_queue, repos,
+    BuildsSource, DeploySource, fetch_jobs, fetch_log, fetch_prs, fetch_queue, repos,
 };
 use conveyor::sources::github::CliGh;
 use conveyor::sources::kube::CliKubectl;
@@ -84,6 +84,7 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
         refreshers.insert(Stage::Deployed, refresh);
     }
     let jobs = spawn_jobs_fetcher(config.clone(), tx.clone());
+    let logs = spawn_log_fetcher(config.clone(), tx.clone());
     spawn_terminal_events(tx);
     let mut app = App::new(config);
     app.notice = config_error;
@@ -102,6 +103,9 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
             }
             Request::Jobs { run_id } => {
                 let _ = jobs.send(run_id);
+            }
+            Request::Log { run_id, job_id } => {
+                let _ = logs.send((run_id, job_id));
             }
         },
     );
@@ -131,6 +135,30 @@ fn spawn_jobs_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<u64> {
         }
     });
     jobs_tx
+}
+
+fn spawn_log_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<(u64, u64)> {
+    let (log_tx, log_rx) = mpsc::channel::<(u64, u64)>();
+    thread::spawn(move || {
+        let gh = CliGh::default();
+        let mut repo: Option<String> = None;
+        while let Ok((run_id, job_id)) = log_rx.recv() {
+            if repo.is_none() {
+                repo = repos(&gh, &config)
+                    .ok()
+                    .and_then(|repos| repos.into_iter().next())
+                    .map(|repo| repo.name);
+            }
+            let result = match &repo {
+                Some(name) => fetch_log(&gh, name, run_id, job_id),
+                None => Err("no repository to watch".to_string()),
+            };
+            if tx.send(Ok(Input::Log(job_id, result))).is_err() {
+                return;
+            }
+        }
+    });
+    log_tx
 }
 
 fn spawn_terminal_events(tx: Inputs) {

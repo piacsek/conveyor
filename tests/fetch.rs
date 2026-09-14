@@ -15,6 +15,7 @@ struct FakeGithub {
     rest_response: io::Result<serde_json::Value>,
     rest_routes: Vec<(String, serde_json::Value)>,
     cwd_repo: io::Result<String>,
+    log_response: io::Result<String>,
 }
 
 impl FakeGithub {
@@ -25,6 +26,7 @@ impl FakeGithub {
             rest_response: Ok(serde_json::json!({"workflow_runs": []})),
             rest_routes: Vec::new(),
             cwd_repo: Ok("acme/from-cwd".to_string()),
+            log_response: Ok(String::new()),
         }
     }
 }
@@ -63,6 +65,16 @@ impl Github for FakeGithub {
     fn current_repo(&self) -> io::Result<String> {
         match &self.cwd_repo {
             Ok(name) => Ok(name.clone()),
+            Err(err) => Err(io::Error::new(err.kind(), err.to_string())),
+        }
+    }
+
+    fn log_failed(&self, repo: &str, run_id: u64, job_id: u64) -> io::Result<String> {
+        self.calls
+            .borrow_mut()
+            .push((format!("LOG {repo} {run_id} {job_id}"), Vec::new()));
+        match &self.log_response {
+            Ok(text) => Ok(text.clone()),
             Err(err) => Err(io::Error::new(err.kind(), err.to_string())),
         }
     }
@@ -915,4 +927,34 @@ fn a_clock_that_steps_backwards_retries_rather_than_freezing_the_row() {
         2,
         "an unmeasurable window is not a fresh one: the safe direction is to ask again"
     );
+}
+
+#[test]
+fn fetch_log_tails_the_failed_steps_output_for_the_job() {
+    use conveyor::sources::fetch::fetch_log;
+    let gh = FakeGithub {
+        log_response: Ok("check\tRun cargo test\tone\ncheck\tRun cargo test\ttwo\n".to_string()),
+        ..FakeGithub::with_response(Ok(serde_json::Value::Null))
+    };
+
+    let lines = fetch_log(&gh, "acme/webapp", 1026, 7).unwrap();
+
+    assert_eq!(lines, vec!["one", "two"]);
+    let calls = gh.calls.borrow().clone();
+    assert_eq!(
+        calls.first().map(|(q, _)| q.as_str()),
+        Some("LOG acme/webapp 1026 7")
+    );
+}
+
+#[test]
+fn fetch_log_turns_a_gh_error_into_a_message() {
+    let gh = FakeGithub {
+        log_response: Err(io::Error::other("gh: HTTP 404")),
+        ..FakeGithub::with_response(Ok(serde_json::Value::Null))
+    };
+
+    let error = conveyor::sources::fetch::fetch_log(&gh, "acme/webapp", 7, 1).unwrap_err();
+
+    assert_eq!(error, "gh: HTTP 404");
 }

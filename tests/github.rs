@@ -113,3 +113,27 @@ fn rest_argv_and_json_parsing() {
     let value = gh.rest("repos/acme/webapp/actions/runs").unwrap();
     assert_eq!(value["total_count"], 0);
 }
+
+#[test]
+fn log_failed_argv_views_the_job_with_gh_run_view_and_returns_the_raw_text() {
+    let _serialized = serialized();
+    assert_eq!(
+        CliGh::log_failed_args("acme/webapp", 1026, 7),
+        vec![
+            "run",
+            "view",
+            "1026",
+            "--job",
+            "7",
+            "--log-failed",
+            "-R",
+            "acme/webapp"
+        ]
+    );
+    let dir = tempfile::tempdir().unwrap();
+    let gh = shim(&dir, r"printf 'check\tRun\tboom\n'");
+    assert_eq!(
+        gh.log_failed("acme/webapp", 1026, 7).unwrap(),
+        "check\tRun\tboom\n"
+    );
+}
