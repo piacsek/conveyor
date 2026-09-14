@@ -200,7 +200,7 @@ fn slash_filters_rows_by_number_title_or_repo_and_shows_the_count() {
     let screen = h.screen();
     assert!(screen.contains("#3 gamma"), "{screen}");
     assert!(!screen.contains("alpha"), "{screen}");
-    assert!(screen.contains("/am  1/3"), "{screen}");
+    assert!(screen.contains("/am▏  1/3"), "{screen}");
 
     h.run(vec![key(KeyCode::Char('z'))]).unwrap();
     let screen = h.screen();
@@ -213,6 +213,62 @@ fn slash_filters_rows_by_number_title_or_repo_and_shows_the_count() {
         "{screen}"
     );
     assert!(!screen.contains("/amz"), "{screen}");
+}
+
+#[test]
+fn enter_commits_the_filter_so_keys_move_again_and_esc_then_clears_it() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(vec![pr(1, "alpha"), pr(2, "beta"), pr(3, "delta")]),
+        key(KeyCode::Char('/')),
+        key(KeyCode::Char('t')),
+        key(KeyCode::Char('a')),
+    ])
+    .unwrap();
+    assert!(h.screen().contains("/ta▏  2/3"), "editing: {}", h.screen());
+
+    h.run(vec![
+        key(KeyCode::Enter),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('p')),
+    ])
+    .unwrap();
+    let screen = h.screen();
+    assert!(
+        screen.contains("/ta  2/3"),
+        "committed, no cursor: {screen}"
+    );
+    assert!(!screen.contains("alpha"), "still filtered: {screen}");
+    assert_eq!(
+        h.opener.opened(),
+        vec![pr(3, "delta").url],
+        "j moved to delta instead of typing"
+    );
+
+    h.run(vec![key(KeyCode::Esc)]).unwrap();
+    let screen = h.screen();
+    assert!(
+        screen.contains("alpha"),
+        "Esc clears the committed filter: {screen}"
+    );
+    assert!(!screen.contains("/ta"), "{screen}");
+}
+
+#[test]
+fn slash_reopens_a_committed_filter_for_editing() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(vec![pr(1, "alpha"), pr(2, "beta"), pr(3, "delta")]),
+        key(KeyCode::Char('/')),
+        key(KeyCode::Char('t')),
+        key(KeyCode::Enter),
+        key(KeyCode::Char('/')),
+        key(KeyCode::Char('a')),
+    ])
+    .unwrap();
+    assert!(h.screen().contains("/ta▏  2/3"), "{}", h.screen());
 }
 
 #[test]
@@ -803,7 +859,7 @@ fn q_quits_from_every_state_and_is_ordinary_text_in_a_filter() {
         .unwrap();
     let screen = filtering.screen();
     assert!(
-        screen.contains("/q  0/0"),
+        screen.contains("/q▏  0/0"),
         "q is text in a filter: {screen}"
     );
     assert!(
