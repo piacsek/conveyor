@@ -326,7 +326,10 @@ sentences (the help view is the single source: change `KEYS`, then the table). F
 any visible layout change run `scripts/screenshots.sh` (needs `brew install
 charmbracelet/tap/freeze`, Google Chrome, and the FiraCode Nerd Font in `~/Library/Fonts`) and
 commit the new images. Freeze lays out an SVG with the font embedded; headless Chrome
-rasterises it, because freeze's own PNG output cannot draw Nerd Font glyphs. The script never
+rasterises it, because freeze's own PNG output cannot draw Nerd Font glyphs. The script adds
+Menlo (DejaVu Sans Mono on Linux) as the SVG's fallback font family: FiraCode lacks `✗ ⊘ ▸`,
+and Chrome's default fallback is wider, so every row holding one shifted and the borders jogged.
+Fixture SHAs look real (`8c1f2a7d…`), not `33333333`. The script never
 reads the real `gh` account: `HOME` is a tempdir and a `gh` shim printing a synthetic
 `acme/*` fixture is first on PATH (through `env`, see the e2e trap below). Do not screenshot
 real data: this repository is public.

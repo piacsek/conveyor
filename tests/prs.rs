@@ -291,6 +291,63 @@ fn a_live_filter_puts_visible_over_total_in_every_column_title() {
 }
 
 #[test]
+fn esc_closes_the_topmost_thing_details_then_zoom_then_the_filter_and_never_quits() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(vec![pr(1, "alpha"), pr(2, "beta"), pr(3, "delta")]),
+        key(KeyCode::Char('/')),
+        key(KeyCode::Char('t')),
+        key(KeyCode::Enter),
+        key(KeyCode::Char('z')),
+        key(KeyCode::Char('d')),
+    ])
+    .unwrap();
+    assert!(h.app.details && h.app.zoom && h.app.filter() == Some("t"));
+
+    h.run(vec![key(KeyCode::Esc)]).unwrap();
+    assert!(!h.app.details, "first Esc closes the details pane");
+    assert!(
+        h.app.zoom && h.app.filter() == Some("t"),
+        "and nothing else"
+    );
+
+    h.run(vec![key(KeyCode::Esc)]).unwrap();
+    assert!(!h.app.zoom, "second Esc leaves zoom");
+    assert_eq!(h.app.filter(), Some("t"), "the filter survives");
+
+    h.run(vec![key(KeyCode::Esc)]).unwrap();
+    assert_eq!(h.app.filter(), None, "third Esc clears the filter");
+
+    h.run(vec![key(KeyCode::Esc), prs(vec![pr(9, "still here")])])
+        .unwrap();
+    assert!(
+        h.screen().contains("still here"),
+        "a fourth Esc is a no-op: {}",
+        h.screen()
+    );
+}
+
+#[test]
+fn digits_1_to_4_focus_a_column_in_both_layouts() {
+    use conveyor::app::Stage;
+    let mut wide = Harness::new();
+    wide.run(vec![prs(three()), key(KeyCode::Char('4'))])
+        .unwrap();
+    assert_eq!(wide.app.focus, Stage::Deployed);
+    wide.run(vec![key(KeyCode::Char('2'))]).unwrap();
+    assert_eq!(wide.app.focus, Stage::Queue);
+
+    let mut tabs = Harness::with_size(80, 18);
+    tabs.run(vec![prs(three()), key(KeyCode::Char('3'))])
+        .unwrap();
+    assert_eq!(tabs.app.focus, Stage::Builds);
+    assert!(tabs.screen().contains("Main builds"), "{}", tabs.screen());
+    tabs.run(vec![key(KeyCode::Char('1'))]).unwrap();
+    assert_eq!(tabs.app.focus, Stage::Prs);
+}
+
+#[test]
 fn slash_reopens_a_committed_filter_for_editing() {
     let mut h = Harness::new();
 

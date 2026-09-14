@@ -754,12 +754,28 @@ impl App {
         self.sync_filter();
     }
 
+    /// `Esc` closes the topmost thing, one per press: the details pane, then zoom, then a
+    /// live filter. With nothing open it does nothing; it never quits.
+    fn escape(&mut self) {
+        if self.details {
+            self.details = false;
+            self.details_scroll = 0;
+        } else if self.zoom {
+            self.zoom = false;
+        } else if self.query.is_some() {
+            self.clear_filter();
+        }
+    }
+
     fn handle_normal_key(&mut self, key: KeyEvent) -> Action {
         let pending_g = std::mem::take(&mut self.pending_g);
         match key.code {
             KeyCode::Char('q') => return Action::Quit,
-            KeyCode::Esc if self.zoom => self.zoom = false,
-            KeyCode::Esc => self.clear_filter(),
+            KeyCode::Esc => self.escape(),
+            KeyCode::Char(digit @ '1'..='4') => {
+                let index = digit as usize - '1' as usize;
+                self.refocus(|_| Stage::ALL[index]);
+            }
             KeyCode::Char('/') => {
                 self.mode = Mode::Filter(self.query.clone().unwrap_or_default());
                 self.sync_filter();
