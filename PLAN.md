@@ -446,6 +446,11 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   tasks, one commit each, red first on every one; the README key table and the help snapshot
   are the two places a `KEYS` change always lands.
 
+- v0.13.1: the log gets its own pane. v0.13.0 appended it under the job list, so on a run
+  with 37 jobs `L` looked like it did nothing. The details area now splits side by side while
+  a log is open, the log pane is scrolled to its last line and owns `Ctrl-d`/`Ctrl-u`; `L`
+  toggles it.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.

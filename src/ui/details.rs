@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 
 use ratatui::Frame;
-use ratatui::layout::Rect;
+use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
@@ -29,7 +29,6 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
                     Some(run) => {
                         lines.push(run_line(run, app.now, app.utc_offset_secs));
                         lines.extend(job_lines(app.selected_jobs()));
-                        lines.extend(log_lines(app));
                     }
                     None => lines.push(Line::from("no merge-group run yet")),
                 }
@@ -42,7 +41,6 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
                 let (label, _) = build_label(build);
                 let mut lines = build_details(build, app.now, app.utc_offset_secs);
                 lines.extend(job_lines(app.selected_jobs()));
-                lines.extend(log_lines(app));
                 (format!("{label} run {}", build.run_number), lines)
             }
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
@@ -59,14 +57,48 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
         },
     };
+    // The log gets a pane of its own beside the details while `L` has it open.
+    let log = app.selected_log().map(|(job, state)| {
+        let step = job.failed_step.clone().unwrap_or_default();
+        (format!("log: {} · {step}", job.name), log_body(state))
+    });
+    let (details_area, log_area) = match &log {
+        Some(_) => {
+            let [left, right] = Layout::horizontal([Constraint::Fill(1); 2]).areas(area);
+            (left, Some(right))
+        }
+        None => (area, None),
+    };
+    let (page, scroll) = scrolled(details_area, lines.len(), app.details_scroll);
+    app.details_page = page;
+    app.details_scroll = scroll.0;
+    frame.render_widget(
+        Paragraph::new(lines)
+            .scroll((scroll.0, 0))
+            .block(Block::bordered().title(format!("{title}{}", scroll.1))),
+        details_area,
+    );
+    if let (Some((log_title, body)), Some(log_area)) = (log, log_area) {
+        let (page, scroll) = scrolled(log_area, body.len(), app.log_scroll);
+        app.log_page = page;
+        app.log_scroll = scroll.0;
+        frame.render_widget(
+            Paragraph::new(body)
+                .scroll((scroll.0, 0))
+                .block(Block::bordered().title(format!("{log_title}{}", scroll.1))),
+            log_area,
+        );
+    }
+}
+
+/// Clamp a pane's scroll to its content and say which way there is more: (page, (scroll, arrows)).
+fn scrolled(area: Rect, lines: usize, wanted: u16) -> (u16, (u16, String)) {
     let page = area.height.saturating_sub(2);
     let overflow = match page {
         0 => 0,
-        page => (lines.len() as u16).saturating_sub(page),
+        page => (lines as u16).saturating_sub(page),
     };
-    app.details_page = page;
-    app.details_scroll = app.details_scroll.min(overflow);
-    let scroll = app.details_scroll;
+    let scroll = wanted.min(overflow);
     let arrows = match (scroll > 0, scroll < overflow) {
         (false, false) => String::new(),
         (above, below) => format!(
@@ -75,12 +107,7 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
             if below { "↓" } else { "" }
         ),
     };
-    frame.render_widget(
-        Paragraph::new(lines)
-            .scroll((scroll, 0))
-            .block(Block::bordered().title(format!("{title}{arrows}"))),
-        area,
-    );
+    (page, (scroll, arrows))
 }
 
 fn pr_details(pr: &PullRequest) -> Vec<Line<'static>> {
@@ -222,25 +249,14 @@ fn job_lines(jobs: Option<&JobsState>) -> Vec<Line<'static>> {
     }
 }
 
-/// The failed step's log below the jobs, while `L` has it open.
-fn log_lines(app: &App) -> Vec<Line<'static>> {
-    let Some((job, state)) = app.selected_log() else {
-        return Vec::new();
-    };
+/// The body of the log pane.
+fn log_body(state: &LogState) -> Vec<Line<'static>> {
     match state {
-        LogState::Loading => vec![Line::from(Span::styled("log: loading…", dim()))],
+        LogState::Loading => vec![Line::from(Span::styled("loading…", dim()))],
         LogState::Failed(message) => vec![Line::from(Span::styled(
-            format!("log: {message}"),
+            message.clone(),
             Style::default().fg(Color::Red),
         ))],
-        LogState::Ready(lines) => {
-            let step = job.failed_step.clone().unwrap_or_default();
-            let mut out = vec![Line::from(Span::styled(
-                format!("log: {} · {step}", job.name),
-                dim(),
-            ))];
-            out.extend(lines.iter().map(|line| Line::from(line.clone())));
-            out
-        }
+        LogState::Ready(lines) => lines.iter().map(|line| Line::from(line.clone())).collect(),
     }
 }

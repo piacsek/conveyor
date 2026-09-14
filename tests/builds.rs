@@ -175,7 +175,7 @@ fn shift_l_shows_the_failed_steps_log_in_the_pane_and_again_hides_it() {
         h.requests
     );
     assert!(h.app.details, "L opens the pane");
-    assert!(h.screen().contains("log: loading…"), "{}", h.screen());
+    assert!(h.screen().contains("loading…"), "{}", h.screen());
 
     h.run(vec![log(1, vec!["line one", "line two"])]).unwrap();
     let screen = h.screen();
@@ -248,7 +248,7 @@ fn shift_l_opens_on_the_first_press_after_the_selection_moves_or_the_pane_closes
         h.app.details,
         "Esc closed the pane; one L reopens it with the log"
     );
-    assert!(h.screen().contains("log: loading…"), "{}", h.screen());
+    assert!(h.screen().contains("loading…"), "{}", h.screen());
 }
 
 #[test]
@@ -271,7 +271,7 @@ fn a_failed_log_fetch_is_retried_on_the_next_shift_l() {
         Err("gh: HTTP 429".to_string()),
     )));
     h.run(inputs).unwrap();
-    assert!(h.screen().contains("log: gh: HTTP 429"), "{}", h.screen());
+    assert!(h.screen().contains("gh: HTTP 429"), "{}", h.screen());
 
     h.run(vec![key(KeyCode::Char('L')), key(KeyCode::Char('L'))])
         .unwrap();
@@ -284,6 +284,78 @@ fn a_failed_log_fetch_is_retried_on_the_next_shift_l() {
         "off and on again asks once more: {:?}",
         h.requests
     );
+}
+
+#[test]
+fn the_log_opens_in_its_own_pane_beside_the_details_scrolled_to_its_last_line() {
+    use support::log;
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(key(KeyCode::Char('j')));
+    let mut jobs_list = vec![job(
+        1,
+        "check",
+        BuildStatus::Failure,
+        Some("Run cargo test"),
+    )];
+    jobs_list.extend(many_jobs(24));
+    inputs.push(jobs(1025, jobs_list));
+    inputs.push(key(KeyCode::Char('L')));
+    let lines: Vec<String> = (1..=15).map(|i| format!("line {i}")).collect();
+    inputs.push(log(1, lines.iter().map(String::as_str).collect()));
+    h.run(inputs).unwrap();
+
+    let screen = h.screen();
+    assert!(
+        screen.contains("log: check · Run cargo test"),
+        "own title: {screen}"
+    );
+    assert!(
+        screen.contains("line 15"),
+        "the end of the log is on screen: {screen}"
+    );
+    let (details_row, log_row) = (
+        screen
+            .lines()
+            .find(|l| l.contains("job 1 "))
+            .unwrap_or_default()
+            .to_string(),
+        screen
+            .lines()
+            .find(|l| l.contains("line 15"))
+            .unwrap_or_default()
+            .to_string(),
+    );
+    assert!(
+        !details_row.is_empty(),
+        "the job list is still there: {screen}"
+    );
+    let details_x = screen
+        .lines()
+        .map(|l| l.find("run 25  failure").unwrap_or(usize::MAX))
+        .min()
+        .unwrap();
+    let log_x = log_row.find("line 15").unwrap();
+    assert!(
+        log_x > 70 && details_x < 10,
+        "side by side, log on the right: {screen}"
+    );
+
+    h.run(vec![ctrl('u')]).unwrap();
+    let screen = h.screen();
+    assert!(
+        screen.contains("line 1 ") || screen.contains("line 1\n"),
+        "Ctrl-u scrolls the log pane: {screen}"
+    );
+    assert!(!screen.contains("line 15"), "{screen}");
+
+    h.run(vec![key(KeyCode::Char('L'))]).unwrap();
+    let screen = h.screen();
+    assert!(
+        !screen.contains("log: check"),
+        "L closes the log pane: {screen}"
+    );
+    assert!(screen.contains("job 1 "), "and the details stay: {screen}");
 }
 
 #[test]
