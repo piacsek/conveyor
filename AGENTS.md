@@ -436,7 +436,10 @@ retired and queues forever. The workflow refuses a tag whose version differs fro
 bump pins with `gh api repos/<owner>/<repo>/git/ref/tags/<tag>`. Workflows default to
 `contents: read`; only `publish` gets `contents: write`, `id-token` and `attestations: write`
 for `actions/attest-build-provenance` (`gh attestation verify <tarball> --repo
-piacsek/conveyor`). CI also runs `cargo audit` (a prebuilt binary via `taiki-e/install-action`; the `rustsec/audit-check` action compiled cargo-audit from source on every run, ~3 min of a ~3.5 min pipeline). The `check` job runs `cargo test -- --include-ignored` in one pass; the e2e tests take the debug binary from `CARGO_BIN_EXE_conveyor`, so no release build there.
+piacsek/conveyor`). CI also runs `cargo audit` (a prebuilt binary via `taiki-e/install-action`;
+the `rustsec/audit-check` action compiled cargo-audit from source on every run, ~3 min of a
+~3.5 min pipeline). The `check` job runs `cargo test -- --include-ignored` in one pass; the e2e
+tests take the debug binary from `CARGO_BIN_EXE_conveyor`, so no release build there.
 
 1. Bump `version` in `Cargo.toml` (`Cargo.lock` follows on the next build).
 2. Run the gates, commit `Release vX.Y.Z`, merge to `main`.
