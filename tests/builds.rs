@@ -208,6 +208,85 @@ fn shift_l_shows_the_failed_steps_log_in_the_pane_and_again_hides_it() {
 }
 
 #[test]
+fn shift_l_opens_on_the_first_press_after_the_selection_moves_or_the_pane_closes() {
+    use support::log;
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(key(KeyCode::Char('j')));
+    inputs.push(jobs(
+        1025,
+        vec![job(
+            1,
+            "check",
+            BuildStatus::Failure,
+            Some("Run cargo test"),
+        )],
+    ));
+    inputs.push(jobs(
+        1024,
+        vec![job(4, "lint", BuildStatus::Failure, Some("Run cargo fmt"))],
+    ));
+    inputs.push(key(KeyCode::Char('L')));
+    inputs.push(log(1, vec!["check said no"]));
+    h.run(inputs).unwrap();
+    assert!(h.screen().contains("check said no"), "{}", h.screen());
+
+    h.run(vec![key(KeyCode::Char('j')), key(KeyCode::Char('L'))])
+        .unwrap();
+    assert!(
+        h.requests.contains(&Request::Log {
+            run_id: 1024,
+            job_id: 4
+        }),
+        "one L on the next failed run fetches its log: {:?}",
+        h.requests
+    );
+
+    h.run(vec![key(KeyCode::Esc), key(KeyCode::Char('L'))])
+        .unwrap();
+    assert!(
+        h.app.details,
+        "Esc closed the pane; one L reopens it with the log"
+    );
+    assert!(h.screen().contains("log: loading…"), "{}", h.screen());
+}
+
+#[test]
+fn a_failed_log_fetch_is_retried_on_the_next_shift_l() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(key(KeyCode::Char('j')));
+    inputs.push(jobs(
+        1025,
+        vec![job(
+            1,
+            "check",
+            BuildStatus::Failure,
+            Some("Run cargo test"),
+        )],
+    ));
+    inputs.push(key(KeyCode::Char('L')));
+    inputs.push(Ok(conveyor::app::Input::Log(
+        1,
+        Err("gh: HTTP 429".to_string()),
+    )));
+    h.run(inputs).unwrap();
+    assert!(h.screen().contains("log: gh: HTTP 429"), "{}", h.screen());
+
+    h.run(vec![key(KeyCode::Char('L')), key(KeyCode::Char('L'))])
+        .unwrap();
+    assert_eq!(
+        h.requests
+            .iter()
+            .filter(|request| matches!(request, Request::Log { .. }))
+            .count(),
+        2,
+        "off and on again asks once more: {:?}",
+        h.requests
+    );
+}
+
+#[test]
 fn shift_l_says_so_when_the_run_has_no_failed_job() {
     let mut h = Harness::with_size(160, 30);
     let mut inputs = focus_builds();

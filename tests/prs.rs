@@ -397,6 +397,15 @@ fn the_help_names_the_focused_column_and_says_what_p_and_b_do_there() {
 }
 
 #[test]
+fn slash_alone_shows_the_empty_prompt_at_once() {
+    let mut h = Harness::new();
+    h.run(vec![prs(three()), key(KeyCode::Char('/'))]).unwrap();
+    let screen = h.screen();
+    assert!(screen.contains("/▏  3/3"), "{screen}");
+    assert!(screen.contains("My PRs (3/3)"), "{screen}");
+}
+
+#[test]
 fn slash_reopens_a_committed_filter_for_editing() {
     let mut h = Harness::new();
 

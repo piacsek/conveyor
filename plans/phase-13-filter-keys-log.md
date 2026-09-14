@@ -35,7 +35,7 @@ one commit per task through `scripts/ship.sh`, TDD red first on every task.
   open → close it; zoomed → leave zoom; live filter → clear it; otherwise nothing. `1`–`4`
   focus a column in every layout.
 - **Context-sensitive help.** `KEYS` stays the generic table the README mirrors. The help view
-  takes the focused stage and swaps the `p`, `b` and `y/Y` descriptions for that column's
+  takes the focused stage and swaps the `p` and `b` descriptions for that column's
   meaning; its title names the column (`Keys — Main builds`).
 - **Deployed `b` fallback.** When no fetched main build carries the deployed sha,
   `https://github.com/<repo>/commit/<sha>` for the deploy repo; the footer no longer errors.

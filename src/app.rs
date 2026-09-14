@@ -514,8 +514,10 @@ impl App {
         Some((job, self.logs.get(&job.id)?))
     }
 
+    /// `L` hides the log when one is on screen; otherwise it opens the pane and shows (fetching
+    /// if needed) the selected run's failed-step log.
     fn toggle_log(&mut self) -> Action {
-        if self.log_open {
+        if self.log_open && self.details && self.selected_log().is_some() {
             self.log_open = false;
             return Action::Continue;
         }
@@ -530,7 +532,11 @@ impl App {
         self.log_open = true;
         self.details = true;
         self.details_scroll = 0;
-        if self.logs.contains_key(&job_id) {
+        // A failed fetch is not cached: the next `L` asks again.
+        if matches!(
+            self.logs.get(&job_id),
+            Some(LogState::Loading | LogState::Ready(_))
+        ) {
             return Action::Continue;
         }
         self.logs.insert(job_id, LogState::Loading);
@@ -855,7 +861,9 @@ impl App {
                 self.refocus(|_| Stage::ALL[index]);
             }
             KeyCode::Char('/') => {
-                self.mode = Mode::Filter(self.query.clone().unwrap_or_default());
+                let current = self.query.clone().unwrap_or_default();
+                self.query = Some(current.clone());
+                self.mode = Mode::Filter(current);
                 self.sync_filter();
             }
             KeyCode::Char('?') => self.mode = Mode::Help,

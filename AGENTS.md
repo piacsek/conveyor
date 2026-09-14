@@ -37,7 +37,7 @@ src/model/builds.rs Build, BuildStatus, PullRef, Builds; `parse_runs`, `pr_numbe
 src/model/deployed.rs Deployment, Deployed; `sha_from_image` (40-hex tag or `-<sha>` suffix)
 src/model/jobs.rs Job, `parse_jobs` (failures first), `failed_step`
 src/model/log.rs  `tail`: the failed step's log as gh prints it, minus job/step/timestamp prefixes and ANSI
-src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode, jobs), Input::{Key, Fetching, Data, Jobs, Tick}, Request::{Refresh, Jobs}, run()
+src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode, query, jobs, logs, log_open), Input::{Key, Fetching, Data, Jobs, Log, Tick}, Request::{Refresh, Jobs, Log}, run()
 src/ui/mod.rs    draw: 4 columns or tabs below `4 × ui.min_column_width`
 src/ui/style.rs  the shared vocabulary: BAR, INDENT, dim(), glyphs and status words, short_repo, sha8
 src/ui/card.rs   card() and meta(): one title line plus indented span lines
@@ -239,10 +239,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   exactly fills a 16-row terminal. `("q", "quit")` is therefore first in `KEYS`, so the one
   key that gets you out is never the line that disappears. Adding a key means checking the
   smallest terminal you care about, or paginating the pane.
-- **`q` is the only quit key** (besides `Ctrl-C`). `Esc` leaves zoom and otherwise does
-  nothing in normal mode; in Filter mode it still drops the filter and in Help it still closes
-  the help, both handled before the normal-mode arm. `Esc` used to quit, which made an
-  accidental press lose the session.
+- **`q` is the only quit key** (besides `Ctrl-C`). `Esc` closes one thing per press (see the
+  `Esc` bullet above) and is a no-op with nothing open; it never quits.
 - **Row order is per column, and `merge_keeping_order` alone is not enough.** A refresh merges
   the fresh rows onto the old order and appends whatever is new **at the end**, which is right
   for My PRs (the search query owns the order) and for Deployed (config order), and wrong for
