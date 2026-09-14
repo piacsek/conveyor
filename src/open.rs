@@ -10,6 +10,24 @@ pub trait Opener {
 #[derive(Default)]
 pub struct SystemOpener;
 
+/// Accept a URL for the browser only when it is a web URL. Check URLs come from whatever
+/// GitHub App or CI posted the check, not from GitHub itself, and `open`/`xdg-open` would
+/// otherwise launch `file://` paths, app bundles or any custom URL scheme handler.
+pub fn web_url(url: &str) -> io::Result<&str> {
+    let scheme_ok = |scheme: &str| {
+        url.get(..scheme.len())
+            .is_some_and(|head| head.eq_ignore_ascii_case(scheme))
+            && url.len() > scheme.len()
+    };
+    if scheme_ok("https://") || scheme_ok("http://") {
+        Ok(url)
+    } else {
+        Err(io::Error::other(format!(
+            "refusing to open `{url}`: not an http(s) URL"
+        )))
+    }
+}
+
 impl SystemOpener {
     pub fn open_args(url: &str) -> Vec<String> {
         let program = if cfg!(target_os = "macos") {
@@ -49,7 +67,7 @@ fn not_found(name: &str, err: io::Error) -> io::Error {
 
 impl Opener for SystemOpener {
     fn open(&self, url: &str) -> io::Result<()> {
-        let args = Self::open_args(url);
+        let args = Self::open_args(web_url(url)?);
         let status = Command::new(&args[0])
             .args(&args[1..])
             .stdout(Stdio::null())

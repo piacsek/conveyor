@@ -633,6 +633,28 @@ fn b_opens_the_check_run_behind_a_pull_request_and_says_so_when_there_is_none() 
 }
 
 #[test]
+fn b_refuses_a_check_url_that_is_not_a_web_url() {
+    use conveyor::model::prs::{Check, CheckConclusion};
+    let mut h = Harness::new();
+    let mut checked = pr(4821, "Retry hooks");
+    checked.checks_detail = vec![Check {
+        name: "evil".to_string(),
+        conclusion: CheckConclusion::Failure,
+        url: "file:///etc/passwd".to_string(),
+    }];
+
+    h.run(vec![prs(vec![checked]), key(KeyCode::Char('b'))])
+        .unwrap();
+
+    assert!(h.opener.opened().is_empty(), "nothing reaches the opener");
+    assert!(
+        h.screen().contains("refusing to open `file:///etc/passwd`"),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
 fn z_zooms_the_focused_column_and_toggles_back() {
     let mut h = Harness::new();
 

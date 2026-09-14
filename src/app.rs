@@ -638,6 +638,10 @@ impl App {
     }
 
     fn open(&mut self, url: String) -> Action {
+        if let Err(err) = crate::open::web_url(&url) {
+            self.notice = Some(err.to_string());
+            return Action::Continue;
+        }
         if self.opened_recently(&url) {
             return Action::Continue;
         }
