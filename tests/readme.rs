@@ -5,20 +5,56 @@ use conveyor::ui::help::KEYS;
 
 const README: &str = include_str!("../README.md");
 
+/// The README lines outside fenced code blocks: a `# comment` inside a ```sh block is not a
+/// heading.
+fn prose() -> Vec<&'static str> {
+    let mut fenced = false;
+    README
+        .lines()
+        .filter(|line| {
+            if line.starts_with("```") {
+                fenced = !fenced;
+                return false;
+            }
+            !fenced
+        })
+        .collect()
+}
+
+/// Sentence ends: `.`, `!` or `?` followed by whitespace or the end, so `e.g. x` and
+/// `v0.12.1` do not count.
+fn sentences(text: &str) -> usize {
+    let chars: Vec<char> = text.chars().collect();
+    chars
+        .iter()
+        .enumerate()
+        .filter(|(i, c)| {
+            matches!(c, '.' | '!' | '?') && chars.get(i + 1).is_none_or(|next| next.is_whitespace())
+        })
+        .count()
+}
+
 #[test]
 fn the_readme_has_exactly_the_four_user_sections_in_order() {
-    let headings: Vec<&str> = README
-        .lines()
+    let prose = prose();
+    let sections: Vec<&str> = prose
+        .iter()
+        .copied()
         .filter(|line| line.starts_with("## "))
         .collect();
     assert_eq!(
-        headings,
+        sections,
         ["## Installation", "## Usage", "## Development"],
-        "one h1, then Installation, Usage, Development"
+        "Installation, Usage, Development and nothing else"
     );
     assert_eq!(
-        README.matches("\n# ").count() + usize::from(README.starts_with("# ")),
-        1
+        prose.iter().filter(|line| line.starts_with("# ")).count(),
+        1,
+        "one h1"
+    );
+    assert!(
+        !prose.iter().any(|line| line.starts_with("### ")),
+        "no subsections"
     );
 }
 
@@ -40,11 +76,7 @@ fn the_readme_embeds_one_screenshot_right_below_the_description() {
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
         .collect::<Vec<_>>()
         .join(" ");
-    assert_eq!(
-        description.matches(". ").count() + usize::from(description.ends_with('.')),
-        2,
-        "two sentences: {description}"
-    );
+    assert_eq!(sentences(&description), 2, "two sentences: {description}");
 }
 
 #[test]

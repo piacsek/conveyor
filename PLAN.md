@@ -216,9 +216,10 @@ Outside-in order (`tests/prs.rs` drives `run()` with scripted inputs; one failin
     `Tick` only drives the age labels. Reinstall, run against real `gh`, compare with
     `gh search prs --author @me --state open`.
 
-16. Screenshots, same dynamics as tmux-agents: `scripts/screenshots.sh` renders `docs/*.png`
-    from fixtures only (a `gh` shim on PATH, tempdir `HOME`, never the real account) through
-    freeze → SVG → headless Chrome, README embeds them, and the documentation rule in
+16. Screenshots, same dynamics as tmux-agents: `scripts/screenshots.sh` renders
+    `docs/details.png` (the one image the README embeds since the minimal README of
+    2026-09-14) from fixtures only (a `gh` shim on PATH, tempdir `HOME`, never the real
+    account) through freeze → SVG → headless Chrome, and the documentation rule in
     `AGENTS.md` requires a re-render after any visible layout change.
 
 Phase 1 exit: retro (see checkpoints), `AGENTS.md` updated, v0.1.0 tagged, plan phase 2.

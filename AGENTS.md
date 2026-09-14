@@ -319,10 +319,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 `README.md` is minimal and holds only what a user needs, in this order and nothing else: two
 sentences on what conveyor does, the one screenshot `docs/details.png` right below them (all
 four columns with the details pane open), then `## Installation`, `## Usage` (commands, the key
-table, the default config) and `## Development`. The key table is generated from
-`ui::help::KEYS` word for word; `tests/readme.rs` fails when the README and the help view
-drift, when a second screenshot or section appears, or when the description grows past two
-sentences. Feature depth, glyph meanings and data-source notes belong here, not there. After
+table, the default config) and `## Development`. The key table mirrors `ui::help::KEYS` word
+for word; `tests/readme.rs` fails when the README and the help view drift, when a second
+screenshot, a subsection or another section appears, or when the description grows past two
+sentences (the help view is the single source: change `KEYS`, then the table). Feature depth, glyph meanings and data-source notes belong here, not there. After
 any visible layout change run `scripts/screenshots.sh` (needs `brew install
 charmbracelet/tap/freeze`, Google Chrome, and the FiraCode Nerd Font in `~/Library/Fonts`) and
 commit the new images. Freeze lays out an SVG with the font embedded; headless Chrome
@@ -449,8 +449,9 @@ tests take the debug binary from `CARGO_BIN_EXE_conveyor`, so no release build t
 
 Only behaviour changes get packaged. A release (version bump, tag, tarballs, tap) follows a
 change a user can observe in the binary: a key, a card, a default, a fix, a config key. Docs,
-CI, tests, scripts, refactors and guideline edits merge to `main` without a bump and ride the
-next behaviour release. Do not tag a docs-only or CI-only `main`.
+CI, tests, scripts, refactors, guideline edits and copy-only wording (a word in the help view,
+an error message) merge to `main` without a bump and ride the next behaviour release. Do not
+tag a docs-only or CI-only `main`.
 
 1. Bump `version` in `Cargo.toml` (`Cargo.lock` follows on the next build).
 2. Run the gates, commit `Release vX.Y.Z`, merge to `main`.
