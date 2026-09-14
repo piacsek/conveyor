@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Render README screenshots from a throwaway tmux server and a `gh` shim that prints a synthetic
+# Render the README screenshot from a throwaway tmux server and a `gh` shim that prints a synthetic
 # fixture. Never touches the real gh account: HOME is a tempdir and the shim is first on PATH.
 # Usage: scripts/screenshots.sh [out-dir]   (needs tmux, freeze, Google Chrome, cargo build --release)
 set -euo pipefail
@@ -188,11 +188,5 @@ shoot() {
   render "$name" --padding 20,64,20,20 --window
 }
 
-shoot columns 160 18 ""
 shoot details 160 26 "d"
-shoot queue   160 26 "ld"
-shoot builds  160 26 "lld"
-shoot deployed 160 26 "llld"
-shoot zoom   160 18 "llz"
-shoot tabs     80 18 ""
-echo "wrote $out/columns.png $out/details.png $out/queue.png $out/builds.png $out/deployed.png $out/zoom.png $out/tabs.png"
+echo "wrote $out/details.png"
