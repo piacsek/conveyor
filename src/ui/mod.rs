@@ -26,7 +26,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     let [body, footer] =
         Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(frame.area());
     if app.mode == Mode::Help {
-        draw_help(frame, body);
+        draw_help(frame, body, app.focus);
         frame.render_widget(Paragraph::new("any key returns"), footer);
         return;
     }

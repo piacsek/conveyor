@@ -2,12 +2,12 @@
 source: tests/snapshots.rs
 expression: h.screen()
 ---
-┌Keys──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+┌Keys — My PRs─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │q        quit                                                                                                                                                 │
 │j/k ↓/↑  move                                                                                                                                                 │
 │h/l Tab  focus column                                                                                                                                         │
 │p        open pull request                                                                                                                                    │
-│b        open build                                                                                                                                           │
+│b        open the failing check, else the first                                                                                                               │
 │y/Y      copy pull request / build URL                                                                                                                        │
 │d        details                                                                                                                                              │
 │C-d/C-u  scroll details                                                                                                                                       │
