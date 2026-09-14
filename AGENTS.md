@@ -377,6 +377,10 @@ agent's private memory. When the user says "update the guidelines", edit this fi
 - **Merging and releasing.** Rebase-merge the phase PR into `main` when CI is green, then tag
   from `main` (see Releasing). Never push to `main` directly except the very first bootstrap
   commit of an empty repository, and never force-push.
+- **Catching up with `main` on a pushed branch is a merge, not a rebase.** A rebase rewrites
+  the pushed commits and the next `scripts/ship.sh` push is refused; the no-force-push rule
+  then leaves only `git reset --hard origin/<branch>`, `git merge origin/main` and a
+  cherry-pick of the new work. The rebase-merge into `main` drops the merge commit anyway.
 - **Two binaries.** `conveyor` on PATH is the Homebrew release; `conveyor-dev` is the working
   tree (`scripts/dev-install.sh`). Never `cargo install` the crate into a PATH directory.
 - **Plan before code, plans in the repo.** Each phase starts from a written plan, re-planned
