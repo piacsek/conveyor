@@ -27,15 +27,16 @@ src/main.rs      CLI dispatch, config load, wiring
 src/cli.rs       `conveyor` (TUI) | `config` | `--help` | `--version`; hand-rolled, no clap
 src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override
 src/sources/     everything that reaches out to an external service, and nothing else
-src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`), CliGh spawns `gh api …` / `gh repo view`, error mapping
+src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`, `log_failed`), CliGh spawns `gh api …` / `gh repo view` / `gh run view --log-failed`, error mapping
 src/sources/kube.rs   Kube trait (`image(env)`), CliKubectl (`kubectl --context … get deploy … -o jsonpath`, 10 s timeout)
-src/sources/fetch.rs  repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), fetch_jobs, BuildsSource (caches workflow id and sha→PR), DeploySource (per-env kubectl + cached sha→PR)
+src/sources/fetch.rs  repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), fetch_jobs, fetch_log (LOG_TAIL lines), BuildsSource (caches workflow id and sha→PR), DeploySource (per-env kubectl + cached sha→PR)
 src/sources/queries/  GraphQL documents, `include_str!`ed
 src/model/prs.rs PullRequest, CheckState, Check, ReviewDecision, MergeState; lenient `parse` of gh JSON
 src/model/queue.rs Queue, QueueEntry, QueueState, MergeGroupRun; `parse`, `parse_merge_group_runs`, `attach_runs`
 src/model/builds.rs Build, BuildStatus, PullRef, Builds; `parse_runs`, `pr_number_from_title`, `parse_pull_numbers`
 src/model/deployed.rs Deployment, Deployed; `sha_from_image` (40-hex tag or `-<sha>` suffix)
 src/model/jobs.rs Job, `parse_jobs` (failures first), `failed_step`
+src/model/log.rs  `tail`: the failed step's log as gh prints it, minus job/step/timestamp prefixes and ANSI
 src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode, jobs), Input::{Key, Fetching, Data, Jobs, Tick}, Request::{Refresh, Jobs}, run()
 src/ui/mod.rs    draw: 4 columns or tabs below `4 × ui.min_column_width`
 src/ui/style.rs  the shared vocabulary: BAR, INDENT, dim(), glyphs and status words, short_repo, sha8
@@ -44,9 +45,9 @@ src/ui/columns.rs column titles, blocks and draw_list
 src/ui/rows.rs   one card builder per stage: pr_row, queue_row, build_row, deployed_row
 src/ui/details.rs the `d` pane per stage, including the job list; no URLs
 src/ui/footer.rs footer text, the refresh spinner and the static logo
-src/ui/help.rs   KEYS drives the help view
+src/ui/help.rs   KEYS is the generic table the README mirrors; `keys_for(stage)` swaps the `p`/`b` wording per column
 src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`): the OS seam, not a service, so it stays out of `sources/`
-src/text.rs      truncate/pad_right with `…`, age()
+src/text.rs      truncate/pad_right with `…`, age(), strip_ansi()
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
@@ -197,6 +198,18 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 - **Errors stay inside the TUI.** A failed action or fetch sets an error drawn in the footer
   or column title; the app never exits on it.
 - **Draw before the first read.** `run()` renders, then waits for input.
+- **The filter is a value, editing is a mode.** `App.query` is the live filter on all four
+  columns; `Mode::Filter` only means it is being typed (footer cursor `▏`). `Enter` commits
+  and returns to Normal with the query kept, `Esc` while typing clears it, `/` reopens it.
+  Every column title reads `(visible/total)` while a query is live.
+- **`Esc` closes one thing per press**, in order: details pane, zoom, live filter; then it is a
+  no-op. It never quits. `1`–`4` focus a column in both layouts.
+- **`L` is read-only.** It asks `gh run view <run> --job <job> --log-failed` for the first
+  failed job of the selected run (Main builds or Merge queue), keeps the last `LOG_TAIL` lines
+  per job id in `App.logs`, and toggles `App.log_open`. No failed job known yet → footer notice,
+  no request. Rerunning a job stays a backlog item (write action, confirm UX).
+- **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
+  the deploy repo (`App::deploy_repo`: the `[[repo]]` with a deploy, else `builds_repo`).
 - **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by
   whatever GitHub App or CI posted the check, not by GitHub, and `open`/`xdg-open` would launch
   `file://` paths, app bundles or any custom URL scheme handler. `open::web_url` is the one

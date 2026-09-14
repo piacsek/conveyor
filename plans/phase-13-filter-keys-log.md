@@ -45,7 +45,8 @@ one commit per task through `scripts/ship.sh`, TDD red first on every task.
   the last 40 lines (ANSI stripped, `job\tstep\t` prefixes dropped), scrollable with
   `Ctrl-d`/`Ctrl-u`. `L` again hides it. No failed job → footer `no failed job to show`.
   Read-only on purpose: `gh run rerun --failed` stays in the backlog (write action, confirm UX).
-- **Keymap** (help fits a 16-row terminal: 14 rows + border):
+- **Keymap** (help fits a 16-row terminal: 13 rows + border + footer, so `d` and `C-d/C-u`
+  share a row):
 
   | key | does |
   | --- | --- |
@@ -55,8 +56,7 @@ one commit per task through `scripts/ship.sh`, TDD red first on every task.
   | `p` | open pull request |
   | `b` | open build |
   | `y/Y` | copy pull request / build URL |
-  | `d` | details |
-  | `C-d/C-u` | scroll details |
+  | `d C-d/C-u` | details / scroll them |
   | `L` | log of the failed step |
   | `z` | zoom the column |
   | `Esc` | close details / zoom / filter |

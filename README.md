@@ -34,19 +34,20 @@ conveyor config    # print the effective configuration
 |---|---|
 | `q` | quit |
 | `j/k ↓/↑` | move |
-| `h/l Tab` | focus column |
+| `h/l Tab 1-4` | focus column |
 | `p` | open pull request |
 | `b` | open build |
 | `y/Y` | copy pull request / build URL |
-| `d` | details |
-| `C-d/C-u` | scroll details |
+| `d C-d/C-u` | details / scroll them |
+| `L` | log of the failed step |
 | `z` | zoom the column |
-| `Esc` | leave zoom |
-| `/` | filter |
+| `Esc` | close details / zoom / filter |
+| `/` | filter (Enter keeps, Esc clears) |
 | `r/R` | refresh focused / all |
 | `?` | help |
 
-Keys act on the focused column. Narrow terminals collapse the columns into tabs.
+Keys act on the focused column; `?` shows what `p` and `b` open there. Narrow terminals
+collapse the columns into tabs.
 
 Configuration is `~/.config/conveyor/config.toml` (`$XDG_CONFIG_HOME` and `CONVEYOR_CONFIG`
 are honoured). Every key is optional, unknown keys are an error, and these are the defaults:

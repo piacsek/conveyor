@@ -437,6 +437,15 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   `refusing to open …` and nothing is spawned. Retro: the fix and its tests were first written
   in one edit; TDD is now spelled out in AGENTS.md as never skipped.
 
+- v0.13.0 (phase 13, `plans/phase-13-filter-keys-log.md`): the filter can be kept (`Enter`
+  commits, `Esc` clears, `/` reopens, `▏` while typing), every column title shows
+  `visible/total` while it is live; `Esc` closes details, then zoom, then the filter, and `1`–`4`
+  jump to a column; the help names the focused column and says what `p`/`b` open there;
+  Deployed `b`/`Y` fall back to the commit page; `L` shows the last 40 lines of the failed
+  step's log in the pane (read-only, `gh run view --log-failed`). Retro: six requests, six
+  tasks, one commit each, red first on every one; the README key table and the help snapshot
+  are the two places a `KEYS` change always lands.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
