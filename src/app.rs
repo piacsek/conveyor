@@ -617,19 +617,33 @@ impl App {
                     .selected()
                     .and_then(|row| row.sha.clone())
                     .ok_or_else(|| "no deployed sha to look up".to_string())?;
-                self.builds
-                    .all()
-                    .iter()
-                    .find(|build| build.sha == sha)
-                    .map(|build| build.url.clone())
-                    .ok_or_else(|| {
-                        format!(
-                            "no main build found for {}",
-                            sha.chars().take(8).collect::<String>()
-                        )
-                    })
+                match self.builds.all().iter().find(|build| build.sha == sha) {
+                    Some(build) => Ok(build.url.clone()),
+                    // Older than the fetched main builds: the commit page still shows its
+                    // checks and the run behind them.
+                    None => self
+                        .deploy_repo()
+                        .map(|repo| format!("https://github.com/{repo}/commit/{sha}"))
+                        .ok_or_else(|| {
+                            format!(
+                                "no main build found for {}",
+                                sha.chars().take(8).collect::<String>()
+                            )
+                        }),
+                }
             }
         }
+    }
+
+    /// The repository the Deployed column watches: the configured one with a `[[repo.deploy]]`,
+    /// else the one the main builds came from.
+    fn deploy_repo(&self) -> Option<String> {
+        self.config
+            .repo
+            .iter()
+            .find(|repo| !repo.deploy.is_empty())
+            .map(|repo| repo.name.clone())
+            .or_else(|| self.builds_repo.clone())
     }
 
     pub fn behind_main(&self, row: &Deployment) -> Option<usize> {

@@ -186,7 +186,7 @@ fn without_deploy_config_the_column_says_so_and_a_failed_fetch_flags_it() {
 }
 
 #[test]
-fn b_opens_the_main_build_that_matches_the_deployed_sha() {
+fn b_opens_the_main_build_that_matches_the_deployed_sha_or_the_commit_page() {
     let mut h = Harness::new();
     let rows = vec![
         deployment("staging", 26, Some((4840, "bob", "Speed up CI"))),
@@ -208,11 +208,24 @@ fn b_opens_the_main_build_that_matches_the_deployed_sha() {
         vec!["https://github.com/acme/webapp/actions/runs/1026".to_string()]
     );
 
-    h.run(vec![key(KeyCode::Char('j')), key(KeyCode::Char('b'))])
-        .unwrap();
-    assert_eq!(h.opener.opened().len(), 1);
+    h.run(vec![
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('b')),
+        key(KeyCode::Char('Y')),
+    ])
+    .unwrap();
+    let commit = format!("https://github.com/acme/webapp/commit/{:040x}", 99);
+    assert_eq!(
+        h.opener.opened(),
+        vec![
+            "https://github.com/acme/webapp/actions/runs/1026".to_string(),
+            commit.clone()
+        ],
+        "a sha older than the fetched builds falls back to the commit page"
+    );
+    assert_eq!(h.opener.copied(), vec![commit], "Y copies the same URL");
     assert!(
-        h.screen().contains("no main build found for 00000000"),
+        !h.screen().contains("no main build found"),
         "{}",
         h.screen()
     );
