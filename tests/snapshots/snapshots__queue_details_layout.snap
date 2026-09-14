@@ -1,5 +1,6 @@
 ---
 source: tests/snapshots.rs
+assertion_line: 126
 expression: h.screen()
 ---
 ┌My PRs (3)────────────────────────────┐┌Queue webapp (2)──────────────────────┐┌Main builds───────────────────────────┐┌Deployed──────────────────────────────┐
@@ -21,4 +22,4 @@ expression: h.screen()
 │jobs: loading…                                                                                                                                                │
 │                                                                                                                                                              │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-refreshed just now                                                                                                                       ▪─▪─▪▸ conveyor v0.12.0
+refreshed just now                                                                                                                       ▪─▪─▪▸ conveyor v0.12.1

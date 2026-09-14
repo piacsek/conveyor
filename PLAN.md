@@ -430,6 +430,12 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   of sharing the first line with the number and the age, which is what clipped it: a build card
   is four lines, at a deliberate cost in density.
 
+- v0.12.1: security fix. `b` and `p` only hand http(s) URLs to `open`/`xdg-open`. A check's
+  `detailsUrl`/`targetUrl` belongs to whoever posted the check, and a `file://`, app-bundle or
+  custom-scheme URL would have been launched as-is; now the footer says
+  `refusing to open …` and nothing is spawned. Retro: the fix and its tests were first written
+  in one edit; TDD is now spelled out in AGENTS.md as never skipped.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.

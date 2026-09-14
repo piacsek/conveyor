@@ -196,6 +196,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 - **Errors stay inside the TUI.** A failed action or fetch sets an error drawn in the footer
   or column title; the app never exits on it.
 - **Draw before the first read.** `run()` renders, then waits for input.
+- **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by
+  whatever GitHub App or CI posted the check, not by GitHub, and `open`/`xdg-open` would launch
+  `file://` paths, app bundles or any custom URL scheme handler. `open::web_url` is the one
+  check; `App::open` applies it (footer notice, nothing spawned) and `SystemOpener::open`
+  applies it again as the last line before the spawn.
 - **`gh` never inherits the terminal.** `CliGh::run` gives it a null stdin, so a `gh` that
   wants to prompt (no auth, `HOME` pointing elsewhere) fails fast instead of hanging the
   fetch thread behind `fetching…`.
@@ -332,6 +337,11 @@ agent's private memory. When the user says "update the guidelines", edit this fi
 - **Cadence.** Work runs under `/tdd autonomous`: one branch per phase (`phase-N-<topic>`),
   one commit per task through `scripts/ship.sh`, no pause between tasks, a pause only for the
   end-of-phase retro. Retro outcomes go to `PLAN.md` (facts, decisions) and here (rules).
+- **TDD is never skipped.** Every change to `src/` starts with a failing test, run and seen
+  red, before the production code is touched; then the smallest change that goes green, then
+  refactor. This holds for one-line fixes, security patches, patch releases and "obvious"
+  changes alike. Writing the test and the fix in the same edit is not TDD, even when the test
+  is then backed out to prove it fails. Show the red run in the update.
 - **Draft PR first.** The first ship on a branch opens the draft PR assigned to the user;
   every later commit lands on that PR. Before merging, re-read the PR title and body and fix
   what went stale without rewording the user's edits.

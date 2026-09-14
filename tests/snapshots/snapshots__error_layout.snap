@@ -1,5 +1,6 @@
 ---
 source: tests/snapshots.rs
+assertion_line: 156
 expression: h.screen()
 ---
 ┌My PRs (3) ⚠──────────────────────────┐┌Merge queue───────────────────────────┐┌Main builds───────────────────────────┐┌Deployed──────────────────────────────┐
@@ -13,4 +14,4 @@ expression: h.screen()
 │    webapp · draft                    ││                                      ││                                      ││                                      │
 │    checks: none                      ││                                      ││                                      ││                                      │
 └──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘
-gh: HTTP 401: Bad credentials                                                                                                            ▪─▪─▪▸ conveyor v0.12.0
+gh: HTTP 401: Bad credentials                                                                                                            ▪─▪─▪▸ conveyor v0.12.1
