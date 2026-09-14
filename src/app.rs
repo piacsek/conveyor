@@ -349,6 +349,8 @@ pub struct App {
     pub details_page: u16,
     pub zoom: bool,
     pub jobs: HashMap<u64, JobsState>,
+    /// The live filter applied to every column; `Mode::Filter` means it is being edited.
+    pub query: Option<String>,
     pending_g: bool,
     last_open: Option<(String, SystemTime)>,
 }
@@ -378,6 +380,7 @@ impl App {
             details_page: 0,
             zoom: false,
             jobs: HashMap::new(),
+            query: None,
             pending_g: false,
             last_open: None,
         }
@@ -513,10 +516,11 @@ impl App {
     }
 
     pub fn filter(&self) -> Option<&str> {
-        match &self.mode {
-            Mode::Filter(query) => Some(query),
-            Mode::Normal | Mode::Help => None,
-        }
+        self.query.as_deref()
+    }
+
+    pub fn editing_filter(&self) -> bool {
+        matches!(self.mode, Mode::Filter(_))
     }
 
     pub fn focused_error(&self) -> Option<&str> {
@@ -719,9 +723,17 @@ impl App {
             KeyCode::Backspace => self.edit_filter(|q| {
                 q.pop();
             }),
+            KeyCode::Enter => {
+                self.mode = Mode::Normal;
+                if self.query.as_deref() == Some("") {
+                    self.query = None;
+                }
+                self.sync_filter();
+                Action::Continue
+            }
             KeyCode::Esc => {
                 self.mode = Mode::Normal;
-                self.sync_filter();
+                self.clear_filter();
                 Action::Continue
             }
             _ => self.handle_normal_key(key),
@@ -731,18 +743,25 @@ impl App {
     fn edit_filter(&mut self, edit: impl FnOnce(&mut String)) -> Action {
         if let Mode::Filter(query) = &mut self.mode {
             edit(query);
+            self.query = Some(query.clone());
         }
         self.sync_filter();
         Action::Continue
+    }
+
+    fn clear_filter(&mut self) {
+        self.query = None;
+        self.sync_filter();
     }
 
     fn handle_normal_key(&mut self, key: KeyEvent) -> Action {
         let pending_g = std::mem::take(&mut self.pending_g);
         match key.code {
             KeyCode::Char('q') => return Action::Quit,
-            KeyCode::Esc => self.zoom = false,
+            KeyCode::Esc if self.zoom => self.zoom = false,
+            KeyCode::Esc => self.clear_filter(),
             KeyCode::Char('/') => {
-                self.mode = Mode::Filter(String::new());
+                self.mode = Mode::Filter(self.query.clone().unwrap_or_default());
                 self.sync_filter();
             }
             KeyCode::Char('?') => self.mode = Mode::Help,

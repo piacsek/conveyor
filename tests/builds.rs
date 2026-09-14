@@ -478,7 +478,7 @@ fn the_scroll_keys_work_while_a_filter_is_being_typed_and_never_reach_the_query(
 
     assert_eq!(h.app.details_scroll, 5);
     let screen = h.screen();
-    assert!(screen.contains("/4  "), "the query is still /4: {screen}");
+    assert!(screen.contains("/4▏  "), "the query is still /4: {screen}");
     assert!(!screen.contains("/4d"), "{screen}");
 }
 

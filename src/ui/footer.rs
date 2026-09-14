@@ -17,7 +17,8 @@ pub(crate) fn footer_text(app: &App) -> String {
     match (app.filter(), app.focused_fetched_at()) {
         (Some(query), _) => {
             let (visible, total) = app.focused_counts();
-            format!("/{query}  {visible}/{total}")
+            let cursor = if app.editing_filter() { "▏" } else { "" };
+            format!("/{query}{cursor}  {visible}/{total}")
         }
         (None, Some(at)) => refreshed(at, app.now, app.utc_offset_secs),
         (None, None) => String::new(),
