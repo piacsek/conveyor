@@ -175,7 +175,12 @@ fn shift_l_shows_the_failed_steps_log_in_the_pane_and_again_hides_it() {
         h.requests
     );
     assert!(h.app.details, "L opens the pane");
-    assert!(h.screen().contains("loading…"), "{}", h.screen());
+    let screen = h.screen();
+    assert!(screen.contains("log: check · Run cargo test"), "{screen}");
+    assert!(
+        line_after(&screen, "log: check · Run cargo test").contains("loading…"),
+        "{screen}"
+    );
 
     h.run(vec![log(1, vec!["line one", "line two"])]).unwrap();
     let screen = h.screen();
@@ -356,6 +361,100 @@ fn the_log_opens_in_its_own_pane_beside_the_details_scrolled_to_its_last_line() 
         "L closes the log pane: {screen}"
     );
     assert!(screen.contains("job 1 "), "and the details stay: {screen}");
+}
+
+fn two_failed_runs_with_logs() -> Harness {
+    use support::log;
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(key(KeyCode::Char('j')));
+    inputs.push(jobs(
+        1025,
+        vec![job(
+            1,
+            "check",
+            BuildStatus::Failure,
+            Some("Run cargo test"),
+        )],
+    ));
+    inputs.push(jobs(
+        1024,
+        vec![job(4, "lint", BuildStatus::Failure, Some("Run cargo fmt"))],
+    ));
+    inputs.push(key(KeyCode::Char('L')));
+    let long: Vec<String> = (1..=40).map(|i| format!("line {i}")).collect();
+    inputs.push(log(1, long.iter().map(String::as_str).collect()));
+    h.run(inputs).unwrap();
+    h
+}
+
+#[test]
+fn coming_back_to_a_run_shows_its_log_at_the_end_again() {
+    use support::log;
+    let mut h = two_failed_runs_with_logs();
+    assert!(h.screen().contains("line 40"), "{}", h.screen());
+
+    h.run(vec![
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('L')),
+        log(4, vec!["only line"]),
+        key(KeyCode::Char('k')),
+    ])
+    .unwrap();
+    let screen = h.screen();
+    assert!(
+        screen.contains("line 40"),
+        "back on run 25 the log is at its end: {screen}"
+    );
+    assert!(!screen.contains("line 1 "), "{screen}");
+}
+
+#[test]
+fn a_late_log_for_another_job_does_not_move_the_log_on_screen() {
+    use support::log;
+    let mut h = two_failed_runs_with_logs();
+    h.run(vec![
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('L')),
+        log(
+            4,
+            (1..=20)
+                .map(|i| format!("lint {i}"))
+                .collect::<Vec<_>>()
+                .iter()
+                .map(String::as_str)
+                .collect(),
+        ),
+        ctrl('u'),
+        ctrl('u'),
+    ])
+    .unwrap();
+    assert!(h.screen().contains("lint 1 "), "{}", h.screen());
+
+    h.run(vec![log(1, vec!["fresh check log"])]).unwrap();
+    let screen = h.screen();
+    assert!(
+        screen.contains("lint 1 "),
+        "run 24's view did not jump: {screen}"
+    );
+    assert!(!screen.contains("lint 20"), "{screen}");
+}
+
+#[test]
+fn scroll_keys_with_the_pane_closed_are_forgotten_by_the_log_pane_too() {
+    let mut h = two_failed_runs_with_logs();
+    h.run(vec![
+        key(KeyCode::Esc),
+        ctrl('u'),
+        ctrl('u'),
+        key(KeyCode::Char('d')),
+    ])
+    .unwrap();
+    let screen = h.screen();
+    assert!(
+        screen.contains("line 40"),
+        "the log reopens at its end: {screen}"
+    );
 }
 
 #[test]

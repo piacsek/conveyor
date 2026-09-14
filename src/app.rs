@@ -411,7 +411,7 @@ impl App {
         let selected = self.selected_key();
         self.receive_rows(stage, data);
         if self.selected_key() != selected {
-            self.details_scroll = 0;
+            self.reset_scroll();
         }
     }
 
@@ -554,7 +554,10 @@ impl App {
             Err(message) => LogState::Failed(message),
         };
         self.logs.insert(job_id, state);
-        self.log_scroll = u16::MAX;
+        // Only the log on screen jumps to its end; a late one for another run stays quiet.
+        if self.selected_failed_job().map(|job| job.id) == Some(job_id) {
+            self.log_scroll = u16::MAX;
+        }
     }
 
     pub fn receive_jobs(&mut self, run_id: u64, result: Result<Vec<Job>, String>) {
@@ -755,12 +758,18 @@ impl App {
 
     fn refocus(&mut self, step: impl Fn(Stage) -> Stage) {
         self.focus = step(self.focus);
+        self.reset_scroll();
+    }
+
+    /// Both panes start at their resting place: the details at the top, the log at its end.
+    fn reset_scroll(&mut self) {
         self.details_scroll = 0;
+        self.log_scroll = u16::MAX;
     }
 
     /// `Ctrl-d`/`Ctrl-u` move the log pane while it is open, else the details pane.
     fn scroll_details(&mut self, half_pages: i32) {
-        let (scroll, page) = if self.selected_log().is_some() {
+        let (scroll, page) = if self.details && self.selected_log().is_some() {
             (&mut self.log_scroll, self.log_page)
         } else {
             (&mut self.details_scroll, self.details_page)
@@ -771,7 +780,7 @@ impl App {
     }
 
     fn with_focused(&mut self, act: impl Fn(&mut dyn Navigable)) {
-        self.details_scroll = 0;
+        self.reset_scroll();
         match self.focus {
             Stage::Prs => act(&mut self.prs),
             Stage::Queue => act(&mut self.queue),
@@ -855,7 +864,7 @@ impl App {
     fn escape(&mut self) {
         if self.details {
             self.details = false;
-            self.details_scroll = 0;
+            self.reset_scroll();
         } else if self.zoom {
             self.zoom = false;
         } else if self.query.is_some() {
@@ -905,7 +914,7 @@ impl App {
             KeyCode::Char('R') => return Action::RefreshAll,
             KeyCode::Char('d') => {
                 self.details = !self.details;
-                self.details_scroll = 0;
+                self.reset_scroll();
             }
             KeyCode::Char('L') => return self.toggle_log(),
             KeyCode::Char('z') => self.zoom = !self.zoom,
