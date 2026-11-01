@@ -25,7 +25,7 @@ query($q: String!, $first: Int!) {
             nodes {
               ... on CheckRun {
                 name status conclusion detailsUrl
-                databaseId checkSuite { app { slug } workflowRun { event workflow { name } } }
+                databaseId checkSuite { conclusion app { slug } workflowRun { databaseId event workflow { name } } }
               }
               ... on StatusContext { context state targetUrl }
             }
