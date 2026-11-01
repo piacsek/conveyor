@@ -978,9 +978,9 @@ fn fetch_prs_asks_which_workflow_run_each_check_came_from() {
 
     let calls = gh.calls.borrow();
     assert!(
-        calls[0]
-            .0
-            .contains("databaseId checkSuite { workflowRun { event workflow { name } } }"),
+        calls[0].0.contains(
+            "databaseId checkSuite { app { slug } workflowRun { event workflow { name } } }"
+        ),
         "{}",
         calls[0].0
     );

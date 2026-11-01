@@ -7,7 +7,7 @@ query($id: ID!, $after: String!) {
           nodes {
             ... on CheckRun {
               name status conclusion detailsUrl
-              databaseId checkSuite { workflowRun { event workflow { name } } }
+              databaseId checkSuite { app { slug } workflowRun { event workflow { name } } }
             }
             ... on StatusContext { context state targetUrl }
           }

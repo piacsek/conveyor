@@ -175,3 +175,20 @@ fn a_cancelled_check_from_a_superseded_run_does_not_fail_the_pull_request() {
 
     assert_eq!(pr.checks, CheckState::Pending);
 }
+
+#[test]
+fn two_apps_posting_a_check_of_the_same_name_are_both_kept() {
+    let pr = one(
+        r#"{"number": 14, "statusCheckRollup": {"state": "FAILURE", "contexts": {"nodes": [
+            {"name": "test", "status": "COMPLETED", "conclusion": "FAILURE", "detailsUrl": "",
+             "databaseId": 1, "checkSuite": {"app": {"slug": "app-a"}, "workflowRun": null}},
+            {"name": "test", "status": "COMPLETED", "conclusion": "SUCCESS", "detailsUrl": "",
+             "databaseId": 2, "checkSuite": {"app": {"slug": "app-b"}, "workflowRun": null}}
+        ]}}}"#,
+    );
+
+    assert_eq!(pr.checks, CheckState::Failure);
+    assert_eq!(pr.checks_detail.len(), 2);
+    assert_eq!(pr.checks_detail[0].name, "app-a / test");
+    assert_eq!(pr.checks_detail[1].name, "app-b / test");
+}
