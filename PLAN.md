@@ -451,6 +451,13 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   a log is open, the log pane is scrolled to its last line and owns `Ctrl-d`/`Ctrl-u`; `L`
   toggles it.
 
+- v0.14.0 (phase 14, `plans/phase-14-assigned-prs.md`): My PRs shows pull requests the user
+  authored or is assigned to, once each. The search moved to `type: ISSUE_ADVANCED`, the only
+  type that honours `OR` and parentheses (plain `ISSUE` returned 0 for the same query); GitHub
+  dedupes server-side, so no client merge. Users with their own `prs.query` keep it. Found on
+  the way: an exported `XDG_CONFIG_HOME` made the e2e panes and `screenshots.sh` read the real
+  config; both now unset it and `CONVEYOR_CONFIG`.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
