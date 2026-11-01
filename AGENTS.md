@@ -77,6 +77,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   name are labelled `<workflow> / <name>`, and `<workflow> / <name> (<event>)` when one workflow
   ran for two events (`on: [push, pull_request]`), so they never look like duplicates.
   `StatusContext`s are already one per context and never collapse into a check run.
+  **The card's check state follows that list, not GitHub's rollup.** `statusCheckRollup.state`
+  counts every run on the commit, so a run a concurrency group cancelled kept a PR at `FAILURE`
+  after its replacement passed. `prs::overall` reads the deduplicated checks: any failure, else
+  any pending, else any unknown, else success; the rollup only answers when there are no
+  contexts. The card can therefore read `✓` while GitHub's page still shows a red cross.
   **Every page of checks is read.** `contexts(first: 100)` is GitHub's cap, and its order is not
   by time: it groups checks by name with the older run first, so a cut at 100 can drop the newer
   half of a pair and let the old result win. `fetch::read_remaining_checks` follows
