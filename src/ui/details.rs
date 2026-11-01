@@ -245,7 +245,9 @@ fn job_lines(jobs: Option<&JobsState>) -> Vec<Line<'static>> {
             format!("jobs: {message}"),
             Style::default().fg(Color::Red),
         ))],
-        Some(JobsState::Ready(jobs)) => jobs.iter().map(job_line).collect(),
+        Some(JobsState::Ready(jobs) | JobsState::Stale(jobs) | JobsState::Refreshing(jobs)) => {
+            jobs.iter().map(job_line).collect()
+        }
     }
 }
 

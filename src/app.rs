@@ -70,7 +70,20 @@ pub enum Input {
 pub enum JobsState {
     Loading,
     Ready(Vec<Job>),
+    Stale(Vec<Job>),
+    Refreshing(Vec<Job>),
     Failed(String),
+}
+
+impl JobsState {
+    pub fn known(&self) -> Option<&[Job]> {
+        match self {
+            JobsState::Ready(jobs) | JobsState::Stale(jobs) | JobsState::Refreshing(jobs) => {
+                Some(jobs)
+            }
+            JobsState::Loading | JobsState::Failed(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -430,12 +443,12 @@ impl App {
             (Stage::Queue, Ok(Rows::Queue(queue))) => {
                 self.queue_repo = Some(queue.repo);
                 self.queue.receive(queue.entries, self.now);
-                self.forget_unsettled_jobs();
+                self.age_jobs();
             }
             (Stage::Builds, Ok(Rows::Builds(builds))) => {
                 self.builds_repo = Some(builds.repo);
                 self.builds.receive(builds.builds, self.now);
-                self.forget_unsettled_jobs();
+                self.age_jobs();
             }
             (Stage::Deployed, Ok(Rows::Deployed(deployed))) => {
                 self.deployed_system = Some(deployed.system);
@@ -450,23 +463,32 @@ impl App {
         }
     }
 
-    fn forget_unsettled_jobs(&mut self) {
+    fn age_jobs(&mut self) {
         let queued = self
             .queue
             .all()
             .iter()
             .filter_map(|entry| entry.run.as_ref());
-        let unsettled: Vec<u64> = self
+        let runs: Vec<(u64, bool)> = self
             .builds
             .all()
             .iter()
             .chain(queued)
-            .filter(|build| !build.is_settled())
-            .map(|build| build.id)
+            .map(|build| (build.id, build.is_settled()))
             .collect();
-        for run_id in unsettled {
-            if self.jobs.get(&run_id) != Some(&JobsState::Loading) {
-                self.jobs.remove(&run_id);
+        for (run_id, settled) in runs {
+            let aged = match (self.jobs.remove(&run_id), settled) {
+                (Some(JobsState::Ready(jobs)), false) => Some(JobsState::Stale(jobs)),
+                (Some(JobsState::Failed(_)), false) => None,
+                (Some(JobsState::Ready(jobs) | JobsState::Stale(jobs)), true)
+                    if jobs.iter().any(|job| !job.status.is_settled()) =>
+                {
+                    None
+                }
+                (kept, _) => kept,
+            };
+            if let Some(state) = aged {
+                self.jobs.insert(run_id, state);
             }
         }
     }
@@ -482,9 +504,13 @@ impl App {
     pub fn jobs_needed(&mut self) -> Option<u64> {
         let selected = self.selected_run().map(|run| run.id);
         let run_id = selected
-            .filter(|run_id| !self.jobs.contains_key(run_id))
+            .filter(|run_id| matches!(self.jobs.get(run_id), None | Some(JobsState::Stale(_))))
             .or_else(|| self.failing_run_without_jobs())?;
-        self.jobs.insert(run_id, JobsState::Loading);
+        let state = match self.jobs.remove(&run_id) {
+            Some(JobsState::Stale(jobs)) => JobsState::Refreshing(jobs),
+            _ => JobsState::Loading,
+        };
+        self.jobs.insert(run_id, state);
         Some(run_id)
     }
 
@@ -504,10 +530,10 @@ impl App {
 
     /// The first failed job of the selected run, once its jobs are known.
     pub fn selected_failed_job(&self) -> Option<&Job> {
-        match self.selected_jobs()? {
-            JobsState::Ready(jobs) => jobs.iter().find(|job| job.status == BuildStatus::Failure),
-            JobsState::Loading | JobsState::Failed(_) => None,
-        }
+        self.selected_jobs()?
+            .known()?
+            .iter()
+            .find(|job| job.status == BuildStatus::Failure)
     }
 
     /// The log the pane shows for the selected run: only while `L` has it open.
@@ -561,9 +587,9 @@ impl App {
     }
 
     pub fn receive_jobs(&mut self, run_id: u64, result: Result<Vec<Job>, String>) {
-        let state = match result {
-            Ok(jobs) => JobsState::Ready(jobs),
-            Err(message) => JobsState::Failed(message),
+        let state = match (result, self.jobs.remove(&run_id)) {
+            (Ok(jobs), _) | (Err(_), Some(JobsState::Refreshing(jobs))) => JobsState::Ready(jobs),
+            (Err(message), _) => JobsState::Failed(message),
         };
         self.jobs.insert(run_id, state);
     }

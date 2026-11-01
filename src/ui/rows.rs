@@ -197,9 +197,7 @@ pub(crate) fn build_row(
 }
 
 fn failed_job(run: &Build, jobs: Option<&JobsState>, width: usize) -> Option<Vec<Span<'static>>> {
-    let Some(JobsState::Ready(jobs)) = jobs.filter(|_| !cancelled(run)) else {
-        return None;
-    };
+    let jobs = jobs.filter(|_| !cancelled(run))?.known()?;
     let failed = jobs.iter().find(|job| job.status == BuildStatus::Failure)?;
     Some(job_span(failed, width))
 }
@@ -226,7 +224,7 @@ fn cancelled(build: &Build) -> bool {
 
 fn build_jobs(build: &Build, jobs: Option<&JobsState>, width: usize) -> Vec<Span<'static>> {
     match jobs.filter(|_| !cancelled(build)) {
-        Some(JobsState::Ready(jobs)) => {
+        Some(JobsState::Ready(jobs) | JobsState::Stale(jobs) | JobsState::Refreshing(jobs)) => {
             let worst = jobs
                 .iter()
                 .find(|job| job.status == BuildStatus::Failure)
