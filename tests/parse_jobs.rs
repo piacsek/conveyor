@@ -63,3 +63,18 @@ fn a_re_run_job_replaces_the_attempt_it_re_runs() {
     assert_eq!(jobs[0].id, 20);
     assert_eq!(jobs[0].status, BuildStatus::Running);
 }
+
+#[test]
+fn two_jobs_sharing_a_name_in_one_attempt_are_both_kept() {
+    let value = serde_json::json!({"jobs": [
+        {"id": 10, "name": "build", "run_attempt": 1, "status": "completed",
+         "conclusion": "failure", "html_url": "https://ci/10", "steps": []},
+        {"id": 11, "name": "build", "run_attempt": 1, "status": "completed",
+         "conclusion": "success", "html_url": "https://ci/11", "steps": []}
+    ]});
+
+    let jobs = parse_jobs(&value);
+
+    assert_eq!(jobs.len(), 2);
+    assert_eq!(jobs[0].status, BuildStatus::Failure);
+}

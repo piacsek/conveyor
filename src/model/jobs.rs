@@ -38,22 +38,28 @@ pub fn parse_jobs(value: &serde_json::Value) -> Vec<Job> {
 }
 
 fn newest_attempts(nodes: &[serde_json::Value]) -> Vec<Job> {
-    let mut newest: Vec<(u64, Job)> = Vec::new();
-    for node in nodes {
-        let Some(job) = parse_job(node) else {
-            continue;
-        };
-        let attempt = node
-            .get("run_attempt")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(1);
-        match newest.iter_mut().find(|(_, kept)| kept.name == job.name) {
-            Some(kept) if (attempt, job.id) > (kept.0, kept.1.id) => *kept = (attempt, job),
-            Some(_) => {}
-            None => newest.push((attempt, job)),
-        }
-    }
-    newest.into_iter().map(|(_, job)| job).collect()
+    let attempts: Vec<(u64, Job)> = nodes
+        .iter()
+        .filter_map(|node| {
+            let attempt = node
+                .get("run_attempt")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(1);
+            Some((attempt, parse_job(node)?))
+        })
+        .collect();
+    let newest = |name: &str| {
+        attempts
+            .iter()
+            .filter(|(_, job)| job.name == name)
+            .map(|(attempt, _)| *attempt)
+            .max()
+    };
+    attempts
+        .iter()
+        .filter(|(attempt, job)| Some(*attempt) == newest(&job.name))
+        .map(|(_, job)| job.clone())
+        .collect()
 }
 
 fn parse_job(job: &serde_json::Value) -> Option<Job> {
