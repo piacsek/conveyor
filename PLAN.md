@@ -458,6 +458,16 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   the way: an exported `XDG_CONFIG_HOME` made the e2e panes and `screenshots.sh` read the real
   config; both now unset it and `CONVEYOR_CONFIG`.
 
+- v0.14.1 (phase 15, `plans/phase-15-steady-jobs.md`): jobs stop flickering and duplicating.
+  A refresh keeps a running run's jobs on screen while it asks again (it used to drop them, so
+  the card flashed `jobs: loading…` every refresh); a run that finishes is asked once more, so
+  its card no longer keeps the last "running" snapshot; a re-run shows one line per job, the
+  newest attempt. The finished-run bug predates the phase and was found mid-phase. Deviation
+  from the plan: `Job` gained no `run_attempt` field (the dedupe reads it while parsing), and the
+  queue column got no test of its own (it shares `age_jobs` with Main builds). No real re-run
+  response was available to capture; the dedupe test is built from the documented schema.
+  Work now runs under `/my-tdd autonomous`.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.

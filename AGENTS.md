@@ -146,11 +146,21 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   (`fetch::fetch_jobs`, `model::jobs::parse_jobs`, failures first). `run()` asks through
   `App::jobs_needed()` after every input, so a selection move, a focus change and a refresh of
   either column all trigger it; results land as `Input::Jobs` in `App::jobs`
-  (`Loading`/`Ready`/`Failed`). The pane being open is **not** a condition: both columns' cards
-  render the failing job, which is the whole point of fetching it.
-  An unsettled run's cache entry is dropped on each `Data(Builds, …)` and `Data(Queue, …)` so it
-  is asked again — **unless it is still `Loading`**, which would put a second identical request
-  in flight on every refresh while the first is unanswered.
+  (`Loading`/`Ready`/`Stale`/`Refreshing`/`Failed`). The pane being open is **not** a condition:
+  both columns' cards render the failing job, which is the whole point of fetching it.
+  **A refresh never blanks jobs already on screen.** `App::age_jobs` runs on each
+  `Data(Builds, …)` and `Data(Queue, …)`: an unsettled run's `Ready` becomes `Stale` (still
+  drawn, asked again once selected, then `Refreshing` while in flight); dropping it instead made
+  the card and pane flash sha → `jobs: loading…` → job on every refresh of a running run.
+  `Loading`/`Refreshing` are never asked twice. A refetch that fails keeps the last jobs (`Ready`,
+  retried on the next refresh); only a first fetch shows `Failed`.
+  **A finished run is asked once more.** A snapshot taken while the run was running lands as
+  `Ready` with running jobs; once the run is settled, `age_jobs` drops any snapshot still holding
+  an unsettled job, so the card never shows a red run over a yellow `●` job forever.
+  **One line per job, newest attempt wins.** The jobs route's default `filter=latest` goes by
+  `completed_at`, so during a re-run the previous attempt's finished job comes back next to the
+  new in-progress one under the same name; `parse_jobs` keeps the highest `(run_attempt, id)` per
+  name.
   A job's failed step is the first step with a failing conclusion.
   `tests/fixtures/jobs.json` is a real capture of this repo's run 34509123916, trimmed to
   `id name status conclusion started_at completed_at html_url steps[]`.
