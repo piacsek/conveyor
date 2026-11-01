@@ -93,3 +93,38 @@ fn the_merge_queue_position_is_read_when_present() {
     let plain = one(r#"{"number": 9, "mergeQueueEntry": null}"#);
     assert_eq!(plain.queue_position, None);
 }
+
+#[test]
+fn a_check_from_a_newer_run_of_the_same_workflow_replaces_the_older_one() {
+    let pr = one(
+        r#"{"number": 9, "statusCheckRollup": {"state": "PENDING", "contexts": {"nodes": [
+            {"name": "test", "status": "COMPLETED", "conclusion": "SUCCESS", "detailsUrl": "https://ci/1",
+             "databaseId": 100, "checkSuite": {"workflowRun": {"event": "pull_request", "workflow": {"name": "CI"}}}},
+            {"name": "test", "status": "IN_PROGRESS", "conclusion": null, "detailsUrl": "https://ci/2",
+             "databaseId": 200, "checkSuite": {"workflowRun": {"event": "pull_request", "workflow": {"name": "CI"}}}}
+        ]}}}"#,
+    );
+
+    assert_eq!(pr.checks_detail.len(), 1);
+    assert_eq!(pr.checks_detail[0].conclusion, CheckConclusion::Pending);
+    assert_eq!(pr.checks_detail[0].url, "https://ci/2");
+}
+
+#[test]
+fn checks_sharing_a_name_across_workflows_are_told_apart_by_the_workflow() {
+    let pr = one(
+        r#"{"number": 10, "statusCheckRollup": {"state": "SUCCESS", "contexts": {"nodes": [
+            {"name": "gate", "status": "COMPLETED", "conclusion": "SUCCESS", "detailsUrl": "",
+             "databaseId": 1, "checkSuite": {"workflowRun": {"event": "pull_request", "workflow": {"name": "Review A"}}}},
+            {"name": "gate", "status": "COMPLETED", "conclusion": "SUCCESS", "detailsUrl": "",
+             "databaseId": 2, "checkSuite": {"workflowRun": {"event": "pull_request", "workflow": {"name": "Review B"}}}},
+            {"name": "lint", "status": "COMPLETED", "conclusion": "SUCCESS", "detailsUrl": "",
+             "databaseId": 3, "checkSuite": {"workflowRun": {"event": "pull_request", "workflow": {"name": "Review A"}}}}
+        ]}}}"#,
+    );
+
+    assert_eq!(pr.checks_detail.len(), 3);
+    assert_eq!(pr.checks_detail[0].name, "Review A / gate");
+    assert_eq!(pr.checks_detail[1].name, "Review B / gate");
+    assert_eq!(pr.checks_detail[2].name, "lint");
+}

@@ -69,6 +69,13 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `contexts` is a union of `CheckRun` (`name status conclusion detailsUrl`) and
   `StatusContext` (`context state targetUrl`). `mergeStateStatus` is often `UNKNOWN`
   (GitHub computes it lazily): show it as `—`, never as an error.
+  **One line per check.** `contexts` lists a check run for every workflow run on the head commit,
+  and a workflow can run more than once on the same commit (another `pull_request` event, a
+  re-run), so the same job came back two or four times. `newest_checks` keeps the highest
+  `databaseId` per (workflow name, event, check name), read from
+  `checkSuite { workflowRun { event workflow { name } } }`; two workflows with a job of the same
+  name both stay, labelled `<workflow> / <name>` so they do not look like duplicates.
+  `StatusContext`s are already one per context.
 - **A queue entry carries its whole merge-group run.** `parse_merge_group_runs` builds a
   `Build` per run through `builds::parse_run` (the two endpoints return the same run shape) and
   `attach_runs` hangs it on `QueueEntry::run`, so the queue's details pane shows the run line
