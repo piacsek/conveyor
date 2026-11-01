@@ -7,12 +7,14 @@ use crate::ui::style::{BAR, INDENT, dim};
 pub(crate) fn card(
     selected: bool,
     glyph: (char, Color),
+    icon: Option<(char, Color)>,
     title: String,
     right: String,
     rest: Vec<Vec<Span<'static>>>,
     width: usize,
 ) -> Vec<Line<'static>> {
-    let title_width = width.saturating_sub(INDENT + right.chars().count() + 1);
+    let icon_width = if icon.is_some() { 2 } else { 0 };
+    let title_width = width.saturating_sub(INDENT + icon_width + right.chars().count() + 1);
     let emphasis = if selected {
         Style::default().add_modifier(Modifier::BOLD)
     } else {
@@ -25,15 +27,22 @@ pub(crate) fn card(
             Span::raw(" ")
         }
     };
-    let mut lines = vec![Line::from(vec![
+    let mut first = vec![
         bar(),
         Span::raw(" "),
         Span::styled(glyph.0.to_string(), Style::default().fg(glyph.1)),
         Span::raw(" "),
+    ];
+    if let Some((icon, color)) = icon {
+        first.push(Span::styled(icon.to_string(), Style::default().fg(color)));
+        first.push(Span::raw(" "));
+    }
+    first.extend([
         Span::styled(pad_right(&title, title_width), emphasis),
         Span::raw(" "),
         Span::styled(right, dim()),
-    ])];
+    ]);
+    let mut lines = vec![Line::from(first)];
     lines.extend(rest.into_iter().map(|spans| {
         let mut line = vec![bar(), Span::raw(" ".repeat(INDENT - 1))];
         line.extend(spans);

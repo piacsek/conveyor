@@ -21,6 +21,14 @@ pub(crate) fn glyph(checks: CheckState) -> (char, Color) {
     }
 }
 
+pub(crate) fn pr_glyph(is_draft: bool) -> (char, Color) {
+    if is_draft {
+        ('\u{f4dd}', Color::DarkGray)
+    } else {
+        ('\u{f407}', Color::Green)
+    }
+}
+
 pub(crate) fn build_glyph(status: BuildStatus) -> (char, Color) {
     match status {
         BuildStatus::Success => ('✓', Color::Green),

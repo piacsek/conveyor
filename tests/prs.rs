@@ -43,14 +43,20 @@ fn cards_stack_a_title_a_dim_meta_line_and_the_unhappy_checks_under_a_selection_
     let screen = h.screen();
     let rows: Vec<&str> = screen.lines().collect();
     assert!(rows[0].contains("My PRs (2)"), "{screen}");
-    assert!(rows[1].starts_with("│▌ ✓ #4821 Retry hooks"), "{screen}");
+    assert!(
+        rows[1].starts_with("│▌ ✓ \u{f407} #4821 Retry hooks"),
+        "{screen}"
+    );
     assert!(rows[1].contains("2h│"), "{screen}");
     assert!(
         rows[2].starts_with("│▌   webapp · webhook-retry · +12 −3"),
         "{screen}"
     );
     assert!(rows[3].starts_with("│▌   checks: success"), "{screen}");
-    assert!(rows[4].starts_with("│  ✓ #4830 Rate limits"), "{screen}");
+    assert!(
+        rows[4].starts_with("│  ✓ \u{f407} #4830 Rate limits"),
+        "{screen}"
+    );
     assert!(!screen.contains("1 ✓"), "no row numbers: {screen}");
 }
 
@@ -600,6 +606,25 @@ fn a_failure_before_any_data_flags_the_column_and_shows_the_message_in_the_body(
 }
 
 #[test]
+fn a_pull_request_icon_is_green_when_open_and_grey_when_draft() {
+    use ratatui::style::Color;
+    let mut h = Harness::new();
+    let open = pr(1, "a");
+    let mut draft = pr(2, "b");
+    draft.is_draft = true;
+
+    h.run(vec![prs(vec![open, draft])]).unwrap();
+
+    let screen = h.screen();
+    let rows: Vec<&str> = screen.lines().collect();
+    assert!(rows[1].starts_with("│▌ ✓ \u{f407} #1 a"), "{screen}");
+    assert!(rows[4].starts_with("│  ✓ \u{f4dd} #2 b"), "{screen}");
+    assert!(!rows[5].contains("draft"), "{screen}");
+    assert_eq!(h.cell(5, 1).fg, Color::Green);
+    assert_eq!(h.cell(5, 4).fg, Color::DarkGray);
+}
+
+#[test]
 fn check_glyphs_are_colored_by_state_and_the_age_is_dim() {
     use conveyor::model::prs::CheckState;
     use ratatui::style::{Color, Modifier};
@@ -1066,7 +1091,7 @@ fn only_the_focused_column_highlights_its_selected_card() {
 
     let screen = h.screen();
     let rows: Vec<&str> = screen.lines().collect();
-    assert!(rows[1].starts_with("│▌ ✓ #1 a"), "{screen}");
+    assert!(rows[1].starts_with("│▌ ✓ \u{f407} #1 a"), "{screen}");
     assert_eq!(
         screen.matches('▌').count(),
         3,
