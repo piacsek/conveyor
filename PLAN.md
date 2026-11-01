@@ -481,6 +481,11 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   Found on the way: `screenshots.sh` only built the release binary when it was missing, so a
   stale one rendered the old layout; it now always builds.
 
+- Unreleased (phase 17, `plans/phase-17-superseded-runs.md`): a PR card no longer reads `✗`
+  because of a job that only a cancelled, superseded run had (a final status job the newer
+  run has not reached yet). Checks of a cancelled run are dropped once a newer run of the same
+  workflow and event exists; a run that finished on its own keeps its checks.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.

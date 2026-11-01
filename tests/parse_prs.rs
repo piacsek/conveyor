@@ -192,3 +192,58 @@ fn two_apps_posting_a_check_of_the_same_name_are_both_kept() {
     assert_eq!(pr.checks_detail[0].name, "app-a / test");
     assert_eq!(pr.checks_detail[1].name, "app-b / test");
 }
+
+#[test]
+fn a_job_only_a_cancelled_older_run_has_is_dropped_once_a_newer_run_exists() {
+    let pr = one(
+        r#"{"number": 15, "statusCheckRollup": {"state": "FAILURE", "contexts": {"nodes": [
+            {"name": "status", "status": "COMPLETED", "conclusion": "FAILURE", "detailsUrl": "",
+             "databaseId": 1, "checkSuite": {"conclusion": "CANCELLED",
+               "workflowRun": {"databaseId": 70, "event": "pull_request", "workflow": {"name": "CI"}}}},
+            {"name": "test", "status": "COMPLETED", "conclusion": "CANCELLED", "detailsUrl": "",
+             "databaseId": 2, "checkSuite": {"conclusion": "CANCELLED",
+               "workflowRun": {"databaseId": 70, "event": "pull_request", "workflow": {"name": "CI"}}}},
+            {"name": "test", "status": "IN_PROGRESS", "conclusion": null, "detailsUrl": "",
+             "databaseId": 3, "checkSuite": {"conclusion": null,
+               "workflowRun": {"databaseId": 80, "event": "pull_request", "workflow": {"name": "CI"}}}}
+        ]}}}"#,
+    );
+
+    assert_eq!(pr.checks, CheckState::Pending);
+    assert_eq!(pr.checks_detail.len(), 1);
+    assert_eq!(pr.checks_detail[0].name, "test");
+}
+
+#[test]
+fn a_job_only_a_finished_older_run_has_stays_when_a_newer_run_exists() {
+    let pr = one(
+        r#"{"number": 16, "statusCheckRollup": {"state": "FAILURE", "contexts": {"nodes": [
+            {"name": "test", "status": "COMPLETED", "conclusion": "FAILURE", "detailsUrl": "",
+             "databaseId": 1, "checkSuite": {"conclusion": "FAILURE",
+               "workflowRun": {"databaseId": 70, "event": "pull_request", "workflow": {"name": "CI"}}}},
+            {"name": "label", "status": "COMPLETED", "conclusion": "SUCCESS", "detailsUrl": "",
+             "databaseId": 2, "checkSuite": {"conclusion": "SUCCESS",
+               "workflowRun": {"databaseId": 80, "event": "pull_request", "workflow": {"name": "CI"}}}}
+        ]}}}"#,
+    );
+
+    assert_eq!(pr.checks, CheckState::Failure);
+    assert_eq!(pr.checks_detail.len(), 2);
+}
+
+#[test]
+fn a_cancelled_run_with_nothing_newer_keeps_its_jobs() {
+    let pr = one(
+        r#"{"number": 17, "statusCheckRollup": {"state": "FAILURE", "contexts": {"nodes": [
+            {"name": "status", "status": "COMPLETED", "conclusion": "FAILURE", "detailsUrl": "",
+             "databaseId": 1, "checkSuite": {"conclusion": "CANCELLED",
+               "workflowRun": {"databaseId": 70, "event": "pull_request", "workflow": {"name": "CI"}}}},
+            {"name": "deploy", "status": "COMPLETED", "conclusion": "SUCCESS", "detailsUrl": "",
+             "databaseId": 2, "checkSuite": {"conclusion": "SUCCESS",
+               "workflowRun": {"databaseId": 90, "event": "pull_request", "workflow": {"name": "Deploy"}}}}
+        ]}}}"#,
+    );
+
+    assert_eq!(pr.checks, CheckState::Failure);
+    assert_eq!(pr.checks_detail.len(), 2);
+}

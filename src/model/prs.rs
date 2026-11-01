@@ -199,6 +199,9 @@ fn newest_checks(nodes: &[serde_json::Value]) -> Vec<Check> {
             continue;
         };
         let key = check_key(node, &check);
+        if superseded_by_a_newer_run(node, &key, nodes) {
+            continue;
+        }
         let id = node.get("databaseId").and_then(|v| v.as_u64()).unwrap_or(0);
         match newest.iter_mut().find(|(kept, _, _)| *kept == key) {
             Some(kept) if id > kept.1 => *kept = (key, id, check),
@@ -207,6 +210,31 @@ fn newest_checks(nodes: &[serde_json::Value]) -> Vec<Check> {
         }
     }
     told_apart(newest)
+}
+
+fn run_id(node: &serde_json::Value) -> Option<u64> {
+    node.pointer("/checkSuite/workflowRun/databaseId")
+        .and_then(|v| v.as_u64())
+}
+
+fn superseded_by_a_newer_run(
+    node: &serde_json::Value,
+    key: &CheckKey,
+    nodes: &[serde_json::Value],
+) -> bool {
+    let cancelled = node
+        .pointer("/checkSuite/conclusion")
+        .and_then(|v| v.as_str())
+        == Some("CANCELLED");
+    let Some(run) = run_id(node).filter(|_| cancelled) else {
+        return false;
+    };
+    nodes.iter().any(|other| {
+        run_id(other).is_some_and(|other_run| other_run > run) && {
+            let other_key = check_key(other, &Check::default());
+            other_key.workflow == key.workflow && other_key.event == key.event
+        }
+    })
 }
 
 fn told_apart(checks: Vec<(CheckKey, u64, Check)>) -> Vec<Check> {
