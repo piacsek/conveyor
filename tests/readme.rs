@@ -47,10 +47,10 @@ fn the_readme_has_exactly_the_four_user_sections_in_order() {
         ["## Installation", "## Usage", "## Development"],
         "Installation, Usage, Development and nothing else"
     );
-    assert_eq!(
-        prose.iter().filter(|line| line.starts_with("# ")).count(),
-        1,
-        "one h1"
+    assert!(prose[0].starts_with("<img "), "a banner opens the README");
+    assert!(
+        !prose.iter().any(|line| line.starts_with("# ")),
+        "the banner stands in for the h1"
     );
     assert!(
         !prose.iter().any(|line| line.starts_with("### ")),
@@ -73,7 +73,7 @@ fn the_readme_embeds_one_screenshot_right_below_the_description() {
     );
     let description = before_image
         .lines()
-        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .filter(|line| !line.is_empty() && !line.starts_with('#') && !line.starts_with("<img "))
         .collect::<Vec<_>>()
         .join(" ");
     assert_eq!(sentences(&description), 2, "two sentences: {description}");

@@ -395,8 +395,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 
 ## Documentation rule
 
-`README.md` is minimal and holds only what a user needs, in this order and nothing else: two
-sentences on what conveyor does, the one screenshot `docs/details.png` right below them (all
+`README.md` is minimal and holds only what a user needs, in this order and nothing else: the
+banner `<img>` (it stands in for the h1; there is no `# ` heading), two sentences on what conveyor does, the one screenshot `docs/details.png` right below them (all
 four columns with the details pane open), then `## Installation`, `## Usage` (commands, the key
 table, the default config) and `## Development`. The key table mirrors `ui::help::KEYS` word
 for word; `tests/readme.rs` fails when the README and the help view drift, when a second
