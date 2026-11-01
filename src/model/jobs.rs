@@ -21,11 +21,12 @@ impl Job {
 }
 
 pub fn parse_jobs(value: &serde_json::Value) -> Vec<Job> {
-    let mut jobs: Vec<Job> = value
+    let nodes = value
         .get("jobs")
         .and_then(|v| v.as_array())
-        .map(|jobs| jobs.iter().filter_map(parse_job).collect())
+        .map(Vec::as_slice)
         .unwrap_or_default();
+    let mut jobs = newest_attempts(nodes);
     jobs.sort_by_key(|job| match job.status {
         BuildStatus::Failure => 0,
         BuildStatus::Running | BuildStatus::Queued => 1,
@@ -34,6 +35,25 @@ pub fn parse_jobs(value: &serde_json::Value) -> Vec<Job> {
         BuildStatus::Cancelled => 4,
     });
     jobs
+}
+
+fn newest_attempts(nodes: &[serde_json::Value]) -> Vec<Job> {
+    let mut newest: Vec<(u64, Job)> = Vec::new();
+    for node in nodes {
+        let Some(job) = parse_job(node) else {
+            continue;
+        };
+        let attempt = node
+            .get("run_attempt")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(1);
+        match newest.iter_mut().find(|(_, kept)| kept.name == job.name) {
+            Some(kept) if (attempt, job.id) > (kept.0, kept.1.id) => *kept = (attempt, job),
+            Some(_) => {}
+            None => newest.push((attempt, job)),
+        }
+    }
+    newest.into_iter().map(|(_, job)| job).collect()
 }
 
 fn parse_job(job: &serde_json::Value) -> Option<Job> {

@@ -45,3 +45,21 @@ fn a_running_job_sorts_before_the_settled_ones_and_has_no_duration() {
 fn a_response_without_jobs_is_empty() {
     assert!(parse_jobs(&serde_json::json!({"total_count": 0})).is_empty());
 }
+
+#[test]
+fn a_re_run_job_replaces_the_attempt_it_re_runs() {
+    let value = serde_json::json!({"jobs": [
+        {"id": 10, "name": "build", "run_attempt": 1, "status": "completed",
+         "conclusion": "failure", "started_at": "2026-09-10T17:35:22Z",
+         "completed_at": "2026-09-10T17:35:41Z", "html_url": "https://ci/10", "steps": []},
+        {"id": 20, "name": "build", "run_attempt": 2, "status": "in_progress",
+         "conclusion": null, "started_at": "2026-09-10T17:40:00Z",
+         "completed_at": null, "html_url": "https://ci/20", "steps": []}
+    ]});
+
+    let jobs = parse_jobs(&value);
+
+    assert_eq!(jobs.len(), 1);
+    assert_eq!(jobs[0].id, 20);
+    assert_eq!(jobs[0].status, BuildStatus::Running);
+}
