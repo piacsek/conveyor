@@ -15,11 +15,16 @@ impl Server {
     }
 
     fn sized(name: &str, height: &str) -> Self {
+        Self::with_env(name, height, &[])
+    }
+
+    fn with_env(name: &str, height: &str, env: &[(&str, &str)]) -> Self {
         let server = Self {
             socket: format!("conveyor-e2e-{name}-{}", std::process::id()),
         };
         let status = server
             .tmux(&["new-session", "-d", "-s", "live", "-x", "160", "-y", height])
+            .envs(env.iter().copied())
             .status()
             .unwrap_or_else(|err| {
                 panic!("the e2e tests drive a scratch tmux server; install tmux (brew install tmux) and rerun `cargo test -- --ignored`: {err}")
@@ -40,7 +45,10 @@ impl Server {
 
     fn respawn(&self, env: &[(&str, &str)], command: &str) {
         let pairs: Vec<String> = env.iter().map(|(k, v)| format!("{k}='{v}'")).collect();
-        let command = format!("env {} '{command}'", pairs.join(" "));
+        let command = format!(
+            "env -u XDG_CONFIG_HOME -u CONVEYOR_CONFIG {} '{command}'",
+            pairs.join(" ")
+        );
         let status = self
             .tmux(&["respawn-pane", "-k", &command])
             .status()
@@ -246,6 +254,42 @@ fn the_queue_column_fills_from_the_checked_out_repository() {
     assert!(screen.contains("#4821 Retry webhook"), "{screen}");
     assert!(screen.contains("alice · position 1"), "{screen}");
     assert!(screen.contains("#1 Phase 0: setup"), "{screen}");
+}
+
+#[test]
+#[ignore]
+fn the_binary_never_reads_a_config_from_the_callers_environment() {
+    let home = tempfile::tempdir().unwrap();
+    let path = dispatching_shim(home.path());
+    let outside = tempfile::tempdir().unwrap();
+    fs::create_dir_all(outside.path().join("conveyor")).unwrap();
+    fs::write(
+        outside.path().join("conveyor").join("config.toml"),
+        "[[repo]]\nname = \"acme/leaked\"\n",
+    )
+    .unwrap();
+    let outside_dir = outside.path().display().to_string();
+    let outside_file = outside.path().join("conveyor").join("config.toml");
+    let outside_file = outside_file.display().to_string();
+    let server = Server::with_env(
+        "isolation",
+        "12",
+        &[
+            ("XDG_CONFIG_HOME", &outside_dir),
+            ("CONVEYOR_CONFIG", &outside_file),
+        ],
+    );
+
+    server.respawn(
+        &[
+            ("HOME", &home.path().display().to_string()),
+            ("PATH", &path),
+        ],
+        env!("CARGO_BIN_EXE_conveyor"),
+    );
+
+    let screen = server.wait_for_screen("Queue webapp (2)");
+    assert!(!screen.contains("leaked"), "{screen}");
 }
 
 #[test]
