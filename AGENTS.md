@@ -321,6 +321,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   the pane's login shell rebuilt `PATH` (macOS `path_helper` and rc files), the shim was
   never found and the real `gh` ran. Sockets are per test so parallel tests never share a
   server.
+- **A scratch `HOME` does not isolate the config.** `XDG_CONFIG_HOME` and `CONVEYOR_CONFIG`
+  outrank `HOME`, and a shell that exports one made the e2e panes and `screenshots.sh` read the
+  real config (real repo names on screen, three e2e failures that CI never saw). Both launch the
+  binary with `env -u XDG_CONFIG_HOME -u CONVEYOR_CONFIG …`; any new launcher must do the same.
 - **`gh` shim tests share one process, so they race on fork.** `tests/github.rs` writes a
   shell script per test and spawns it; on Linux CI one test's `fs::write` was still open when
   another test's `Command` forked, the child inherited the fd and `exec` failed with

@@ -188,7 +188,7 @@ render() {
 shoot() {
   local name="$1" width="$2" height="$3" keys="$4"
   t resize-window -t "$shot_window" -x "$width" -y "$height"
-  t respawn-pane -k -t "$shot_window" "env HOME='$home' PATH='$home/bin:$PATH' '$bin'"
+  t respawn-pane -k -t "$shot_window" "env -u XDG_CONFIG_HOME -u CONVEYOR_CONFIG HOME='$home' PATH='$home/bin:$PATH' '$bin'"
   sleep 1.5
   [ -n "$keys" ] && t send-keys -t "$shot_window" "$keys" && sleep 0.5
   t capture-pane -e -p -t "$shot_window" | python3 "$home/truecolor.py" >"$home/$name.ansi"
