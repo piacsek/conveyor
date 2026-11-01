@@ -972,3 +972,93 @@ fn a_build_card_gives_the_title_its_own_line_under_the_number() {
         h.screen()
     );
 }
+
+#[test]
+fn a_refresh_keeps_a_running_runs_jobs_on_screen_while_it_asks_again() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(key(KeyCode::Char('d')));
+    inputs.push(jobs(1025, vec![job(2, "lint", BuildStatus::Failure, None)]));
+    inputs.push(jobs(
+        1026,
+        vec![job(1, "check", BuildStatus::Running, None)],
+    ));
+    inputs.push(builds(three()));
+
+    h.run(inputs).unwrap();
+
+    let screen = h.screen();
+    assert!(!screen.contains("jobs: loading…"), "{screen}");
+    assert!(screen.contains("● check  19s"), "the pane: {screen}");
+    assert_eq!(
+        h.requests.last(),
+        Some(&Request::Jobs { run_id: 1026 }),
+        "still asked again"
+    );
+}
+
+#[test]
+fn a_run_that_settles_while_not_selected_drops_its_running_jobs() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(jobs(1025, vec![job(2, "lint", BuildStatus::Failure, None)]));
+    inputs.push(jobs(
+        1026,
+        vec![job(1, "check", BuildStatus::Running, None)],
+    ));
+    inputs.push(key(KeyCode::Char('j')));
+    inputs.push(builds(three()));
+    let mut settled = three();
+    settled[0].status = BuildStatus::Failure;
+    inputs.push(builds(settled));
+
+    h.run(inputs).unwrap();
+
+    assert!(!h.screen().contains("● check"), "{}", h.screen());
+    assert_eq!(
+        h.requests.last(),
+        Some(&Request::Jobs { run_id: 1026 }),
+        "the failed run is asked for again"
+    );
+}
+
+#[test]
+fn a_failed_refetch_keeps_the_jobs_already_on_screen() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(key(KeyCode::Char('d')));
+    inputs.push(jobs(
+        1026,
+        vec![job(1, "check", BuildStatus::Running, None)],
+    ));
+    inputs.push(builds(three()));
+    inputs.push(jobs_failed(1026, "gh: HTTP 502"));
+
+    h.run(inputs).unwrap();
+
+    assert!(h.screen().contains("● check  19s"), "{}", h.screen());
+    assert!(!h.screen().contains("HTTP 502"), "{}", h.screen());
+}
+
+#[test]
+fn a_selected_run_that_settles_is_asked_for_its_final_jobs() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(jobs(1025, vec![job(2, "lint", BuildStatus::Failure, None)]));
+    inputs.push(jobs(
+        1026,
+        vec![job(1, "check", BuildStatus::Running, None)],
+    ));
+    let mut settled = three();
+    settled[0].status = BuildStatus::Failure;
+    inputs.push(builds(settled));
+
+    h.run(inputs).unwrap();
+
+    assert!(!h.screen().contains("● check"), "{}", h.screen());
+    assert_eq!(
+        h.requests.last(),
+        Some(&Request::Jobs { run_id: 1026 }),
+        "asked once more after it finished"
+    );
+}
