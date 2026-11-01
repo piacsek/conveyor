@@ -73,7 +73,9 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   and a workflow can run more than once on the same commit (another `pull_request` event, a
   re-run), so the same job came back two or four times. `newest_checks` keeps the highest
   `databaseId` per (status or check run, workflow name, event, check name), read from
-  `checkSuite { workflowRun { event workflow { name } } }`. Checks that survive with the same
+  `checkSuite { app { slug } workflowRun { event workflow { name } } }`; a check run from an app
+  that is not Actions has no workflow run, so its app slug stands in for the workflow (two apps
+  posting `test` both stay, labelled `<app> / test`). Checks that survive with the same
   name are labelled `<workflow> / <name>`, and `<workflow> / <name> (<event>)` when one workflow
   ran for two events (`on: [push, pull_request]`), so they never look like duplicates.
   `StatusContext`s are already one per context and never collapse into a check run.

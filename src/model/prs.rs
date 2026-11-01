@@ -259,7 +259,12 @@ fn check_key(node: &serde_json::Value, check: &Check) -> CheckKey {
     };
     CheckKey {
         status_context: node.get("context").is_some(),
-        workflow: field("/workflow/name"),
+        workflow: run
+            .and_then(|run| run.pointer("/workflow/name"))
+            .or_else(|| node.pointer("/checkSuite/app/slug"))
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string(),
         event: field("/event"),
         name: check.name.clone(),
     }
