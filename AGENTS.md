@@ -76,6 +76,12 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `checkSuite { workflowRun { event workflow { name } } }`; two workflows with a job of the same
   name both stay, labelled `<workflow> / <name>` so they do not look like duplicates.
   `StatusContext`s are already one per context.
+  **Every page of checks is read.** `contexts(first: 100)` is GitHub's cap, and its order is not
+  by time: it groups checks by name with the older run first, so a cut at 100 can drop the newer
+  half of a pair and let the old result win. `fetch::read_remaining_checks` follows
+  `pageInfo.hasNextPage` with `queries/pr_checks.graphql` (`node(id:)`, so the e2e shim's
+  `repository(owner` route never catches it), up to `MAX_CHECK_PAGES` extra pages per pull
+  request, before parsing. A failed page fails the column, which keeps its last rows.
 - **A queue entry carries its whole merge-group run.** `parse_merge_group_runs` builds a
   `Build` per run through `builds::parse_run` (the two endpoints return the same run shape) and
   `attach_runs` hangs it on `QueueEntry::run`, so the queue's details pane shows the run line

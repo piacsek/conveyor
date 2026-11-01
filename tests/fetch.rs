@@ -14,6 +14,7 @@ struct FakeGithub {
     response: io::Result<serde_json::Value>,
     rest_response: io::Result<serde_json::Value>,
     rest_routes: Vec<(String, serde_json::Value)>,
+    graphql_routes: Vec<(String, serde_json::Value)>,
     cwd_repo: io::Result<String>,
     log_response: io::Result<String>,
 }
@@ -25,6 +26,7 @@ impl FakeGithub {
             response,
             rest_response: Ok(serde_json::json!({"workflow_runs": []})),
             rest_routes: Vec::new(),
+            graphql_routes: Vec::new(),
             cwd_repo: Ok("acme/from-cwd".to_string()),
             log_response: Ok(String::new()),
         }
@@ -39,6 +41,13 @@ impl Github for FakeGithub {
                 .map(|(k, v)| (k.to_string(), v.clone()))
                 .collect(),
         ));
+        if let Some((_, value)) = self
+            .graphql_routes
+            .iter()
+            .find(|(needle, _)| query.contains(needle.as_str()))
+        {
+            return Ok(value.clone());
+        }
         match &self.response {
             Ok(value) => Ok(value.clone()),
             Err(err) => Err(io::Error::new(err.kind(), err.to_string())),
@@ -974,5 +983,41 @@ fn fetch_prs_asks_which_workflow_run_each_check_came_from() {
             .contains("databaseId checkSuite { workflowRun { event workflow { name } } }"),
         "{}",
         calls[0].0
+    );
+}
+
+#[test]
+fn fetch_prs_reads_every_page_of_a_pull_requests_checks() {
+    let check = |id: u64, status: &str| {
+        serde_json::json!({"name": "test", "status": status, "conclusion": null, "detailsUrl": "",
+            "databaseId": id, "checkSuite": {"workflowRun": {"event": "pull_request", "workflow": {"name": "CI"}}}})
+    };
+    let mut gh = FakeGithub::with_response(Ok(serde_json::json!({"data": {"search": {"nodes": [
+        {"id": "PR_1", "number": 1, "statusCheckRollup": {"state": "PENDING", "contexts": {
+            "pageInfo": {"hasNextPage": true, "endCursor": "c1"},
+            "nodes": [check(1, "COMPLETED")]}}}
+    ]}}})));
+    gh.graphql_routes = vec![(
+        "node(id: $id)".to_string(),
+        serde_json::json!({"data": {"node": {"statusCheckRollup": {"contexts": {
+            "pageInfo": {"hasNextPage": false, "endCursor": "c2"},
+            "nodes": [check(2, "IN_PROGRESS")]}}}}}),
+    )];
+
+    let prs = fetch_prs(&gh, &Config::default()).unwrap();
+
+    assert_eq!(prs[0].checks_detail.len(), 1);
+    assert_eq!(
+        prs[0].checks_detail[0].conclusion,
+        conveyor::model::prs::CheckConclusion::Pending
+    );
+    let calls = gh.calls.borrow();
+    assert_eq!(calls.len(), 2);
+    assert_eq!(
+        calls[1].1,
+        vec![
+            ("id".to_string(), Variable::from("PR_1")),
+            ("after".to_string(), Variable::from("c1")),
+        ]
     );
 }

@@ -468,6 +468,8 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   response was available to capture; the dedupe test is built from the documented schema.
   My PRs' check list gets the same rule: one line per check from the newest workflow run, and
   a job name two workflows share is prefixed with its workflow.
+  Checks past GitHub's 100 per page are now read too: its order groups old and new runs by
+  name, so the cut could keep the old result.
   Work now runs under `/my-tdd autonomous`.
 
 ## Deferred / backlog (discuss at retros)
