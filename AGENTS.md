@@ -72,10 +72,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   **One line per check.** `contexts` lists a check run for every workflow run on the head commit,
   and a workflow can run more than once on the same commit (another `pull_request` event, a
   re-run), so the same job came back two or four times. `newest_checks` keeps the highest
-  `databaseId` per (workflow name, event, check name), read from
-  `checkSuite { workflowRun { event workflow { name } } }`; two workflows with a job of the same
-  name both stay, labelled `<workflow> / <name>` so they do not look like duplicates.
-  `StatusContext`s are already one per context.
+  `databaseId` per (status or check run, workflow name, event, check name), read from
+  `checkSuite { workflowRun { event workflow { name } } }`. Checks that survive with the same
+  name are labelled `<workflow> / <name>`, and `<workflow> / <name> (<event>)` when one workflow
+  ran for two events (`on: [push, pull_request]`), so they never look like duplicates.
+  `StatusContext`s are already one per context and never collapse into a check run.
   **Every page of checks is read.** `contexts(first: 100)` is GitHub's cap, and its order is not
   by time: it groups checks by name with the older run first, so a cut at 100 can drop the newer
   half of a pair and let the old result win. `fetch::read_remaining_checks` follows
@@ -93,7 +94,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   one in made the card say `✗ failure` while the pane below it said `cancelled`. The GraphQL
   rollup is left untouched on the entry and is what a run-less entry still reads from.
   `App::selected_run` is what the jobs machinery keys on, so jobs are fetched for whichever of
-  the two columns is focused, and `forget_unsettled_jobs` sweeps both.
+  the two columns is focused, and `age_jobs` sweeps both.
 - **A run that parses to `BuildStatus::Unknown` still speaks for the entry**, so the card reads
   `? · ?` even when the GraphQL rollup had an opinion. That is the contract, not an oversight:
   one source per entry beats two that can disagree, and an unrecognised `status`/`conclusion`
@@ -168,12 +169,14 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `Loading`/`Refreshing` are never asked twice. A refetch that fails keeps the last jobs (`Ready`,
   retried on the next refresh); only a first fetch shows `Failed`.
   **A finished run is asked once more.** A snapshot taken while the run was running lands as
-  `Ready` with running jobs; once the run is settled, `age_jobs` drops any snapshot still holding
-  an unsettled job, so the card never shows a red run over a yellow `●` job forever.
+  `Ready` with running jobs; once the run is settled, `age_jobs` drops any `Ready` still holding
+  an unsettled job and every `Stale` (a re-run keeps its run id, so a `Stale` under a settled run
+  is the previous attempt), so the card never shows a red run over a yellow `●` job, nor a
+  passing re-run over the first attempt's `✗`.
   **One line per job, newest attempt wins.** The jobs route's default `filter=latest` goes by
   `completed_at`, so during a re-run the previous attempt's finished job comes back next to the
-  new in-progress one under the same name; `parse_jobs` keeps the highest `(run_attempt, id)` per
-  name.
+  new in-progress one under the same name; `parse_jobs` keeps, per name, the jobs of that name's
+  newest `run_attempt` (two jobs sharing a name in one attempt both stay).
   A job's failed step is the first step with a failing conclusion.
   `tests/fixtures/jobs.json` is a real capture of this repo's run 34509123916, trimmed to
   `id name status conclusion started_at completed_at html_url steps[]`.

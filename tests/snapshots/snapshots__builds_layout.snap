@@ -1,6 +1,5 @@
 ---
 source: tests/snapshots.rs
-assertion_line: 113
 expression: h.screen()
 ---
 ┌My PRs────────────────────────────────┐┌Merge queue───────────────────────────┐┌Main webapp (3)───────────────────────┐┌Deployed──────────────────────────────┐
