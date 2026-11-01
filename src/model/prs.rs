@@ -193,13 +193,14 @@ fn overall(checks: &[Check]) -> Option<CheckState> {
 }
 
 fn newest_checks(nodes: &[serde_json::Value]) -> Vec<Check> {
+    let newest_runs = newest_runs(nodes);
     let mut newest: Vec<(CheckKey, u64, Check)> = Vec::new();
     for node in nodes {
         let Some(check) = parse_check(node) else {
             continue;
         };
         let key = check_key(node, &check);
-        if superseded_by_a_newer_run(node, &key, nodes) {
+        if superseded(node, &key, &newest_runs) {
             continue;
         }
         let id = node.get("databaseId").and_then(|v| v.as_u64()).unwrap_or(0);
@@ -217,23 +218,39 @@ fn run_id(node: &serde_json::Value) -> Option<u64> {
         .and_then(|v| v.as_u64())
 }
 
-fn superseded_by_a_newer_run(
+fn newest_runs(nodes: &[serde_json::Value]) -> Vec<((String, String), u64)> {
+    let mut runs: Vec<((String, String), u64)> = Vec::new();
+    for node in nodes {
+        let Some(run) = run_id(node) else {
+            continue;
+        };
+        let key = check_key(node, &Check::default());
+        let group = (key.workflow, key.event);
+        match runs.iter_mut().find(|(kept, _)| *kept == group) {
+            Some(kept) => kept.1 = kept.1.max(run),
+            None => runs.push((group, run)),
+        }
+    }
+    runs
+}
+
+fn superseded(
     node: &serde_json::Value,
     key: &CheckKey,
-    nodes: &[serde_json::Value],
+    newest_runs: &[((String, String), u64)],
 ) -> bool {
     let cancelled = node
         .pointer("/checkSuite/conclusion")
         .and_then(|v| v.as_str())
         == Some("CANCELLED");
-    let Some(run) = run_id(node).filter(|_| cancelled) else {
+    if !cancelled {
+        return false;
+    }
+    let Some(run) = run_id(node) else {
         return false;
     };
-    nodes.iter().any(|other| {
-        run_id(other).is_some_and(|other_run| other_run > run) && {
-            let other_key = check_key(other, &Check::default());
-            other_key.workflow == key.workflow && other_key.event == key.event
-        }
+    newest_runs.iter().any(|((workflow, event), newest)| {
+        *workflow == key.workflow && *event == key.event && *newest > run
     })
 }
 

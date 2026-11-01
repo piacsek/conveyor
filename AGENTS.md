@@ -86,7 +86,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `checkSuite.conclusion` is `CANCELLED` when a higher `workflowRun.databaseId` exists for the
   same workflow and event. A run that finished on its own keeps its checks, so a newer run that
   skips a job (a `labeled` trigger) cannot hide a real result. A newer run with no check run yet
-  is invisible here, so the old `✗` stays until its first job appears.
+  is invisible here, so the old `✗` stays until its first job appears. "Newer" is the higher run
+  id, not the later start: re-running an older run that cancels a newer one leaves the newer
+  run's leftovers in place. Ordering by check-run id instead was rejected because a cancelled
+  run's status job is created at cancel time, often after the newer run's first jobs.
   **The card's check state follows that list, not GitHub's rollup.** `statusCheckRollup.state`
   counts every run on the commit, so a run a concurrency group cancelled kept a PR at `FAILURE`
   after its replacement passed. `prs::overall` reads the deduplicated checks: any failure, else

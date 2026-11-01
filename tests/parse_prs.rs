@@ -247,3 +247,20 @@ fn a_cancelled_run_with_nothing_newer_keeps_its_jobs() {
     assert_eq!(pr.checks, CheckState::Failure);
     assert_eq!(pr.checks_detail.len(), 2);
 }
+
+#[test]
+fn a_cancelled_run_is_not_superseded_by_a_newer_run_of_another_event() {
+    let pr = one(
+        r#"{"number": 18, "statusCheckRollup": {"state": "FAILURE", "contexts": {"nodes": [
+            {"name": "status", "status": "COMPLETED", "conclusion": "FAILURE", "detailsUrl": "",
+             "databaseId": 1, "checkSuite": {"conclusion": "CANCELLED",
+               "workflowRun": {"databaseId": 70, "event": "pull_request", "workflow": {"name": "CI"}}}},
+            {"name": "test", "status": "COMPLETED", "conclusion": "SUCCESS", "detailsUrl": "",
+             "databaseId": 2, "checkSuite": {"conclusion": "SUCCESS",
+               "workflowRun": {"databaseId": 80, "event": "push", "workflow": {"name": "CI"}}}}
+        ]}}}"#,
+    );
+
+    assert_eq!(pr.checks, CheckState::Failure);
+    assert_eq!(pr.checks_detail.len(), 2);
+}
