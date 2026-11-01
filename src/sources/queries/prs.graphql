@@ -3,6 +3,7 @@ query($q: String!, $first: Int!) {
     issueCount
     nodes {
       ... on PullRequest {
+        id
         number
         title
         url
@@ -20,6 +21,7 @@ query($q: String!, $first: Int!) {
           state
           contexts(first: 100) {
             totalCount
+            pageInfo { hasNextPage endCursor }
             nodes {
               ... on CheckRun {
                 name status conclusion detailsUrl

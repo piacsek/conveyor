@@ -5,11 +5,13 @@ use crate::model::queue::{Queue, parse_merge_group_runs};
 use crate::sources::github::Github;
 
 pub const PRS_QUERY: &str = include_str!("queries/prs.graphql");
+const PR_CHECKS_QUERY: &str = include_str!("queries/pr_checks.graphql");
+const MAX_CHECK_PAGES: usize = 10;
 pub const QUEUE_QUERY: &str = include_str!("queries/queue.graphql");
 const QUEUE_LIMIT: usize = 20;
 
 pub fn fetch_prs(gh: &impl Github, config: &Config) -> Result<Vec<PullRequest>, String> {
-    let value = gh
+    let mut value = gh
         .graphql(
             PRS_QUERY,
             &[
@@ -18,7 +20,53 @@ pub fn fetch_prs(gh: &impl Github, config: &Config) -> Result<Vec<PullRequest>, 
             ],
         )
         .map_err(|err| err.to_string())?;
+    if let Some(prs) = value
+        .pointer_mut("/data/search/nodes")
+        .and_then(|v| v.as_array_mut())
+    {
+        for pr in prs {
+            read_remaining_checks(gh, pr)?;
+        }
+    }
     crate::model::prs::parse(&value)
+}
+
+fn read_remaining_checks(gh: &impl Github, pr: &mut serde_json::Value) -> Result<(), String> {
+    let Some(id) = pr.get("id").and_then(|v| v.as_str()).map(str::to_string) else {
+        return Ok(());
+    };
+    for _ in 0..MAX_CHECK_PAGES {
+        let Some(contexts) = pr.pointer_mut("/statusCheckRollup/contexts") else {
+            return Ok(());
+        };
+        let after = match contexts.get("pageInfo") {
+            Some(page) if page.get("hasNextPage") == Some(&serde_json::Value::Bool(true)) => page
+                .get("endCursor")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string(),
+            _ => return Ok(()),
+        };
+        let mut next = gh
+            .graphql(
+                PR_CHECKS_QUERY,
+                &[("id", id.as_str().into()), ("after", after.into())],
+            )
+            .map_err(|err| err.to_string())?;
+        let Some(page) = next.pointer_mut("/data/node/statusCheckRollup/contexts") else {
+            return Ok(());
+        };
+        let nodes = page
+            .get_mut("nodes")
+            .and_then(|v| v.as_array_mut())
+            .map(std::mem::take)
+            .unwrap_or_default();
+        if let Some(kept) = contexts.get_mut("nodes").and_then(|v| v.as_array_mut()) {
+            kept.extend(nodes);
+        }
+        contexts["pageInfo"] = page.get("pageInfo").cloned().unwrap_or_default();
+    }
+    Ok(())
 }
 
 pub fn fetch_jobs(

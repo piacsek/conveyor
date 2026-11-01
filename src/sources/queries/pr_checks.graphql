@@ -1,0 +1,18 @@
+query($id: ID!, $after: String!) {
+  node(id: $id) {
+    ... on PullRequest {
+      statusCheckRollup {
+        contexts(first: 100, after: $after) {
+          pageInfo { hasNextPage endCursor }
+          nodes {
+            ... on CheckRun {
+              name status conclusion detailsUrl
+              databaseId checkSuite { workflowRun { event workflow { name } } }
+            }
+            ... on StatusContext { context state targetUrl }
+          }
+        }
+      }
+    }
+  }
+}
