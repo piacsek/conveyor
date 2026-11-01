@@ -1175,3 +1175,24 @@ fn a_run_that_passes_while_not_selected_is_asked_once_more_and_ends_on_its_jobs(
 
     assert!(h.screen().contains("1 jobs ok"), "{}", h.screen());
 }
+
+#[test]
+fn a_queue_refresh_leaves_the_main_builds_jobs_alone() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(jobs(1025, vec![job(2, "lint", BuildStatus::Failure, None)]));
+    inputs.push(jobs(
+        1026,
+        vec![job(1, "check", BuildStatus::Running, None)],
+    ));
+    inputs.push(support::queue(Vec::new()));
+
+    h.run(inputs).unwrap();
+
+    let asked = h
+        .requests
+        .iter()
+        .filter(|request| **request == Request::Jobs { run_id: 1026 })
+        .count();
+    assert_eq!(asked, 1, "{:?}", h.requests);
+}

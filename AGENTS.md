@@ -168,7 +168,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   (`Loading`/`Ready`/`Stale`/`Refreshing`/`Failed`). The pane being open is **not** a condition:
   both columns' cards render the failing job, which is the whole point of fetching it.
   **A refresh never blanks jobs already on screen.** `App::age_jobs` runs on each
-  `Data(Builds, …)` and `Data(Queue, …)`: an unsettled run's `Ready` becomes `Stale` (still
+  `Data(Builds, …)` and `Data(Queue, …)`, over that column's runs only (aging both columns on
+  either refresh fetched every running run twice per interval): an unsettled run's `Ready` becomes `Stale` (still
   drawn, then `Refreshing` while in flight). Every `Stale` run is asked again, selected or not,
   the selected one first and one request per input: a running card nobody selected used to keep
   the job line of its last selection, so a job that failed mid-run still read `●`; dropping it instead made

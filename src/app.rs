@@ -443,12 +443,12 @@ impl App {
             (Stage::Queue, Ok(Rows::Queue(queue))) => {
                 self.queue_repo = Some(queue.repo);
                 self.queue.receive(queue.entries, self.now);
-                self.age_jobs();
+                self.age_jobs(Stage::Queue);
             }
             (Stage::Builds, Ok(Rows::Builds(builds))) => {
                 self.builds_repo = Some(builds.repo);
                 self.builds.receive(builds.builds, self.now);
-                self.age_jobs();
+                self.age_jobs(Stage::Builds);
             }
             (Stage::Deployed, Ok(Rows::Deployed(deployed))) => {
                 self.deployed_system = Some(deployed.system);
@@ -463,19 +463,23 @@ impl App {
         }
     }
 
-    fn age_jobs(&mut self) {
-        let queued = self
-            .queue
-            .all()
-            .iter()
-            .filter_map(|entry| entry.run.as_ref());
-        let runs: Vec<(u64, bool)> = self
-            .builds
-            .all()
-            .iter()
-            .chain(queued)
-            .map(|build| (build.id, build.is_settled()))
-            .collect();
+    fn age_jobs(&mut self, stage: Stage) {
+        let runs: Vec<(u64, bool)> = match stage {
+            Stage::Queue => self
+                .queue
+                .all()
+                .iter()
+                .filter_map(|entry| entry.run.as_ref())
+                .map(|run| (run.id, run.is_settled()))
+                .collect(),
+            Stage::Builds => self
+                .builds
+                .all()
+                .iter()
+                .map(|build| (build.id, build.is_settled()))
+                .collect(),
+            Stage::Prs | Stage::Deployed => Vec::new(),
+        };
         for (run_id, settled) in runs {
             let aged = match (self.jobs.remove(&run_id), settled) {
                 (Some(JobsState::Ready(jobs)), false) => Some(JobsState::Stale(jobs)),
