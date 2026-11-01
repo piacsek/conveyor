@@ -177,7 +177,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   the job line of its last selection, so a job that failed mid-run still read `●`; dropping it instead made
   the card and pane flash sha → `jobs: loading…` → job on every refresh of a running run.
   `Loading`/`Refreshing` are never asked twice. A refetch that fails keeps the last jobs (`Ready`,
-  retried on the next refresh); only a first fetch shows `Failed`.
+  retried on the next refresh) while the run is still going; once the run has finished it shows
+  `Failed` instead, because nothing would ever ask again and the old jobs would stay forever.
   **A finished run is asked once more.** A snapshot taken while the run was running lands as
   `Ready` with running jobs; once the run is settled, `age_jobs` turns a `Ready` still holding an
   unsettled job into `Stale` and keeps every `Stale` (a re-run keeps its run id, so a `Stale`

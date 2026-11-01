@@ -1196,3 +1196,24 @@ fn a_queue_refresh_leaves_the_main_builds_jobs_alone() {
         .count();
     assert_eq!(asked, 1, "{:?}", h.requests);
 }
+
+#[test]
+fn a_failed_refetch_of_a_finished_run_shows_the_error_instead_of_old_jobs() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(key(KeyCode::Char('d')));
+    inputs.push(jobs(
+        1026,
+        vec![job(1, "check", BuildStatus::Running, None)],
+    ));
+    inputs.push(builds(three()));
+    let mut settled = three();
+    settled[0].status = BuildStatus::Success;
+    inputs.push(builds(settled));
+    inputs.push(jobs_failed(1026, "gh: HTTP 502"));
+
+    h.run(inputs).unwrap();
+
+    assert!(!h.screen().contains("● check"), "{}", h.screen());
+    assert!(h.screen().contains("jobs: gh: HTTP 502"), "{}", h.screen());
+}
