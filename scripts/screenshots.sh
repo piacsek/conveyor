@@ -7,7 +7,7 @@ set -euo pipefail
 out="${1:-docs}"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 bin="$root/target/release/conveyor"
-[ -x "$bin" ] || cargo build --release --manifest-path "$root/Cargo.toml"
+cargo build --release --manifest-path "$root/Cargo.toml"
 mkdir -p "$out"
 font=()
 for f in "$HOME/Library/Fonts/FiraCodeNerdFont-Regular.ttf" /usr/share/fonts/truetype/firacode/FiraCodeNerdFont-Regular.ttf; do

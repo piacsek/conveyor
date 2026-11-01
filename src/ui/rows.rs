@@ -12,7 +12,8 @@ use crate::model::queue::QueueEntry;
 use crate::text::{age, duration, truncate, wrap};
 use crate::ui::card::{card, meta};
 use crate::ui::style::{
-    INDENT, build_glyph, check_word, conclusion_glyph, dim, glyph, sha8, short_repo, status_word,
+    INDENT, build_glyph, check_word, conclusion_glyph, dim, glyph, pr_glyph, sha8, short_repo,
+    status_word,
 };
 
 const DEPLOYED_TITLE_LINES: usize = 2;
@@ -39,11 +40,6 @@ pub(crate) fn pr_row(
     let parts = [
         short_repo(&pr.repo).to_string(),
         pr.head_ref.clone(),
-        if pr.is_draft {
-            "draft".to_string()
-        } else {
-            String::new()
-        },
         match pr.review {
             ReviewDecision::None => String::new(),
             review => review.to_string(),
@@ -57,6 +53,7 @@ pub(crate) fn pr_row(
     card(
         selected,
         glyph(pr.checks),
+        Some(pr_glyph(pr.is_draft)),
         format!("#{} {}", pr.number, pr.title),
         right,
         vec![meta(&parts, width), pr_checks(pr, width)],
@@ -142,6 +139,7 @@ pub(crate) fn queue_row(
             Some(run) => build_glyph(run.status),
             None => glyph(entry.checks),
         },
+        None,
         format!("#{} {}", entry.number, entry.title),
         right,
         lines,
@@ -189,6 +187,7 @@ pub(crate) fn build_row(
     card(
         selected,
         build_glyph(build.status),
+        None,
         label,
         build.started_at.map(|at| age(at, now)).unwrap_or_default(),
         lines,
@@ -291,5 +290,5 @@ pub(crate) fn deployed_row(
     if below.is_empty() {
         below.push(meta(&["unknown".to_string()], width));
     }
-    card(selected, glyph, row.env.clone(), right, below, width)
+    card(selected, glyph, None, row.env.clone(), right, below, width)
 }
