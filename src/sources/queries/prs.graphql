@@ -1,5 +1,5 @@
 query($q: String!, $first: Int!) {
-  search(query: $q, type: ISSUE, first: $first) {
+  search(query: $q, type: ISSUE_ADVANCED, first: $first) {
     issueCount
     nodes {
       ... on PullRequest {

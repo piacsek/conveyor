@@ -97,7 +97,7 @@ fn fetch_prs_runs_the_configured_search_and_parses_the_rows() {
     assert!(
         calls[0]
             .0
-            .contains("search(query: $q, type: ISSUE, first: $first)")
+            .contains("search(query: $q, type: ISSUE_ADVANCED, first: $first)")
     );
     assert_eq!(
         calls[0].1,
