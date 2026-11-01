@@ -176,10 +176,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `Loading`/`Refreshing` are never asked twice. A refetch that fails keeps the last jobs (`Ready`,
   retried on the next refresh); only a first fetch shows `Failed`.
   **A finished run is asked once more.** A snapshot taken while the run was running lands as
-  `Ready` with running jobs; once the run is settled, `age_jobs` drops any `Ready` still holding
-  an unsettled job and every `Stale` (a re-run keeps its run id, so a `Stale` under a settled run
-  is the previous attempt), so the card never shows a red run over a yellow `●` job, nor a
-  passing re-run over the first attempt's `✗`.
+  `Ready` with running jobs; once the run is settled, `age_jobs` turns a `Ready` still holding an
+  unsettled job into `Stale` and keeps every `Stale` (a re-run keeps its run id, so a `Stale`
+  under a settled run is the previous attempt), and `stale_run` asks for it whether or not it is
+  selected. The old line stays until the answer replaces it: dropping it instead left a passing
+  unselected card on its bare sha until someone selected it.
   **One line per job, newest attempt wins.** The jobs route's default `filter=latest` goes by
   `completed_at`, so during a re-run the previous attempt's finished job comes back next to the
   new in-progress one under the same name; `parse_jobs` keeps, per name, the jobs of that name's

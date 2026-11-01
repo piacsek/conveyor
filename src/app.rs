@@ -479,11 +479,11 @@ impl App {
         for (run_id, settled) in runs {
             let aged = match (self.jobs.remove(&run_id), settled) {
                 (Some(JobsState::Ready(jobs)), false) => Some(JobsState::Stale(jobs)),
-                (Some(JobsState::Failed(_)), false) | (Some(JobsState::Stale(_)), true) => None,
+                (Some(JobsState::Failed(_)), false) => None,
                 (Some(JobsState::Ready(jobs)), true)
                     if jobs.iter().any(|job| !job.status.is_settled()) =>
                 {
-                    None
+                    Some(JobsState::Stale(jobs))
                 }
                 (kept, _) => kept,
             };
