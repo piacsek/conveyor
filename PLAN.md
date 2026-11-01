@@ -476,7 +476,7 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   still counted a superseded run's cancelled checks as a failure.
   Work now runs under `/my-tdd autonomous`.
 
-- Unreleased (phase 16, `plans/phase-16-pr-icon.md`): PR cards show GitHub's pull-request
+- v0.15.0 (phase 16, `plans/phase-16-pr-icon.md`): PR cards show GitHub's pull-request
   icon, green when open and grey when draft, and the meta line drops the word `draft`.
   Found on the way: `screenshots.sh` only built the release binary when it was missing, so a
   stale one rendered the old layout; it now always builds.
