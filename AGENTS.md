@@ -61,7 +61,9 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 
 ## Data sources (verified 2026-09-10, all through `gh`)
 
-- **My PRs**: GraphQL `search(query: <prs.query>, type: ISSUE)`. Useful fields:
+- **My PRs**: GraphQL `search(query: <prs.query>, type: ISSUE_ADVANCED)`. Plain `ISSUE` search
+  ignores `OR` and parentheses (the default `(author:@me OR assignee:@me)` returned 0 there); the
+  advanced type supports them, dedupes server-side and still accepts plain queries. Useful fields:
   `number title isDraft reviewDecision mergeStateStatus statusCheckRollup{state contexts}`
   `mergeQueueEntry{position state} updatedAt url headRefName repository{nameWithOwner}`.
   `contexts` is a union of `CheckRun` (`name status conclusion detailsUrl`) and

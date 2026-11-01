@@ -54,7 +54,7 @@ are honoured). Every key is optional, unknown keys are an error, and these are t
 
 ```toml
 [prs]
-query = "is:pr is:open author:@me archived:false"
+query = "is:pr is:open archived:false (author:@me OR assignee:@me)"
 limit = 20
 refresh_secs = 60
 

@@ -52,7 +52,7 @@ fn config_prints_the_effective_defaults_as_toml() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(stdout.contains("[prs]"), "{stdout}");
     assert!(
-        stdout.contains("query = \"is:pr is:open author:@me archived:false\""),
+        stdout.contains("query = \"is:pr is:open archived:false (author:@me OR assignee:@me)\""),
         "{stdout}"
     );
     assert!(stdout.contains("refresh_secs = 60"), "{stdout}");
