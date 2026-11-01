@@ -505,6 +505,7 @@ impl App {
         let selected = self.selected_run().map(|run| run.id);
         let run_id = selected
             .filter(|run_id| matches!(self.jobs.get(run_id), None | Some(JobsState::Stale(_))))
+            .or_else(|| self.stale_run())
             .or_else(|| self.failing_run_without_jobs())?;
         let state = match self.jobs.remove(&run_id) {
             Some(JobsState::Stale(jobs)) => JobsState::Refreshing(jobs),
@@ -512,6 +513,14 @@ impl App {
         };
         self.jobs.insert(run_id, state);
         Some(run_id)
+    }
+
+    fn stale_run(&self) -> Option<u64> {
+        self.jobs
+            .iter()
+            .filter(|(_, state)| matches!(state, JobsState::Stale(_)))
+            .map(|(run_id, _)| *run_id)
+            .min()
     }
 
     fn failing_run_without_jobs(&self) -> Option<u64> {
