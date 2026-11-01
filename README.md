@@ -1,4 +1,4 @@
-# conveyor
+<img width="2172" height="724" alt="Conveyor Flow Banner" src="https://github.com/user-attachments/assets/d100b416-6519-4e1b-978f-7598b247d839" />
 
 A terminal view of where your changes are: open pull requests, the merge queue, the last
 main builds, and what each environment runs. One column per stage, one repo, one screen.
