@@ -1062,3 +1062,27 @@ fn a_selected_run_that_settles_is_asked_for_its_final_jobs() {
         "asked once more after it finished"
     );
 }
+
+#[test]
+fn a_re_run_that_passes_while_not_selected_drops_the_first_attempts_failure() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(jobs(
+        1025,
+        vec![job(2, "lint", BuildStatus::Failure, Some("Run clippy"))],
+    ));
+    inputs.push(jobs(
+        1026,
+        vec![job(1, "check", BuildStatus::Success, None)],
+    ));
+    let mut rerunning = three();
+    rerunning[1].status = BuildStatus::Running;
+    inputs.push(builds(rerunning));
+    let mut passed = three();
+    passed[1].status = BuildStatus::Success;
+    inputs.push(builds(passed));
+
+    h.run(inputs).unwrap();
+
+    assert!(!h.screen().contains("✗ lint"), "{}", h.screen());
+}
