@@ -164,7 +164,9 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   both columns' cards render the failing job, which is the whole point of fetching it.
   **A refresh never blanks jobs already on screen.** `App::age_jobs` runs on each
   `Data(Builds, …)` and `Data(Queue, …)`: an unsettled run's `Ready` becomes `Stale` (still
-  drawn, asked again once selected, then `Refreshing` while in flight); dropping it instead made
+  drawn, then `Refreshing` while in flight). Every `Stale` run is asked again, selected or not,
+  the selected one first and one request per input: a running card nobody selected used to keep
+  the job line of its last selection, so a job that failed mid-run still read `●`; dropping it instead made
   the card and pane flash sha → `jobs: loading…` → job on every refresh of a running run.
   `Loading`/`Refreshing` are never asked twice. A refetch that fails keeps the last jobs (`Ready`,
   retried on the next refresh); only a first fetch shows `Failed`.

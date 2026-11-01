@@ -998,7 +998,7 @@ fn a_refresh_keeps_a_running_runs_jobs_on_screen_while_it_asks_again() {
 }
 
 #[test]
-fn a_run_that_settles_while_not_selected_drops_its_running_jobs() {
+fn a_run_that_settles_while_not_selected_ends_on_its_final_jobs() {
     let mut h = Harness::with_size(160, 30);
     let mut inputs = focus_builds();
     inputs.push(jobs(1025, vec![job(2, "lint", BuildStatus::Failure, None)]));
@@ -1010,16 +1010,21 @@ fn a_run_that_settles_while_not_selected_drops_its_running_jobs() {
     inputs.push(builds(three()));
     let mut settled = three();
     settled[0].status = BuildStatus::Failure;
+    inputs.push(builds(settled.clone()));
+    inputs.push(jobs(
+        1026,
+        vec![job(1, "check", BuildStatus::Running, None)],
+    ));
     inputs.push(builds(settled));
+    inputs.push(jobs(
+        1026,
+        vec![job(1, "check", BuildStatus::Failure, Some("Run tests"))],
+    ));
 
     h.run(inputs).unwrap();
 
     assert!(!h.screen().contains("● check"), "{}", h.screen());
-    assert_eq!(
-        h.requests.last(),
-        Some(&Request::Jobs { run_id: 1026 }),
-        "the failed run is asked for again"
-    );
+    assert!(h.screen().contains("✗ check · Run tests"), "{}", h.screen());
 }
 
 #[test]
@@ -1085,4 +1090,26 @@ fn a_re_run_that_passes_while_not_selected_drops_the_first_attempts_failure() {
     h.run(inputs).unwrap();
 
     assert!(!h.screen().contains("✗ lint"), "{}", h.screen());
+}
+
+#[test]
+fn a_refresh_asks_again_for_a_running_run_that_is_not_selected() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(jobs(1025, vec![job(2, "lint", BuildStatus::Failure, None)]));
+    inputs.push(jobs(
+        1026,
+        vec![job(1, "check", BuildStatus::Running, None)],
+    ));
+    inputs.push(key(KeyCode::Char('j')));
+    inputs.push(builds(three()));
+
+    h.run(inputs).unwrap();
+
+    let asked = h
+        .requests
+        .iter()
+        .filter(|request| **request == Request::Jobs { run_id: 1026 })
+        .count();
+    assert_eq!(asked, 2, "{:?}", h.requests);
 }

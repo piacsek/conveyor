@@ -470,6 +470,8 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   a job name two workflows share is prefixed with its workflow.
   Checks past GitHub's 100 per page are now read too: its order groups old and new runs by
   name, so the cut could keep the old result.
+  Every running run's jobs are fetched again on each refresh, selected or not (a few hundred
+  requests an hour at most), so a running card never shows an old job line.
   Work now runs under `/my-tdd autonomous`.
 
 ## Deferred / backlog (discuss at retros)
