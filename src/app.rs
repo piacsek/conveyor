@@ -519,6 +519,19 @@ impl App {
         Some(run_id)
     }
 
+    fn run_is_settled(&self, run_id: u64) -> bool {
+        self.builds
+            .all()
+            .iter()
+            .chain(
+                self.queue
+                    .all()
+                    .iter()
+                    .filter_map(|entry| entry.run.as_ref()),
+            )
+            .any(|run| run.id == run_id && run.is_settled())
+    }
+
     fn stale_run(&self) -> Option<u64> {
         self.jobs
             .iter()
@@ -600,8 +613,10 @@ impl App {
     }
 
     pub fn receive_jobs(&mut self, run_id: u64, result: Result<Vec<Job>, String>) {
+        let settled = self.run_is_settled(run_id);
         let state = match (result, self.jobs.remove(&run_id)) {
-            (Ok(jobs), _) | (Err(_), Some(JobsState::Refreshing(jobs))) => JobsState::Ready(jobs),
+            (Ok(jobs), _) => JobsState::Ready(jobs),
+            (Err(_), Some(JobsState::Refreshing(jobs))) if !settled => JobsState::Ready(jobs),
             (Err(message), _) => JobsState::Failed(message),
         };
         self.jobs.insert(run_id, state);
