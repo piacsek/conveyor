@@ -20,7 +20,7 @@ Watching conveyor for a while shows two annoyances:
 Outcome: one line per job, always the newest attempt; refreshes replace job data in place,
 `loading…` only on the very first fetch of a run.
 
-## Tasks (branch `phase-15-steady-jobs`, `/tdd autonomous`, one ship per task)
+## Tasks (branch `phase-15-steady-jobs`, `/my-tdd autonomous`, one ship per task)
 
 1. **Plan file.** Copy this plan to `plans/phase-15-steady-jobs.md`; first ship opens the draft PR.
 2. **Dedupe jobs by name, newest attempt wins.** In `src/model/jobs.rs`:

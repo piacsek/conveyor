@@ -368,7 +368,7 @@ the help view should carry it.
 All guidelines live in this file, versioned with the code; nothing binding lives only in an
 agent's private memory. When the user says "update the guidelines", edit this file.
 
-- **Cadence.** Work runs under `/tdd autonomous`: one branch per phase (`phase-N-<topic>`),
+- **Cadence.** Work runs under `/my-tdd autonomous`: one branch per phase (`phase-N-<topic>`),
   one commit per task through `scripts/ship.sh`, no pause between tasks, a pause only for the
   end-of-phase retro. Retro outcomes go to `PLAN.md` (facts, decisions) and here (rules).
 - **TDD is never skipped.** Every change to `src/` starts with a failing test, run and seen
