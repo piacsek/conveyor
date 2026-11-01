@@ -194,11 +194,20 @@ fn newest_checks(nodes: &[serde_json::Value]) -> Vec<Check> {
 fn told_apart(checks: Vec<(CheckKey, u64, Check)>) -> Vec<Check> {
     let labels: Vec<String> = checks
         .iter()
-        .map(|((workflow, event, name), _, _)| {
-            let same_name = checks.iter().filter(|((_, _, n), _, _)| n == name).count();
+        .map(|(key, _, _)| {
+            let CheckKey {
+                workflow,
+                event,
+                name,
+                ..
+            } = key;
+            let same_name = checks
+                .iter()
+                .filter(|(other, _, _)| other.name == *name)
+                .count();
             let same_workflow = checks
                 .iter()
-                .filter(|((w, _, n), _, _)| w == workflow && n == name)
+                .filter(|(other, _, _)| other.workflow == *workflow && other.name == *name)
                 .count();
             match (workflow.is_empty(), same_name, same_workflow) {
                 (true, _, _) | (_, 1, _) => name.clone(),
@@ -214,7 +223,13 @@ fn told_apart(checks: Vec<(CheckKey, u64, Check)>) -> Vec<Check> {
         .collect()
 }
 
-type CheckKey = (String, String, String);
+#[derive(PartialEq)]
+struct CheckKey {
+    status_context: bool,
+    workflow: String,
+    event: String,
+    name: String,
+}
 
 fn check_key(node: &serde_json::Value, check: &Check) -> CheckKey {
     let run = node.pointer("/checkSuite/workflowRun");
@@ -224,7 +239,12 @@ fn check_key(node: &serde_json::Value, check: &Check) -> CheckKey {
             .unwrap_or_default()
             .to_string()
     };
-    (field("/workflow/name"), field("/event"), check.name.clone())
+    CheckKey {
+        status_context: node.get("context").is_some(),
+        workflow: field("/workflow/name"),
+        event: field("/event"),
+        name: check.name.clone(),
+    }
 }
 
 fn parse_check(node: &serde_json::Value) -> Option<Check> {

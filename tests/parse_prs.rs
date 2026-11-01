@@ -144,3 +144,18 @@ fn one_workflow_run_by_two_events_is_told_apart_by_the_event() {
     assert_eq!(pr.checks_detail[0].name, "CI / test (push)");
     assert_eq!(pr.checks_detail[1].name, "CI / test (pull_request)");
 }
+
+#[test]
+fn a_status_and_a_check_run_sharing_a_name_are_both_kept() {
+    let pr = one(
+        r#"{"number": 12, "statusCheckRollup": {"state": "FAILURE", "contexts": {"nodes": [
+            {"context": "deploy", "state": "FAILURE", "targetUrl": "https://ci/1"},
+            {"name": "deploy", "status": "COMPLETED", "conclusion": "SUCCESS", "detailsUrl": "https://ci/2",
+             "databaseId": 5, "checkSuite": {"workflowRun": null}}
+        ]}}}"#,
+    );
+
+    assert_eq!(pr.checks_detail.len(), 2);
+    assert_eq!(pr.checks_detail[0].conclusion, CheckConclusion::Failure);
+    assert_eq!(pr.checks_detail[1].conclusion, CheckConclusion::Success);
+}
