@@ -121,6 +121,11 @@ pub fn parse(value: &serde_json::Value) -> Result<Vec<PullRequest>, String> {
 fn parse_pull_request(node: &serde_json::Value) -> Option<PullRequest> {
     let number = node.get("number")?.as_u64()?;
     let rollup = node.get("statusCheckRollup").filter(|v| !v.is_null());
+    let checks_detail: Vec<Check> = rollup
+        .and_then(|r| r.pointer("/contexts/nodes"))
+        .and_then(|v| v.as_array())
+        .map(|contexts| newest_checks(contexts))
+        .unwrap_or_default();
     Some(PullRequest {
         number,
         title: text(node, "title"),
@@ -135,14 +140,12 @@ fn parse_pull_request(node: &serde_json::Value) -> Option<PullRequest> {
             .get("isDraft")
             .and_then(|v| v.as_bool())
             .unwrap_or(false),
-        checks: rollup.map_or(CheckState::None, |r| {
-            check_state(r.get("state").and_then(|v| v.as_str()))
+        checks: overall(&checks_detail).unwrap_or_else(|| {
+            rollup.map_or(CheckState::None, |r| {
+                check_state(r.get("state").and_then(|v| v.as_str()))
+            })
         }),
-        checks_detail: rollup
-            .and_then(|r| r.pointer("/contexts/nodes"))
-            .and_then(|v| v.as_array())
-            .map(|contexts| newest_checks(contexts))
-            .unwrap_or_default(),
+        checks_detail,
         review: review_decision(node.get("reviewDecision")),
         merge_state: merge_state(node.get("mergeStateStatus").and_then(|v| v.as_str())),
         additions: node.get("additions").and_then(|v| v.as_u64()).unwrap_or(0),
@@ -171,6 +174,21 @@ fn check_state(state: Option<&str>) -> CheckState {
         Some("PENDING" | "EXPECTED") => CheckState::Pending,
         None => CheckState::None,
         Some(_) => CheckState::Unknown,
+    }
+}
+
+fn overall(checks: &[Check]) -> Option<CheckState> {
+    let any = |conclusion| checks.iter().any(|check| check.conclusion == conclusion);
+    if checks.is_empty() {
+        None
+    } else if any(CheckConclusion::Failure) {
+        Some(CheckState::Failure)
+    } else if any(CheckConclusion::Pending) {
+        Some(CheckState::Pending)
+    } else if any(CheckConclusion::Unknown) {
+        Some(CheckState::Unknown)
+    } else {
+        Some(CheckState::Success)
     }
 }
 

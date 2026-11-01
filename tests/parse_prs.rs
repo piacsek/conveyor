@@ -60,7 +60,7 @@ fn status_contexts_and_running_check_runs_are_read() {
             {"name": "e2e", "status": "COMPLETED", "conclusion": "CANCELLED", "detailsUrl": ""}
         ]}}}"#,
     );
-    assert_eq!(pr.checks, CheckState::Pending);
+    assert_eq!(pr.checks, CheckState::Failure);
     let conclusions: Vec<_> = pr
         .checks_detail
         .iter()
@@ -158,4 +158,20 @@ fn a_status_and_a_check_run_sharing_a_name_are_both_kept() {
     assert_eq!(pr.checks_detail.len(), 2);
     assert_eq!(pr.checks_detail[0].conclusion, CheckConclusion::Failure);
     assert_eq!(pr.checks_detail[1].conclusion, CheckConclusion::Success);
+}
+
+#[test]
+fn a_cancelled_check_from_a_superseded_run_does_not_fail_the_pull_request() {
+    let pr = one(
+        r#"{"number": 13, "statusCheckRollup": {"state": "FAILURE", "contexts": {"nodes": [
+            {"name": "gate", "status": "COMPLETED", "conclusion": "CANCELLED", "detailsUrl": "",
+             "databaseId": 1, "checkSuite": {"workflowRun": {"event": "pull_request", "workflow": {"name": "Review"}}}},
+            {"name": "gate", "status": "COMPLETED", "conclusion": "SUCCESS", "detailsUrl": "",
+             "databaseId": 2, "checkSuite": {"workflowRun": {"event": "pull_request", "workflow": {"name": "Review"}}}},
+            {"name": "build", "status": "IN_PROGRESS", "conclusion": null, "detailsUrl": "",
+             "databaseId": 3, "checkSuite": {"workflowRun": {"event": "pull_request", "workflow": {"name": "CI"}}}}
+        ]}}}"#,
+    );
+
+    assert_eq!(pr.checks, CheckState::Pending);
 }

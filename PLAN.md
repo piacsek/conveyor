@@ -472,6 +472,8 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   name, so the cut could keep the old result.
   Every running run's jobs are fetched again on each refresh, selected or not (a few hundred
   requests an hour at most), so a running card never shows an old job line.
+  A PR card's ✓/●/✗ now follows the deduplicated checks rather than GitHub's rollup, which
+  still counted a superseded run's cancelled checks as a failure.
   Work now runs under `/my-tdd autonomous`.
 
 ## Deferred / backlog (discuss at retros)
