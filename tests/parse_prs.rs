@@ -128,3 +128,19 @@ fn checks_sharing_a_name_across_workflows_are_told_apart_by_the_workflow() {
     assert_eq!(pr.checks_detail[1].name, "Review B / gate");
     assert_eq!(pr.checks_detail[2].name, "lint");
 }
+
+#[test]
+fn one_workflow_run_by_two_events_is_told_apart_by_the_event() {
+    let pr = one(
+        r#"{"number": 11, "statusCheckRollup": {"state": "SUCCESS", "contexts": {"nodes": [
+            {"name": "test", "status": "COMPLETED", "conclusion": "SUCCESS", "detailsUrl": "",
+             "databaseId": 1, "checkSuite": {"workflowRun": {"event": "push", "workflow": {"name": "CI"}}}},
+            {"name": "test", "status": "COMPLETED", "conclusion": "SUCCESS", "detailsUrl": "",
+             "databaseId": 2, "checkSuite": {"workflowRun": {"event": "pull_request", "workflow": {"name": "CI"}}}}
+        ]}}}"#,
+    );
+
+    assert_eq!(pr.checks_detail.len(), 2);
+    assert_eq!(pr.checks_detail[0].name, "CI / test (push)");
+    assert_eq!(pr.checks_detail[1].name, "CI / test (pull_request)");
+}

@@ -192,20 +192,17 @@ fn newest_checks(nodes: &[serde_json::Value]) -> Vec<Check> {
 }
 
 fn told_apart(checks: Vec<(CheckKey, u64, Check)>) -> Vec<Check> {
-    let shared = |name: &str| {
-        checks
-            .iter()
-            .filter(|(_, _, check)| check.name == name)
-            .count()
-            > 1
-    };
+    let count =
+        |same: &dyn Fn(&CheckKey) -> bool| checks.iter().filter(|(key, _, _)| same(key)).count();
     let labels: Vec<String> = checks
         .iter()
-        .map(|((workflow, _, name), _, _)| {
-            if workflow.is_empty() || !shared(name) {
+        .map(|((workflow, event, name), _, _)| {
+            if workflow.is_empty() || count(&|key| key.2 == *name) < 2 {
                 name.clone()
-            } else {
+            } else if count(&|key| key.0 == *workflow && key.2 == *name) < 2 {
                 format!("{workflow} / {name}")
+            } else {
+                format!("{workflow} / {name} ({event})")
             }
         })
         .collect();
