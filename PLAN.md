@@ -466,6 +466,8 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   from the plan: `Job` gained no `run_attempt` field (the dedupe reads it while parsing), and the
   queue column got no test of its own (it shares `age_jobs` with Main builds). No real re-run
   response was available to capture; the dedupe test is built from the documented schema.
+  My PRs' check list gets the same rule: one line per check from the newest workflow run, and
+  a job name two workflows share is prefixed with its workflow.
   Work now runs under `/my-tdd autonomous`.
 
 ## Deferred / backlog (discuss at retros)

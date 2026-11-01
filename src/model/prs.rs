@@ -141,7 +141,7 @@ fn parse_pull_request(node: &serde_json::Value) -> Option<PullRequest> {
         checks_detail: rollup
             .and_then(|r| r.pointer("/contexts/nodes"))
             .and_then(|v| v.as_array())
-            .map(|contexts| contexts.iter().filter_map(parse_check).collect())
+            .map(|contexts| newest_checks(contexts))
             .unwrap_or_default(),
         review: review_decision(node.get("reviewDecision")),
         merge_state: merge_state(node.get("mergeStateStatus").and_then(|v| v.as_str())),
@@ -172,6 +172,61 @@ fn check_state(state: Option<&str>) -> CheckState {
         None => CheckState::None,
         Some(_) => CheckState::Unknown,
     }
+}
+
+fn newest_checks(nodes: &[serde_json::Value]) -> Vec<Check> {
+    let mut newest: Vec<(CheckKey, u64, Check)> = Vec::new();
+    for node in nodes {
+        let Some(check) = parse_check(node) else {
+            continue;
+        };
+        let key = check_key(node, &check);
+        let id = node.get("databaseId").and_then(|v| v.as_u64()).unwrap_or(0);
+        match newest.iter_mut().find(|(kept, _, _)| *kept == key) {
+            Some(kept) if id > kept.1 => *kept = (key, id, check),
+            Some(_) => {}
+            None => newest.push((key, id, check)),
+        }
+    }
+    told_apart(newest)
+}
+
+fn told_apart(checks: Vec<(CheckKey, u64, Check)>) -> Vec<Check> {
+    let shared = |name: &str| {
+        checks
+            .iter()
+            .filter(|(_, _, check)| check.name == name)
+            .count()
+            > 1
+    };
+    let labels: Vec<String> = checks
+        .iter()
+        .map(|((workflow, _, name), _, _)| {
+            if workflow.is_empty() || !shared(name) {
+                name.clone()
+            } else {
+                format!("{workflow} / {name}")
+            }
+        })
+        .collect();
+    checks
+        .into_iter()
+        .zip(labels)
+        .map(|((_, _, check), name)| Check { name, ..check })
+        .collect()
+}
+
+type CheckKey = (String, String, String);
+
+fn check_key(node: &serde_json::Value, check: &Check) -> CheckKey {
+    let run = node.pointer("/checkSuite/workflowRun");
+    let field = |pointer: &str| {
+        run.and_then(|run| run.pointer(pointer))
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string()
+    };
+    (field("/workflow/name"), field("/event"), check.name.clone())
 }
 
 fn parse_check(node: &serde_json::Value) -> Option<Check> {

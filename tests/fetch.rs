@@ -958,3 +958,21 @@ fn fetch_log_turns_a_gh_error_into_a_message() {
 
     assert_eq!(error, "gh: HTTP 404");
 }
+
+#[test]
+fn fetch_prs_asks_which_workflow_run_each_check_came_from() {
+    let gh = FakeGithub::with_response(Ok(
+        serde_json::from_str(include_str!("fixtures/prs.json")).unwrap()
+    ));
+
+    fetch_prs(&gh, &Config::default()).unwrap();
+
+    let calls = gh.calls.borrow();
+    assert!(
+        calls[0]
+            .0
+            .contains("databaseId checkSuite { workflowRun { event workflow { name } } }"),
+        "{}",
+        calls[0].0
+    );
+}

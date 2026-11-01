@@ -21,7 +21,10 @@ query($q: String!, $first: Int!) {
           contexts(first: 100) {
             totalCount
             nodes {
-              ... on CheckRun { name status conclusion detailsUrl }
+              ... on CheckRun {
+                name status conclusion detailsUrl
+                databaseId checkSuite { workflowRun { event workflow { name } } }
+              }
               ... on StatusContext { context state targetUrl }
             }
           }
