@@ -24,7 +24,7 @@ pub struct Prs {
 impl Default for Prs {
     fn default() -> Self {
         Self {
-            query: "is:pr is:open author:@me archived:false".to_string(),
+            query: "is:pr is:open archived:false (author:@me OR assignee:@me)".to_string(),
             limit: 20,
             refresh_secs: 60,
         }
