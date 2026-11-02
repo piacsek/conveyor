@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.20.0 (2026-11-02)
+- `c` shows this changelog; `j`/`k` and `Ctrl-d`/`Ctrl-u` scroll it, any other key returns.
+
 ## v0.19.2 (2026-11-02)
 - My PRs reloads once more 10 s after a rerun (`X`) or a branch update (`U`) lands, so the card catches up with GitHub.
 
