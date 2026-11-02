@@ -89,3 +89,52 @@ fn a_heading_without_a_date_is_refused() {
         Err("`## v0.2.0` must read `## vX.Y.Z (YYYY-MM-DD)`".to_string())
     );
 }
+
+#[test]
+fn j_and_k_scroll_the_changelog_one_line() {
+    let mut h = Harness::with_size(80, 12);
+
+    h.run(vec![
+        prs(vec![]),
+        key(KeyCode::Char('c')),
+        key(KeyCode::Char('j')),
+    ])
+    .unwrap();
+    assert!(!h.screen().contains("│Changelog"), "{}", h.screen());
+    assert!(h.screen().contains("Changelog ↑↓"), "{}", h.screen());
+
+    h.run(vec![key(KeyCode::Char('k'))]).unwrap();
+    assert!(h.screen().contains("│Changelog"), "{}", h.screen());
+}
+
+#[test]
+fn the_footer_says_how_to_scroll_and_leave() {
+    let mut h = Harness::with_size(80, 12);
+
+    h.run(vec![prs(vec![]), key(KeyCode::Char('c'))]).unwrap();
+
+    let last = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(
+        last.starts_with("j/k C-d/C-u scroll · any other key returns"),
+        "{last}"
+    );
+}
+
+#[test]
+fn headings_are_bold_without_their_markdown() {
+    let mut h = Harness::with_size(80, 12);
+
+    h.run(vec![prs(vec![]), key(KeyCode::Char('c'))]).unwrap();
+
+    let screen = h.screen();
+    assert!(!screen.contains('#'), "{screen}");
+    let row = screen
+        .lines()
+        .position(|line| line.contains(&format!("│v{} (", env!("CARGO_PKG_VERSION"))))
+        .unwrap() as u16;
+    assert!(
+        h.cell(1, row)
+            .modifier
+            .contains(ratatui::style::Modifier::BOLD)
+    );
+}

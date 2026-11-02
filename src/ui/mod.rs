@@ -31,6 +31,10 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(frame.area());
     if app.mode == Mode::Changelog {
         draw_changelog(frame, app, body);
+        frame.render_widget(
+            Paragraph::new("j/k C-d/C-u scroll · any other key returns"),
+            footer,
+        );
         return;
     }
     if app.mode == Mode::Help {
