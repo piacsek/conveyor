@@ -169,17 +169,17 @@ fn a_bullet_continued_on_the_next_line_is_one_bullet() {
 #[test]
 fn long_bullets_wrap_inside_a_narrow_pane() {
     let mut h = Harness::with_size(24, 12);
+    h.app.changelog =
+        "# Changelog\n\n## v0.1.0 (2026-11-01)\n- one two three four five six seven\n";
 
     h.run(vec![prs(vec![]), key(KeyCode::Char('c'))]).unwrap();
 
-    let first_bullet = CHANGELOG
-        .lines()
-        .find(|line| line.starts_with("- "))
-        .unwrap_or_default();
-    let wrapped = rendered(first_bullet, 22);
-    let second = wrapped.get(1).map(String::as_str).unwrap_or_default();
-    assert!(second.starts_with("  "), "{wrapped:?}");
-    assert!(h.screen().contains(&format!("│{second}")), "{}", h.screen());
+    assert!(
+        h.screen().contains("│- one two three four "),
+        "{}",
+        h.screen()
+    );
+    assert!(h.screen().contains("│  five six seven "), "{}", h.screen());
 }
 
 #[test]
@@ -305,6 +305,27 @@ fn ctrl_c_quits_from_the_changelog() {
         key(KeyCode::Char('c')),
         ctrl('c'),
         key(KeyCode::Esc),
+    ])
+    .unwrap();
+
+    assert!(h.screen().contains("│Changelog"), "{}", h.screen());
+}
+
+#[test]
+fn deeper_headings_lose_their_hashes_too() {
+    assert_eq!(rendered("### Added", 20), vec!["Added".to_string()]);
+}
+
+#[test]
+fn reopening_the_changelog_starts_at_the_top() {
+    let mut h = Harness::with_size(80, 12);
+
+    h.run(vec![
+        prs(vec![]),
+        key(KeyCode::Char('c')),
+        ctrl('d'),
+        key(KeyCode::Esc),
+        key(KeyCode::Char('c')),
     ])
     .unwrap();
 

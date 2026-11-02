@@ -5,7 +5,6 @@ use ratatui::text::Line;
 use ratatui::widgets::{Block, Paragraph};
 
 use crate::app::App;
-use crate::changelog::CHANGELOG;
 use crate::text::wrap;
 use crate::ui::details::scrolled;
 
@@ -23,8 +22,9 @@ fn hanging(text: &str, first: &str, rest: &str, width: usize) -> Vec<String> {
 
 pub fn lines(markdown: &str, width: usize) -> Vec<Line<'static>> {
     if let Some(heading) = markdown
-        .strip_prefix("## ")
-        .or_else(|| markdown.strip_prefix("# "))
+        .strip_prefix('#')
+        .map(|rest| rest.trim_start_matches('#'))
+        .and_then(|rest| rest.strip_prefix(' '))
     {
         let bold = Style::default().add_modifier(Modifier::BOLD);
         return hanging(heading, "", "", width)
@@ -42,7 +42,8 @@ pub fn lines(markdown: &str, width: usize) -> Vec<Line<'static>> {
 
 pub(crate) fn draw_changelog(frame: &mut Frame, app: &mut App, area: Rect) {
     let width = usize::from(area.width.saturating_sub(2));
-    let lines: Vec<Line> = CHANGELOG
+    let lines: Vec<Line> = app
+        .changelog
         .lines()
         .flat_map(|markdown| lines(markdown, width))
         .collect();
