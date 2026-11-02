@@ -45,7 +45,7 @@ conveyor config    # print the effective configuration
 | `Esc` | close details / zoom / filter |
 | `/` | filter (Enter keeps, Esc clears) |
 | `r/R` | refresh focused / all |
-| `?` | help |
+| `?/c` | help / changelog |
 
 Keys act on the focused column; `?` shows what `p` and `b` open there. Narrow terminals
 collapse the columns into tabs.

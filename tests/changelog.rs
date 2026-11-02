@@ -138,3 +138,13 @@ fn headings_are_bold_without_their_markdown() {
             .contains(ratatui::style::Modifier::BOLD)
     );
 }
+
+#[test]
+fn the_help_names_the_changelog_key() {
+    let mut h = Harness::with_size(80, 17);
+
+    h.run(vec![prs(vec![]), key(KeyCode::Char('?'))]).unwrap();
+
+    assert!(h.screen().contains("?/c"), "{}", h.screen());
+    assert!(h.screen().contains("help / changelog"), "{}", h.screen());
+}

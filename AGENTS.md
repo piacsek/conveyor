@@ -49,6 +49,8 @@ src/ui/dialog.rs the confirm dialog every write action (`X`, `M`, `U`) opens ove
 src/ui/help.rs   KEYS is the generic table the README mirrors; `keys_for(stage)` swaps the `p`/`b` wording per column
 src/refresh.rs   `spawn`: one fetcher thread per stage; `wait` sleeps until the interval or a refresh, draining queued signals
 src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`): the OS seam, not a service, so it stays out of `sources/`
+src/changelog.rs CHANGELOG (the bundled CHANGELOG.md) and `check`, the rules a release entry must meet
+src/ui/changelog.rs the `c` pane: headings bold without their `#`, scrolled like the details pane
 src/text.rs      truncate/pad_right with `…`, age(), duration() (coarse, cards), elapsed() (seconds, details pane), strip_ansi()
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
@@ -395,6 +397,13 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   exactly fills a 17-row terminal. `("q", "quit")` is therefore first in `KEYS`, so the one
   key that gets you out is never the line that disappears. Adding a key means checking the
   smallest terminal you care about, or paginating the pane.
+- **`c` shows the changelog, and every release writes one.** `CHANGELOG.md` is
+  `include_str!`ed, so the pane always matches the binary and needs no network. In the pane
+  `j/k`/arrows move a line, `Ctrl-d`/`Ctrl-u` half a page, any other key returns (like the
+  help, so `q` closes it rather than quitting). `tests/changelog.rs` runs
+  `changelog::check(CHANGELOG, CARGO_PKG_VERSION)`: the top entry is the crate version, every
+  heading reads `## vX.Y.Z (YYYY-MM-DD)`, versions strictly descend, every entry has a `- `
+  bullet and no bullet repeats an older one. A bump without its entry fails the gates.
 - **`q` is the only quit key** (besides `Ctrl-C`). `Esc` closes one thing per press (see the
   `Esc` bullet above) and is a no-op with nothing open; it never quits.
 - **Row order is per column, and `merge_keeping_order` alone is not enough.** A refresh merges
@@ -662,7 +671,8 @@ CI, tests, scripts, refactors, guideline edits and copy-only wording (a word in 
 an error message) merge to `main` without a bump and ride the next behaviour release. Do not
 tag a docs-only or CI-only `main`.
 
-1. Bump `version` in `Cargo.toml` (`Cargo.lock` follows on the next build).
+1. Bump `version` in `Cargo.toml` (`Cargo.lock` follows on the next build) and add its
+   `## vX.Y.Z (YYYY-MM-DD)` entry at the top of `CHANGELOG.md`: what a user sees, one bullet each.
 2. Run the gates, commit `Release vX.Y.Z`, merge to `main`.
 3. `git tag vX.Y.Z && git push origin vX.Y.Z`, then `gh run watch` until `release` is green
    and `gh release view vX.Y.Z` lists three tarballs.
