@@ -28,6 +28,7 @@ pub struct Check {
     pub url: String,
     pub started_at: Option<SystemTime>,
     pub completed_at: Option<SystemTime>,
+    pub run_id: Option<u64>,
 }
 
 impl Check {
@@ -122,6 +123,24 @@ impl PullRequest {
             CheckConclusion::Skipped => 4,
         });
         checks
+    }
+
+    pub fn rerunnable_runs(&self) -> Vec<u64> {
+        let mut runs: Vec<u64> = Vec::new();
+        for check in &self.checks_detail {
+            let Some(run) = check.run_id else {
+                continue;
+            };
+            if check.conclusion == CheckConclusion::Failure
+                && !runs.contains(&run)
+                && !self.checks_detail.iter().any(|other| {
+                    other.run_id == Some(run) && other.conclusion == CheckConclusion::Pending
+                })
+            {
+                runs.push(run);
+            }
+        }
+        runs
     }
 }
 
@@ -340,6 +359,7 @@ fn parse_check(node: &serde_json::Value) -> Option<Check> {
             url: text(node, "detailsUrl"),
             started_at: timestamp(node, "startedAt"),
             completed_at: timestamp(node, "completedAt"),
+            run_id: run_id(node),
         });
     }
     let context = node.get("context").and_then(|v| v.as_str())?;

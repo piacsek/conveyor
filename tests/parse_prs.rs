@@ -312,3 +312,62 @@ fn a_skipped_check_has_no_time_although_github_stamps_it() {
 
     assert_eq!(pr.checks_detail[0].took(now), None);
 }
+
+fn check_run(name: &str, status: &str, conclusion: &str, id: u64, run: u64) -> String {
+    format!(
+        r#"{{"name": "{name}", "status": "{status}", "conclusion": {conclusion}, "detailsUrl": "",
+            "databaseId": {id}, "checkSuite": {{"conclusion": null,
+              "workflowRun": {{"databaseId": {run}, "event": "pull_request",
+                "workflow": {{"name": "wf{run}"}}}}}}}}"#
+    )
+}
+
+fn with_checks(checks: &[String]) -> conveyor::model::prs::PullRequest {
+    one(&format!(
+        r#"{{"number": 30, "statusCheckRollup": {{"state": "FAILURE", "contexts": {{"nodes": [{}]}}}}}}"#,
+        checks.join(",")
+    ))
+}
+
+#[test]
+fn a_failure_in_a_finished_run_is_rerunnable() {
+    let pr = with_checks(&[
+        check_run("test", "COMPLETED", r#""FAILURE""#, 1, 70),
+        check_run("lint", "COMPLETED", r#""SUCCESS""#, 2, 70),
+    ]);
+
+    assert_eq!(pr.rerunnable_runs(), vec![70]);
+}
+
+#[test]
+fn a_run_with_a_check_still_going_is_not_rerunnable_yet() {
+    let pr = with_checks(&[
+        check_run("test", "COMPLETED", r#""FAILURE""#, 1, 70),
+        check_run("e2e", "IN_PROGRESS", "null", 2, 70),
+    ]);
+
+    assert!(pr.rerunnable_runs().is_empty());
+}
+
+#[test]
+fn a_failing_status_context_has_no_run_to_rerun() {
+    let pr = one(
+        r#"{"number": 31, "statusCheckRollup": {"state": "FAILURE", "contexts": {"nodes": [
+            {"context": "ci/external", "state": "FAILURE", "targetUrl": ""}
+        ]}}}"#,
+    );
+
+    assert!(pr.rerunnable_runs().is_empty());
+}
+
+#[test]
+fn two_failures_in_one_run_rerun_it_once_and_each_failing_run_is_listed() {
+    let pr = with_checks(&[
+        check_run("test", "COMPLETED", r#""FAILURE""#, 1, 70),
+        check_run("lint", "COMPLETED", r#""FAILURE""#, 2, 70),
+        check_run("e2e", "COMPLETED", r#""CANCELLED""#, 3, 80),
+        check_run("docs", "COMPLETED", r#""SUCCESS""#, 4, 90),
+    ]);
+
+    assert_eq!(pr.rerunnable_runs(), vec![70, 80]);
+}
