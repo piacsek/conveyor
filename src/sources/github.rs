@@ -199,5 +199,18 @@ impl Github for CliGh {
     ) -> io::Result<()> {
         self.run(&Self::merge_args(repo, number, method, head_oid))
             .map(|_| ())
+            .map_err(without_warnings)
     }
+}
+
+fn without_warnings(err: io::Error) -> io::Error {
+    let message = err.to_string();
+    let kept: Vec<&str> = message
+        .lines()
+        .filter(|line| !line.starts_with("! "))
+        .collect();
+    if kept.is_empty() {
+        return err;
+    }
+    io::Error::new(err.kind(), kept.join("\n"))
 }

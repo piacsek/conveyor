@@ -312,9 +312,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   flight (`App::merging`) get a footer notice and no prompt. The worker runs `gh pr merge <N>
   -R <repo> --<prs.merge_method> --match-head-commit <headRefOid>`; the pin refuses a head pushed
   after the card was drawn. On a merge-queue branch gh only warns that the queue sets the
-  strategy and enqueues through auto-merge (checked in gh v2.103.3 source). `Input::Merged` puts
-  `merge sent for #N` or gh's stderr in the footer and, on success, refreshes My PRs and the
-  queue.
+  strategy and enqueues through auto-merge (checked in gh v2.103.3 source). That warning comes
+  first on stderr, so `CliGh::merge` drops gh's `! ` lines from an error: the footer shows one
+  line, and it used to be the warning instead of the reason. `Input::Merged` puts `merge sent for
+  #N` or the error in the footer and, on success, refreshes My PRs and the queue. The prompt cuts
+  the title to the footer's width so `? y/n` always shows.
 - **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
   the deploy repo (`App::deploy_repo`: the `[[repo]]` with a deploy, else `builds_repo`).
 - **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by

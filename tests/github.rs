@@ -221,3 +221,23 @@ fn an_accepted_merge_is_ok() {
 
     assert!(result.is_ok());
 }
+
+#[test]
+fn a_refused_merge_on_a_queue_branch_reports_the_error_not_the_queue_warning() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let gh = shim(
+        &dir,
+        "echo '! The merge strategy for main is set by the merge queue' >&2; \
+         echo 'GraphQL: Required status checks have not passed' >&2; exit 1",
+    );
+
+    let err = gh
+        .merge("acme/webapp", 42, MergeMethod::Squash, "8c1f2a7d")
+        .unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "GraphQL: Required status checks have not passed"
+    );
+}
