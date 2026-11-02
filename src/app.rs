@@ -1078,6 +1078,10 @@ impl App {
             self.notice = Some(format!("updating #{number}…"));
             return;
         }
+        if let Some(number) = self.merging {
+            self.notice = Some(format!("merging #{number}…"));
+            return;
+        }
         match self.update_target() {
             Ok(target) => self.mode = Mode::Confirm(Pending::UpdateBranch(target)),
             Err(message) => self.notice = Some(message),

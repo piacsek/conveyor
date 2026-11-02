@@ -339,3 +339,38 @@ fn a_title_too_long_for_a_small_terminal_is_cut_before_the_question_mark() {
     assert!(screen.contains("…?"), "{screen}");
     assert!(screen.contains("y confirms"), "{screen}");
 }
+
+#[test]
+fn the_dialog_uses_the_whole_body_when_the_details_pane_is_open() {
+    let mut config = conveyor::config::Config::default();
+    config.ui.details_percent = 60;
+    let mut h = Harness::with_config(80, 12, config);
+    let title =
+        "Retry webhook deliveries with exponential backoff and a dead letter queue, plus metrics";
+
+    h.run(vec![
+        prs(vec![mergeable(1, title)]),
+        key(KeyCode::Char('d')),
+        key(KeyCode::Char('M')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("plus metrics?"), "{screen}");
+    assert!(
+        screen.contains("y confirms · any other key cancels"),
+        "{screen}"
+    );
+}
+
+#[test]
+fn on_a_narrow_body_the_hint_wraps_instead_of_being_cut() {
+    let mut h = Harness::with_size(36, 14);
+
+    h.run(vec![prs(vec![mergeable(1, "a")]), key(KeyCode::Char('M'))])
+        .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("y confirms"), "{screen}");
+    assert!(screen.contains("cancels"), "{screen}");
+}
