@@ -53,6 +53,7 @@
 - `/` filters every column; `Enter` keeps the filter, `Esc` clears it, titles show visible/total.
 - `Esc` closes details, then zoom, then the filter; `1`-`4` focus a column.
 - The help names the focused column and says what `p` and `b` do there.
+- Deployed `b` and `Y` fall back to the commit page when no fetched main build matches.
 
 ## v0.12.1 (2026-09-14)
 - Only http(s) URLs are opened in the browser.
@@ -73,6 +74,7 @@
 
 ## v0.8.0 (2026-09-11)
 - `p` opens the pull request and `b` the build; `Enter` does nothing.
+- `d` opens the details pane (it was `p`); `Y` copies the build URL next to `y` for the pull request.
 - Only the focused column highlights its selected card.
 - The details pane carries no URLs.
 

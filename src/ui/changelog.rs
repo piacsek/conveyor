@@ -21,7 +21,7 @@ fn hanging(text: &str, first: &str, rest: &str, width: usize) -> Vec<String> {
     }
 }
 
-fn lines(markdown: &str, width: usize) -> Vec<Line<'static>> {
+pub fn lines(markdown: &str, width: usize) -> Vec<Line<'static>> {
     if let Some(heading) = markdown
         .strip_prefix("## ")
         .or_else(|| markdown.strip_prefix("# "))
@@ -34,6 +34,7 @@ fn lines(markdown: &str, width: usize) -> Vec<Line<'static>> {
     }
     let wrapped = match markdown.strip_prefix("- ") {
         Some(bullet) => hanging(bullet, "- ", "  ", width),
+        None if markdown.starts_with(char::is_whitespace) => hanging(markdown, "  ", "  ", width),
         None => hanging(markdown, "", "", width),
     };
     wrapped.into_iter().map(Line::raw).collect()

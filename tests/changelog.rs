@@ -1,4 +1,4 @@
-use conveyor::changelog::{CHANGELOG, check};
+use conveyor::changelog::{CHANGELOG, check, check_released};
 
 #[test]
 fn the_changelog_has_a_real_entry_for_the_crate_version() {
@@ -127,7 +127,7 @@ fn headings_are_bold_without_their_markdown() {
     h.run(vec![prs(vec![]), key(KeyCode::Char('c'))]).unwrap();
 
     let screen = h.screen();
-    assert!(!screen.contains('#'), "{screen}");
+    assert!(!screen.contains("│#"), "{screen}");
     let row = screen
         .lines()
         .position(|line| line.contains(&format!("│v{} (", env!("CARGO_PKG_VERSION"))))
@@ -168,11 +168,18 @@ fn a_bullet_continued_on_the_next_line_is_one_bullet() {
 
 #[test]
 fn long_bullets_wrap_inside_a_narrow_pane() {
-    let mut h = Harness::with_size(40, 12);
+    let mut h = Harness::with_size(24, 12);
 
     h.run(vec![prs(vec![]), key(KeyCode::Char('c'))]).unwrap();
 
-    assert!(h.screen().contains("key returns."), "{}", h.screen());
+    let first_bullet = CHANGELOG
+        .lines()
+        .find(|line| line.starts_with("- "))
+        .unwrap_or_default();
+    let wrapped = rendered(first_bullet, 22);
+    let second = wrapped.get(1).map(String::as_str).unwrap_or_default();
+    assert!(second.starts_with("  "), "{wrapped:?}");
+    assert!(h.screen().contains(&format!("│{second}")), "{}", h.screen());
 }
 
 #[test]
@@ -207,4 +214,99 @@ fn c_is_ordinary_text_in_a_filter() {
 
     assert!(!h.screen().contains("Changelog"), "{}", h.screen());
     assert!(h.screen().contains("/c▏"), "{}", h.screen());
+}
+
+#[test]
+fn a_second_level_heading_that_is_not_a_release_is_refused() {
+    let text = "# Changelog\n\n## v0.21.0 (2026-11-02)\n\n## 0.20.0 (2026-11-02)\n- old\n";
+
+    assert_eq!(
+        check(text, "0.21.0"),
+        Err("`## 0.20.0 (2026-11-02)` must read `## vX.Y.Z (YYYY-MM-DD)`".to_string())
+    );
+}
+
+fn rendered(markdown: &str, width: usize) -> Vec<String> {
+    conveyor::ui::changelog::lines(markdown, width)
+        .iter()
+        .map(|line| line.to_string())
+        .collect()
+}
+
+#[test]
+fn a_long_bullet_hangs_under_its_dash() {
+    let lines = rendered("- one two three four", 9);
+
+    assert_eq!(lines.first().map(String::as_str), Some("- one two"));
+    assert_eq!(lines.get(1).map(String::as_str), Some("  three"));
+    assert_eq!(lines.get(2).map(String::as_str), Some("  four"));
+}
+
+#[test]
+fn a_continuation_line_hangs_like_its_bullet() {
+    let lines = rendered("  three four", 9);
+
+    assert_eq!(lines.first().map(String::as_str), Some("  three"));
+    assert_eq!(lines.get(1).map(String::as_str), Some("  four"));
+}
+
+#[test]
+fn a_released_version_without_its_entry_is_refused() {
+    let text = "# Changelog\n\n## v0.21.0 (2026-11-02)\n- relabelled\n";
+
+    assert_eq!(
+        check_released(text, &["0.20.0", "0.21.0"]),
+        Err("v0.20.0 was released but has no entry".to_string())
+    );
+}
+
+#[test]
+fn every_released_tag_keeps_its_entry() {
+    let output = std::process::Command::new("git")
+        .args(["tag", "--list", "v*"])
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .output()
+        .unwrap();
+    let tags = String::from_utf8(output.stdout).unwrap();
+    let released: Vec<&str> = tags
+        .lines()
+        .filter_map(|tag| tag.strip_prefix('v'))
+        .collect();
+
+    assert!(
+        !released.is_empty(),
+        "no v* tags: run `git fetch --tags` (CI needs fetch-depth: 0)"
+    );
+    assert_eq!(check_released(CHANGELOG, &released), Ok(()));
+}
+
+#[test]
+fn arrows_scroll_the_changelog_like_j_and_k() {
+    let mut h = Harness::with_size(80, 12);
+
+    h.run(vec![
+        prs(vec![]),
+        key(KeyCode::Char('c')),
+        key(KeyCode::Down),
+    ])
+    .unwrap();
+    assert!(!h.screen().contains("│Changelog"), "{}", h.screen());
+
+    h.run(vec![key(KeyCode::Up)]).unwrap();
+    assert!(h.screen().contains("│Changelog"), "{}", h.screen());
+}
+
+#[test]
+fn ctrl_c_quits_from_the_changelog() {
+    let mut h = Harness::with_size(80, 12);
+
+    h.run(vec![
+        prs(vec![]),
+        key(KeyCode::Char('c')),
+        ctrl('c'),
+        key(KeyCode::Esc),
+    ])
+    .unwrap();
+
+    assert!(h.screen().contains("│Changelog"), "{}", h.screen());
 }
