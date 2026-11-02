@@ -498,11 +498,15 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   most one fetch beyond the running one. A 2 s window in `App` was tried first and dropped in
   review: `app.now` freezes while keys repeat, and skipping a column mid-fetch lost an `r`.
 
+- v0.17.0 (phase 19, `plans/phase-19-rerun.md`): `X` reruns failed jobs after a `y/n`
+  prompt in the footer, for the selected main build or every finished failing run behind a
+  pull request. The first write action; its confirm mode is the one later write actions reuse.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
-- Write actions with `y/n` confirm: `gh pr merge --squash --auto`, `gh pr review --approve`,
-  `gh run rerun --failed`, enqueue/dequeue.
+- Write actions with the `X` confirm mode: `gh pr merge --squash --auto`,
+  `gh pr review --approve`, enqueue/dequeue.
 - Follow one PR across columns: `f` on a PR highlights its sha/number in queue, builds, deployed.
 - Desktop/tmux notification on queue state change or main build failure (tmux-agents `watch` pattern).
 - Multiple `[[repo]]` entries → repeated column groups or a repo switcher.

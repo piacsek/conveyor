@@ -134,6 +134,15 @@ pub fn log(job_id: u64, lines: Vec<&str>) -> io::Result<Input> {
     ))
 }
 
+pub fn rerun_done(results: Vec<(u64, Result<(), &str>)>) -> io::Result<Input> {
+    Ok(Input::Rerun(
+        results
+            .into_iter()
+            .map(|(run_id, result)| (run_id, result.map_err(str::to_string)))
+            .collect(),
+    ))
+}
+
 pub fn jobs_failed(run_id: u64, message: &str) -> io::Result<Input> {
     Ok(Input::Jobs(run_id, Err(message.to_string())))
 }

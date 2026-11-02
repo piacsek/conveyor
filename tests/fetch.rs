@@ -17,6 +17,7 @@ struct FakeGithub {
     graphql_routes: Vec<(String, serde_json::Value)>,
     cwd_repo: io::Result<String>,
     log_response: io::Result<String>,
+    rerun_failures: Vec<(u64, String)>,
 }
 
 impl FakeGithub {
@@ -29,6 +30,7 @@ impl FakeGithub {
             graphql_routes: Vec::new(),
             cwd_repo: Ok("acme/from-cwd".to_string()),
             log_response: Ok(String::new()),
+            rerun_failures: Vec::new(),
         }
     }
 }
@@ -85,6 +87,16 @@ impl Github for FakeGithub {
         match &self.log_response {
             Ok(text) => Ok(text.clone()),
             Err(err) => Err(io::Error::new(err.kind(), err.to_string())),
+        }
+    }
+
+    fn rerun_failed(&self, repo: &str, run_id: u64) -> io::Result<()> {
+        self.calls
+            .borrow_mut()
+            .push((format!("RERUN {repo} {run_id}"), Vec::new()));
+        match self.rerun_failures.iter().find(|(id, _)| *id == run_id) {
+            Some((_, message)) => Err(io::Error::other(message.clone())),
+            None => Ok(()),
         }
     }
 }
@@ -966,6 +978,37 @@ fn fetch_log_turns_a_gh_error_into_a_message() {
     let error = conveyor::sources::fetch::fetch_log(&gh, "acme/webapp", 7, 1).unwrap_err();
 
     assert_eq!(error, "gh: HTTP 404");
+}
+
+#[test]
+fn rerun_failed_asks_once_per_run_in_order() {
+    let gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+
+    let results = conveyor::sources::fetch::rerun_failed(&gh, "acme/webapp", &[431, 432]);
+
+    assert_eq!(results, vec![(431, Ok(())), (432, Ok(()))]);
+    let calls = gh.calls.borrow();
+    assert_eq!(calls.len(), 2);
+    assert_eq!(calls[0].0, "RERUN acme/webapp 431");
+    assert_eq!(calls[1].0, "RERUN acme/webapp 432");
+}
+
+#[test]
+fn rerun_failed_tries_every_run_past_an_error_and_reports_each() {
+    let gh = FakeGithub {
+        rerun_failures: vec![(432, "HTTP 403: Resource not accessible".to_string())],
+        ..FakeGithub::with_response(Ok(serde_json::Value::Null))
+    };
+
+    let results = conveyor::sources::fetch::rerun_failed(&gh, "acme/webapp", &[431, 432, 433]);
+
+    assert_eq!(gh.calls.borrow().len(), 3);
+    assert_eq!(results[0], (431, Ok(())));
+    assert_eq!(
+        results[1],
+        (432, Err("HTTP 403: Resource not accessible".to_string()))
+    );
+    assert_eq!(results[2], (433, Ok(())));
 }
 
 #[test]

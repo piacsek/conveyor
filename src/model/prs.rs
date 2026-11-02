@@ -28,6 +28,9 @@ pub struct Check {
     pub url: String,
     pub started_at: Option<SystemTime>,
     pub completed_at: Option<SystemTime>,
+    pub run_id: Option<u64>,
+    pub run_finished: bool,
+    pub newer_run_running: bool,
 }
 
 impl Check {
@@ -123,6 +126,23 @@ impl PullRequest {
         });
         checks
     }
+
+    pub fn rerunnable_runs(&self) -> Vec<u64> {
+        let mut runs: Vec<u64> = Vec::new();
+        for check in &self.checks_detail {
+            let Some(run) = check.run_id else {
+                continue;
+            };
+            if check.conclusion == CheckConclusion::Failure
+                && check.run_finished
+                && !check.newer_run_running
+                && !runs.contains(&run)
+            {
+                runs.push(run);
+            }
+        }
+        runs
+    }
 }
 
 pub fn parse(value: &serde_json::Value) -> Result<Vec<PullRequest>, String> {
@@ -209,15 +229,20 @@ fn overall(checks: &[Check]) -> Option<CheckState> {
 
 fn newest_checks(nodes: &[serde_json::Value]) -> Vec<Check> {
     let newest_runs = newest_runs(nodes);
+    let running_runs = running_runs(nodes);
     let mut newest: Vec<(CheckKey, u64, Check)> = Vec::new();
     for node in nodes {
-        let Some(check) = parse_check(node) else {
+        let Some(mut check) = parse_check(node) else {
             continue;
         };
         let key = check_key(node, &check);
         if superseded(node, &key, &newest_runs) {
             continue;
         }
+        check.run_finished = node
+            .pointer("/checkSuite/conclusion")
+            .is_some_and(|v| !v.is_null());
+        check.newer_run_running = newer_run_in(node, &key, &running_runs);
         let id = node.get("databaseId").and_then(|v| v.as_u64()).unwrap_or(0);
         match newest.iter_mut().find(|(kept, _, _)| *kept == key) {
             Some(kept) if id > kept.1 => *kept = (key, id, check),
@@ -231,6 +256,21 @@ fn newest_checks(nodes: &[serde_json::Value]) -> Vec<Check> {
 fn run_id(node: &serde_json::Value) -> Option<u64> {
     node.pointer("/checkSuite/workflowRun/databaseId")
         .and_then(|v| v.as_u64())
+}
+
+fn running_runs(nodes: &[serde_json::Value]) -> Vec<((String, String), u64)> {
+    nodes
+        .iter()
+        .filter(|node| {
+            node.pointer("/checkSuite/conclusion")
+                .is_none_or(|v| v.is_null())
+        })
+        .filter_map(|node| {
+            let run = run_id(node)?;
+            let key = check_key(node, &Check::default());
+            Some(((key.workflow, key.event), run))
+        })
+        .collect()
 }
 
 fn newest_runs(nodes: &[serde_json::Value]) -> Vec<((String, String), u64)> {
@@ -261,6 +301,14 @@ fn superseded(
     if !cancelled {
         return false;
     }
+    newer_run_in(node, key, newest_runs)
+}
+
+fn newer_run_in(
+    node: &serde_json::Value,
+    key: &CheckKey,
+    newest_runs: &[((String, String), u64)],
+) -> bool {
     let Some(run) = run_id(node) else {
         return false;
     };
@@ -340,6 +388,8 @@ fn parse_check(node: &serde_json::Value) -> Option<Check> {
             url: text(node, "detailsUrl"),
             started_at: timestamp(node, "startedAt"),
             completed_at: timestamp(node, "completedAt"),
+            run_id: run_id(node),
+            ..Check::default()
         });
     }
     let context = node.get("context").and_then(|v| v.as_str())?;

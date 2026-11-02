@@ -15,7 +15,7 @@ pub const KEYS: [(&str, &str); 13] = [
     ("b", "open build"),
     ("y/Y", "copy pull request / build URL"),
     ("d C-d/C-u", "details / scroll them"),
-    ("L", "log of the failed step"),
+    ("L/X", "log of the failed step / rerun failed jobs"),
     ("z", "zoom the column"),
     ("Esc", "close details / zoom / filter"),
     ("/", "filter (Enter keeps, Esc clears)"),
