@@ -435,6 +435,14 @@ agent's private memory. When the user says "update the guidelines", edit this fi
 - **Cadence.** Work runs under `/my-tdd autonomous`: one branch per phase (`phase-N-<topic>`),
   one commit per task through `scripts/ship.sh`, no pause between tasks, a pause only for the
   end-of-phase retro. Retro outcomes go to `PLAN.md` (facts, decisions) and here (rules).
+- **One worktree per branch, by default.** Start every phase or fix in its own worktree off
+  `origin/main`: `git worktree add -b <branch> .claude/worktrees/<branch> origin/main`, then
+  `git branch --unset-upstream` so the first `ship.sh` push creates `origin/<branch>` instead of
+  tracking `main`. Work, gates and ships run from inside it; the main checkout stays on its own
+  branch, so two phases (and two agent sessions) never share an index or a `target/`.
+  `.claude/worktrees/` is gitignored. Each worktree builds its own `target/` from cold the first
+  time. `conveyor-dev` points at the worktree that last ran `dev-install.sh`, so re-run it in the
+  worktree you are testing. Remove the worktree (`git worktree remove`) once its PR is merged.
 - **TDD is never skipped.** Every change to `src/` starts with a failing test, run and seen
   red, before the production code is touched; then the smallest change that goes green, then
   refactor. This holds for one-line fixes, security patches, patch releases and "obvious"
@@ -461,7 +469,7 @@ agent's private memory. When the user says "update the guidelines", edit this fi
   the pushed commits and the next `scripts/ship.sh` push is refused; the no-force-push rule
   then leaves only `git reset --hard origin/<branch>`, `git merge origin/main` and a
   cherry-pick of the new work. The rebase-merge into `main` drops the merge commit anyway.
-- **Two binaries.** `conveyor` on PATH is the Homebrew release; `conveyor-dev` is the working
+- **Two binaries.** `conveyor` on PATH is the Homebrew release; `conveyor-dev` is a working
   tree (`scripts/dev-install.sh`). Never `cargo install` the crate into a PATH directory.
 - **Plan before code, plans in the repo.** Each phase starts from a written plan, re-planned
   after the previous retro, with its "Verified facts" checked against live tools before use.
