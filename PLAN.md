@@ -486,6 +486,11 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   run has not reached yet). Checks of a cancelled run are dropped once a newer run of the same
   workflow and event exists; a run that finished on its own keeps its checks.
 
+- v0.16.0 (phase 18, `plans/phase-18-check-times.md`): each check in the My PRs details pane
+  says how long it took, or how long it has been running. Job and run lines in the details
+  pane went to second precision and running jobs tick. Cards stay coarse: seconds clipped the
+  status word (`cancell…`) on a 40-column card, found by the builds snapshot.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
