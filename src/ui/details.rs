@@ -12,14 +12,17 @@ use crate::model::deployed::Deployment;
 use crate::model::jobs::Job;
 use crate::model::prs::PullRequest;
 use crate::model::queue::QueueEntry;
-use crate::text::{age, clock, duration};
+use crate::text::{age, clock, duration, elapsed};
 use crate::ui::rows::build_label;
 use crate::ui::style::{build_glyph, check_word, conclusion_glyph, dim, status_word};
 
 pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
     let (title, lines) = match app.focus {
         Stage::Prs => match app.prs.selected() {
-            Some(pr) => (format!("#{} {}", pr.number, pr.title), pr_details(pr)),
+            Some(pr) => (
+                format!("#{} {}", pr.number, pr.title),
+                pr_details(pr, app.now),
+            ),
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
         },
         Stage::Queue => match app.queue.selected() {
@@ -110,7 +113,7 @@ fn scrolled(area: Rect, lines: usize, wanted: u16) -> (u16, (u16, String)) {
     (page, (scroll, arrows))
 }
 
-fn pr_details(pr: &PullRequest) -> Vec<Line<'static>> {
+fn pr_details(pr: &PullRequest, now: SystemTime) -> Vec<Line<'static>> {
     let mut lines = vec![
         Line::from(format!(
             "#{} {}  {}  +{} −{}",
@@ -120,9 +123,13 @@ fn pr_details(pr: &PullRequest) -> Vec<Line<'static>> {
     ];
     lines.extend(pr.checks_failures_first().into_iter().map(|check| {
         let (glyph, color) = conclusion_glyph(check.conclusion);
+        let took = check
+            .took(now)
+            .map(|took| format!("  {}", elapsed(took)))
+            .unwrap_or_default();
         Line::from(vec![
             Span::styled(glyph.to_string(), Style::default().fg(color)),
-            Span::raw(format!(" {}", check.name)),
+            Span::raw(format!(" {}{took}", check.name)),
         ])
     }));
     lines
