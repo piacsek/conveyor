@@ -10,6 +10,7 @@ query($q: String!, $first: Int!) {
         isDraft
         updatedAt
         headRefName
+        headRefOid
         repository { nameWithOwner }
         author { login }
         reviewDecision
