@@ -335,6 +335,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 - **Opens are debounced.** `p`/`b` on the same URL within `OPEN_DEBOUNCE` (1 s of
   `app.now`) is ignored: terminals send a key-repeat stream for a held key, which opened a tab
   per repeat.
+- **Refreshes are debounced per column.** `r`/`R` skip a column that is already fetching
+  (`refreshing`) or was asked within `REFRESH_DEBOUNCE` (2 s of `app.now`); `App::may_refresh`
+  decides and records the time. A held `r` used to queue one fetch per key repeat, and the
+  fetcher thread ran them back to back.
 - **Refresh feedback.** Fetchers send `Input::Fetching(stage)` before each fetch and set the
   column's `refreshing` flag; `Data` clears it. One braille spinner (frame from `app.now`, 100
   ms per frame, so the 250 ms tick advances it) is drawn at the very start of the footer while
