@@ -29,9 +29,9 @@ cat >"$home/prs.json" <<JSON
   "repository":{"nameWithOwner":"acme/webapp"},"author":{"login":"me"},"reviewDecision":"APPROVED",
   "mergeStateStatus":"BLOCKED","additions":12,"deletions":3,"mergeQueueEntry":null,
   "statusCheckRollup":{"state":"FAILURE","contexts":{"totalCount":3,"nodes":[
-   {"name":"lint","status":"COMPLETED","conclusion":"SUCCESS","detailsUrl":"https://github.com/acme/webapp/actions/runs/1/job/2"},
-   {"name":"api / test","status":"COMPLETED","conclusion":"FAILURE","detailsUrl":"https://github.com/acme/webapp/actions/runs/1/job/3"},
-   {"name":"e2e","status":"IN_PROGRESS","conclusion":null,"detailsUrl":"https://github.com/acme/webapp/actions/runs/1/job/4"}]}},
+   {"name":"lint","status":"COMPLETED","conclusion":"SUCCESS","detailsUrl":"https://github.com/acme/webapp/actions/runs/1/job/2","startedAt":"$(ago 30M)","completedAt":"$(ago 29M)"},
+   {"name":"api / test","status":"COMPLETED","conclusion":"FAILURE","detailsUrl":"https://github.com/acme/webapp/actions/runs/1/job/3","startedAt":"$(ago 30M)","completedAt":"$(ago 26M)"},
+   {"name":"e2e","status":"IN_PROGRESS","conclusion":null,"detailsUrl":"https://github.com/acme/webapp/actions/runs/1/job/4","startedAt":"$(ago 12M)","completedAt":null}]}},
   "reviews":{"nodes":[]},"reviewRequests":{"nodes":[]},"comments":{"totalCount":2}},
  {"number":4830,"title":"Add rate limit headers to the API","url":"https://github.com/acme/auth/pull/4830",
   "isDraft":false,"updatedAt":"$(ago 40M)","headRefName":"rate-limit-headers",

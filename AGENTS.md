@@ -95,6 +95,12 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   after its replacement passed. `prs::overall` reads the deduplicated checks: any failure, else
   any pending, else any unknown, else success; the rollup only answers when there are no
   contexts. The card can therefore read `✓` while GitHub's page still shows a red cross.
+  **Each check line carries its time.** `CheckRun.startedAt`/`completedAt` feed `Check::took`:
+  finished checks show how long they took, running ones the time since they started (redrawn
+  on every tick), and a check that never started or a `StatusContext` (no timing in the
+  schema) shows none rather than `0s`. Job and run lines in the details pane use the same
+  `text::elapsed` (`3m59s`, `1h04m`); cards keep the coarse `text::duration` (`3m`) because
+  seconds pushed the status word off a 40-column card.
   **Every page of checks is read.** `contexts(first: 100)` is GitHub's cap, and its order is not
   by time: it groups checks by name with the older run first, so a cut at 100 can drop the newer
   half of a pair and let the old result win. `fetch::read_remaining_checks` follows
