@@ -101,6 +101,7 @@ pub fn build(run_number: u64, status: BuildStatus, pr: Option<(u64, &str, &str)>
     Build {
         id: 1000 + run_number,
         run_number,
+        attempt: 1,
         status,
         sha: format!("{run_number:040x}"),
         title: pr
@@ -152,6 +153,7 @@ pub fn job(id: u64, name: &str, status: BuildStatus, failed_step: Option<&str>) 
     Job {
         id,
         name: name.to_string(),
+        attempt: 1,
         status,
         started_at: Some(started),
         completed_at: Some(started + Duration::from_secs(19)),
