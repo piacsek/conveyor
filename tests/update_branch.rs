@@ -4,7 +4,7 @@ use conveyor::app::{Input, Request, Stage, UpdateTarget};
 use conveyor::config::{Config, UpdateMethod};
 use conveyor::model::prs::{BranchUpdate, MergeState, PullRequest};
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, entry, failed, key, pr, prs, queue};
+use support::{Harness, entry, failed, fetching, key, pr, prs, queue};
 
 fn behind(number: u64, title: &str) -> PullRequest {
     let mut pull = pr(number, title);
@@ -314,6 +314,78 @@ fn shift_u_waits_while_a_merge_of_the_same_pull_request_is_in_flight() {
 
     let screen = h.screen();
     assert!(screen.contains("merging #1…"), "{screen}");
+    assert!(!screen.contains("y confirms"), "{screen}");
+    assert_eq!(h.requests.len(), 1);
+}
+
+#[test]
+fn after_a_merge_lands_shift_u_waits_for_a_refresh_that_started_after_it() {
+    let mut h = Harness::new();
+    let mut queued = behind(1, "a");
+    queued.queue_position = Some(1);
+
+    h.run(vec![
+        prs(vec![behind(1, "a")]),
+        key(KeyCode::Char('M')),
+        key(KeyCode::Char('y')),
+        Ok(Input::Merged(1, Ok(()))),
+        prs(vec![behind(1, "a")]),
+        key(KeyCode::Char('U')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(
+        screen.contains("waiting for My PRs to refresh after merging #1"),
+        "{screen}"
+    );
+    assert!(!screen.contains("y confirms"), "{screen}");
+
+    h.run(vec![
+        fetching(Stage::Prs),
+        prs(vec![queued]),
+        key(KeyCode::Char('U')),
+    ])
+    .unwrap();
+
+    assert!(
+        h.screen()
+            .contains("#1 is in the merge queue; updating it would drop it"),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
+fn after_a_refused_merge_shift_u_asks_right_away() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(vec![behind(1, "a")]),
+        key(KeyCode::Char('M')),
+        key(KeyCode::Char('y')),
+        Ok(Input::Merged(1, Err("not mergeable".to_string()))),
+        key(KeyCode::Char('U')),
+    ])
+    .unwrap();
+
+    assert!(h.screen().contains("y confirms"), "{}", h.screen());
+}
+
+#[test]
+fn shift_m_waits_while_an_update_of_the_branch_is_in_flight() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(vec![behind(1, "a")]),
+        key(KeyCode::Char('U')),
+        key(KeyCode::Char('y')),
+        key(KeyCode::Char('M')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("updating #1…"), "{screen}");
     assert!(!screen.contains("y confirms"), "{screen}");
     assert_eq!(h.requests.len(), 1);
 }

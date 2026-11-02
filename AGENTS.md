@@ -335,7 +335,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   are allowed. `y` re-derives the target like `M` (`the pull request changed; press U again`),
   one update is in flight at a time (`App::updating`), and `U` also waits while a merge is in
   flight (`App::merging`): a merge that just queued the pull request has no `queue_position`
-  until the next refresh, and the push would drop it from the queue. The worker runs `gh pr update-branch <N>
+  until the next refresh, and the push would drop it from the queue. For the same reason a
+  successful merge sets `App::merge_landing` and `U` answers `waiting for My PRs to refresh
+  after merging #N` until a My PRs fetch that started after the merge (`Input::Fetching`) has
+  landed; a fetch already in flight when the merge came back does not count. `M` likewise waits
+  while an update is in flight, since the push would drop the pull request it just queued. The worker runs `gh pr update-branch <N>
   -R <repo> [--rebase]`. Checked in gh v2.103.3 source: success prints `PR branch updated` or
   `PR branch already up-to-date` on stdout and exits 0; conflicts print `Cannot update PR branch
   due to conflicts` on stderr and exit 1, both when GitHub already reports the PR conflicting and

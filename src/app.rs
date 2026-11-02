@@ -421,6 +421,7 @@ pub struct App {
     pub notice: Option<String>,
     pub merging: Option<u64>,
     pub updating: Option<u64>,
+    pub merge_landing: Option<(u64, bool)>,
     pub details: bool,
     pub details_scroll: u16,
     pub details_page: u16,
@@ -461,6 +462,7 @@ impl App {
             notice: None,
             merging: None,
             updating: None,
+            merge_landing: None,
             details: false,
             details_scroll: 0,
             details_page: 0,
@@ -478,6 +480,9 @@ impl App {
     }
 
     pub fn receive(&mut self, stage: Stage, data: Result<Rows, String>) {
+        if stage == Stage::Prs && matches!(self.merge_landing, Some((_, true))) {
+            self.merge_landing = None;
+        }
         let selected = self.selected_key();
         self.receive_rows(stage, data);
         if self.selected_key() != selected {
@@ -680,6 +685,9 @@ impl App {
     }
 
     pub fn fetching(&mut self, stage: Stage) {
+        if let (Stage::Prs, Some((_, started))) = (stage, self.merge_landing.as_mut()) {
+            *started = true;
+        }
         match stage {
             Stage::Prs => self.prs.refreshing = true,
             Stage::Queue => self.queue.refreshing = true,
@@ -1019,6 +1027,10 @@ impl App {
             self.notice = Some(format!("merging #{number}…"));
             return;
         }
+        if let Some(number) = self.updating {
+            self.notice = Some(format!("updating #{number}…"));
+            return;
+        }
         match self.merge_target() {
             Ok(target) => self.mode = Mode::Confirm(Pending::Merge(target)),
             Err(message) => self.notice = Some(message),
@@ -1046,6 +1058,7 @@ impl App {
 
     pub fn receive_merged(&mut self, number: u64, result: &Result<(), String>) {
         self.merging = None;
+        self.merge_landing = result.is_ok().then_some((number, false));
         self.notice = Some(match result {
             Ok(()) => format!("merge sent for #{number}"),
             Err(message) => format!("#{number}: {message}"),
@@ -1096,6 +1109,11 @@ impl App {
             return Err("the last refresh failed; press r and try again".to_string());
         }
         let pr = self.prs.selected().ok_or("nothing selected")?;
+        if let Some((number, _)) = self.merge_landing {
+            return Err(format!(
+                "waiting for My PRs to refresh after merging #{number}"
+            ));
+        }
         if pr.queue_position.is_some() {
             return Err(format!(
                 "#{} is in the merge queue; updating it would drop it",
