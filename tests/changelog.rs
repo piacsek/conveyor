@@ -375,3 +375,22 @@ fn a_result_that_lands_while_the_help_is_open_shows_in_its_footer() {
     let last = h.screen().lines().last().unwrap_or_default().to_string();
     assert!(last.starts_with("#7: merge refused"), "{last}");
 }
+
+#[test]
+fn a_date_that_is_not_on_the_calendar_is_refused() {
+    let text =
+        "# Changelog\n\n## v0.2.0 (2026-02-30)\n- second\n\n## v0.1.0 (2026-11-01)\n- first\n";
+
+    assert_eq!(
+        check(text, "0.2.0"),
+        Err("`## v0.2.0 (2026-02-30)` must read `## vX.Y.Z (YYYY-MM-DD)`".to_string())
+    );
+}
+
+#[test]
+fn a_leap_day_is_a_date() {
+    let text =
+        "# Changelog\n\n## v0.2.0 (2028-02-29)\n- second\n\n## v0.1.0 (2026-11-01)\n- first\n";
+
+    assert_eq!(check(text, "0.2.0"), Ok(()));
+}
