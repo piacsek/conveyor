@@ -911,9 +911,12 @@ impl App {
         *scroll = next.clamp(0, i32::from(u16::MAX)) as u16;
     }
 
-    fn scroll_changelog(&mut self, half_pages: i32) {
-        let step = (self.changelog_page / 2).max(1) as i32;
-        let next = i32::from(self.changelog_scroll) + half_pages * step;
+    fn half_changelog(&self) -> i32 {
+        (self.changelog_page / 2).max(1) as i32
+    }
+
+    fn scroll_changelog(&mut self, lines: i32) {
+        let next = i32::from(self.changelog_scroll) + lines;
         self.changelog_scroll = next.clamp(0, i32::from(u16::MAX)) as u16;
     }
 
@@ -949,8 +952,10 @@ impl App {
             }
             Mode::Changelog => {
                 match key.code {
-                    KeyCode::Char('d') if control => self.scroll_changelog(1),
-                    KeyCode::Char('u') if control => self.scroll_changelog(-1),
+                    KeyCode::Char('d') if control => self.scroll_changelog(self.half_changelog()),
+                    KeyCode::Char('u') if control => self.scroll_changelog(-self.half_changelog()),
+                    KeyCode::Char('j') | KeyCode::Down => self.scroll_changelog(1),
+                    KeyCode::Char('k') | KeyCode::Up => self.scroll_changelog(-1),
                     _ => self.mode = Mode::Normal,
                 }
                 Action::Continue
