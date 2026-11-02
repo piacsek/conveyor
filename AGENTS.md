@@ -46,6 +46,7 @@ src/ui/rows.rs   one card builder per stage: pr_row, queue_row, build_row, deplo
 src/ui/details.rs the `d` pane per stage, including the job list; no URLs
 src/ui/footer.rs footer text, the refresh spinner and the static logo
 src/ui/help.rs   KEYS is the generic table the README mirrors; `keys_for(stage)` swaps the `p`/`b` wording per column
+src/refresh.rs   `spawn`: one fetcher thread per stage; `wait` sleeps until the interval or a refresh, draining queued signals
 src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`): the OS seam, not a service, so it stays out of `sources/`
 src/text.rs      truncate/pad_right with `…`, age(), duration() (coarse, cards), elapsed() (seconds, details pane), strip_ansi()
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
@@ -357,6 +358,13 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 - **Opens are debounced.** `p`/`b` on the same URL within `OPEN_DEBOUNCE` (1 s of
   `app.now`) is ignored: terminals send a key-repeat stream for a held key, which opened a tab
   per repeat.
+- **Refreshes coalesce in the fetcher.** `r`/`R` always send a `Request::Refresh`; each
+  fetcher thread wakes through `refresh::wait`, which takes one signal and drains the rest, so
+  a burst costs at most one fetch beyond the one running, and a held `r` refetches back to back
+  until released, with nothing left queued after. It used to queue a fetch per key repeat, which
+  kept running long after the key came up. A time window in `App` was rejected: `app.now` only
+  moves on a `Tick`, which never comes while keys arrive under 250 ms apart, and skipping a
+  column mid-fetch dropped an `r` meant to catch a change the running fetch predates.
 - **Refresh feedback.** Fetchers send `Input::Fetching(stage)` before each fetch and set the
   column's `refreshing` flag; `Data` clears it. One braille spinner (frame from `app.now`, 100
   ms per frame, so the 250 ms tick advances it) is drawn at the very start of the footer while
