@@ -56,6 +56,7 @@ fn config_prints_the_effective_defaults_as_toml() {
         "{stdout}"
     );
     assert!(stdout.contains("refresh_secs = 60"), "{stdout}");
+    assert!(stdout.contains("merge_method = \"squash\""), "{stdout}");
 }
 
 #[test]

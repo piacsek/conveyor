@@ -57,6 +57,7 @@ are honoured). Every key is optional, unknown keys are an error, and these are t
 query = "is:pr is:open archived:false (author:@me OR assignee:@me)"
 limit = 20
 refresh_secs = 60
+merge_method = "squash"
 
 [ui]
 min_column_width = 36
