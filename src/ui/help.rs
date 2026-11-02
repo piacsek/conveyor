@@ -21,7 +21,7 @@ pub const KEYS: [(&str, &str); 14] = [
     ("Esc", "close details / zoom / filter"),
     ("/", "filter (Enter keeps, Esc clears)"),
     ("r/R", "refresh focused / all"),
-    ("?", "help"),
+    ("?/c", "help / changelog"),
 ];
 
 pub fn column_name(stage: Stage) -> &'static str {

@@ -526,6 +526,11 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   a rerun GitHub drops the rerun's checks from the PR query for about a second, so the
   immediate reload could show a false `✓`.
 
+- v0.20.0 (phase 24, `plans/phase-24-changelog.md`): `c` opens `CHANGELOG.md`, bundled into the
+  binary, in a full-body pane (`j/k`, `C-d/C-u` scroll, any other key returns). The changelog
+  was backfilled for every tag. `conveyor::changelog::check` makes `cargo test` fail on a
+  version bump without a dated, non-empty entry at the top that repeats no older bullet.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
