@@ -493,6 +493,10 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
 - v0.16.1: a pull request in a merge queue shows the git-merge-queue icon in yellow instead
   of the green open icon, and My PRs lists queued pull requests first (by queue position),
   then open ones, then drafts.
+- v0.16.2: holding or mashing `r`/`R` no longer queues one reload per key repeat. Each
+  fetcher drains queued refresh signals when it wakes (`refresh::wait`), so a burst costs at
+  most one fetch beyond the running one. A 2 s window in `App` was tried first and dropped in
+  review: `app.now` freezes while keys repeat, and skipping a column mid-fetch lost an `r`.
 
 ## Deferred / backlog (discuss at retros)
 
