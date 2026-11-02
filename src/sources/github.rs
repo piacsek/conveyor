@@ -2,6 +2,8 @@ use std::io;
 use std::path::PathBuf;
 use std::process::Command;
 
+use crate::config::MergeMethod;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Variable {
     Text(String),
@@ -38,6 +40,8 @@ pub trait Github {
     fn current_repo(&self) -> io::Result<String>;
     /// The raw `gh run view --log-failed` text for one job of a run.
     fn log_failed(&self, repo: &str, run_id: u64, job_id: u64) -> io::Result<String>;
+    fn merge(&self, repo: &str, number: u64, method: MergeMethod, head_oid: &str)
+    -> io::Result<()>;
 }
 
 pub const MISSING: &str =
@@ -99,6 +103,22 @@ impl CliGh {
         .to_vec()
     }
 
+    pub fn merge_args(repo: &str, number: u64, method: MergeMethod, head_oid: &str) -> Vec<String> {
+        let method = match method {
+            MergeMethod::Squash => "--squash",
+            MergeMethod::Merge => "--merge",
+            MergeMethod::Rebase => "--rebase",
+        };
+        let mut args = ["pr", "merge", &number.to_string(), "-R", repo, method]
+            .map(str::to_string)
+            .to_vec();
+        if !head_oid.is_empty() {
+            args.push("--match-head-commit".to_string());
+            args.push(head_oid.to_string());
+        }
+        args
+    }
+
     pub fn current_repo_args() -> Vec<String> {
         [
             "repo",
@@ -157,5 +177,16 @@ impl Github for CliGh {
 
     fn log_failed(&self, repo: &str, run_id: u64, job_id: u64) -> io::Result<String> {
         self.run(&Self::log_failed_args(repo, run_id, job_id))
+    }
+
+    fn merge(
+        &self,
+        repo: &str,
+        number: u64,
+        method: MergeMethod,
+        head_oid: &str,
+    ) -> io::Result<()> {
+        self.run(&Self::merge_args(repo, number, method, head_oid))
+            .map(|_| ())
     }
 }
