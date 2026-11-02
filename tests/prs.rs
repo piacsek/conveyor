@@ -1221,6 +1221,7 @@ fn failing_in(name: &str, run_id: u64) -> conveyor::model::prs::Check {
         name: name.to_string(),
         conclusion: conveyor::model::prs::CheckConclusion::Failure,
         run_id: Some(run_id),
+        run_finished: true,
         ..Default::default()
     }
 }
