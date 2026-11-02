@@ -20,6 +20,7 @@ pub struct Prs {
     pub limit: usize,
     pub refresh_secs: u64,
     pub merge_method: MergeMethod,
+    pub update_method: UpdateMethod,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -31,6 +32,14 @@ pub enum MergeMethod {
     Rebase,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UpdateMethod {
+    #[default]
+    Merge,
+    Rebase,
+}
+
 impl Default for Prs {
     fn default() -> Self {
         Self {
@@ -38,6 +47,7 @@ impl Default for Prs {
             limit: 20,
             refresh_secs: 60,
             merge_method: MergeMethod::default(),
+            update_method: UpdateMethod::default(),
         }
     }
 }
