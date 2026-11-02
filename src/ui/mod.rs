@@ -1,6 +1,7 @@
 mod card;
 mod columns;
 mod details;
+mod dialog;
 mod footer;
 pub mod help;
 mod rows;
@@ -15,6 +16,7 @@ use ratatui::widgets::Paragraph;
 use crate::app::{App, Mode, Stage};
 use crate::ui::columns::{column_title, draw_column};
 use crate::ui::details::draw_details;
+use crate::ui::dialog::draw_confirm;
 use crate::ui::footer::draw_footer;
 use crate::ui::help::draw_help;
 use crate::ui::style::dim;
@@ -50,6 +52,9 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         for (stage, area) in Stage::ALL.into_iter().zip(columns.iter()) {
             draw_column(frame, app, stage, *area, true);
         }
+    }
+    if let Mode::Confirm(pending) = &app.mode {
+        draw_confirm(frame, body, pending);
     }
 }
 

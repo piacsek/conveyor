@@ -387,7 +387,7 @@ fn shift_x_reruns_a_failed_main_build_only_after_y() {
     );
     server.wait_for_screen("Main webapp (4)");
     server.send_keys(&["l", "l", "X"]);
-    server.wait_for_screen("rerun failed jobs of run 24? y/n");
+    server.wait_for_screen("rerun failed jobs of run 24?");
     server.send_keys(&["n"]);
     server.wait_for_screen("rerun cancelled");
     server.send_keys(&["X", "y"]);
@@ -421,7 +421,7 @@ fn shift_m_then_y_runs_gh_pr_merge_pinned_to_the_head_commit() {
     server.wait_for_screen("#1 Phase 0: setup");
 
     server.send_keys(&["M"]);
-    server.wait_for_screen("merge #1 Phase 0: setup? y/n");
+    server.wait_for_screen("merge #1 Phase 0: setup?");
     server.send_keys(&["y"]);
     server.wait_for_screen("merge sent for #1");
 

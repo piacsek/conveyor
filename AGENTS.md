@@ -291,7 +291,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   Merge
   queue and Deployed only answer with a footer notice: a failed merge-group run has already
   dropped its pull request from the queue, so rerunning it merges nothing. `X` sets
-  `Mode::Confirm(Pending::Rerun)`, the footer reads `rerun failed jobs of <run N | #N (k runs)>? y/n`. While the last refresh of Main builds or
+  `Mode::Confirm(Pending::Rerun)`, and the confirm dialog asks `rerun failed jobs of <run N | #N (k runs)>?`. While the last refresh of Main builds or
   My PRs failed, `X` refuses (`the last refresh failed; press r and try again`): the rows it
   would judge "newest" or "finished" by are older than they look. `y` works the target out again from the rows on screen (a refresh may have landed while the
   prompt was open) and sends `Request::Rerun` only if it still names the same runs, else it
@@ -303,7 +303,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   new attempt. The e2e `gh` shim appends `run rerun …` argv to `reruns.log`; keep any new write
   action behind the same shim so a test can never reach the real `gh`.
 - **`M` merges a pull request, and it asks the same way.** On a My PRs card it sets
-  `Mode::Confirm(Pending::Merge)` and the footer reads `merge #N <title>? y/n`. Only a bare `y`
+  `Mode::Confirm(Pending::Merge)` and the confirm dialog asks `merge #N <title>?`. Only a bare `y`
   goes on, every other key cancels (`merge cancelled`), and the Confirm arm sits before the
   `Ctrl-d`/`Ctrl-u` arms so nothing slips past the prompt. Like `X`, `y` works the target out
   again from the rows on screen (`App::merge_target`) and sends `Request::Merge` only if it is
@@ -315,9 +315,13 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   strategy and enqueues through auto-merge (checked in gh v2.103.3 source). That warning comes
   first on stderr, so `CliGh::merge` drops gh's `! ` lines from an error: the footer shows one
   line, and it used to be the warning instead of the reason. `Input::Merged` puts `merge sent for
-  #N` or the error in the footer and, on success, refreshes My PRs and the queue. The prompt cuts
-  the title to the footer's width so `? y/n` stays on screen (by character count, so a title
-  with wide characters can still push it off).
+  #N` or the error in the footer and, on success, refreshes My PRs and the queue. 
+- **Every write action asks in one dialog.** `ui::dialog::draw_confirm` draws over the body
+  while `Mode::Confirm`, centred, at most 56 columns inside and 2 off each edge: `Clear`, a
+  bordered `Confirm` block, the question wrapped over at most 3 lines (cut with `…` before the
+  `?`), a blank line and the dim `y confirms · any other key cancels`. The footer carries no
+  prompt, only the usual notice or refresh age underneath; it used to hold the question and was
+  easy to miss. A new write action adds a `Pending` variant and an arm in `dialog::question`.
 - **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
   the deploy repo (`App::deploy_repo`: the `[[repo]]` with a deploy, else `builds_repo`).
 - **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by
