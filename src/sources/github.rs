@@ -40,6 +40,7 @@ pub trait Github {
     fn current_repo(&self) -> io::Result<String>;
     /// The raw `gh run view --log-failed` text for one job of a run.
     fn log_failed(&self, repo: &str, run_id: u64, job_id: u64) -> io::Result<String>;
+    fn rerun_failed(&self, repo: &str, run_id: u64) -> io::Result<()>;
     fn merge(&self, repo: &str, number: u64, method: MergeMethod, head_oid: &str)
     -> io::Result<()>;
 }
@@ -101,6 +102,12 @@ impl CliGh {
         ]
         .map(str::to_string)
         .to_vec()
+    }
+
+    pub fn rerun_failed_args(repo: &str, run_id: u64) -> Vec<String> {
+        ["run", "rerun", &run_id.to_string(), "--failed", "-R", repo]
+            .map(str::to_string)
+            .to_vec()
     }
 
     pub fn merge_args(repo: &str, number: u64, method: MergeMethod, head_oid: &str) -> Vec<String> {
@@ -177,6 +184,10 @@ impl Github for CliGh {
 
     fn log_failed(&self, repo: &str, run_id: u64, job_id: u64) -> io::Result<String> {
         self.run(&Self::log_failed_args(repo, run_id, job_id))
+    }
+
+    fn rerun_failed(&self, repo: &str, run_id: u64) -> io::Result<()> {
+        self.run(&Self::rerun_failed_args(repo, run_id)).map(|_| ())
     }
 
     fn merge(

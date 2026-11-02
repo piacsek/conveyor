@@ -4,7 +4,9 @@ use conveyor::app::Request;
 use conveyor::app::Stage;
 use conveyor::model::builds::BuildStatus;
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, NOW, build, builds, ctrl, failed, job, jobs, jobs_failed, key, tick_at};
+use support::{
+    Harness, NOW, build, builds, ctrl, failed, job, jobs, jobs_failed, key, rerun_done, tick_at,
+};
 
 fn column(screen: &str, index: usize) -> Vec<String> {
     screen
@@ -1236,4 +1238,310 @@ fn a_running_job_in_the_details_says_how_long_it_has_been_running() {
 
     let screen = h.screen();
     assert!(screen.contains("● check  1m15s"), "{screen}");
+}
+
+fn footer(screen: &str) -> String {
+    screen.lines().last().unwrap_or_default().to_string()
+}
+
+fn failing_newest() -> Vec<conveyor::model::builds::Build> {
+    three().into_iter().skip(1).collect()
+}
+
+fn focus_failing_newest() -> Vec<std::io::Result<conveyor::app::Input>> {
+    vec![builds(failing_newest()), key(KeyCode::Char('3'))]
+}
+
+#[test]
+fn y_checks_the_target_again_when_a_refresh_landed_during_the_prompt() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_failing_newest();
+    inputs.push(key(KeyCode::Char('X')));
+    let mut newer = vec![build(27, BuildStatus::Running, None)];
+    newer.extend(failing_newest());
+    inputs.push(builds(newer));
+    inputs.push(key(KeyCode::Char('y')));
+    h.run(inputs).unwrap();
+
+    assert!(reruns(&h.requests).is_empty(), "{:?}", h.requests);
+    assert!(
+        footer(&h.screen()).contains("only the newest main build can be rerun"),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
+fn shift_x_refuses_while_the_last_main_builds_refresh_failed() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_failing_newest();
+    inputs.push(failed(Stage::Builds, "gh: HTTP 502"));
+    inputs.push(key(KeyCode::Char('X')));
+    h.run(inputs).unwrap();
+
+    assert!(
+        footer(&h.screen()).contains("the last refresh failed; press r and try again"),
+        "{}",
+        h.screen()
+    );
+    assert_eq!(h.app.mode, conveyor::app::Mode::Normal);
+
+    h.run(vec![builds(failing_newest()), key(KeyCode::Char('X'))])
+        .unwrap();
+
+    assert!(
+        footer(&h.screen()).contains("rerun failed jobs of run 25? y/n"),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
+fn y_refuses_when_a_refresh_failed_while_the_prompt_was_open() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_failing_newest();
+    inputs.push(key(KeyCode::Char('X')));
+    inputs.push(failed(Stage::Builds, "gh: HTTP 502"));
+    inputs.push(key(KeyCode::Char('y')));
+    h.run(inputs).unwrap();
+
+    assert!(reruns(&h.requests).is_empty(), "{:?}", h.requests);
+    assert!(
+        footer(&h.screen()).contains("the last refresh failed; press r and try again"),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
+fn shift_x_refuses_a_failed_build_once_a_newer_main_build_exists() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_builds();
+    inputs.push(key(KeyCode::Char('j')));
+    inputs.push(key(KeyCode::Char('X')));
+    h.run(inputs).unwrap();
+
+    assert!(
+        footer(&h.screen()).contains("only the newest main build can be rerun"),
+        "{}",
+        h.screen()
+    );
+    assert_eq!(h.app.mode, conveyor::app::Mode::Normal);
+}
+
+fn reruns(requests: &[Request]) -> Vec<&Request> {
+    requests
+        .iter()
+        .filter(|request| matches!(request, Request::Rerun { .. }))
+        .collect()
+}
+
+#[test]
+fn shift_x_asks_before_rerunning_a_failed_runs_failed_jobs_and_y_confirms() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_failing_newest();
+    inputs.push(key(KeyCode::Char('X')));
+    h.run(inputs).unwrap();
+
+    assert!(
+        footer(&h.screen()).contains("rerun failed jobs of run 25? y/n"),
+        "{}",
+        h.screen()
+    );
+    assert!(reruns(&h.requests).is_empty(), "{:?}", h.requests);
+
+    h.run(vec![key(KeyCode::Char('y'))]).unwrap();
+
+    assert_eq!(
+        reruns(&h.requests),
+        vec![&Request::Rerun {
+            repo: "acme/webapp".to_string(),
+            run_ids: vec![1025],
+        }]
+    );
+    assert!(
+        footer(&h.screen()).contains("rerunning run 25…"),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
+fn any_other_key_than_y_cancels_the_rerun_and_does_nothing_else() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_failing_newest();
+    inputs.push(key(KeyCode::Char('X')));
+    inputs.push(key(KeyCode::Char('q')));
+    h.run(inputs).unwrap();
+
+    assert!(reruns(&h.requests).is_empty(), "{:?}", h.requests);
+    assert!(
+        footer(&h.screen()).contains("rerun cancelled"),
+        "{}",
+        h.screen()
+    );
+
+    h.run(vec![key(KeyCode::Char('X')), key(KeyCode::Esc)])
+        .unwrap();
+
+    assert!(reruns(&h.requests).is_empty(), "{:?}", h.requests);
+    assert!(
+        footer(&h.screen()).contains("rerun cancelled"),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
+fn shift_x_on_a_running_run_says_it_is_still_running_and_asks_nothing() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_builds();
+    inputs.push(key(KeyCode::Char('X')));
+    h.run(inputs).unwrap();
+
+    assert!(
+        footer(&h.screen()).contains("run 26 is still running"),
+        "{}",
+        h.screen()
+    );
+    assert_eq!(h.app.mode, conveyor::app::Mode::Normal);
+}
+
+#[test]
+fn a_rerun_on_its_way_blocks_a_second_one_until_it_lands() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_failing_newest();
+    inputs.push(key(KeyCode::Char('X')));
+    inputs.push(key(KeyCode::Char('y')));
+    inputs.push(key(KeyCode::Char('X')));
+    h.run(inputs).unwrap();
+
+    assert_eq!(reruns(&h.requests).len(), 1, "{:?}", h.requests);
+    assert!(
+        footer(&h.screen()).contains("a rerun is already on its way"),
+        "{}",
+        h.screen()
+    );
+
+    h.run(vec![
+        rerun_done(vec![(1025, Ok(()))]),
+        key(KeyCode::Char('X')),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    assert_eq!(reruns(&h.requests).len(), 2, "{:?}", h.requests);
+}
+
+#[test]
+fn a_landed_rerun_says_so_and_refreshes_the_column_it_came_from() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_failing_newest();
+    inputs.push(key(KeyCode::Char('X')));
+    inputs.push(key(KeyCode::Char('y')));
+    inputs.push(key(KeyCode::Char('1')));
+    inputs.push(rerun_done(vec![(1025, Ok(()))]));
+    h.run(inputs).unwrap();
+
+    assert!(
+        footer(&h.screen()).contains("rerun requested: run 25"),
+        "{}",
+        h.screen()
+    );
+    assert_eq!(
+        h.requests.last(),
+        Some(&Request::Refresh(Stage::Builds)),
+        "{:?}",
+        h.requests
+    );
+}
+
+#[test]
+fn a_failed_rerun_shows_what_gh_said() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_failing_newest();
+    inputs.push(key(KeyCode::Char('X')));
+    inputs.push(key(KeyCode::Char('y')));
+    inputs.push(rerun_done(vec![(1025, Err("HTTP 403"))]));
+    h.run(inputs).unwrap();
+
+    assert!(
+        footer(&h.screen()).contains("rerun failed: run 1025: HTTP 403"),
+        "{}",
+        h.screen()
+    );
+    assert!(
+        !h.requests.contains(&Request::Refresh(Stage::Builds)),
+        "{:?}",
+        h.requests
+    );
+}
+
+#[test]
+fn a_rerun_run_keeps_its_old_jobs_on_screen_until_the_new_attempt_lands() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_failing_newest();
+    inputs.push(jobs(
+        1025,
+        vec![job(
+            1,
+            "check",
+            BuildStatus::Failure,
+            Some("Run cargo test"),
+        )],
+    ));
+    inputs.push(key(KeyCode::Char('X')));
+    inputs.push(key(KeyCode::Char('y')));
+    inputs.push(rerun_done(vec![(1025, Ok(()))]));
+    let mut requeued = failing_newest();
+    requeued[0].status = BuildStatus::Queued;
+    inputs.push(builds(requeued));
+    h.run(inputs).unwrap();
+
+    assert!(
+        h.requests
+            .iter()
+            .filter(|request| **request == Request::Jobs { run_id: 1025 })
+            .count()
+            == 2,
+        "asked again for the new attempt: {:?}",
+        h.requests
+    );
+    assert!(h.screen().contains("check"), "{}", h.screen());
+
+    h.run(vec![jobs(
+        1025,
+        vec![job(1, "check", BuildStatus::Running, None)],
+    )])
+    .unwrap();
+
+    assert!(h.screen().contains("● check"), "{}", h.screen());
+}
+
+#[test]
+fn a_run_whose_jobs_come_back_empty_shows_its_sha_not_zero_jobs_ok() {
+    let mut h = Harness::with_size(160, 20);
+
+    h.run(vec![builds(three()), jobs(1026, vec![])]).unwrap();
+
+    let col = column(&h.screen(), 2);
+    assert!(!col[4].contains("jobs ok"), "{}", h.screen());
+    assert!(col[4].contains("00000000"), "{}", h.screen());
+}
+
+#[test]
+fn shift_x_on_a_passing_run_says_nothing_failed() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = vec![
+        builds(vec![build(24, BuildStatus::Success, None)]),
+        key(KeyCode::Char('3')),
+    ];
+    inputs.push(key(KeyCode::Char('X')));
+    h.run(inputs).unwrap();
+
+    assert!(
+        footer(&h.screen()).contains("nothing failed to rerun"),
+        "{}",
+        h.screen()
+    );
 }

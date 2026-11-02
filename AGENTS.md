@@ -27,7 +27,7 @@ src/main.rs      CLI dispatch, config load, wiring
 src/cli.rs       `conveyor` (TUI) | `config` | `--help` | `--version`; hand-rolled, no clap
 src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override
 src/sources/     everything that reaches out to an external service, and nothing else
-src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`, `log_failed`), CliGh spawns `gh api …` / `gh repo view` / `gh run view --log-failed`, error mapping
+src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`, `log_failed`, `rerun_failed`), CliGh spawns `gh api …` / `gh repo view` / `gh run view --log-failed` / `gh run rerun --failed`, error mapping
 src/sources/kube.rs   Kube trait (`image(env)`), CliKubectl (`kubectl --context … get deploy … -o jsonpath`, 10 s timeout)
 src/sources/fetch.rs  repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), fetch_jobs, fetch_log (LOG_TAIL lines), BuildsSource (caches workflow id and sha→PR), DeploySource (per-env kubectl + cached sha→PR)
 src/sources/queries/  GraphQL documents, `include_str!`ed
@@ -37,7 +37,7 @@ src/model/builds.rs Build, BuildStatus, PullRef, Builds; `parse_runs`, `pr_numbe
 src/model/deployed.rs Deployment, Deployed; `sha_from_image` (40-hex tag or `-<sha>` suffix)
 src/model/jobs.rs Job, `parse_jobs` (failures first), `failed_step`
 src/model/log.rs  `tail`: the failed step's log as gh prints it, minus job/step/timestamp prefixes and ANSI
-src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Input::{Key, Fetching, Data, Jobs, Log, Tick}, Request::{Refresh, Jobs, Log}, run()
+src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Input::{Key, Fetching, Data, Jobs, Log, Rerun, Tick}, Request::{Refresh, Jobs, Log, Rerun}, run()
 src/ui/mod.rs    draw: 4 columns or tabs below `4 × ui.min_column_width`
 src/ui/style.rs  the shared vocabulary: BAR, INDENT, dim(), glyphs and status words, short_repo, sha8
 src/ui/card.rs   card() and meta(): one title line plus indented span lines
@@ -274,18 +274,47 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   on screen. v0.13.0
   appended the log under the job list, where a 37-job run hid it below the fold: never put
   the thing a key opens where the user has to scroll to find it. No failed job known yet →
-  footer notice, no request. Rerunning a job stays a backlog item (write action, confirm UX).
-- **`M` is the only write action, and it asks first.** On a My PRs card it sets
-  `Mode::Confirm(MergeTarget)` and the footer reads `merge #N <title>? y/n`; only a bare `y`
-  sends `Request::Merge`, every other key cancels (`merge cancelled`), `Ctrl-C` still quits, and
-  the Confirm arm sits before the `Ctrl-d`/`Ctrl-u` arms so nothing slips past the prompt. The
-  target (number, repo, title, head sha) is captured when `M` is pressed, so a refresh that moves
-  the selection cannot change what `y` merges. Drafts, queued pull requests, other columns and a
-  merge already in flight (`App::merging`) get a footer notice and no prompt. The merge thread
-  runs `gh pr merge <N> -R <repo> --<prs.merge_method> --match-head-commit <headRefOid>`; the pin
-  refuses a head pushed after the card was drawn. On a merge-queue branch gh only warns that the
-  queue sets the strategy and enqueues (checked in gh v2.103.3 source). `Input::Merged` puts
-  `merge sent for #N` or gh's stderr in the footer and, on success, refreshes My PRs and the queue.
+  footer notice, no request.
+- **`X` reruns failed jobs, and it always asks first.** It reruns failed jobs with
+  `gh run rerun <run> --failed -R <repo>`: in Main builds the selected run, only when it is the
+  newest main build (highest `run_number`) and has settled as a failure or a cancellation.
+  An older one is refused: with `cancel-in-progress` its rerun would cancel the newest build,
+  and on a workflow that deploys it would put an older sha back over a newer one. In My PRs every run behind the pull request's
+  failing checks whose own check suite has a conclusion (`Check::run_finished`) and while no
+  newer run of the same workflow and event is still running (`Check::newer_run_running`, a
+  suite with no conclusion); `PullRequest::rerunnable_runs`, from `Check::run_id`. A
+  `StatusContext` or a non-Actions app has no run and is skipped. The suite, not the
+  deduplicated checks, says whether a run is done: a newer run's same-name check can hide an
+  older run's pending job. A newer run blocks only while it runs, because rerunning the older
+  one could cancel it through a concurrency group; once it has finished it does not, so the
+  `✗` a finished run keeps under a newer `labeled` run that skipped the job stays rerunnable.
+  Merge
+  queue and Deployed only answer with a footer notice: a failed merge-group run has already
+  dropped its pull request from the queue, so rerunning it merges nothing. `X` sets
+  `Mode::Confirm(Pending::Rerun)`, the footer reads `rerun failed jobs of <run N | #N (k runs)>? y/n`. While the last refresh of Main builds or
+  My PRs failed, `X` refuses (`the last refresh failed; press r and try again`): the rows it
+  would judge "newest" or "finished" by are older than they look. `y` works the target out again from the rows on screen (a refresh may have landed while the
+  prompt was open) and sends `Request::Rerun` only if it still names the same runs, else it
+  says why in the footer; any other key (`Esc`, `q` included) cancels; `q` never quits from
+  the prompt. One rerun is in flight at a time (`App::rerunning`). The worker asks for every
+  run even after one fails and sends one result per run in `Input::Rerun`; the footer says
+  which runs failed, and the column it came from refreshes when any run went through. A rerun keeps its run
+  id, so `age_jobs` and `parse_jobs` (newest `run_attempt`) already carry the jobs over to the
+  new attempt. The e2e `gh` shim appends `run rerun …` argv to `reruns.log`; keep any new write
+  action behind the same shim so a test can never reach the real `gh`.
+- **`M` merges a pull request, and it asks the same way.** On a My PRs card it sets
+  `Mode::Confirm(Pending::Merge)` and the footer reads `merge #N <title>? y/n`. Only a bare `y`
+  goes on, every other key cancels (`merge cancelled`), and the Confirm arm sits before the
+  `Ctrl-d`/`Ctrl-u` arms so nothing slips past the prompt. Like `X`, `y` works the target out
+  again from the rows on screen (`App::merge_target`) and sends `Request::Merge` only if it is
+  still the same number, repo, title and head sha; otherwise the footer says `the pull request
+  changed; press M again`. Drafts, queued pull requests, other columns and a merge already in
+  flight (`App::merging`) get a footer notice and no prompt. The worker runs `gh pr merge <N>
+  -R <repo> --<prs.merge_method> --match-head-commit <headRefOid>`; the pin refuses a head pushed
+  after the card was drawn. On a merge-queue branch gh only warns that the queue sets the
+  strategy and enqueues through auto-merge (checked in gh v2.103.3 source). `Input::Merged` puts
+  `merge sent for #N` or gh's stderr in the footer and, on success, refreshes My PRs and the
+  queue.
 - **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
   the deploy repo (`App::deploy_repo`: the `[[repo]]` with a deploy, else `builds_repo`).
 - **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by
@@ -389,7 +418,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   jobs, the sha, the pull request. A URL is 60 columns of noise nobody retypes, and both keys
   that need one (`b`, `p`) already hand it to the browser. `y`/`Y` copy them.
 - **The keymap pairs the pull request and the build.** `p`/`b` open them, `y`/`Y` copy them,
-  `d` is the details pane, `Ctrl-d`/`Ctrl-u` scroll it. `y/Y`, `r/R` and
+  `d` is the details pane, `Ctrl-d`/`Ctrl-u` scroll it. `y/Y`, `r/R`, `L/X` and
   `C-d/C-u` each share one line of `KEYS`; `M` took the 14th, so the help needs 17 rows.
 - **Colors** come from the ANSI palette so terminal themes apply. Do not hardcode hex.
 

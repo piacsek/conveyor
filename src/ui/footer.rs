@@ -3,13 +3,16 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::Span;
 use ratatui::widgets::Paragraph;
 
-use crate::app::App;
+use crate::app::{App, Mode, Pending};
 use crate::text::refreshed;
 use crate::ui::style::dim;
 
 pub(crate) fn footer_text(app: &App) -> String {
-    if let Some(prompt) = app.merge_prompt() {
-        return prompt;
+    if let Mode::Confirm(pending) = &app.mode {
+        return match pending {
+            Pending::Rerun(rerun) => format!("rerun failed jobs of {}? y/n", rerun.label),
+            Pending::Merge(target) => format!("merge #{} {}? y/n", target.number, target.title),
+        };
     }
     if let Some(notice) = &app.notice {
         return notice.clone();

@@ -230,6 +230,7 @@ fn build_jobs(build: &Build, jobs: Option<&JobsState>, width: usize) -> Vec<Span
                 .or_else(|| jobs.iter().find(|job| !job.status.is_settled()));
             match worst {
                 Some(job) => job_span(job, width),
+                None if jobs.is_empty() => meta(&[sha8(&build.sha)], width),
                 None => meta(&[format!("{} jobs ok", jobs.len())], width),
             }
         }

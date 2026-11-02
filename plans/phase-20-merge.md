@@ -25,8 +25,10 @@ Decisions (taken with the user):
   already queued; builds and deployments are already merged).
 - Refused with a notice, no prompt: nothing selected; a draft (`#N is a draft`); a queued PR
   (`#N is already queued`); a merge already in flight (`merging #N…`).
-- Prompt = `Mode::Confirm(MergeTarget { number, repo, title, head_oid })`, captured when `M` is
-  pressed. `y` merges **that** target even if a refresh moved the selection meanwhile. Any other
+- Prompt = `Mode::Confirm(Pending::Merge(MergeTarget { number, repo, title, head_oid }))`, sharing
+  the Confirm mode `X` (phase 19) added. Like `X`, `y` works the target out again from the rows on
+  screen and merges only if it is unchanged, else `the pull request changed; press M again`
+  (changed after phase 19 landed; the first draft merged the target captured at `M`). Any other
   key (including `Esc`, `n`, `M`) cancels with notice `merge cancelled`. `Ctrl-C` still quits.
   The Confirm arm sits **before** the `Ctrl-d`/`Ctrl-u` arms in `handle_key`, so scrolling cannot
   slip past the prompt.
@@ -45,12 +47,12 @@ Decisions (taken with the user):
 | `tests/fixtures/prs.json` | add `headRefOid` (real sha of this repo's own PR) |
 | `src/config.rs` | `MergeMethod` enum (serde lowercase, default `Squash`), `Prs::merge_method` |
 | `src/sources/github.rs` | `Github::merge(repo, number, method, head_oid)`; pure `CliGh::merge_args` like `log_failed_args` |
-| `src/app.rs` | `Mode::Confirm`, `MergeTarget`, `Action::Merge`, `Request::Merge` (drop `Copy` from `Request`, it now holds `String`s), `Input::Merged`, `App::merging`, `handle_confirm_key`, `M` arm next to `L` |
+| `src/app.rs` | `Pending::Merge` in the shared `Mode::Confirm`, `MergeTarget`, `merge_target`, `confirm_merge`, `Action::Merge`, `Request::Merge`, `Input::Merged`, `App::merging`, `M` arm next to `X` |
 | `src/ui/footer.rs` | `footer_text` shows the prompt first while `Mode::Confirm` |
 | `src/main.rs` | `spawn_merge_fetcher` modelled on `spawn_log_fetcher`; `Request::Merge` arm |
 | `src/ui/help.rs`, `README.md` | 14th key; README key table + default config (`merge_method`) |
-| `AGENTS.md` | "13 keys / 16 rows" → 14 / 17; one bullet: `M` is the only write action, target captured at prompt time, `--match-head-commit` |
-| `Cargo.toml` | minor bump → v0.17.0 (new key + config key) |
+| `AGENTS.md` | "13 keys / 16 rows" → 14 / 17; one bullet for `M` next to the `X` one: re-checked target on `y`, `--match-head-commit` |
+| `Cargo.toml` | minor bump → v0.18.0 (new key + config key; v0.17.0 shipped `X`) |
 
 Reuse: `App::notice`, `pull_target`'s PR lookup (`self.prs.selected()`),
 the log-fetcher thread shape, `CliGh::run` (null stdin, stderr → error).
@@ -63,11 +65,11 @@ This file ships with the first commit.
 1. `headRefOid` parsed into `PullRequest::head_oid` (`tests/parse_prs.rs`).
 2. `prs.merge_method`: default squash, `rebase` parses, `fast` rejected (`tests/config.rs`); `conveyor config` prints it (`tests/cli.rs`).
 3. `CliGh::merge_args` builds the exact argv, with and without oid (`tests/github.rs`, takes `SHIMS`).
-4. App: `M` on a PR → Confirm + footer prompt; `y` → `Action::Merge` with the captured target; `n`/`Esc`/other → cancelled; refusals (draft, queued, other column, in flight). TUI tests through `run()`.
+4. App: `M` on a PR → Confirm + footer prompt; `y` → `Action::Merge` when the target is unchanged, else press `M` again; `n`/`Esc`/other → cancelled; refusals (draft, queued, other column, in flight). TUI tests through `run()`.
 5. `run()`: `Action::Merge` sends `Request::Merge`; `Input::Merged` ok → notice + refresh requests; err → notice, retry allowed.
 6. Wiring in `main.rs` + e2e: the `gh` shim answers `pr merge` by writing its argv to a file; press `M`, `y`; assert the file holds `pr merge <N> -R … --squash --match-head-commit <oid>`.
 7. Help `KEYS` + README table/config + AGENTS.md; `tests/readme.rs` green.
-8. Release v0.17.0 after `/pr-review` and merge.
+8. Release v0.18.0 after `/pr-review` and merge.
 
 ## Risks
 

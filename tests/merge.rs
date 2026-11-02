@@ -97,7 +97,7 @@ fn ctrl_c_still_quits_while_the_prompt_is_open() {
 }
 
 #[test]
-fn y_merges_the_pull_request_named_in_the_prompt_even_after_a_refresh() {
+fn y_after_a_refresh_moved_the_selection_asks_for_m_again() {
     let mut h = Harness::new();
 
     h.run(vec![
@@ -108,7 +108,34 @@ fn y_merges_the_pull_request_named_in_the_prompt_even_after_a_refresh() {
     ])
     .unwrap();
 
-    assert_eq!(h.requests, vec![target(1, "a")]);
+    let screen = h.screen();
+    assert!(
+        screen.contains("the pull request changed; press M again"),
+        "{screen}"
+    );
+    assert!(h.requests.is_empty());
+}
+
+#[test]
+fn y_after_a_new_head_commit_asks_for_m_again() {
+    let mut h = Harness::new();
+    let mut pushed = mergeable(1, "a");
+    pushed.head_oid = "b0b51365".to_string();
+
+    h.run(vec![
+        prs(vec![mergeable(1, "a")]),
+        key(KeyCode::Char('M')),
+        prs(vec![pushed]),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(
+        screen.contains("the pull request changed; press M again"),
+        "{screen}"
+    );
+    assert!(h.requests.is_empty());
 }
 
 #[test]

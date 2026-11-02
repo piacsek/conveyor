@@ -64,6 +64,7 @@ pub enum Input {
     /// The tail of one job's failed-step log, keyed by job id.
     Log(u64, Result<Vec<String>, String>),
     Merged(u64, Result<(), String>),
+    Rerun(Vec<(u64, Result<(), String>)>),
     Tick(SystemTime),
 }
 
@@ -103,6 +104,7 @@ pub enum Action {
     Refresh(Stage),
     RefreshAll,
     Log { run_id: u64, job_id: u64 },
+    Rerun { repo: String, run_ids: Vec<u64> },
     Merge(MergeTarget),
 }
 
@@ -119,6 +121,20 @@ pub enum Request {
     Refresh(Stage),
     Jobs { run_id: u64 },
     Log { run_id: u64, job_id: u64 },
+    Rerun { repo: String, run_ids: Vec<u64> },
+    Merge(MergeTarget),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Rerun {
+    pub repo: String,
+    pub run_ids: Vec<u64>,
+    pub label: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Pending {
+    Rerun(Rerun),
     Merge(MergeTarget),
 }
 
@@ -128,7 +144,7 @@ pub enum Mode {
     Normal,
     Filter(String),
     Help,
-    Confirm(MergeTarget),
+    Confirm(Pending),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -404,6 +420,7 @@ pub struct App {
     pub log_page: u16,
     /// The live filter applied to every column; `Mode::Filter` means it is being edited.
     pub query: Option<String>,
+    rerunning: Option<(Stage, String)>,
     pending_g: bool,
     last_open: Option<(String, SystemTime)>,
 }
@@ -439,6 +456,7 @@ impl App {
             log_scroll: u16::MAX,
             log_page: 0,
             query: None,
+            rerunning: None,
             pending_g: false,
             last_open: None,
         }
@@ -887,7 +905,7 @@ impl App {
                 self.mode = Mode::Normal;
                 Action::Continue
             }
-            Mode::Confirm(_) => self.handle_confirm_key(key),
+            Mode::Confirm(_) => self.confirm(key),
             _ if control && key.code == KeyCode::Char('d') => {
                 self.scroll_details(1);
                 Action::Continue
@@ -901,17 +919,83 @@ impl App {
         }
     }
 
-    fn handle_confirm_key(&mut self, key: KeyEvent) -> Action {
-        let Mode::Confirm(target) = std::mem::take(&mut self.mode) else {
+    fn confirm(&mut self, key: KeyEvent) -> Action {
+        let Mode::Confirm(pending) = std::mem::take(&mut self.mode) else {
             return Action::Continue;
         };
-        if key.code == KeyCode::Char('y') && key.modifiers.is_empty() {
-            self.merging = Some(target.number);
-            self.notice = Some(format!("merging #{}…", target.number));
-            return Action::Merge(target);
+        match pending {
+            Pending::Rerun(rerun) => self.confirm_rerun(key, rerun),
+            Pending::Merge(target) => self.confirm_merge(key, target),
         }
-        self.notice = Some("merge cancelled".to_string());
-        Action::Continue
+    }
+
+    fn confirm_rerun(&mut self, key: KeyEvent, rerun: Rerun) -> Action {
+        if key.code != KeyCode::Char('y') {
+            self.notice = Some("rerun cancelled".to_string());
+            return Action::Continue;
+        }
+        match self.rerun_target() {
+            Err(message) => {
+                self.notice = Some(message);
+                return Action::Continue;
+            }
+            Ok(now) if now.repo != rerun.repo || now.run_ids != rerun.run_ids => {
+                self.notice = Some("the runs to rerun changed; press X again".to_string());
+                return Action::Continue;
+            }
+            Ok(_) => {}
+        }
+        self.notice = Some(format!("rerunning {}…", rerun.label));
+        self.rerunning = Some((self.focus, rerun.label));
+        Action::Rerun {
+            repo: rerun.repo,
+            run_ids: rerun.run_ids,
+        }
+    }
+
+    pub fn receive_rerun(&mut self, results: Vec<(u64, Result<(), String>)>) -> Option<Stage> {
+        let (stage, label) = self.rerunning.take()?;
+        let errors: Vec<String> = results
+            .iter()
+            .filter_map(|(run_id, result)| {
+                result
+                    .as_ref()
+                    .err()
+                    .map(|message| format!("run {run_id}: {message}"))
+            })
+            .collect();
+        let reran = results.len() - errors.len();
+        self.notice = Some(match (reran, errors.is_empty()) {
+            (_, true) => format!("rerun requested: {label}"),
+            (0, false) => format!("rerun failed: {}", errors.join("; ")),
+            _ => format!(
+                "rerun requested for {reran} of {} runs; {}",
+                results.len(),
+                errors.join("; ")
+            ),
+        });
+        (reran > 0).then_some(stage)
+    }
+
+    fn confirm_merge(&mut self, key: KeyEvent, target: MergeTarget) -> Action {
+        if key.code != KeyCode::Char('y') || !key.modifiers.is_empty() {
+            self.notice = Some("merge cancelled".to_string());
+            return Action::Continue;
+        }
+        match self.merge_target() {
+            Err(message) => {
+                self.notice = Some(message);
+                return Action::Continue;
+            }
+            Ok(now) if now != target => {
+                self.notice = Some("the pull request changed; press M again".to_string());
+                return Action::Continue;
+            }
+            Ok(_) => {}
+        }
+        self.merging = Some(target.number);
+        self.notice = Some(format!("merging #{}…", target.number));
+        Action::Merge(target)
     }
 
     fn ask_to_merge(&mut self) {
@@ -919,28 +1003,29 @@ impl App {
             self.notice = Some(format!("merging #{number}…"));
             return;
         }
-        if self.focus != Stage::Prs {
-            self.notice = Some("M merges from My PRs".to_string());
-            return;
+        match self.merge_target() {
+            Ok(target) => self.mode = Mode::Confirm(Pending::Merge(target)),
+            Err(message) => self.notice = Some(message),
         }
-        let Some(pr) = self.prs.selected() else {
-            self.notice = Some("nothing selected".to_string());
-            return;
-        };
+    }
+
+    fn merge_target(&self) -> Result<MergeTarget, String> {
+        if self.focus != Stage::Prs {
+            return Err("M merges from My PRs".to_string());
+        }
+        let pr = self.prs.selected().ok_or("nothing selected")?;
         if pr.is_draft {
-            self.notice = Some(format!("#{} is a draft", pr.number));
-            return;
+            return Err(format!("#{} is a draft", pr.number));
         }
         if pr.queue_position.is_some() {
-            self.notice = Some(format!("#{} is already queued", pr.number));
-            return;
+            return Err(format!("#{} is already queued", pr.number));
         }
-        self.mode = Mode::Confirm(MergeTarget {
+        Ok(MergeTarget {
             number: pr.number,
             repo: pr.repo.clone(),
             title: pr.title.clone(),
             head_oid: pr.head_oid.clone(),
-        });
+        })
     }
 
     pub fn receive_merged(&mut self, number: u64, result: &Result<(), String>) {
@@ -951,12 +1036,58 @@ impl App {
         });
     }
 
-    pub fn merge_prompt(&self) -> Option<String> {
-        match &self.mode {
-            Mode::Confirm(target) => {
-                Some(format!("merge #{} {}? y/n", target.number, target.title))
+    fn ask_rerun(&mut self) {
+        if self.rerunning.is_some() {
+            self.notice = Some("a rerun is already on its way".to_string());
+            return;
+        }
+        match self.rerun_target() {
+            Ok(rerun) => self.mode = Mode::Confirm(Pending::Rerun(rerun)),
+            Err(message) => self.notice = Some(message),
+        }
+    }
+
+    fn rerun_target(&self) -> Result<Rerun, String> {
+        if matches!(self.focus, Stage::Builds | Stage::Prs) && self.focused_error().is_some() {
+            return Err("the last refresh failed; press r and try again".to_string());
+        }
+        match self.focus {
+            Stage::Builds => {
+                let build = self.builds.selected().ok_or("nothing selected")?;
+                let label = format!("run {}", build.run_number);
+                let newest = self.builds.all().iter().map(|b| b.run_number).max();
+                if newest != Some(build.run_number) {
+                    return Err("only the newest main build can be rerun".to_string());
+                }
+                if !build.is_settled() {
+                    return Err(format!("{label} is still running"));
+                }
+                if !matches!(build.status, BuildStatus::Failure | BuildStatus::Cancelled) {
+                    return Err("nothing failed to rerun".to_string());
+                }
+                let repo = self.builds_repo.clone().ok_or("no repository known")?;
+                Ok(Rerun {
+                    repo,
+                    run_ids: vec![build.id],
+                    label,
+                })
             }
-            _ => None,
+            Stage::Prs => {
+                let pr = self.prs.selected().ok_or("nothing selected")?;
+                let run_ids = pr.rerunnable_runs();
+                let label = match run_ids.len() {
+                    0 => return Err("no finished failing run to rerun".to_string()),
+                    1 => format!("#{}", pr.number),
+                    runs => format!("#{} ({runs} runs)", pr.number),
+                };
+                Ok(Rerun {
+                    repo: pr.repo.clone(),
+                    run_ids,
+                    label,
+                })
+            }
+            Stage::Queue => Err("nothing to rerun in the merge queue".to_string()),
+            Stage::Deployed => Err("nothing to rerun here".to_string()),
         }
     }
 
@@ -1056,6 +1187,7 @@ impl App {
             }
             KeyCode::Char('L') => return self.toggle_log(),
             KeyCode::Char('M') => self.ask_to_merge(),
+            KeyCode::Char('X') => self.ask_rerun(),
             KeyCode::Char('z') => self.zoom = !self.zoom,
             KeyCode::Char('l') if self.focus != Stage::Deployed => self.refocus(Stage::next),
             KeyCode::Char('h') if self.focus != Stage::Prs => self.refocus(Stage::previous),
@@ -1163,6 +1295,11 @@ where
                     request(Request::Refresh(Stage::Queue));
                 }
             }
+            Input::Rerun(result) => {
+                if let Some(stage) = app.receive_rerun(result) {
+                    request(Request::Refresh(stage));
+                }
+            }
             Input::Key(key) => match app.handle_key(key) {
                 Action::Quit => return Ok(()),
                 Action::Open(url) => attempt(app, opener.open(&url)),
@@ -1175,6 +1312,7 @@ where
                 }
                 Action::Log { run_id, job_id } => request(Request::Log { run_id, job_id }),
                 Action::Merge(target) => request(Request::Merge(target)),
+                Action::Rerun { repo, run_ids } => request(Request::Rerun { repo, run_ids }),
                 Action::Continue => {}
             },
         }

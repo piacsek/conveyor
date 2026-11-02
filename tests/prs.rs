@@ -525,8 +525,8 @@ fn question_mark_shows_the_key_help_and_any_key_returns() {
         "zoom",
         "Esc",
         "close details / zoom / filter",
-        "L",
-        "log of the failed step",
+        "L/X",
+        "log of the failed step / rerun failed jobs",
         "y/Y",
         "copy pull request / build URL",
         "d",
@@ -1214,4 +1214,135 @@ fn each_check_in_the_details_says_how_long_it_took_or_has_been_running() {
     let after_status = screen.split("ci/circleci").nth(1).unwrap_or_default();
     let rest_of_line = after_status.split('│').next().unwrap_or_default();
     assert_eq!(rest_of_line.trim(), "", "{screen}");
+}
+
+fn failing_in(name: &str, run_id: u64) -> conveyor::model::prs::Check {
+    conveyor::model::prs::Check {
+        name: name.to_string(),
+        conclusion: conveyor::model::prs::CheckConclusion::Failure,
+        run_id: Some(run_id),
+        run_finished: true,
+        ..Default::default()
+    }
+}
+
+#[test]
+fn shift_x_on_a_pull_request_reruns_every_finished_run_behind_its_failing_checks() {
+    use conveyor::app::Request;
+    let mut h = Harness::with_size(160, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.repo = "acme/api".to_string();
+    failing.checks_detail = vec![failing_in("test", 70), failing_in("e2e", 80)];
+
+    h.run(vec![prs(vec![failing]), key(KeyCode::Char('X'))])
+        .unwrap();
+
+    let footer = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(
+        footer.contains("rerun failed jobs of #4821 (2 runs)? y/n"),
+        "{footer}"
+    );
+
+    h.run(vec![key(KeyCode::Char('y'))]).unwrap();
+
+    assert_eq!(
+        h.requests.last(),
+        Some(&Request::Rerun {
+            repo: "acme/api".to_string(),
+            run_ids: vec![70, 80],
+        })
+    );
+}
+
+#[test]
+fn a_rerun_that_went_through_for_some_runs_says_which_failed_and_still_refreshes() {
+    use conveyor::app::{Request, Stage};
+    let mut h = Harness::with_size(160, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![failing_in("test", 70), failing_in("e2e", 80)];
+
+    h.run(vec![
+        prs(vec![failing]),
+        key(KeyCode::Char('X')),
+        key(KeyCode::Char('y')),
+        support::rerun_done(vec![(70, Ok(())), (80, Err("HTTP 403"))]),
+    ])
+    .unwrap();
+
+    let footer = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(
+        footer.contains("rerun requested for 1 of 2 runs; run 80: HTTP 403"),
+        "{footer}"
+    );
+    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Prs)));
+}
+
+#[test]
+fn y_cancels_when_the_runs_behind_the_pull_request_changed_during_the_prompt() {
+    use conveyor::app::Request;
+    let mut h = Harness::with_size(160, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![failing_in("test", 70), failing_in("e2e", 80)];
+    let mut one_left = failing.clone();
+    one_left.checks_detail[1].run_finished = false;
+
+    h.run(vec![
+        prs(vec![failing]),
+        key(KeyCode::Char('X')),
+        prs(vec![one_left]),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    let footer = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(
+        footer.contains("the runs to rerun changed; press X again"),
+        "{footer}"
+    );
+    assert!(
+        !h.requests
+            .iter()
+            .any(|request| matches!(request, Request::Rerun { .. })),
+        "{:?}",
+        h.requests
+    );
+}
+
+#[test]
+fn shift_x_on_a_pull_request_refuses_while_the_last_refresh_failed() {
+    let mut h = Harness::with_size(160, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![failing_in("test", 70)];
+
+    h.run(vec![
+        prs(vec![failing]),
+        support::failed(conveyor::app::Stage::Prs, "gh: HTTP 502"),
+        key(KeyCode::Char('X')),
+    ])
+    .unwrap();
+
+    let footer = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(
+        footer.contains("the last refresh failed; press r and try again"),
+        "{footer}"
+    );
+    assert!(h.requests.is_empty(), "{:?}", h.requests);
+}
+
+#[test]
+fn shift_x_on_a_pull_request_with_nothing_finished_and_failing_says_so() {
+    let mut h = Harness::with_size(160, 20);
+
+    h.run(vec![
+        prs(vec![pr(4821, "Retry hooks")]),
+        key(KeyCode::Char('X')),
+    ])
+    .unwrap();
+
+    let footer = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(
+        footer.contains("no finished failing run to rerun"),
+        "{footer}"
+    );
+    assert!(h.requests.is_empty(), "{:?}", h.requests);
 }

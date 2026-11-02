@@ -173,6 +173,7 @@ fn dispatching_shim(home: &Path) -> String {
             "case \"$*\" in \
              *'repository(owner'*) cat '{dir}/queue.json';; \
              *'repo view'*) echo acme/webapp;; \
+             'run rerun '*) echo \"$*\" >> '{dir}/reruns.log';; \
              *'actions/runs/'*'/jobs'*) cat '{dir}/jobs.json';; \
              *'actions/workflows?'*) cat '{dir}/workflows.json';; \
              *'actions/workflows/'*) cat '{dir}/runs.json';; \
@@ -368,6 +369,32 @@ fn d_on_a_main_build_lists_the_runs_jobs() {
     let screen = server.wait_for_screen("failed at: Run cargo test");
     assert!(screen.contains("✗ check"), "{screen}");
     assert!(screen.contains("✓ audit"), "{screen}");
+}
+
+#[test]
+#[ignore]
+fn shift_x_reruns_a_failed_main_build_only_after_y() {
+    let home = tempfile::tempdir().unwrap();
+    let path = dispatching_shim(home.path());
+    let server = Server::sized("rerun", "30");
+
+    server.respawn(
+        &[
+            ("HOME", &home.path().display().to_string()),
+            ("PATH", &path),
+        ],
+        env!("CARGO_BIN_EXE_conveyor"),
+    );
+    server.wait_for_screen("Main webapp (4)");
+    server.send_keys(&["l", "l", "X"]);
+    server.wait_for_screen("rerun failed jobs of run 24? y/n");
+    server.send_keys(&["n"]);
+    server.wait_for_screen("rerun cancelled");
+    server.send_keys(&["X", "y"]);
+    server.wait_for_screen("rerun requested: run 24");
+
+    let log = fs::read_to_string(home.path().join("reruns.log")).unwrap();
+    assert_eq!(log, "run rerun 34509123916 --failed -R acme/webapp\n");
 }
 
 #[test]
