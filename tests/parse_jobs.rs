@@ -39,6 +39,15 @@ fn a_running_job_sorts_before_the_settled_ones_and_has_no_duration() {
     );
     assert_eq!(jobs[0].status, BuildStatus::Running);
     assert_eq!(jobs[0].duration(), None);
+    let started = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_789_061_722);
+    assert_eq!(
+        jobs[0].took(started + std::time::Duration::from_secs(75)),
+        Some(std::time::Duration::from_secs(75))
+    );
+    assert_eq!(
+        jobs[1].took(started + std::time::Duration::from_secs(75)),
+        Some(std::time::Duration::from_secs(19))
+    );
 }
 
 #[test]
