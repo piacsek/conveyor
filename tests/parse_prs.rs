@@ -299,3 +299,16 @@ fn a_check_that_never_started_and_a_status_context_have_no_time() {
     assert_eq!(pr.checks_detail[0].took(now), None);
     assert_eq!(pr.checks_detail[1].took(now), None);
 }
+
+#[test]
+fn a_skipped_check_has_no_time_although_github_stamps_it() {
+    let pr = one(
+        r#"{"number": 11, "statusCheckRollup": {"state": "SUCCESS", "contexts": {"nodes": [
+            {"name": "deploy", "status": "COMPLETED", "conclusion": "SKIPPED", "detailsUrl": "",
+             "startedAt": "2026-09-10T15:22:40Z", "completedAt": "2026-09-10T15:22:41Z"}
+        ]}}}"#,
+    );
+    let now = UNIX_EPOCH + Duration::from_secs(1_789_053_900);
+
+    assert_eq!(pr.checks_detail[0].took(now), None);
+}
