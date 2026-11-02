@@ -1,0 +1,20 @@
+---
+source: tests/snapshots.rs
+expression: h.screen()
+---
+My PRs (3) │ Merge queue │ Main builds │ Deployed                               
+┌──────────────────────────────────────────────────────────────────────────────┐
+│▌ ✗  #4821 Retry webhook delivery with backoff                             2h│
+│▌   webapp · webhook-retry-backoff · approved · +12 −3                        │
+│▌   ✗ api / test                                                              │
+│  ●  #4830 A┌Confirm───────────────────────────────────────────┐           2h│
+│    auth     │ merge #4821 Retry webhook delivery with backoff? │             │
+│    checks: p│                                                  │             │
+│  ○  #4790 S│ y confirms · any other key cancels               │           2h│
+│    webapp   └──────────────────────────────────────────────────┘             │
+│    checks: none                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+refreshed just now                                       ▪─▪─▪▸ conveyor v0.18.0

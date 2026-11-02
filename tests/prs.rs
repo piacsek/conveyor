@@ -1237,10 +1237,10 @@ fn shift_x_on_a_pull_request_reruns_every_finished_run_behind_its_failing_checks
     h.run(vec![prs(vec![failing]), key(KeyCode::Char('X'))])
         .unwrap();
 
-    let footer = h.screen().lines().last().unwrap_or_default().to_string();
+    let screen = h.screen();
     assert!(
-        footer.contains("rerun failed jobs of #4821 (2 runs)? y/n"),
-        "{footer}"
+        screen.contains("rerun failed jobs of #4821 (2 runs)?"),
+        "{screen}"
     );
 
     h.run(vec![key(KeyCode::Char('y'))]).unwrap();

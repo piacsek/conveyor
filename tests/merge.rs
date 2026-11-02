@@ -3,7 +3,7 @@ mod support;
 use conveyor::app::{Input, MergeTarget, Request, Stage};
 use conveyor::model::prs::PullRequest;
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, ctrl, entry, fetching, key, pr, prs, queue};
+use support::{Harness, ctrl, entry, key, pr, prs, queue};
 
 fn mergeable(number: u64, title: &str) -> PullRequest {
     let mut pull = pr(number, title);
@@ -21,7 +21,7 @@ fn target(number: u64, title: &str) -> Request {
 }
 
 #[test]
-fn shift_m_asks_in_the_footer_and_y_requests_the_merge() {
+fn shift_m_asks_in_a_dialog_and_y_requests_the_merge() {
     let mut h = Harness::new();
 
     h.run(vec![
@@ -31,7 +31,11 @@ fn shift_m_asks_in_the_footer_and_y_requests_the_merge() {
     .unwrap();
 
     let screen = h.screen();
-    assert!(screen.contains("merge #1 Retry webhooks? y/n"), "{screen}");
+    assert!(screen.contains("merge #1 Retry webhooks?"), "{screen}");
+    assert!(
+        screen.contains("y confirms · any other key cancels"),
+        "{screen}"
+    );
     assert!(h.requests.is_empty());
 
     h.run(vec![key(KeyCode::Char('y'))]).unwrap();
@@ -149,7 +153,7 @@ fn a_draft_is_refused_without_a_prompt() {
 
     let screen = h.screen();
     assert!(screen.contains("#1 is a draft"), "{screen}");
-    assert!(!screen.contains("y/n"), "{screen}");
+    assert!(!screen.contains("y confirms"), "{screen}");
 }
 
 #[test]
@@ -163,7 +167,7 @@ fn a_queued_pull_request_is_refused_without_a_prompt() {
 
     let screen = h.screen();
     assert!(screen.contains("#1 is already queued"), "{screen}");
-    assert!(!screen.contains("y/n"), "{screen}");
+    assert!(!screen.contains("y confirms"), "{screen}");
 }
 
 #[test]
@@ -179,7 +183,7 @@ fn shift_m_outside_my_prs_says_where_it_works() {
 
     let screen = h.screen();
     assert!(screen.contains("M merges from My PRs"), "{screen}");
-    assert!(!screen.contains("y/n"), "{screen}");
+    assert!(!screen.contains("y confirms"), "{screen}");
 }
 
 #[test]
@@ -212,7 +216,7 @@ fn while_a_merge_is_in_flight_shift_m_says_so_instead_of_asking_again() {
 
     let screen = h.screen();
     assert!(screen.contains("merging #1…"), "{screen}");
-    assert!(!screen.contains("y/n"), "{screen}");
+    assert!(!screen.contains("y confirms"), "{screen}");
     assert_eq!(h.requests, vec![target(1, "a")]);
 }
 
@@ -255,7 +259,7 @@ fn a_refused_merge_shows_what_gh_said_and_shift_m_asks_again() {
 
     h.run(vec![key(KeyCode::Char('M'))]).unwrap();
 
-    assert!(h.screen().contains("merge #1 a? y/n"), "{}", h.screen());
+    assert!(h.screen().contains("merge #1 a?"), "{}", h.screen());
 }
 
 #[test]
@@ -270,20 +274,65 @@ fn the_help_lists_shift_m_and_still_fits_seventeen_rows() {
     assert!(screen.contains("help"), "{screen}");
 }
 
+fn dialog_borders(row: &str, question: &str) -> (usize, usize) {
+    let chars: Vec<char> = row.chars().collect();
+    let start = row[..row.find(question).unwrap()].chars().count();
+    let left = chars[..start].iter().rposition(|c| *c == '│').unwrap();
+    let right = start + chars[start..].iter().position(|c| *c == '│').unwrap();
+    (left, right)
+}
+
 #[test]
-fn a_long_title_is_cut_so_y_n_stays_on_an_eighty_column_footer() {
-    let mut h = Harness::with_size(80, 12);
+fn the_prompt_is_a_dialog_in_the_middle_of_the_screen_not_the_footer() {
+    let mut h = Harness::with_size(80, 24);
+
+    h.run(vec![
+        prs(vec![mergeable(1, "Retry webhooks")]),
+        key(KeyCode::Char('M')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    let lines: Vec<&str> = screen.lines().collect();
+    let row = lines
+        .iter()
+        .position(|line| line.contains("merge #1 Retry webhooks?"))
+        .unwrap();
+    assert!((8..=14).contains(&row), "row {row}:\n{screen}");
+    let (left, right) = dialog_borders(lines[row], "merge #1 Retry webhooks?");
+    assert!(left.abs_diff(79 - right) <= 1, "{left}..{right}:\n{screen}");
+    assert!(!lines[23].contains("merge #1"), "{screen}");
+}
+
+#[test]
+fn a_long_title_wraps_inside_the_dialog() {
+    let mut h = Harness::with_size(80, 24);
     let title = "Retry webhook deliveries with exponential backoff and a dead letter queue";
 
     h.run(vec![
         prs(vec![mergeable(1, title)]),
         key(KeyCode::Char('M')),
-        fetching(Stage::Prs),
     ])
     .unwrap();
 
     let screen = h.screen();
-    let footer = screen.lines().last().unwrap();
-    assert!(footer.contains("merge #1 Retry webhook"), "{footer}");
-    assert!(footer.contains("…? y/n"), "{footer}");
+    assert!(screen.contains("merge #1 Retry webhook"), "{screen}");
+    assert!(screen.contains("dead letter queue?"), "{screen}");
+}
+
+#[test]
+fn a_title_too_long_for_a_small_terminal_is_cut_before_the_question_mark() {
+    let mut h = Harness::with_size(40, 12);
+    let title = "Retry webhook deliveries with exponential backoff and a dead letter queue, plus metrics for every retry and a dashboard";
+
+    h.run(vec![
+        prs(vec![mergeable(1, title)]),
+        key(KeyCode::Char('M')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("merge #1 Retry"), "{screen}");
+    assert!(screen.contains("…?"), "{screen}");
+    assert!(screen.contains("y confirms"), "{screen}");
 }

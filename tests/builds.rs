@@ -1290,7 +1290,7 @@ fn shift_x_refuses_while_the_last_main_builds_refresh_failed() {
         .unwrap();
 
     assert!(
-        footer(&h.screen()).contains("rerun failed jobs of run 25? y/n"),
+        h.screen().contains("rerun failed jobs of run 25?"),
         "{}",
         h.screen()
     );
@@ -1344,7 +1344,7 @@ fn shift_x_asks_before_rerunning_a_failed_runs_failed_jobs_and_y_confirms() {
     h.run(inputs).unwrap();
 
     assert!(
-        footer(&h.screen()).contains("rerun failed jobs of run 25? y/n"),
+        h.screen().contains("rerun failed jobs of run 25?"),
         "{}",
         h.screen()
     );
