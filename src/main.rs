@@ -187,33 +187,10 @@ fn spawn_terminal_events(tx: Inputs) {
     });
 }
 
-fn spawn_fetcher(
-    stage: Stage,
-    interval: Duration,
-    tx: Inputs,
-    mut fetch: impl FnMut() -> Result<Rows, String> + Send + 'static,
-) -> mpsc::Sender<()> {
-    let (refresh_tx, refresh_rx) = mpsc::channel::<()>();
-    thread::spawn(move || {
-        loop {
-            if tx.send(Ok(Input::Fetching(stage))).is_err() {
-                return;
-            }
-            if tx.send(Ok(Input::Data(stage, fetch()))).is_err() {
-                return;
-            }
-            if !refresh::wait(&refresh_rx, interval.max(Duration::from_secs(1))) {
-                return;
-            }
-        }
-    });
-    refresh_tx
-}
-
 fn spawn_prs_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<()> {
     let interval = Duration::from_secs(config.prs.refresh_secs);
     let gh = CliGh::default();
-    spawn_fetcher(Stage::Prs, interval, tx, move || {
+    refresh::spawn(Stage::Prs, interval, tx, move || {
         fetch_prs(&gh, &config).map(Rows::Prs)
     })
 }
@@ -222,7 +199,7 @@ fn spawn_queue_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<()> {
     let gh = CliGh::default();
     let interval = Duration::from_secs(config.repo.first().map_or(30, |repo| repo.refresh_secs));
     let mut repo = None;
-    spawn_fetcher(Stage::Queue, interval, tx, move || {
+    refresh::spawn(Stage::Queue, interval, tx, move || {
         if repo.is_none() {
             repo = repos(&gh, &config)?.into_iter().next();
         }
@@ -237,7 +214,7 @@ fn spawn_builds_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<()> {
     let gh = CliGh::default();
     let interval = Duration::from_secs(config.repo.first().map_or(30, |repo| repo.refresh_secs));
     let mut source: Option<BuildsSource> = None;
-    spawn_fetcher(Stage::Builds, interval, tx, move || {
+    refresh::spawn(Stage::Builds, interval, tx, move || {
         if source.is_none() {
             let repo = repos(&gh, &config)?
                 .into_iter()
@@ -260,7 +237,7 @@ fn spawn_deploy_fetcher(config: Config, tx: Inputs) -> Option<mpsc::Sender<()>> 
     let mut source = DeploySource::new(repo.name.clone(), deploy);
     let gh = CliGh::default();
     let kube = CliKubectl::default();
-    Some(spawn_fetcher(Stage::Deployed, interval, tx, move || {
+    Some(refresh::spawn(Stage::Deployed, interval, tx, move || {
         Ok(Rows::Deployed(source.fetch(&gh, &kube, SystemTime::now())))
     }))
 }

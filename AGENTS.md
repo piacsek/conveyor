@@ -46,7 +46,7 @@ src/ui/rows.rs   one card builder per stage: pr_row, queue_row, build_row, deplo
 src/ui/details.rs the `d` pane per stage, including the job list; no URLs
 src/ui/footer.rs footer text, the refresh spinner and the static logo
 src/ui/help.rs   KEYS is the generic table the README mirrors; `keys_for(stage)` swaps the `p`/`b` wording per column
-src/refresh.rs   `wait`: a fetcher's sleep until the interval or a refresh, draining queued signals
+src/refresh.rs   `spawn`: one fetcher thread per stage; `wait` sleeps until the interval or a refresh, draining queued signals
 src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`): the OS seam, not a service, so it stays out of `sources/`
 src/text.rs      truncate/pad_right with `…`, age(), duration() (coarse, cards), elapsed() (seconds, details pane), strip_ansi()
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
