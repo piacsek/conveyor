@@ -53,7 +53,7 @@ pub(crate) fn pr_row(
     card(
         selected,
         glyph(pr.checks),
-        Some(pr_glyph(pr.is_draft)),
+        Some(pr_glyph(pr.is_draft, pr.queue_position.is_some())),
         format!("#{} {}", pr.number, pr.title),
         right,
         vec![meta(&parts, width), pr_checks(pr, width)],

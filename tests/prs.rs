@@ -627,6 +627,21 @@ fn a_pull_request_icon_is_green_when_open_and_grey_when_draft() {
 }
 
 #[test]
+fn a_pull_request_in_the_merge_queue_shows_the_merge_queue_icon_in_yellow() {
+    use ratatui::style::Color;
+    let mut h = Harness::new();
+    let mut queued = pr(1, "a");
+    queued.queue_position = Some(2);
+
+    h.run(vec![prs(vec![queued])]).unwrap();
+
+    let screen = h.screen();
+    let rows: Vec<&str> = screen.lines().collect();
+    assert!(rows[1].starts_with("│▌ ✓ \u{f4db} #1 a"), "{screen}");
+    assert_eq!(h.cell(5, 1).fg, Color::Yellow);
+}
+
+#[test]
 fn check_glyphs_are_colored_by_state_and_the_age_is_dim() {
     use conveyor::model::prs::CheckState;
     use ratatui::style::{Color, Modifier};
