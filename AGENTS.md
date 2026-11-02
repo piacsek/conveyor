@@ -291,8 +291,9 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   Merge
   queue and Deployed only answer with a footer notice: a failed merge-group run has already
   dropped its pull request from the queue, so rerunning it merges nothing. `X` sets
-  `Mode::Confirm`, the footer reads `rerun failed jobs of <run N | #N (k runs)>? y/n`, `y`
-  works the target out again from the rows on screen (a refresh may have landed while the
+  `Mode::Confirm`, the footer reads `rerun failed jobs of <run N | #N (k runs)>? y/n`. While the last refresh of Main builds or
+  My PRs failed, `X` refuses (`the last refresh failed; press r and try again`): the rows it
+  would judge "newest" or "finished" by are older than they look. `y` works the target out again from the rows on screen (a refresh may have landed while the
   prompt was open) and sends `Request::Rerun` only if it still names the same runs, else it
   says why in the footer; any other key (`Esc`, `q` included) cancels; `q` never quits from
   the prompt. One rerun is in flight at a time (`App::rerunning`). The worker asks for every

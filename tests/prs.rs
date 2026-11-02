@@ -1309,6 +1309,27 @@ fn y_cancels_when_the_runs_behind_the_pull_request_changed_during_the_prompt() {
 }
 
 #[test]
+fn shift_x_on_a_pull_request_refuses_while_the_last_refresh_failed() {
+    let mut h = Harness::with_size(160, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![failing_in("test", 70)];
+
+    h.run(vec![
+        prs(vec![failing]),
+        support::failed(conveyor::app::Stage::Prs, "gh: HTTP 502"),
+        key(KeyCode::Char('X')),
+    ])
+    .unwrap();
+
+    let footer = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(
+        footer.contains("the last refresh failed; press r and try again"),
+        "{footer}"
+    );
+    assert!(h.requests.is_empty(), "{:?}", h.requests);
+}
+
+#[test]
 fn shift_x_on_a_pull_request_with_nothing_finished_and_failing_says_so() {
     let mut h = Harness::with_size(160, 20);
 

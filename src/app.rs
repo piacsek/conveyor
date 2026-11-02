@@ -963,6 +963,9 @@ impl App {
     }
 
     fn rerun_target(&self) -> Result<Rerun, String> {
+        if matches!(self.focus, Stage::Builds | Stage::Prs) && self.focused_error().is_some() {
+            return Err("the last refresh failed; press r and try again".to_string());
+        }
         match self.focus {
             Stage::Builds => {
                 let build = self.builds.selected().ok_or("nothing selected")?;

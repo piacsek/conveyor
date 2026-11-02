@@ -1272,6 +1272,48 @@ fn y_checks_the_target_again_when_a_refresh_landed_during_the_prompt() {
 }
 
 #[test]
+fn shift_x_refuses_while_the_last_main_builds_refresh_failed() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_failing_newest();
+    inputs.push(failed(Stage::Builds, "gh: HTTP 502"));
+    inputs.push(key(KeyCode::Char('X')));
+    h.run(inputs).unwrap();
+
+    assert!(
+        footer(&h.screen()).contains("the last refresh failed; press r and try again"),
+        "{}",
+        h.screen()
+    );
+    assert_eq!(h.app.mode, conveyor::app::Mode::Normal);
+
+    h.run(vec![builds(failing_newest()), key(KeyCode::Char('X'))])
+        .unwrap();
+
+    assert!(
+        footer(&h.screen()).contains("rerun failed jobs of run 25? y/n"),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
+fn y_refuses_when_a_refresh_failed_while_the_prompt_was_open() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_failing_newest();
+    inputs.push(key(KeyCode::Char('X')));
+    inputs.push(failed(Stage::Builds, "gh: HTTP 502"));
+    inputs.push(key(KeyCode::Char('y')));
+    h.run(inputs).unwrap();
+
+    assert!(reruns(&h.requests).is_empty(), "{:?}", h.requests);
+    assert!(
+        footer(&h.screen()).contains("the last refresh failed; press r and try again"),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
 fn shift_x_refuses_a_failed_build_once_a_newer_main_build_exists() {
     let mut h = Harness::with_size(160, 20);
     let mut inputs = focus_builds();
