@@ -41,6 +41,20 @@ fn parses_the_verbatim_runs_response_newest_first() {
     assert_eq!(latest.duration(), Some(Duration::from_secs(228)));
     assert_eq!(latest.pr_number, None, "rebase merges carry no (#N) suffix");
     assert_eq!(builds[1].status, BuildStatus::Success);
+    assert_eq!(latest.attempt, 1);
+}
+
+#[test]
+fn a_rerun_carries_its_attempt_and_a_run_without_one_is_the_first() {
+    let value = serde_json::json!({"workflow_runs": [
+        {"id": 1, "run_attempt": 3, "status": "completed", "conclusion": "success"},
+        {"id": 2, "status": "completed", "conclusion": "success"}
+    ]});
+
+    let builds = parse_runs(&value);
+
+    assert_eq!(builds[0].attempt, 3);
+    assert_eq!(builds[1].attempt, 1);
 }
 
 #[test]

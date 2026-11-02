@@ -7,6 +7,7 @@ use crate::model::prs::parse_timestamp;
 pub struct Job {
     pub id: u64,
     pub name: String,
+    pub attempt: u64,
     pub status: BuildStatus,
     pub started_at: Option<SystemTime>,
     pub completed_at: Option<SystemTime>,
@@ -48,13 +49,8 @@ pub fn parse_jobs(value: &serde_json::Value) -> Vec<Job> {
 fn newest_attempts(nodes: &[serde_json::Value]) -> Vec<Job> {
     let attempts: Vec<(u64, Job)> = nodes
         .iter()
-        .filter_map(|node| {
-            let attempt = node
-                .get("run_attempt")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(1);
-            Some((attempt, parse_job(node)?))
-        })
+        .filter_map(parse_job)
+        .map(|job| (job.attempt, job))
         .collect();
     let newest = |name: &str| {
         attempts
@@ -74,6 +70,7 @@ fn parse_job(job: &serde_json::Value) -> Option<Job> {
     Some(Job {
         id: job.get("id")?.as_u64()?,
         name: text(job, "name"),
+        attempt: job.get("run_attempt").and_then(|v| v.as_u64()).unwrap_or(1),
         status: status(
             job.get("status").and_then(|v| v.as_str()),
             job.get("conclusion").and_then(|v| v.as_str()),

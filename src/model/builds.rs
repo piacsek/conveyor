@@ -31,6 +31,7 @@ pub struct PullRef {
 pub struct Build {
     pub id: u64,
     pub run_number: u64,
+    pub attempt: u64,
     pub status: BuildStatus,
     pub sha: String,
     pub title: String,
@@ -75,6 +76,7 @@ pub fn parse_run(run: &serde_json::Value) -> Option<Build> {
     Some(Build {
         id: run.get("id")?.as_u64()?,
         run_number: run.get("run_number").and_then(|v| v.as_u64()).unwrap_or(0),
+        attempt: run.get("run_attempt").and_then(|v| v.as_u64()).unwrap_or(1),
         status: status(
             run.get("status").and_then(|v| v.as_str()),
             run.get("conclusion").and_then(|v| v.as_str()),
