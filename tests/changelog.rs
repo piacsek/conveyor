@@ -394,3 +394,25 @@ fn a_leap_day_is_a_date() {
 
     assert_eq!(check(text, "0.2.0"), Ok(()));
 }
+
+#[test]
+fn a_date_with_a_padded_month_is_refused() {
+    let text =
+        "# Changelog\n\n## v0.2.0 (2026- 2-03)\n- second\n\n## v0.1.0 (2026-11-01)\n- first\n";
+
+    assert_eq!(
+        check(text, "0.2.0"),
+        Err("`## v0.2.0 (2026- 2-03)` must read `## vX.Y.Z (YYYY-MM-DD)`".to_string())
+    );
+}
+
+#[test]
+fn a_signed_year_is_refused() {
+    let text =
+        "# Changelog\n\n## v0.2.0 (+202-11-01)\n- second\n\n## v0.1.0 (2026-11-01)\n- first\n";
+
+    assert_eq!(
+        check(text, "0.2.0"),
+        Err("`## v0.2.0 (+202-11-01)` must read `## vX.Y.Z (YYYY-MM-DD)`".to_string())
+    );
+}
