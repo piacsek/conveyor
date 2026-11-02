@@ -257,7 +257,7 @@ fn a_released_version_without_its_entry_is_refused() {
 
     assert_eq!(
         check_released(text, &["0.20.0", "0.21.0"], "0.21.0"),
-        Err("v0.20.0 was released but has no entry".to_string())
+        Err("v0.20.0 was released but has no entry; restore it, or merge origin/main if another branch released it".to_string())
     );
 }
 

@@ -392,6 +392,9 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   keeps its "any key returns" contract; in Filter mode they scroll instead of typing `d`/`u`
   into the query. Because the pane scrolls, the job list is no longer truncated to what fits:
   `job_lines` renders every job.
+- **Overlays show what lands under them.** The help and changelog panes replace the footer
+  with a hint, so while `App::notice` is set (a merge, rerun or update result that landed while
+  the pane was open) the footer shows the notice instead; the next key clears it as usual.
 - **The help pane does not scroll.** `draw_help` renders `KEYS` through a `Paragraph`, so a
   list longer than the pane is silently clipped from the bottom: 14 keys plus two borders
   exactly fills a 17-row terminal. `("q", "quit")` is therefore first in `KEYS`, so the one
@@ -402,10 +405,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `j/k`/arrows move a line, `Ctrl-d`/`Ctrl-u` half a page, any other key returns (like the
   help, so `q` closes it rather than quitting). `tests/changelog.rs` runs
   `changelog::check(CHANGELOG, CARGO_PKG_VERSION)`: the top entry is the crate version, every
-  heading reads `## vX.Y.Z (YYYY-MM-DD)`, versions strictly descend, every entry has a `- `
+  heading reads `## vX.Y.Z (YYYY-MM-DD)` with a real calendar date, versions strictly descend, every entry has a `- `
   bullet with text (an indented line continues the bullet above it) and no bullet repeats an
   older one. Every `v*` git tag up to the crate version must keep its entry (`check_released`; a newer tag
-  from a sibling worktree's release is ignored), so relabelling or
+  from a sibling worktree's release is ignored; an older one, such as a hotfix released from
+  another branch, is asked for, and the message says to merge `origin/main`), so relabelling or
   deleting an old entry fails too; that test needs the tags, hence `fetch-depth: 0` in CI's
   `check` job, and it fails loudly in a clone without them. A bump without its entry fails the gates.
 - **`q` is the only quit key** (besides `Ctrl-C`). `Esc` closes one thing per press (see the
