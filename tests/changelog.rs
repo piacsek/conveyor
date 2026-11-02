@@ -17,6 +17,7 @@ fn an_entry_without_bullets_is_refused() {
 
 mod support;
 
+use conveyor::app::Input;
 use ratatui::crossterm::event::KeyCode;
 use support::{Harness, ctrl, key, prs};
 
@@ -343,4 +344,34 @@ fn a_tag_newer_than_the_crate_version_is_not_required() {
         check_released(text, &["0.20.0", "0.21.0"], "0.20.0"),
         Ok(())
     );
+}
+
+#[test]
+fn a_result_that_lands_while_the_changelog_is_open_shows_in_its_footer() {
+    let mut h = Harness::with_size(80, 12);
+
+    h.run(vec![
+        prs(vec![]),
+        key(KeyCode::Char('c')),
+        Ok(Input::Merged(7, Err("merge refused".to_string()))),
+    ])
+    .unwrap();
+
+    let last = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(last.starts_with("#7: merge refused"), "{last}");
+}
+
+#[test]
+fn a_result_that_lands_while_the_help_is_open_shows_in_its_footer() {
+    let mut h = Harness::with_size(80, 17);
+
+    h.run(vec![
+        prs(vec![]),
+        key(KeyCode::Char('?')),
+        Ok(Input::Merged(7, Err("merge refused".to_string()))),
+    ])
+    .unwrap();
+
+    let last = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(last.starts_with("#7: merge refused"), "{last}");
 }
