@@ -1136,3 +1136,46 @@ fn a_skipped_check_keeps_the_dash_that_never_meant_cancelled() {
     assert!(screen.contains("- e2e"), "{screen}");
     assert!(!screen.contains("⊘"), "⊘ is only ever cancelled: {screen}");
 }
+
+#[test]
+fn each_check_in_the_details_says_how_long_it_took_or_has_been_running() {
+    use conveyor::model::prs::{Check, CheckConclusion};
+    use std::time::{Duration, UNIX_EPOCH};
+    let at = |secs: u64| Some(UNIX_EPOCH + Duration::from_secs(secs));
+    let mut h = Harness::with_size(160, 20);
+    let mut checked = pr(4821, "Retry hooks");
+    checked.checks_detail = vec![
+        Check {
+            name: "lint".to_string(),
+            conclusion: CheckConclusion::Success,
+            started_at: at(NOW - 300),
+            completed_at: at(NOW - 258),
+            ..Default::default()
+        },
+        Check {
+            name: "api / test".to_string(),
+            conclusion: CheckConclusion::Pending,
+            started_at: at(NOW - 192),
+            ..Default::default()
+        },
+        Check {
+            name: "ci/circleci".to_string(),
+            conclusion: CheckConclusion::Pending,
+            ..Default::default()
+        },
+    ];
+
+    h.run(vec![
+        prs(vec![checked]),
+        tick_at(NOW),
+        key(KeyCode::Char('d')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("✓ lint  42s"), "{screen}");
+    assert!(screen.contains(" api / test  3m12s"), "{screen}");
+    let after_status = screen.split("ci/circleci").nth(1).unwrap_or_default();
+    let rest_of_line = after_status.split('│').next().unwrap_or_default();
+    assert_eq!(rest_of_line.trim(), "", "{screen}");
+}
