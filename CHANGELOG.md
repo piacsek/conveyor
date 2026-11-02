@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.20.1 (2026-11-02)
+- A merge, rerun or branch update that finishes while the changelog or help is open shows its result in that pane's footer.
+
 ## v0.20.0 (2026-11-02)
 - `c` shows this changelog; `j`/`k` and `Ctrl-d`/`Ctrl-u` scroll it, any other key returns.
 
