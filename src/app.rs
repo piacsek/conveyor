@@ -139,8 +139,18 @@ pub trait Row: Clone {
 }
 
 impl Row for PullRequest {
+    const ORDER: Order = Order::ByRankAscending;
+
     fn key(&self) -> u64 {
         self.number
+    }
+
+    fn rank(&self) -> u64 {
+        match (self.queue_position, self.is_draft) {
+            (Some(position), _) => position,
+            (None, false) => u64::MAX - 1,
+            (None, true) => u64::MAX,
+        }
     }
 
     fn matches(&self, query: &str) -> bool {
