@@ -6,20 +6,45 @@ use ratatui::widgets::{Block, Paragraph};
 
 use crate::app::App;
 use crate::changelog::CHANGELOG;
+use crate::text::wrap;
 use crate::ui::details::scrolled;
 
-fn line(markdown: &str) -> Line<'_> {
-    match markdown
-        .strip_prefix("## ")
-        .or_else(|| markdown.strip_prefix("# "))
-    {
-        Some(heading) => Line::styled(heading, Style::default().add_modifier(Modifier::BOLD)),
-        None => Line::raw(markdown),
+fn hanging(text: &str, first: &str, rest: &str, width: usize) -> Vec<String> {
+    let indent = first.chars().count();
+    match wrap(text, width.saturating_sub(indent), usize::MAX).as_slice() {
+        [] => vec![first.trim_end().to_string()],
+        wrapped => wrapped
+            .iter()
+            .enumerate()
+            .map(|(i, part)| format!("{}{part}", if i == 0 { first } else { rest }))
+            .collect(),
     }
 }
 
+fn lines(markdown: &str, width: usize) -> Vec<Line<'static>> {
+    if let Some(heading) = markdown
+        .strip_prefix("## ")
+        .or_else(|| markdown.strip_prefix("# "))
+    {
+        let bold = Style::default().add_modifier(Modifier::BOLD);
+        return hanging(heading, "", "", width)
+            .into_iter()
+            .map(|part| Line::styled(part, bold))
+            .collect();
+    }
+    let wrapped = match markdown.strip_prefix("- ") {
+        Some(bullet) => hanging(bullet, "- ", "  ", width),
+        None => hanging(markdown, "", "", width),
+    };
+    wrapped.into_iter().map(Line::raw).collect()
+}
+
 pub(crate) fn draw_changelog(frame: &mut Frame, app: &mut App, area: Rect) {
-    let lines: Vec<Line> = CHANGELOG.lines().map(line).collect();
+    let width = usize::from(area.width.saturating_sub(2));
+    let lines: Vec<Line> = CHANGELOG
+        .lines()
+        .flat_map(|markdown| lines(markdown, width))
+        .collect();
     let (page, (scroll, arrows)) = scrolled(area, lines.len(), app.changelog_scroll);
     app.changelog_page = page;
     app.changelog_scroll = scroll;

@@ -5,7 +5,7 @@ No way to see what changed between versions from inside conveyor. There is no CH
 
 ## Setup
 - Worktree: `git worktree add -b phase-22-changelog .claude/worktrees/phase-22-changelog origin/main`, then `git branch --unset-upstream`.
-- Plan copied to `plans/phase-22-changelog.md`, committed with the first ship.
+- Plan copied to `plans/phase-24-changelog.md` (phases 22 and 23 were taken; the branch kept its `phase-22-changelog` name), committed with the first ship.
 - `/my-tdd autonomous`, one commit per task via `scripts/ship.sh`.
 
 ## Tasks (each starts red)
@@ -14,9 +14,9 @@ No way to see what changed between versions from inside conveyor. There is no CH
    - Test (new `tests/changelog.rs`): the top section's version equals `env!("CARGO_PKG_VERSION")`. This also enforces "update the changelog on every release".
 2. **`Mode::Changelog` + `c` key.** `src/app.rs`: new `Mode::Changelog`, `KeyCode::Char('c')` in Normal sets it and `changelog_scroll = 0`. In Changelog mode: `j/↓`/`k/↑` move 1 line, `Ctrl-d`/`Ctrl-u` half a page, any other key returns, `q` included (like the help pane). Arm sits next to `Mode::Help` (before the scroll arms, like Confirm).
    - Tests in `tests/prs.rs` style (TestBackend via `run()`): `c` shows `Changelog` title + current version line; `Esc` returns to columns; `Ctrl-d` scrolls; `q` quits.
-3. **Draw it.** New `src/ui/changelog.rs` with `draw_changelog(frame, area, app)`: bordered block titled `Changelog`, `## ` lines rendered bold without the `## ` prefix, bullets as-is (dim not needed), `Paragraph::scroll`. Reuse the details-pane pattern: the draw owns the clamp (`scroll.min(overflow)`), writes `changelog_page`, title grows `↑`/`↓` (see `draw_details` in `src/ui/details.rs` and the scroll handler around `src/app.rs:885`). Footer: `j/k C-d/C-u scroll · Esc closes`. Hook in `ui::draw` (`src/ui/mod.rs:30`) next to the Help branch. Text comes from `pub const CHANGELOG: &str = include_str!("../CHANGELOG.md")` in `src/ui/changelog.rs` (path relative to it: `../../CHANGELOG.md`).
+3. **Draw it.** New `src/ui/changelog.rs` with `draw_changelog(frame, area, app)`: bordered block titled `Changelog`, `## ` lines rendered bold without the `## ` prefix, bullets as-is (dim not needed), `Paragraph::scroll`. Reuse the details-pane pattern: the draw owns the clamp (`scroll.min(overflow)`), writes `changelog_page`, title grows `↑`/`↓` (see `draw_details` in `src/ui/details.rs` and the scroll handler around `src/app.rs:885`). Footer: `j/k C-d/C-u scroll · Esc closes`. Hook in `ui::draw` (`src/ui/mod.rs:30`) next to the Help branch. Text comes from `CHANGELOG` in `src/changelog.rs` (`include_str!("../CHANGELOG.md")`), wrapped to the pane width with `text::wrap` before counting lines for the scroll clamp.
    - Snapshot in `tests/snapshots.rs` with a fixed area.
-4. **Help + docs.** `KEYS` line `("?", "help")` → `("?/c", "help / changelog")` in `src/ui/help.rs`; README key table mirrors it (`tests/readme.rs` enforces). AGENTS.md: one bullet under "Behaviour that is easy to break" (changelog mode keys, include_str, top version must match Cargo.toml) and a `src/ui/changelog.rs` line in Layout; Releasing step 1 gains "add the `CHANGELOG.md` section". PLAN.md: phase 22 entry.
+4. **Help + docs.** `KEYS` line `("?", "help")` → `("?/c", "help / changelog")` in `src/ui/help.rs`; README key table mirrors it (`tests/readme.rs` enforces). AGENTS.md: one bullet under "Behaviour that is easy to break" (changelog mode keys, include_str, top version must match Cargo.toml) and a `src/ui/changelog.rs` line in Layout; Releasing step 1 gains "add the `CHANGELOG.md` section". PLAN.md: phase 24 entry.
 5. **Release v0.20.0** (new key = minor): bump `Cargo.toml`, changelog top section `v0.20.0`, screenshot unchanged (no layout change to the main view).
 
 ## Gotchas

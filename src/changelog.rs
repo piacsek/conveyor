@@ -3,7 +3,7 @@ pub const CHANGELOG: &str = include_str!("../CHANGELOG.md");
 struct Section<'a> {
     heading: &'a str,
     version: &'a str,
-    bullets: Vec<&'a str>,
+    bullets: Vec<String>,
 }
 
 fn sections(text: &str) -> Vec<Section<'_>> {
@@ -16,9 +16,18 @@ fn sections(text: &str) -> Vec<Section<'_>> {
                 version,
                 bullets: Vec::new(),
             });
-        } else if let (Some(bullet), Some(section)) = (line.strip_prefix("- "), sections.last_mut())
-        {
-            section.bullets.push(bullet);
+        } else if let Some(section) = sections.last_mut() {
+            if let Some(bullet) = line.strip_prefix("- ")
+                && !bullet.trim().is_empty()
+            {
+                section.bullets.push(bullet.trim().to_string());
+            } else if line.starts_with(char::is_whitespace)
+                && !line.trim().is_empty()
+                && let Some(bullet) = section.bullets.last_mut()
+            {
+                bullet.push(' ');
+                bullet.push_str(line.trim());
+            }
         }
     }
     sections
