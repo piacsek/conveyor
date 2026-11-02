@@ -983,9 +983,7 @@ impl App {
                     label,
                 })
             }
-            Stage::Queue => Err(
-                "a failed merge-group run left the queue: re-queue the pull request".to_string(),
-            ),
+            Stage::Queue => Err("nothing to rerun in the merge queue".to_string()),
             Stage::Deployed => Err("nothing to rerun here".to_string()),
         }
     }

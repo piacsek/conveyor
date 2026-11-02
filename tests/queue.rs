@@ -438,7 +438,7 @@ fn a_cancelled_merge_group_run_does_not_blame_its_jobs_either() {
 }
 
 #[test]
-fn shift_x_in_the_queue_says_to_re_queue_instead_and_asks_nothing() {
+fn shift_x_in_the_queue_says_there_is_nothing_to_rerun_and_asks_nothing() {
     let mut h = Harness::with_size(160, 20);
 
     h.run(vec![
@@ -449,7 +449,10 @@ fn shift_x_in_the_queue_says_to_re_queue_instead_and_asks_nothing() {
     .unwrap();
 
     let footer = h.screen().lines().last().unwrap_or_default().to_string();
-    assert!(footer.contains("re-queue the pull request"), "{footer}");
+    assert!(
+        footer.contains("nothing to rerun in the merge queue"),
+        "{footer}"
+    );
     assert!(
         !h.requests
             .iter()

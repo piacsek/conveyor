@@ -49,7 +49,7 @@ rerun failed jobs of #812 (2 runs: CI, e2e)? y/n
      `nothing failed to rerun` / `run 431 is still running`.
    - My PRs: `rerunnable_runs()` of the selected PR, repo from the PR's
      `repository.nameWithOwner`; none → notice `no finished failing run to rerun`.
-   - Merge queue / Deployed: notice (queue: `re-queue the pull request instead`).
+   - Merge queue / Deployed: notice (queue: `nothing to rerun in the merge queue`).
    `y` returns `Action::Rerun { repo, run_ids }`; any other key (Esc included) cancels with
    notice `rerun cancelled`. Arm goes next to `Mode::Help`, before Ctrl-d/u. `footer_text`
    shows the prompt while in the mode. TUI tests drive `run()` with scripted keys.
