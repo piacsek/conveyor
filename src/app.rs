@@ -526,28 +526,33 @@ impl App {
     }
 
     fn age_jobs(&mut self, stage: Stage) {
-        let runs: Vec<(u64, bool)> = match stage {
+        let runs: Vec<(u64, bool, u64)> = match stage {
             Stage::Queue => self
                 .queue
                 .all()
                 .iter()
                 .filter_map(|entry| entry.run.as_ref())
-                .map(|run| (run.id, run.is_settled()))
+                .map(|run| (run.id, run.is_settled(), run.attempt))
                 .collect(),
             Stage::Builds => self
                 .builds
                 .all()
                 .iter()
-                .map(|build| (build.id, build.is_settled()))
+                .map(|build| (build.id, build.is_settled(), build.attempt))
                 .collect(),
             Stage::Prs | Stage::Deployed => Vec::new(),
         };
-        for (run_id, settled) in runs {
+        for (run_id, settled, attempt) in runs {
             let aged = match (self.jobs.remove(&run_id), settled) {
                 (Some(JobsState::Ready(jobs)), false) => Some(JobsState::Stale(jobs)),
                 (Some(JobsState::Failed(_)), false) => None,
                 (Some(JobsState::Ready(jobs)), true)
-                    if jobs.iter().any(|job| !job.status.is_settled()) =>
+                    if jobs.iter().any(|job| !job.status.is_settled())
+                        || jobs
+                            .iter()
+                            .map(|job| job.attempt)
+                            .max()
+                            .is_some_and(|newest| newest < attempt) =>
                 {
                     Some(JobsState::Stale(jobs))
                 }
