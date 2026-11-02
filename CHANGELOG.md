@@ -4,7 +4,7 @@
 - `c` shows this changelog; `j`/`k` and `Ctrl-d`/`Ctrl-u` scroll it, any other key returns.
 
 ## v0.19.2 (2026-11-02)
-- My PRs reloads once more 10 s after a rerun (`X`) or a branch update (`U`) lands, so the card catches up with GitHub.
+- My PRs reloads once more 10 s after a rerun (`X`) from My PRs or a branch update (`U`) that changed the branch, so the card catches up with GitHub.
 
 ## v0.19.1 (2026-11-02)
 - A run rerun from GitHub drops the previous attempt's jobs instead of mixing both.
