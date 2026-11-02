@@ -31,7 +31,7 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
                 match &entry.run {
                     Some(run) => {
                         lines.push(run_line(run, app.now, app.utc_offset_secs));
-                        lines.extend(job_lines(app.selected_jobs()));
+                        lines.extend(job_lines(app.selected_jobs(), app.now));
                     }
                     None => lines.push(Line::from("no merge-group run yet")),
                 }
@@ -43,7 +43,7 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
             Some(build) => {
                 let (label, _) = build_label(build);
                 let mut lines = build_details(build, app.now, app.utc_offset_secs);
-                lines.extend(job_lines(app.selected_jobs()));
+                lines.extend(job_lines(app.selected_jobs(), app.now));
                 (format!("{label} run {}", build.run_number), lines)
             }
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
@@ -173,7 +173,7 @@ fn run_line(build: &Build, now: SystemTime, utc_offset_secs: i32) -> Line<'stati
     let took = build
         .duration()
         .or_else(|| build.elapsed(now))
-        .map(duration)
+        .map(elapsed)
         .unwrap_or_default();
     let started = build
         .started_at
@@ -230,8 +230,8 @@ fn deployed_details(row: &Deployment, now: SystemTime) -> Vec<Line<'static>> {
     lines
 }
 
-fn job_line(job: &Job) -> Line<'static> {
-    let took = job.duration().map(duration).unwrap_or_default();
+fn job_line(job: &Job, now: SystemTime) -> Line<'static> {
+    let took = job.took(now).map(elapsed).unwrap_or_default();
     let failed_at = job
         .failed_step
         .as_ref()
@@ -244,7 +244,7 @@ fn job_line(job: &Job) -> Line<'static> {
     ])
 }
 
-fn job_lines(jobs: Option<&JobsState>) -> Vec<Line<'static>> {
+fn job_lines(jobs: Option<&JobsState>, now: SystemTime) -> Vec<Line<'static>> {
     match jobs {
         None => Vec::new(),
         Some(JobsState::Loading) => vec![Line::from(Span::styled("jobs: loading…", dim()))],
@@ -253,7 +253,7 @@ fn job_lines(jobs: Option<&JobsState>) -> Vec<Line<'static>> {
             Style::default().fg(Color::Red),
         ))],
         Some(JobsState::Ready(jobs) | JobsState::Stale(jobs) | JobsState::Refreshing(jobs)) => {
-            jobs.iter().map(job_line).collect()
+            jobs.iter().map(|job| job_line(job, now)).collect()
         }
     }
 }

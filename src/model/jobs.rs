@@ -18,6 +18,14 @@ impl Job {
     pub fn duration(&self) -> Option<Duration> {
         self.completed_at?.duration_since(self.started_at?).ok()
     }
+
+    pub fn took(&self, now: SystemTime) -> Option<Duration> {
+        let started = self.started_at?;
+        self.completed_at
+            .unwrap_or(now)
+            .duration_since(started)
+            .ok()
+    }
 }
 
 pub fn parse_jobs(value: &serde_json::Value) -> Vec<Job> {

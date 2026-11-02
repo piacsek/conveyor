@@ -86,7 +86,7 @@ fn p_opens_the_pull_request_b_opens_the_run_and_d_shows_its_details() {
         ]
     );
     let screen = h.screen();
-    assert!(screen.contains("run 25  failure  3m"), "{screen}");
+    assert!(screen.contains("run 25  failure  3m48s"), "{screen}");
     assert!(screen.contains("#4821 alice  Retry hooks"), "{screen}");
     assert!(
         !screen.contains("https://"),
@@ -1216,4 +1216,24 @@ fn a_failed_refetch_of_a_finished_run_shows_the_error_instead_of_old_jobs() {
 
     assert!(!h.screen().contains("● check"), "{}", h.screen());
     assert!(h.screen().contains("jobs: gh: HTTP 502"), "{}", h.screen());
+}
+
+#[test]
+fn a_running_job_in_the_details_says_how_long_it_has_been_running() {
+    let mut h = Harness::with_size(160, 20);
+    let mut running = job(1, "check", BuildStatus::Running, None);
+    running.started_at = Some(std::time::UNIX_EPOCH + std::time::Duration::from_secs(NOW - 75));
+    running.completed_at = None;
+
+    h.run(vec![
+        builds(three()),
+        jobs(1026, vec![running]),
+        tick_at(NOW),
+        key(KeyCode::Char('3')),
+        key(KeyCode::Char('d')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("● check  1m15s"), "{screen}");
 }
