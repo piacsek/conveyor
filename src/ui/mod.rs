@@ -26,20 +26,27 @@ use crate::ui::style::dim;
 pub use crate::ui::footer::logo;
 pub use crate::ui::help::KEYS;
 
+fn draw_overlay_footer(frame: &mut Frame, app: &App, hint: &str, area: Rect) {
+    let text = app.notice.as_deref().unwrap_or(hint);
+    frame.render_widget(Paragraph::new(text.to_string()), area);
+}
+
 pub fn draw(frame: &mut Frame, app: &mut App) {
     let [body, footer] =
         Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(frame.area());
     if app.mode == Mode::Changelog {
         draw_changelog(frame, app, body);
-        frame.render_widget(
-            Paragraph::new("j/k C-d/C-u scroll · any other key returns"),
+        draw_overlay_footer(
+            frame,
+            app,
+            "j/k C-d/C-u scroll · any other key returns",
             footer,
         );
         return;
     }
     if app.mode == Mode::Help {
         draw_help(frame, body, app.focus);
-        frame.render_widget(Paragraph::new("any key returns"), footer);
+        draw_overlay_footer(frame, app, "any key returns", footer);
         return;
     }
     let whole = body;
