@@ -95,7 +95,7 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
 }
 
 /// Clamp a pane's scroll to its content and say which way there is more: (page, (scroll, arrows)).
-fn scrolled(area: Rect, lines: usize, wanted: u16) -> (u16, (u16, String)) {
+pub(crate) fn scrolled(area: Rect, lines: usize, wanted: u16) -> (u16, (u16, String)) {
     let page = area.height.saturating_sub(2);
     let overflow = match page {
         0 => 0,

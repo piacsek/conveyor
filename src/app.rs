@@ -158,6 +158,7 @@ pub enum Mode {
     Normal,
     Filter(String),
     Help,
+    Changelog,
     Confirm(Pending),
 }
 
@@ -427,6 +428,8 @@ pub struct App {
     pub details: bool,
     pub details_scroll: u16,
     pub details_page: u16,
+    pub changelog_scroll: u16,
+    pub changelog_page: u16,
     pub zoom: bool,
     pub jobs: HashMap<u64, JobsState>,
     /// Failed-step log tails by job id, and whether the pane shows one for the selected run.
@@ -469,6 +472,8 @@ impl App {
             details: false,
             details_scroll: 0,
             details_page: 0,
+            changelog_scroll: 0,
+            changelog_page: 0,
             zoom: false,
             jobs: HashMap::new(),
             logs: HashMap::new(),
@@ -906,6 +911,12 @@ impl App {
         *scroll = next.clamp(0, i32::from(u16::MAX)) as u16;
     }
 
+    fn scroll_changelog(&mut self, half_pages: i32) {
+        let step = (self.changelog_page / 2).max(1) as i32;
+        let next = i32::from(self.changelog_scroll) + half_pages * step;
+        self.changelog_scroll = next.clamp(0, i32::from(u16::MAX)) as u16;
+    }
+
     fn with_focused(&mut self, act: impl Fn(&mut dyn Navigable)) {
         self.reset_scroll();
         match self.focus {
@@ -934,6 +945,14 @@ impl App {
         match self.mode {
             Mode::Help => {
                 self.mode = Mode::Normal;
+                Action::Continue
+            }
+            Mode::Changelog => {
+                match key.code {
+                    KeyCode::Char('d') if control => self.scroll_changelog(1),
+                    KeyCode::Char('u') if control => self.scroll_changelog(-1),
+                    _ => self.mode = Mode::Normal,
+                }
                 Action::Continue
             }
             Mode::Confirm(_) => self.confirm(key),
@@ -1288,6 +1307,10 @@ impl App {
                 self.sync_filter();
             }
             KeyCode::Char('?') => self.mode = Mode::Help,
+            KeyCode::Char('c') => {
+                self.changelog_scroll = 0;
+                self.mode = Mode::Changelog;
+            }
             KeyCode::Char('p') => match self.pull_target() {
                 Ok((_, url)) => return self.open(url),
                 Err(message) => self.notice = Some(message),
