@@ -515,6 +515,12 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   `#N has conflicts with its base; resolve them locally`. Every confirm (`X`, `M`, `U`) moved
   from the footer to a dialog in the middle of the screen.
 
+- v0.19.1 (phase 22, `plans/phase-22-rerun-attempts.md`): a main build or merge-group run
+  rerun from GitHub that passes between two polls no longer keeps its old failed job line
+  (#32); cached jobs from an older `run_attempt` are fetched again. Asked on the way: reload a
+  pull request after `U`/`X`. Both already refresh My PRs as soon as the action lands, so the
+  behaviour was kept and no fetch added.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.

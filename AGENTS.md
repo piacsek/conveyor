@@ -205,6 +205,13 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   under a settled run is the previous attempt), and `stale_run` asks for it whether or not it is
   selected. The old line stays until the answer replaces it: dropping it instead left a passing
   unselected card on its bare sha until someone selected it.
+  **A rerun from GitHub is caught by its attempt.** A rerun that starts and finishes between two
+  polls never shows as unsettled, so the rule above never fires and the old attempt's jobs
+  stayed forever (#32). `Build::attempt` and `Job::attempt` come from `run_attempt` (1 when
+  absent); `age_jobs` also turns a settled run's `Ready` into `Stale` when its newest job
+  attempt is below the run's. An empty job list carries no attempt and is never re-asked.
+  `filter=latest` stamps every job with the newest attempt, the ones a `--failed` rerun did not
+  run again included.
   **One line per job, newest attempt wins.** The jobs route's default `filter=latest` goes by
   `completed_at`, so during a re-run the previous attempt's finished job comes back next to the
   new in-progress one under the same name; `parse_jobs` keeps, per name, the jobs of that name's
