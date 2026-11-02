@@ -324,7 +324,9 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `?`), a blank line and the dim `y confirms · any other key cancels`, wrapped over 2 lines on a
   narrow body rather than cut. The footer carries no
   prompt, only the usual notice or refresh age underneath; it used to hold the question and was
-  easy to miss. A new write action adds a `Pending` variant and an arm in `dialog::question`.
+  easy to miss. A new write action adds a `Pending` variant and an arm in `dialog::question`. Widths are counted in characters,
+  like the rest of the UI, so a title of wide characters (CJK, emoji) can be clipped at the
+  dialog's right border.
 - **`U` updates a pull request's branch, through the same dialog.** On a My PRs card it sets
   `Mode::Confirm(Pending::UpdateBranch)`; the dialog asks `update branch of #N <title>?`, or
   `rebase branch of …` when `prs.update_method = "rebase"` (default `merge`; rebase force-pushes
