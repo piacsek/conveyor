@@ -27,7 +27,7 @@ src/main.rs      CLI dispatch, config load, wiring
 src/cli.rs       `conveyor` (TUI) | `config` | `--help` | `--version`; hand-rolled, no clap
 src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override
 src/sources/     everything that reaches out to an external service, and nothing else
-src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`, `log_failed`), CliGh spawns `gh api …` / `gh repo view` / `gh run view --log-failed`, error mapping
+src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`, `log_failed`, `rerun_failed`), CliGh spawns `gh api …` / `gh repo view` / `gh run view --log-failed` / `gh run rerun --failed`, error mapping
 src/sources/kube.rs   Kube trait (`image(env)`), CliKubectl (`kubectl --context … get deploy … -o jsonpath`, 10 s timeout)
 src/sources/fetch.rs  repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), fetch_jobs, fetch_log (LOG_TAIL lines), BuildsSource (caches workflow id and sha→PR), DeploySource (per-env kubectl + cached sha→PR)
 src/sources/queries/  GraphQL documents, `include_str!`ed
@@ -37,7 +37,7 @@ src/model/builds.rs Build, BuildStatus, PullRef, Builds; `parse_runs`, `pr_numbe
 src/model/deployed.rs Deployment, Deployed; `sha_from_image` (40-hex tag or `-<sha>` suffix)
 src/model/jobs.rs Job, `parse_jobs` (failures first), `failed_step`
 src/model/log.rs  `tail`: the failed step's log as gh prints it, minus job/step/timestamp prefixes and ANSI
-src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Input::{Key, Fetching, Data, Jobs, Log, Tick}, Request::{Refresh, Jobs, Log}, run()
+src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Input::{Key, Fetching, Data, Jobs, Log, Rerun, Tick}, Request::{Refresh, Jobs, Log, Rerun}, run()
 src/ui/mod.rs    draw: 4 columns or tabs below `4 × ui.min_column_width`
 src/ui/style.rs  the shared vocabulary: BAR, INDENT, dim(), glyphs and status words, short_repo, sha8
 src/ui/card.rs   card() and meta(): one title line plus indented span lines
@@ -273,7 +273,21 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   on screen. v0.13.0
   appended the log under the job list, where a 37-job run hid it below the fold: never put
   the thing a key opens where the user has to scroll to find it. No failed job known yet →
-  footer notice, no request. Rerunning a job stays a backlog item (write action, confirm UX).
+  footer notice, no request.
+- **`X` is the one write action, and it always asks first.** It reruns failed jobs with
+  `gh run rerun <run> --failed -R <repo>`: in Main builds the selected run (only once it has
+  settled as a failure or a cancellation), in My PRs every run behind the pull request's
+  failing checks that has no pending check left (`PullRequest::rerunnable_runs`, from
+  `Check::run_id`; a `StatusContext` or a non-Actions app has no run and is skipped). Merge
+  queue and Deployed only answer with a footer notice: a failed merge-group run has already
+  dropped its pull request from the queue, so rerunning it merges nothing. `X` sets
+  `Mode::Confirm`, the footer reads `rerun failed jobs of <run N | #N (k runs)>? y/n`, `y`
+  sends `Request::Rerun` and any other key (`Esc`, `q` included) cancels; `q` never quits from
+  the prompt. One rerun is in flight at a time (`App::rerunning`); its `Input::Rerun` result
+  goes to the footer and, on success, refreshes the column it came from. A rerun keeps its run
+  id, so `age_jobs` and `parse_jobs` (newest `run_attempt`) already carry the jobs over to the
+  new attempt. The e2e `gh` shim appends `run rerun …` argv to `reruns.log`; keep any new write
+  action behind the same shim so a test can never reach the real `gh`.
 - **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
   the deploy repo (`App::deploy_repo`: the `[[repo]]` with a deploy, else `builds_repo`).
 - **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by
