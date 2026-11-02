@@ -956,6 +956,10 @@ impl App {
             Stage::Builds => {
                 let build = self.builds.selected().ok_or("nothing selected")?;
                 let label = format!("run {}", build.run_number);
+                let newest = self.builds.all().iter().map(|b| b.run_number).max();
+                if newest != Some(build.run_number) {
+                    return Err("only the newest main build can be rerun".to_string());
+                }
                 if !build.is_settled() {
                     return Err(format!("{label} is still running"));
                 }

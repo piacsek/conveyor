@@ -276,8 +276,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   the thing a key opens where the user has to scroll to find it. No failed job known yet →
   footer notice, no request.
 - **`X` is the one write action, and it always asks first.** It reruns failed jobs with
-  `gh run rerun <run> --failed -R <repo>`: in Main builds the selected run (only once it has
-  settled as a failure or a cancellation), in My PRs every run behind the pull request's
+  `gh run rerun <run> --failed -R <repo>`: in Main builds the selected run, only when it is the
+  newest main build (highest `run_number`) and has settled as a failure or a cancellation.
+  An older one is refused: with `cancel-in-progress` its rerun would cancel the newest build,
+  and on a workflow that deploys it would put an older sha back over a newer one. In My PRs every run behind the pull request's
   failing checks whose own check suite has a conclusion (`Check::run_finished`) and while no
   newer run of the same workflow and event is still running (`Check::newer_run_running`, a
   suite with no conclusion); `PullRequest::rerunnable_runs`, from `Check::run_id`. A

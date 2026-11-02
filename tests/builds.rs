@@ -1244,6 +1244,30 @@ fn footer(screen: &str) -> String {
     screen.lines().last().unwrap_or_default().to_string()
 }
 
+fn failing_newest() -> Vec<conveyor::model::builds::Build> {
+    three().into_iter().skip(1).collect()
+}
+
+fn focus_failing_newest() -> Vec<std::io::Result<conveyor::app::Input>> {
+    vec![builds(failing_newest()), key(KeyCode::Char('3'))]
+}
+
+#[test]
+fn shift_x_refuses_a_failed_build_once_a_newer_main_build_exists() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_builds();
+    inputs.push(key(KeyCode::Char('j')));
+    inputs.push(key(KeyCode::Char('X')));
+    h.run(inputs).unwrap();
+
+    assert!(
+        footer(&h.screen()).contains("only the newest main build can be rerun"),
+        "{}",
+        h.screen()
+    );
+    assert_eq!(h.app.mode, conveyor::app::Mode::Normal);
+}
+
 fn reruns(requests: &[Request]) -> Vec<&Request> {
     requests
         .iter()
@@ -1254,8 +1278,7 @@ fn reruns(requests: &[Request]) -> Vec<&Request> {
 #[test]
 fn shift_x_asks_before_rerunning_a_failed_runs_failed_jobs_and_y_confirms() {
     let mut h = Harness::with_size(160, 20);
-    let mut inputs = focus_builds();
-    inputs.push(key(KeyCode::Char('j')));
+    let mut inputs = focus_failing_newest();
     inputs.push(key(KeyCode::Char('X')));
     h.run(inputs).unwrap();
 
@@ -1285,8 +1308,7 @@ fn shift_x_asks_before_rerunning_a_failed_runs_failed_jobs_and_y_confirms() {
 #[test]
 fn any_other_key_than_y_cancels_the_rerun_and_does_nothing_else() {
     let mut h = Harness::with_size(160, 20);
-    let mut inputs = focus_builds();
-    inputs.push(key(KeyCode::Char('j')));
+    let mut inputs = focus_failing_newest();
     inputs.push(key(KeyCode::Char('X')));
     inputs.push(key(KeyCode::Char('q')));
     h.run(inputs).unwrap();
@@ -1327,8 +1349,7 @@ fn shift_x_on_a_running_run_says_it_is_still_running_and_asks_nothing() {
 #[test]
 fn a_rerun_on_its_way_blocks_a_second_one_until_it_lands() {
     let mut h = Harness::with_size(160, 20);
-    let mut inputs = focus_builds();
-    inputs.push(key(KeyCode::Char('j')));
+    let mut inputs = focus_failing_newest();
     inputs.push(key(KeyCode::Char('X')));
     inputs.push(key(KeyCode::Char('y')));
     inputs.push(key(KeyCode::Char('X')));
@@ -1354,8 +1375,7 @@ fn a_rerun_on_its_way_blocks_a_second_one_until_it_lands() {
 #[test]
 fn a_landed_rerun_says_so_and_refreshes_the_column_it_came_from() {
     let mut h = Harness::with_size(160, 20);
-    let mut inputs = focus_builds();
-    inputs.push(key(KeyCode::Char('j')));
+    let mut inputs = focus_failing_newest();
     inputs.push(key(KeyCode::Char('X')));
     inputs.push(key(KeyCode::Char('y')));
     inputs.push(key(KeyCode::Char('1')));
@@ -1378,8 +1398,7 @@ fn a_landed_rerun_says_so_and_refreshes_the_column_it_came_from() {
 #[test]
 fn a_failed_rerun_shows_what_gh_said() {
     let mut h = Harness::with_size(160, 20);
-    let mut inputs = focus_builds();
-    inputs.push(key(KeyCode::Char('j')));
+    let mut inputs = focus_failing_newest();
     inputs.push(key(KeyCode::Char('X')));
     inputs.push(key(KeyCode::Char('y')));
     inputs.push(rerun_done(vec![(1025, Err("HTTP 403"))]));
@@ -1400,8 +1419,7 @@ fn a_failed_rerun_shows_what_gh_said() {
 #[test]
 fn a_rerun_run_keeps_its_old_jobs_on_screen_until_the_new_attempt_lands() {
     let mut h = Harness::with_size(160, 20);
-    let mut inputs = focus_builds();
-    inputs.push(key(KeyCode::Char('j')));
+    let mut inputs = focus_failing_newest();
     inputs.push(jobs(
         1025,
         vec![job(
@@ -1414,8 +1432,8 @@ fn a_rerun_run_keeps_its_old_jobs_on_screen_until_the_new_attempt_lands() {
     inputs.push(key(KeyCode::Char('X')));
     inputs.push(key(KeyCode::Char('y')));
     inputs.push(rerun_done(vec![(1025, Ok(()))]));
-    let mut requeued = three();
-    requeued[1].status = BuildStatus::Queued;
+    let mut requeued = failing_newest();
+    requeued[0].status = BuildStatus::Queued;
     inputs.push(builds(requeued));
     h.run(inputs).unwrap();
 
@@ -1453,8 +1471,10 @@ fn a_run_whose_jobs_come_back_empty_shows_its_sha_not_zero_jobs_ok() {
 #[test]
 fn shift_x_on_a_passing_run_says_nothing_failed() {
     let mut h = Harness::with_size(160, 20);
-    let mut inputs = focus_builds();
-    inputs.push(key(KeyCode::Char('G')));
+    let mut inputs = vec![
+        builds(vec![build(24, BuildStatus::Success, None)]),
+        key(KeyCode::Char('3')),
+    ];
     inputs.push(key(KeyCode::Char('X')));
     h.run(inputs).unwrap();
 
