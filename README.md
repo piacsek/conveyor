@@ -59,6 +59,7 @@ query = "is:pr is:open archived:false (author:@me OR assignee:@me)"
 limit = 20
 refresh_secs = 60
 merge_method = "squash"
+update_method = "merge"
 
 [ui]
 min_column_width = 36

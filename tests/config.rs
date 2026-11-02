@@ -1,4 +1,4 @@
-use conveyor::config::{Config, MergeMethod, load};
+use conveyor::config::{Config, MergeMethod, UpdateMethod, load};
 
 fn write(dir: &tempfile::TempDir, text: &str) -> std::path::PathBuf {
     let path = dir.path().join("config.toml");
@@ -176,4 +176,25 @@ fn an_unknown_merge_method_fails_naming_the_file() {
 
     assert!(err.to_string().contains("config.toml"), "{err}");
     assert!(err.to_string().contains("fast"), "{err}");
+}
+
+#[test]
+fn the_update_method_defaults_to_merge_and_accepts_rebase() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let defaults = load(&dir.path().join("config.toml")).unwrap();
+    let rebase = load(&write(&dir, "[prs]\nupdate_method = \"rebase\"\n")).unwrap();
+
+    assert_eq!(defaults.prs.update_method, UpdateMethod::Merge);
+    assert_eq!(rebase.prs.update_method, UpdateMethod::Rebase);
+}
+
+#[test]
+fn squash_is_not_an_update_method() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[prs]\nupdate_method = \"squash\"\n")).unwrap_err();
+
+    assert!(err.to_string().contains("config.toml"), "{err}");
+    assert!(err.to_string().contains("squash"), "{err}");
 }
