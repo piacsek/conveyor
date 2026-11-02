@@ -73,6 +73,16 @@ pub fn duration(value: Duration) -> String {
     }
 }
 
+pub fn elapsed(value: Duration) -> String {
+    let secs = value.as_secs();
+    match secs {
+        s if s < 60 => format!("{s}s"),
+        s if s < 3600 => format!("{}m{:02}s", s / 60, s % 60),
+        s if s < 86_400 => format!("{}h{:02}m", s / 3600, s % 3600 / 60),
+        s => format!("{}d{:02}h", s / 86_400, s % 86_400 / 3600),
+    }
+}
+
 pub fn clock(at: SystemTime, utc_offset_secs: i32) -> String {
     let secs = at
         .duration_since(std::time::UNIX_EPOCH)
