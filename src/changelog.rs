@@ -96,12 +96,12 @@ pub fn check(text: &str, version: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn check_released(text: &str, released: &[&str]) -> Result<(), String> {
+pub fn check_released(text: &str, released: &[&str], current: &str) -> Result<(), String> {
     let sections = sections(text);
-    match released
-        .iter()
-        .find(|version| !sections.iter().any(|section| section.version == **version))
-    {
+    match released.iter().find(|version| {
+        numbers(version) <= numbers(current)
+            && !sections.iter().any(|section| section.version == **version)
+    }) {
         Some(version) => Err(format!("v{version} was released but has no entry")),
         None => Ok(()),
     }
