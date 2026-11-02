@@ -1125,6 +1125,88 @@ fn a_re_run_that_passes_while_not_selected_drops_the_first_attempts_failure() {
 }
 
 #[test]
+fn a_rerun_from_github_that_passes_between_two_polls_drops_the_old_failure() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(jobs(
+        1025,
+        vec![job(2, "lint", BuildStatus::Failure, Some("Run clippy"))],
+    ));
+    inputs.push(jobs(
+        1026,
+        vec![job(1, "check", BuildStatus::Success, None)],
+    ));
+    let mut passed = three();
+    passed[1].status = BuildStatus::Success;
+    passed[1].attempt = 2;
+    passed[0].status = BuildStatus::Success;
+    inputs.push(builds(passed));
+    inputs.push(jobs(
+        1026,
+        vec![job(1, "check", BuildStatus::Success, None)],
+    ));
+
+    h.run(inputs).unwrap();
+
+    let asked = h
+        .requests
+        .iter()
+        .filter(|request| **request == Request::Jobs { run_id: 1025 })
+        .count();
+    assert_eq!(asked, 2, "{:?}", h.requests);
+    assert!(h.screen().contains("✗ lint"), "{}", h.screen());
+
+    let mut rerun = job(3, "lint", BuildStatus::Success, None);
+    rerun.attempt = 2;
+    h.run(vec![jobs(1025, vec![rerun])]).unwrap();
+
+    assert!(!h.screen().contains("✗ lint"), "{}", h.screen());
+    assert!(h.screen().contains("1 jobs ok"), "{}", h.screen());
+}
+
+#[test]
+fn a_settled_run_whose_jobs_are_from_its_current_attempt_is_not_asked_again() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    let mut lint = job(2, "lint", BuildStatus::Failure, Some("Run clippy"));
+    lint.attempt = 2;
+    inputs.push(jobs(1025, vec![lint]));
+    let mut rerun = three();
+    rerun[1].attempt = 2;
+    inputs.push(builds(rerun.clone()));
+    inputs.push(builds(rerun));
+
+    h.run(inputs).unwrap();
+
+    let asked = h
+        .requests
+        .iter()
+        .filter(|request| **request == Request::Jobs { run_id: 1025 })
+        .count();
+    assert_eq!(asked, 1, "{:?}", h.requests);
+}
+
+#[test]
+fn a_rerun_whose_jobs_came_back_empty_is_not_asked_on_every_refresh() {
+    let mut h = Harness::with_size(160, 30);
+    let mut inputs = focus_builds();
+    inputs.push(jobs(1025, vec![]));
+    let mut rerun = three();
+    rerun[1].attempt = 2;
+    inputs.push(builds(rerun.clone()));
+    inputs.push(builds(rerun));
+
+    h.run(inputs).unwrap();
+
+    let asked = h
+        .requests
+        .iter()
+        .filter(|request| **request == Request::Jobs { run_id: 1025 })
+        .count();
+    assert_eq!(asked, 1, "{:?}", h.requests);
+}
+
+#[test]
 fn a_refresh_asks_again_for_a_running_run_that_is_not_selected() {
     let mut h = Harness::with_size(160, 30);
     let mut inputs = focus_builds();
