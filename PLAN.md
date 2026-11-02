@@ -531,6 +531,10 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   was backfilled for every tag. `conveyor::changelog::check` makes `cargo test` fail on a
   version bump without a dated, non-empty entry at the top that repeats no older bullet.
 
+- v0.20.1 (phase 25, `plans/phase-25-changelog-gaps.md`): the three gaps phase 24 left. A
+  result that lands while the changelog or help is open shows in its footer; release dates
+  must be calendar dates; a missing older entry says to merge `origin/main`.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
