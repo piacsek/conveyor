@@ -275,6 +275,17 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   appended the log under the job list, where a 37-job run hid it below the fold: never put
   the thing a key opens where the user has to scroll to find it. No failed job known yet →
   footer notice, no request. Rerunning a job stays a backlog item (write action, confirm UX).
+- **`M` is the only write action, and it asks first.** On a My PRs card it sets
+  `Mode::Confirm(MergeTarget)` and the footer reads `merge #N <title>? y/n`; only a bare `y`
+  sends `Request::Merge`, every other key cancels (`merge cancelled`), `Ctrl-C` still quits, and
+  the Confirm arm sits before the `Ctrl-d`/`Ctrl-u` arms so nothing slips past the prompt. The
+  target (number, repo, title, head sha) is captured when `M` is pressed, so a refresh that moves
+  the selection cannot change what `y` merges. Drafts, queued pull requests, other columns and a
+  merge already in flight (`App::merging`) get a footer notice and no prompt. The merge thread
+  runs `gh pr merge <N> -R <repo> --<prs.merge_method> --match-head-commit <headRefOid>`; the pin
+  refuses a head pushed after the card was drawn. On a merge-queue branch gh only warns that the
+  queue sets the strategy and enqueues (checked in gh v2.103.3 source). `Input::Merged` puts
+  `merge sent for #N` or gh's stderr in the footer and, on success, refreshes My PRs and the queue.
 - **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
   the deploy repo (`App::deploy_repo`: the `[[repo]]` with a deploy, else `builds_repo`).
 - **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by
@@ -302,8 +313,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   into the query. Because the pane scrolls, the job list is no longer truncated to what fits:
   `job_lines` renders every job.
 - **The help pane does not scroll.** `draw_help` renders `KEYS` through a `Paragraph`, so a
-  list longer than the pane is silently clipped from the bottom: 13 keys plus two borders
-  exactly fills a 16-row terminal. `("q", "quit")` is therefore first in `KEYS`, so the one
+  list longer than the pane is silently clipped from the bottom: 14 keys plus two borders
+  exactly fills a 17-row terminal. `("q", "quit")` is therefore first in `KEYS`, so the one
   key that gets you out is never the line that disappears. Adding a key means checking the
   smallest terminal you care about, or paginating the pane.
 - **`q` is the only quit key** (besides `Ctrl-C`). `Esc` closes one thing per press (see the
@@ -378,8 +389,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   jobs, the sha, the pull request. A URL is 60 columns of noise nobody retypes, and both keys
   that need one (`b`, `p`) already hand it to the browser. `y`/`Y` copy them.
 - **The keymap pairs the pull request and the build.** `p`/`b` open them, `y`/`Y` copy them,
-  `d` is the details pane, `Ctrl-d`/`Ctrl-u` scroll it. `KEYS` stays 13 lines — `y/Y`, `r/R`
-  and `C-d/C-u` each share one — so the help still fits a 16-row terminal.
+  `d` is the details pane, `Ctrl-d`/`Ctrl-u` scroll it. `y/Y`, `r/R` and
+  `C-d/C-u` each share one line of `KEYS`; `M` took the 14th, so the help needs 17 rows.
 - **Colors** come from the ANSI palette so terminal themes apply. Do not hardcode hex.
 
 ## Testing traps hit so far

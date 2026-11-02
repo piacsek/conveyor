@@ -234,3 +234,15 @@ fn a_refused_merge_shows_what_gh_said_and_shift_m_asks_again() {
 
     assert!(h.screen().contains("merge #1 a? y/n"), "{}", h.screen());
 }
+
+#[test]
+fn the_help_lists_shift_m_and_still_fits_seventeen_rows() {
+    let mut h = Harness::with_size(160, 17);
+
+    h.run(vec![prs(vec![mergeable(1, "a")]), key(KeyCode::Char('?'))])
+        .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("merge the pull request (y/n)"), "{screen}");
+    assert!(screen.contains("help"), "{screen}");
+}

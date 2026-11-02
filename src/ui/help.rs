@@ -7,7 +7,7 @@ use ratatui::widgets::{Block, Paragraph};
 use crate::app::Stage;
 use crate::ui::style::dim;
 
-pub const KEYS: [(&str, &str); 13] = [
+pub const KEYS: [(&str, &str); 14] = [
     ("q", "quit"),
     ("j/k ↓/↑", "move"),
     ("h/l Tab 1-4", "focus column"),
@@ -16,6 +16,7 @@ pub const KEYS: [(&str, &str); 13] = [
     ("y/Y", "copy pull request / build URL"),
     ("d C-d/C-u", "details / scroll them"),
     ("L", "log of the failed step"),
+    ("M", "merge the pull request (y/n)"),
     ("z", "zoom the column"),
     ("Esc", "close details / zoom / filter"),
     ("/", "filter (Enter keeps, Esc clears)"),

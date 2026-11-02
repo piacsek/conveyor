@@ -181,7 +181,7 @@ fn tabs_layout() {
 
 #[test]
 fn help_layout() {
-    let mut h = Harness::with_size(160, 16);
+    let mut h = Harness::with_size(160, 17);
     h.run(vec![prs(sample()), key(KeyCode::Char('?'))]).unwrap();
     insta::assert_snapshot!(h.screen());
 }
