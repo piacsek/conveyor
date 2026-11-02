@@ -32,6 +32,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         frame.render_widget(Paragraph::new("any key returns"), footer);
         return;
     }
+    let whole = body;
     let body = if app.details {
         let details_percent = app.config.ui.details_percent;
         let [columns, details] =
@@ -54,7 +55,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         }
     }
     if let Mode::Confirm(pending) = &app.mode {
-        draw_confirm(frame, body, pending);
+        draw_confirm(frame, whole, pending);
     }
 }
 

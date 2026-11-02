@@ -299,3 +299,21 @@ fn a_refused_update_shows_what_gh_said_and_shift_u_asks_again() {
         h.screen()
     );
 }
+
+#[test]
+fn shift_u_waits_while_a_merge_of_the_same_pull_request_is_in_flight() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(vec![behind(1, "a")]),
+        key(KeyCode::Char('M')),
+        key(KeyCode::Char('y')),
+        key(KeyCode::Char('U')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("merging #1…"), "{screen}");
+    assert!(!screen.contains("y confirms"), "{screen}");
+    assert_eq!(h.requests.len(), 1);
+}

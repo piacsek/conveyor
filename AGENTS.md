@@ -45,6 +45,7 @@ src/ui/columns.rs column titles, blocks and draw_list
 src/ui/rows.rs   one card builder per stage: pr_row, queue_row, build_row, deployed_row
 src/ui/details.rs the `d` pane per stage, including the job list; no URLs
 src/ui/footer.rs footer text, the refresh spinner and the static logo
+src/ui/dialog.rs the confirm dialog every write action (`X`, `M`, `U`) opens over the body
 src/ui/help.rs   KEYS is the generic table the README mirrors; `keys_for(stage)` swaps the `p`/`b` wording per column
 src/refresh.rs   `spawn`: one fetcher thread per stage; `wait` sleeps until the interval or a refresh, draining queued signals
 src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`): the OS seam, not a service, so it stays out of `sources/`
@@ -315,11 +316,13 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   strategy and enqueues through auto-merge (checked in gh v2.103.3 source). That warning comes
   first on stderr, so `CliGh::merge` drops gh's `! ` lines from an error: the footer shows one
   line, and it used to be the warning instead of the reason. `Input::Merged` puts `merge sent for
-  #N` or the error in the footer and, on success, refreshes My PRs and the queue. 
+  #N` or the error in the footer and, on success, refreshes My PRs and the queue.
 - **Every write action asks in one dialog.** `ui::dialog::draw_confirm` draws over the body
-  while `Mode::Confirm`, centred, at most 56 columns inside and 2 off each edge: `Clear`, a
+  while `Mode::Confirm`, centred over the whole body (the details pane included, so an open pane
+  never squeezes it), at most 56 columns inside and 2 off each edge: `Clear`, a
   bordered `Confirm` block, the question wrapped over at most 3 lines (cut with `…` before the
-  `?`), a blank line and the dim `y confirms · any other key cancels`. The footer carries no
+  `?`), a blank line and the dim `y confirms · any other key cancels`, wrapped over 2 lines on a
+  narrow body rather than cut. The footer carries no
   prompt, only the usual notice or refresh age underneath; it used to hold the question and was
   easy to miss. A new write action adds a `Pending` variant and an arm in `dialog::question`.
 - **`U` updates a pull request's branch, through the same dialog.** On a My PRs card it sets
@@ -330,7 +333,9 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   refresh of My PRs, a queued pull request (a push drops it from the queue) and a
   `mergeStateStatus` of `DIRTY` (`#N has conflicts with its base; resolve them locally`). Drafts
   are allowed. `y` re-derives the target like `M` (`the pull request changed; press U again`),
-  one update is in flight at a time (`App::updating`). The worker runs `gh pr update-branch <N>
+  one update is in flight at a time (`App::updating`), and `U` also waits while a merge is in
+  flight (`App::merging`): a merge that just queued the pull request has no `queue_position`
+  until the next refresh, and the push would drop it from the queue. The worker runs `gh pr update-branch <N>
   -R <repo> [--rebase]`. Checked in gh v2.103.3 source: success prints `PR branch updated` or
   `PR branch already up-to-date` on stdout and exits 0; conflicts print `Cannot update PR branch
   due to conflicts` on stderr and exit 1, both when GitHub already reports the PR conflicting and

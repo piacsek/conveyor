@@ -32,17 +32,21 @@ pub(crate) fn draw_confirm(frame: &mut Frame, area: Rect, pending: &Pending) {
     if let Some(last) = lines.last_mut() {
         last.push('?');
     }
+    let hint = wrap(HINT, room, 2);
     let inner = lines
         .iter()
+        .chain(&hint)
         .map(|line| line.chars().count())
-        .chain([HINT.chars().count()])
         .max()
         .unwrap_or(0)
         .min(room);
-    let height = lines.len() + 4;
+    let height = lines.len() + hint.len() + 3;
     let mut text: Vec<Line> = lines.into_iter().map(Line::from).collect();
     text.push(Line::default());
-    text.push(Line::from(Span::styled(HINT, dim())));
+    text.extend(
+        hint.into_iter()
+            .map(|line| Line::from(Span::styled(line, dim()))),
+    );
     let dialog = area.centered(
         Constraint::Length(inner as u16 + 4),
         Constraint::Length(height as u16),
