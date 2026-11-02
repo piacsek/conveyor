@@ -490,6 +490,9 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   says how long it took, or how long it has been running. Job and run lines in the details
   pane went to second precision and running jobs tick. Cards stay coarse: seconds clipped the
   status word (`cancell…`) on a 40-column card, found by the builds snapshot.
+- v0.16.1: a pull request in a merge queue shows the git-merge-queue icon in yellow instead
+  of the green open icon, and My PRs lists queued pull requests first (by queue position),
+  then open ones, then drafts.
 
 ## Deferred / backlog (discuss at retros)
 

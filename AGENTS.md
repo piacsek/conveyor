@@ -313,8 +313,9 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   main build or a jumped queue entry drifted to the bottom over a long session. `Row::ORDER`
   fixes it per type: `Build` is `ByRankDescending` on `run_number`, `QueueEntry` is
   `ByRankAscending` on `position`, `PullRequest` is `ByRankAscending` with queued pull
-  requests first (by queue position), then open ones, then drafts (the sort is stable, so the
-  search order holds inside each group), and `Deployment` is `AsFetched`. `Column::receive` applies it on every fetch, so the order holds from
+  requests first (by queue position), then open ones, then drafts, and `Deployment` is
+  `AsFetched`. The sort is stable and runs after the merge, so inside a group the previous
+  on-screen order holds and a new pull request joins the end of its group. `Column::receive` applies it on every fetch, so the order holds from
   the first draw through every incremental refresh and never depends on what order the API
   happened to return.
 - **Keys act on the focused column.** `App::with_focused` dispatches navigation to the
@@ -361,8 +362,9 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   height varies per row; the list widget handles it.
 - **A PR card carries GitHub's pull-request icon** after its check glyph: `pr_glyph` gives
   U+F407 in green for an open pull request, U+F4DB (git-merge-queue) in yellow once it has a
-  merge queue position, and U+F4DD in grey for a draft, so the meta line no longer says `draft`. They are Nerd Font octicons, the only Nerd Font glyphs in the UI: a
-  terminal without a Nerd Font draws a box there. `card()` takes the icon as an
+  merge queue position, and U+F4DD in grey for a draft, so the meta line no longer says
+  `draft`. They are Nerd Font octicons, the only Nerd Font glyphs in the UI: a terminal
+  without a Nerd Font draws a box there. `card()` takes the icon as an
   `Option<(char, Color)>`; every other stage passes `None`.
 - **No URLs in the details pane.** Every line there is text a person reads: the checks, the
   jobs, the sha, the pull request. A URL is 60 columns of noise nobody retypes, and both keys
@@ -443,11 +445,15 @@ agent's private memory. When the user says "update the guidelines", edit this fi
   what went stale without rewording the user's edits.
 - **Screenshots in PRs.** A PR with a visible change embeds `docs/details.png` in its body as
   a commit-pinned `raw.githubusercontent.com` URL.
-- **Review before ready.** Marking a PR ready for review means spawning a sub agent first to
-  review the branch diff thoroughly, and acting on what it finds. Give it the intent of the
-  change, point it at this file, tell it to run the gates itself rather than trust the claim
-  that they pass, and forbid edits, commits and any call that touches the user's real GitHub
-  account or clusters. `gh pr ready` comes after the findings are addressed, not before.
+- **Review before ready.** Marking a PR ready for review means running the
+  [`/pr-review`](https://github.com/piacsek/dotfiles/blob/main/.claude/skills/pr-review/SKILL.md)
+  skill on the PR first, and acting on what it finds. It runs a Claude and a Codex reviewer
+  over the diff and merges their findings; run it from the main session, because the skill
+  launches Codex there. Give both reviewers the intent of the change, point them at this
+  file, have the Claude reviewer run `scripts/gates.sh` itself rather than trust the claim
+  that the gates pass, and forbid edits, commits, and any write to GitHub or call to the
+  clusters. When the skill asks whether to post the review on the PR, answer no.
+  `gh pr ready` comes after the findings are addressed, not before.
 - **Merging and releasing.** Rebase-merge the phase PR into `main` when CI is green, then tag
   from `main` (see Releasing). Never push to `main` directly except the very first bootstrap
   commit of an empty repository, and never force-push.
