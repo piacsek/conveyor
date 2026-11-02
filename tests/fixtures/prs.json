@@ -30,19 +30,25 @@
                                     "name": "check",
                                     "status": "COMPLETED",
                                     "conclusion": "SUCCESS",
-                                    "detailsUrl": "https://github.com/piacsek/conveyor/actions/runs/34495175627/job/102931850230"
+                                    "detailsUrl": "https://github.com/piacsek/conveyor/actions/runs/34495175627/job/102931850230",
+                                    "startedAt": "2026-09-10T15:22:40Z",
+                                    "completedAt": "2026-09-10T15:23:03Z"
                                 },
                                 {
                                     "name": "audit",
                                     "status": "COMPLETED",
                                     "conclusion": "SUCCESS",
-                                    "detailsUrl": "https://github.com/piacsek/conveyor/actions/runs/34495175627/job/102931850457"
+                                    "detailsUrl": "https://github.com/piacsek/conveyor/actions/runs/34495175627/job/102931850457",
+                                    "startedAt": "2026-09-10T15:22:40Z",
+                                    "completedAt": "2026-09-10T15:25:18Z"
                                 },
                                 {
                                     "name": "GitGuardian Security Checks",
                                     "status": "COMPLETED",
                                     "conclusion": "SUCCESS",
-                                    "detailsUrl": "https://dashboard.gitguardian.com"
+                                    "detailsUrl": "https://dashboard.gitguardian.com",
+                                    "startedAt": "2026-09-10T15:22:07Z",
+                                    "completedAt": "2026-09-10T15:22:08Z"
                                 }
                             ]
                         }

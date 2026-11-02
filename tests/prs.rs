@@ -160,11 +160,13 @@ fn d_toggles_a_details_pane_with_failed_checks_first() {
             name: "lint".to_string(),
             conclusion: CheckConclusion::Success,
             url: "https://ci/lint".to_string(),
+            ..Default::default()
         },
         Check {
             name: "api / test".to_string(),
             conclusion: CheckConclusion::Failure,
             url: "https://ci/test".to_string(),
+            ..Default::default()
         },
     ];
 
@@ -839,11 +841,13 @@ fn b_opens_the_check_run_behind_a_pull_request_and_says_so_when_there_is_none() 
             name: "lint".to_string(),
             conclusion: CheckConclusion::Success,
             url: "https://ci/lint".to_string(),
+            ..Default::default()
         },
         Check {
             name: "api / test".to_string(),
             conclusion: CheckConclusion::Failure,
             url: "https://ci/test".to_string(),
+            ..Default::default()
         },
     ];
 
@@ -874,6 +878,7 @@ fn b_refuses_a_check_url_that_is_not_a_web_url() {
         name: "evil".to_string(),
         conclusion: CheckConclusion::Failure,
         url: "file:///etc/passwd".to_string(),
+        ..Default::default()
     }];
 
     h.run(vec![prs(vec![checked]), key(KeyCode::Char('b'))])
@@ -1121,6 +1126,7 @@ fn a_skipped_check_keeps_the_dash_that_never_meant_cancelled() {
         name: "e2e".to_string(),
         conclusion: CheckConclusion::Skipped,
         url: String::new(),
+        ..Default::default()
     }];
 
     h.run(vec![prs(vec![skipping]), key(KeyCode::Char('d'))])

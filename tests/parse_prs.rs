@@ -29,6 +29,10 @@ fn parses_the_verbatim_search_response() {
     assert_eq!(pr.checks_detail[0].name, "check");
     assert_eq!(pr.checks_detail[0].conclusion, CheckConclusion::Success);
     assert!(pr.checks_detail[0].url.contains("/job/102931850230"));
+    assert_eq!(
+        pr.checks_detail[0].took(UNIX_EPOCH),
+        Some(Duration::from_secs(23))
+    );
 }
 
 fn one(node: &str) -> conveyor::model::prs::PullRequest {
@@ -263,4 +267,35 @@ fn a_cancelled_run_is_not_superseded_by_a_newer_run_of_another_event() {
 
     assert_eq!(pr.checks, CheckState::Failure);
     assert_eq!(pr.checks_detail.len(), 2);
+}
+
+#[test]
+fn a_running_check_has_taken_the_time_since_it_started() {
+    let pr = one(
+        r#"{"number": 9, "statusCheckRollup": {"state": "PENDING", "contexts": {"nodes": [
+            {"name": "build", "status": "IN_PROGRESS", "conclusion": null, "detailsUrl": "",
+             "startedAt": "2026-09-10T15:22:40Z", "completedAt": null}
+        ]}}}"#,
+    );
+    let started = UNIX_EPOCH + Duration::from_secs(1_789_053_760);
+
+    assert_eq!(
+        pr.checks_detail[0].took(started + Duration::from_secs(192)),
+        Some(Duration::from_secs(192))
+    );
+}
+
+#[test]
+fn a_check_that_never_started_and_a_status_context_have_no_time() {
+    let pr = one(
+        r#"{"number": 10, "statusCheckRollup": {"state": "PENDING", "contexts": {"nodes": [
+            {"name": "queued", "status": "QUEUED", "conclusion": null, "detailsUrl": "",
+             "startedAt": null, "completedAt": null},
+            {"context": "ci/circleci", "state": "PENDING", "targetUrl": "https://ci/1"}
+        ]}}}"#,
+    );
+    let now = UNIX_EPOCH + Duration::from_secs(1_789_053_760);
+
+    assert_eq!(pr.checks_detail[0].took(now), None);
+    assert_eq!(pr.checks_detail[1].took(now), None);
 }
