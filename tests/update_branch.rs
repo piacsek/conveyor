@@ -445,3 +445,23 @@ fn conflicts_and_a_refused_update_schedule_no_reload() {
 
     assert_eq!(prs_refreshes(&h.requests), 0);
 }
+
+#[test]
+fn a_second_update_before_the_follow_up_moves_it_to_ten_seconds_after_the_second() {
+    let mut h = Harness::new();
+    let mut inputs = confirmed();
+    inputs.push(updated(1, Ok(BranchUpdate::Updated)));
+    inputs.push(tick_at(NOW + 5));
+    inputs.push(key(KeyCode::Char('U')));
+    inputs.push(key(KeyCode::Char('y')));
+    inputs.push(updated(1, Ok(BranchUpdate::Updated)));
+    inputs.push(tick_at(NOW + 14));
+
+    h.run(inputs).unwrap();
+
+    assert_eq!(prs_refreshes(&h.requests), 2);
+
+    h.run(vec![tick_at(NOW + 15), tick_at(NOW + 40)]).unwrap();
+
+    assert_eq!(prs_refreshes(&h.requests), 3);
+}
