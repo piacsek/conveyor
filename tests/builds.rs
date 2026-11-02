@@ -1627,3 +1627,20 @@ fn shift_x_on_a_passing_run_says_nothing_failed() {
         h.screen()
     );
 }
+
+#[test]
+fn a_main_builds_rerun_schedules_no_my_prs_reload() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_failing_newest();
+    inputs.push(key(KeyCode::Char('X')));
+    inputs.push(key(KeyCode::Char('y')));
+    inputs.push(rerun_done(vec![(1025, Ok(()))]));
+    inputs.push(tick_at(NOW + 30));
+    h.run(inputs).unwrap();
+
+    assert!(
+        !h.requests.contains(&Request::Refresh(Stage::Prs)),
+        "{:?}",
+        h.requests
+    );
+}

@@ -4,6 +4,7 @@ use std::time::{Duration, SystemTime};
 
 pub const OPEN_DEBOUNCE: Duration = Duration::from_secs(1);
 const EAGER_JOBS: usize = 5;
+pub const FOLLOW_UP: Duration = Duration::from_secs(10);
 
 use ratatui::Terminal;
 use ratatui::backend::Backend;
@@ -421,6 +422,7 @@ pub struct App {
     pub notice: Option<String>,
     pub merging: Option<u64>,
     pub updating: Option<u64>,
+    pub follow_up: Option<SystemTime>,
     pub merge_landing: Option<(u64, bool)>,
     pub details: bool,
     pub details_scroll: u16,
@@ -462,6 +464,7 @@ impl App {
             notice: None,
             merging: None,
             updating: None,
+            follow_up: None,
             merge_landing: None,
             details: false,
             details_scroll: 0,
@@ -1137,6 +1140,18 @@ impl App {
         })
     }
 
+    fn follow_up_prs(&mut self) {
+        self.follow_up = Some(self.now + FOLLOW_UP);
+    }
+
+    pub fn follow_up_due(&mut self) -> bool {
+        let due = self.follow_up.is_some_and(|at| self.now >= at);
+        if due {
+            self.follow_up = None;
+        }
+        due
+    }
+
     pub fn receive_branch_update(
         &mut self,
         number: u64,
@@ -1400,7 +1415,12 @@ where
             return Ok(());
         };
         match input? {
-            Input::Tick(now) => app.now = now,
+            Input::Tick(now) => {
+                app.now = now;
+                if app.follow_up_due() {
+                    request(Request::Refresh(Stage::Prs));
+                }
+            }
             Input::Fetching(stage) => app.fetching(stage),
             Input::Data(stage, data) => app.receive(stage, data),
             Input::Jobs(run_id, result) => app.receive_jobs(run_id, result),
@@ -1408,6 +1428,7 @@ where
             Input::BranchUpdated(number, result) => {
                 if app.receive_branch_update(number, &result) {
                     request(Request::Refresh(Stage::Prs));
+                    app.follow_up_prs();
                 }
             }
             Input::Merged(number, result) => {
@@ -1420,6 +1441,9 @@ where
             Input::Rerun(result) => {
                 if let Some(stage) = app.receive_rerun(result) {
                     request(Request::Refresh(stage));
+                    if stage == Stage::Prs {
+                        app.follow_up_prs();
+                    }
                 }
             }
             Input::Key(key) => match app.handle_key(key) {

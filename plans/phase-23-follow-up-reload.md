@@ -13,12 +13,16 @@ My PRs refresh a few seconds after the first.
   only on it, so a due time kept in `App` is checked on the tick.
 - `refresh::wait` drains queued signals, so a follow-up that lands while a fetch runs costs at
   most one fetch.
-- The lag, measured in task 1, sets `FOLLOW_UP`.
+- Measured 2026-11-02 on PR #35 (`gh run rerun` of a finished CI run, PR query polled every
+  second): at +0 s the rerun's Actions checks are **gone** from `statusCheckRollup.contexts`
+  (only the non-Actions check is left, so the card would read `✓`); at +2 s they are back as
+  `QUEUED`, at +6 s `IN_PROGRESS`. The immediate reload can therefore land on a false green.
+  `FOLLOW_UP` is 10 s: several times the measured gap, and room for a branch update, whose
+  push has to start its workflows from scratch (not measured: no branch was behind).
 
 ## Tasks (one commit each via `scripts/ship.sh`, red test first)
 
-1. **Measure** on this phase's draft PR: rerun its CI and poll the PR query until the check
-   reads pending; record the seconds here.
+1. (done above) Measure the lag.
 2. **Follow-up reload.** A landed `X` from My PRs (any run went through) and a `U` that
    returned `Updated` set `App::follow_up` to `now + FOLLOW_UP`; the first tick at or after it
    sends `Request::Refresh(Stage::Prs)` once and clears it. A second action before it is due

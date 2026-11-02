@@ -1346,3 +1346,55 @@ fn shift_x_on_a_pull_request_with_nothing_finished_and_failing_says_so() {
     );
     assert!(h.requests.is_empty(), "{:?}", h.requests);
 }
+
+#[test]
+fn a_rerun_from_my_prs_reloads_them_once_more_ten_seconds_later() {
+    use conveyor::app::{Request, Stage};
+    let mut h = Harness::with_size(160, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![failing_in("test", 70)];
+
+    h.run(vec![
+        prs(vec![failing]),
+        key(KeyCode::Char('X')),
+        key(KeyCode::Char('y')),
+        support::rerun_done(vec![(70, Ok(()))]),
+        tick_at(NOW + 9),
+    ])
+    .unwrap();
+
+    let refreshes = |requests: &[Request]| {
+        requests
+            .iter()
+            .filter(|request| **request == Request::Refresh(Stage::Prs))
+            .count()
+    };
+    assert_eq!(refreshes(&h.requests), 1);
+
+    h.run(vec![tick_at(NOW + 10), tick_at(NOW + 30)]).unwrap();
+
+    assert_eq!(refreshes(&h.requests), 2);
+}
+
+#[test]
+fn a_rerun_that_failed_for_every_run_schedules_no_reload() {
+    use conveyor::app::{Request, Stage};
+    let mut h = Harness::with_size(160, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![failing_in("test", 70)];
+
+    h.run(vec![
+        prs(vec![failing]),
+        key(KeyCode::Char('X')),
+        key(KeyCode::Char('y')),
+        support::rerun_done(vec![(70, Err("HTTP 403"))]),
+        tick_at(NOW + 30),
+    ])
+    .unwrap();
+
+    assert!(
+        !h.requests.contains(&Request::Refresh(Stage::Prs)),
+        "{:?}",
+        h.requests
+    );
+}
