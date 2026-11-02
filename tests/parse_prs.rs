@@ -16,6 +16,7 @@ fn parses_the_verbatim_search_response() {
     assert_eq!(pr.url, "https://github.com/piacsek/conveyor/pull/1");
     assert_eq!(pr.repo, "piacsek/conveyor");
     assert_eq!(pr.head_ref, "phase-0-setup");
+    assert_eq!(pr.head_oid, "54b33470c91a2ce5a25ddd4bfea8acf6c3b9d481");
     assert!(!pr.is_draft);
     assert_eq!(pr.checks, CheckState::Success);
     assert_eq!(pr.review, ReviewDecision::None);

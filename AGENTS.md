@@ -275,7 +275,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   appended the log under the job list, where a 37-job run hid it below the fold: never put
   the thing a key opens where the user has to scroll to find it. No failed job known yet →
   footer notice, no request.
-- **`X` is the one write action, and it always asks first.** It reruns failed jobs with
+- **`X` reruns failed jobs, and it always asks first.** It reruns failed jobs with
   `gh run rerun <run> --failed -R <repo>`: in Main builds the selected run, only when it is the
   newest main build (highest `run_number`) and has settled as a failure or a cancellation.
   An older one is refused: with `cancel-in-progress` its rerun would cancel the newest build,
@@ -291,7 +291,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   Merge
   queue and Deployed only answer with a footer notice: a failed merge-group run has already
   dropped its pull request from the queue, so rerunning it merges nothing. `X` sets
-  `Mode::Confirm`, the footer reads `rerun failed jobs of <run N | #N (k runs)>? y/n`. While the last refresh of Main builds or
+  `Mode::Confirm(Pending::Rerun)`, the footer reads `rerun failed jobs of <run N | #N (k runs)>? y/n`. While the last refresh of Main builds or
   My PRs failed, `X` refuses (`the last refresh failed; press r and try again`): the rows it
   would judge "newest" or "finished" by are older than they look. `y` works the target out again from the rows on screen (a refresh may have landed while the
   prompt was open) and sends `Request::Rerun` only if it still names the same runs, else it
@@ -302,6 +302,22 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   id, so `age_jobs` and `parse_jobs` (newest `run_attempt`) already carry the jobs over to the
   new attempt. The e2e `gh` shim appends `run rerun …` argv to `reruns.log`; keep any new write
   action behind the same shim so a test can never reach the real `gh`.
+- **`M` merges a pull request, and it asks the same way.** On a My PRs card it sets
+  `Mode::Confirm(Pending::Merge)` and the footer reads `merge #N <title>? y/n`. Only a bare `y`
+  goes on, every other key cancels (`merge cancelled`), and the Confirm arm sits before the
+  `Ctrl-d`/`Ctrl-u` arms so nothing slips past the prompt. Like `X`, `y` works the target out
+  again from the rows on screen (`App::merge_target`) and sends `Request::Merge` only if it is
+  still the same number, repo, title and head sha; otherwise the footer says `the pull request
+  changed; press M again`. Drafts, queued pull requests, other columns and a merge already in
+  flight (`App::merging`) get a footer notice and no prompt. The worker runs `gh pr merge <N>
+  -R <repo> --<prs.merge_method> --match-head-commit <headRefOid>`; the pin refuses a head pushed
+  after the card was drawn. On a merge-queue branch gh only warns that the queue sets the
+  strategy and enqueues through auto-merge (checked in gh v2.103.3 source). That warning comes
+  first on stderr, so `CliGh::merge` drops gh's `! ` lines from an error: the footer shows one
+  line, and it used to be the warning instead of the reason. `Input::Merged` puts `merge sent for
+  #N` or the error in the footer and, on success, refreshes My PRs and the queue. The prompt cuts
+  the title to the footer's width so `? y/n` stays on screen (by character count, so a title
+  with wide characters can still push it off).
 - **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
   the deploy repo (`App::deploy_repo`: the `[[repo]]` with a deploy, else `builds_repo`).
 - **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by
@@ -329,8 +345,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   into the query. Because the pane scrolls, the job list is no longer truncated to what fits:
   `job_lines` renders every job.
 - **The help pane does not scroll.** `draw_help` renders `KEYS` through a `Paragraph`, so a
-  list longer than the pane is silently clipped from the bottom: 13 keys plus two borders
-  exactly fills a 16-row terminal. `("q", "quit")` is therefore first in `KEYS`, so the one
+  list longer than the pane is silently clipped from the bottom: 14 keys plus two borders
+  exactly fills a 17-row terminal. `("q", "quit")` is therefore first in `KEYS`, so the one
   key that gets you out is never the line that disappears. Adding a key means checking the
   smallest terminal you care about, or paginating the pane.
 - **`q` is the only quit key** (besides `Ctrl-C`). `Esc` closes one thing per press (see the
@@ -405,8 +421,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   jobs, the sha, the pull request. A URL is 60 columns of noise nobody retypes, and both keys
   that need one (`b`, `p`) already hand it to the browser. `y`/`Y` copy them.
 - **The keymap pairs the pull request and the build.** `p`/`b` open them, `y`/`Y` copy them,
-  `d` is the details pane, `Ctrl-d`/`Ctrl-u` scroll it. `KEYS` stays 13 lines — `y/Y`, `r/R`
-  and `C-d/C-u` each share one — so the help still fits a 16-row terminal.
+  `d` is the details pane, `Ctrl-d`/`Ctrl-u` scroll it. `y/Y`, `r/R`, `L/X` and
+  `C-d/C-u` each share one line of `KEYS`; `M` took the 14th, so the help needs 17 rows.
 - **Colors** come from the ANSI palette so terminal themes apply. Do not hardcode hex.
 
 ## Testing traps hit so far
@@ -470,6 +486,14 @@ agent's private memory. When the user says "update the guidelines", edit this fi
 - **Cadence.** Work runs under `/my-tdd autonomous`: one branch per phase (`phase-N-<topic>`),
   one commit per task through `scripts/ship.sh`, no pause between tasks, a pause only for the
   end-of-phase retro. Retro outcomes go to `PLAN.md` (facts, decisions) and here (rules).
+- **One worktree per branch, by default.** Start every phase or fix in its own worktree off
+  `origin/main`: `git worktree add -b <branch> .claude/worktrees/<branch> origin/main`, then
+  `git branch --unset-upstream` so the first `ship.sh` push creates `origin/<branch>` instead of
+  tracking `main`. Work, gates and ships run from inside it; the main checkout stays on its own
+  branch, so two phases (and two agent sessions) never share an index or a `target/`.
+  `.claude/worktrees/` is gitignored. Each worktree builds its own `target/` from cold the first
+  time. `conveyor-dev` points at the worktree that last ran `dev-install.sh`, so re-run it in the
+  worktree you are testing. Remove the worktree (`git worktree remove`) once its PR is merged.
 - **TDD is never skipped.** Every change to `src/` starts with a failing test, run and seen
   red, before the production code is touched; then the smallest change that goes green, then
   refactor. This holds for one-line fixes, security patches, patch releases and "obvious"
@@ -496,7 +520,7 @@ agent's private memory. When the user says "update the guidelines", edit this fi
   the pushed commits and the next `scripts/ship.sh` push is refused; the no-force-push rule
   then leaves only `git reset --hard origin/<branch>`, `git merge origin/main` and a
   cherry-pick of the new work. The rebase-merge into `main` drops the merge commit anyway.
-- **Two binaries.** `conveyor` on PATH is the Homebrew release; `conveyor-dev` is the working
+- **Two binaries.** `conveyor` on PATH is the Homebrew release; `conveyor-dev` is a working
   tree (`scripts/dev-install.sh`). Never `cargo install` the crate into a PATH directory.
 - **Plan before code, plans in the repo.** Each phase starts from a written plan, re-planned
   after the previous retro, with its "Verified facts" checked against live tools before use.

@@ -10,6 +10,7 @@
                     "isDraft": false,
                     "updatedAt": "2026-09-10T15:25:43Z",
                     "headRefName": "phase-0-setup",
+                    "headRefOid": "54b33470c91a2ce5a25ddd4bfea8acf6c3b9d481",
                     "repository": {
                         "nameWithOwner": "piacsek/conveyor"
                     },

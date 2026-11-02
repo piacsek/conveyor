@@ -63,6 +63,7 @@ pub enum Input {
     Jobs(u64, Result<Vec<Job>, String>),
     /// The tail of one job's failed-step log, keyed by job id.
     Log(u64, Result<Vec<String>, String>),
+    Merged(u64, Result<(), String>),
     Rerun(Vec<(u64, Result<(), String>)>),
     Tick(SystemTime),
 }
@@ -104,6 +105,15 @@ pub enum Action {
     RefreshAll,
     Log { run_id: u64, job_id: u64 },
     Rerun { repo: String, run_ids: Vec<u64> },
+    Merge(MergeTarget),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MergeTarget {
+    pub number: u64,
+    pub repo: String,
+    pub title: String,
+    pub head_oid: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -112,6 +122,7 @@ pub enum Request {
     Jobs { run_id: u64 },
     Log { run_id: u64, job_id: u64 },
     Rerun { repo: String, run_ids: Vec<u64> },
+    Merge(MergeTarget),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -121,13 +132,19 @@ pub struct Rerun {
     pub label: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Pending {
+    Rerun(Rerun),
+    Merge(MergeTarget),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum Mode {
     #[default]
     Normal,
     Filter(String),
     Help,
-    Confirm(Rerun),
+    Confirm(Pending),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -389,6 +406,7 @@ pub struct App {
     pub now: SystemTime,
     pub utc_offset_secs: i32,
     pub notice: Option<String>,
+    pub merging: Option<u64>,
     pub details: bool,
     pub details_scroll: u16,
     pub details_page: u16,
@@ -427,6 +445,7 @@ impl App {
             now,
             utc_offset_secs: 0,
             notice: None,
+            merging: None,
             details: false,
             details_scroll: 0,
             details_page: 0,
@@ -901,9 +920,16 @@ impl App {
     }
 
     fn confirm(&mut self, key: KeyEvent) -> Action {
-        let Mode::Confirm(rerun) = std::mem::take(&mut self.mode) else {
+        let Mode::Confirm(pending) = std::mem::take(&mut self.mode) else {
             return Action::Continue;
         };
+        match pending {
+            Pending::Rerun(rerun) => self.confirm_rerun(key, rerun),
+            Pending::Merge(target) => self.confirm_merge(key, target),
+        }
+    }
+
+    fn confirm_rerun(&mut self, key: KeyEvent, rerun: Rerun) -> Action {
         if key.code != KeyCode::Char('y') {
             self.notice = Some("rerun cancelled".to_string());
             return Action::Continue;
@@ -951,13 +977,72 @@ impl App {
         (reran > 0).then_some(stage)
     }
 
+    fn confirm_merge(&mut self, key: KeyEvent, target: MergeTarget) -> Action {
+        if key.code != KeyCode::Char('y') || !key.modifiers.is_empty() {
+            self.notice = Some("merge cancelled".to_string());
+            return Action::Continue;
+        }
+        match self.merge_target() {
+            Err(message) => {
+                self.notice = Some(message);
+                return Action::Continue;
+            }
+            Ok(now) if now != target => {
+                self.notice = Some("the pull request changed; press M again".to_string());
+                return Action::Continue;
+            }
+            Ok(_) => {}
+        }
+        self.merging = Some(target.number);
+        self.notice = Some(format!("merging #{}…", target.number));
+        Action::Merge(target)
+    }
+
+    fn ask_to_merge(&mut self) {
+        if let Some(number) = self.merging {
+            self.notice = Some(format!("merging #{number}…"));
+            return;
+        }
+        match self.merge_target() {
+            Ok(target) => self.mode = Mode::Confirm(Pending::Merge(target)),
+            Err(message) => self.notice = Some(message),
+        }
+    }
+
+    fn merge_target(&self) -> Result<MergeTarget, String> {
+        if self.focus != Stage::Prs {
+            return Err("M merges from My PRs".to_string());
+        }
+        let pr = self.prs.selected().ok_or("nothing selected")?;
+        if pr.is_draft {
+            return Err(format!("#{} is a draft", pr.number));
+        }
+        if pr.queue_position.is_some() {
+            return Err(format!("#{} is already queued", pr.number));
+        }
+        Ok(MergeTarget {
+            number: pr.number,
+            repo: pr.repo.clone(),
+            title: pr.title.clone(),
+            head_oid: pr.head_oid.clone(),
+        })
+    }
+
+    pub fn receive_merged(&mut self, number: u64, result: &Result<(), String>) {
+        self.merging = None;
+        self.notice = Some(match result {
+            Ok(()) => format!("merge sent for #{number}"),
+            Err(message) => format!("#{number}: {message}"),
+        });
+    }
+
     fn ask_rerun(&mut self) {
         if self.rerunning.is_some() {
             self.notice = Some("a rerun is already on its way".to_string());
             return;
         }
         match self.rerun_target() {
-            Ok(rerun) => self.mode = Mode::Confirm(rerun),
+            Ok(rerun) => self.mode = Mode::Confirm(Pending::Rerun(rerun)),
             Err(message) => self.notice = Some(message),
         }
     }
@@ -1101,6 +1186,7 @@ impl App {
                 self.reset_scroll();
             }
             KeyCode::Char('L') => return self.toggle_log(),
+            KeyCode::Char('M') => self.ask_to_merge(),
             KeyCode::Char('X') => self.ask_rerun(),
             KeyCode::Char('z') => self.zoom = !self.zoom,
             KeyCode::Char('l') if self.focus != Stage::Deployed => self.refocus(Stage::next),
@@ -1202,6 +1288,13 @@ where
             Input::Data(stage, data) => app.receive(stage, data),
             Input::Jobs(run_id, result) => app.receive_jobs(run_id, result),
             Input::Log(job_id, result) => app.receive_log(job_id, result),
+            Input::Merged(number, result) => {
+                app.receive_merged(number, &result);
+                if result.is_ok() {
+                    request(Request::Refresh(Stage::Prs));
+                    request(Request::Refresh(Stage::Queue));
+                }
+            }
             Input::Rerun(result) => {
                 if let Some(stage) = app.receive_rerun(result) {
                     request(Request::Refresh(stage));
@@ -1218,6 +1311,7 @@ where
                     }
                 }
                 Action::Log { run_id, job_id } => request(Request::Log { run_id, job_id }),
+                Action::Merge(target) => request(Request::Merge(target)),
                 Action::Rerun { repo, run_ids } => request(Request::Rerun { repo, run_ids }),
                 Action::Continue => {}
             },

@@ -19,6 +19,16 @@ pub struct Prs {
     pub query: String,
     pub limit: usize,
     pub refresh_secs: u64,
+    pub merge_method: MergeMethod,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MergeMethod {
+    #[default]
+    Squash,
+    Merge,
+    Rebase,
 }
 
 impl Default for Prs {
@@ -27,6 +37,7 @@ impl Default for Prs {
             query: "is:pr is:open archived:false (author:@me OR assignee:@me)".to_string(),
             limit: 20,
             refresh_secs: 60,
+            merge_method: MergeMethod::default(),
         }
     }
 }

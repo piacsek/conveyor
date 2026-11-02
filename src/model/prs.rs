@@ -103,6 +103,7 @@ pub struct PullRequest {
     pub url: String,
     pub repo: String,
     pub head_ref: String,
+    pub head_oid: String,
     pub is_draft: bool,
     pub checks: CheckState,
     pub checks_detail: Vec<Check>,
@@ -171,6 +172,7 @@ fn parse_pull_request(node: &serde_json::Value) -> Option<PullRequest> {
             .unwrap_or_default()
             .to_string(),
         head_ref: text(node, "headRefName"),
+        head_oid: text(node, "headRefOid"),
         is_draft: node
             .get("isDraft")
             .and_then(|v| v.as_bool())

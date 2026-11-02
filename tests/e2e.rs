@@ -396,3 +396,37 @@ fn shift_x_reruns_a_failed_main_build_only_after_y() {
     let log = fs::read_to_string(home.path().join("reruns.log")).unwrap();
     assert_eq!(log, "run rerun 34509123916 --failed -R acme/webapp\n");
 }
+
+#[test]
+#[ignore]
+fn shift_m_then_y_runs_gh_pr_merge_pinned_to_the_head_commit() {
+    let home = tempfile::tempdir().unwrap();
+    let fixture = fixture_path(home.path());
+    let argv = home.path().join("merge-argv");
+    let path = shim(
+        home.path(),
+        &format!(
+            "case \"$*\" in 'pr merge'*) echo \"$*\" > '{}';; *) cat '{fixture}';; esac",
+            argv.display()
+        ),
+    );
+    let server = Server::start("merge");
+    server.respawn(
+        &[
+            ("HOME", &home.path().display().to_string()),
+            ("PATH", &path),
+        ],
+        env!("CARGO_BIN_EXE_conveyor"),
+    );
+    server.wait_for_screen("#1 Phase 0: setup");
+
+    server.send_keys(&["M"]);
+    server.wait_for_screen("merge #1 Phase 0: setup? y/n");
+    server.send_keys(&["y"]);
+    server.wait_for_screen("merge sent for #1");
+
+    assert_eq!(
+        fs::read_to_string(&argv).unwrap(),
+        "pr merge 1 -R piacsek/conveyor --squash --match-head-commit 54b33470c91a2ce5a25ddd4bfea8acf6c3b9d481\n"
+    );
+}

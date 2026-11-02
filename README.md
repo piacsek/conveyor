@@ -40,6 +40,7 @@ conveyor config    # print the effective configuration
 | `y/Y` | copy pull request / build URL |
 | `d C-d/C-u` | details / scroll them |
 | `L/X` | log of the failed step / rerun failed jobs |
+| `M` | merge the pull request (y/n) |
 | `z` | zoom the column |
 | `Esc` | close details / zoom / filter |
 | `/` | filter (Enter keeps, Esc clears) |
@@ -57,6 +58,7 @@ are honoured). Every key is optional, unknown keys are an error, and these are t
 query = "is:pr is:open archived:false (author:@me OR assignee:@me)"
 limit = 20
 refresh_secs = 60
+merge_method = "squash"
 
 [ui]
 min_column_width = 36

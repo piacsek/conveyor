@@ -1,4 +1,4 @@
-use conveyor::config::{Config, load};
+use conveyor::config::{Config, MergeMethod, load};
 
 fn write(dir: &tempfile::TempDir, text: &str) -> std::path::PathBuf {
     let path = dir.path().join("config.toml");
@@ -153,4 +153,27 @@ deployment = "api"
 
     let err = load(&write(&dir, "[[repo]]\nname = \"a/b\"\n[[repo.deploy]]\nsystem = \"x\"\n[[repo.deploy.env]]\nname = \"p\"\nfetcher = \"argocd\"\n")).unwrap_err();
     assert!(err.to_string().contains("argocd"), "{err}");
+}
+
+#[test]
+fn the_merge_method_defaults_to_squash_and_accepts_the_other_two() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let defaults = load(&dir.path().join("config.toml")).unwrap();
+    let rebase = load(&write(&dir, "[prs]\nmerge_method = \"rebase\"\n")).unwrap();
+    let merge = load(&write(&dir, "[prs]\nmerge_method = \"merge\"\n")).unwrap();
+
+    assert_eq!(defaults.prs.merge_method, MergeMethod::Squash);
+    assert_eq!(rebase.prs.merge_method, MergeMethod::Rebase);
+    assert_eq!(merge.prs.merge_method, MergeMethod::Merge);
+}
+
+#[test]
+fn an_unknown_merge_method_fails_naming_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[prs]\nmerge_method = \"fast\"\n")).unwrap_err();
+
+    assert!(err.to_string().contains("config.toml"), "{err}");
+    assert!(err.to_string().contains("fast"), "{err}");
 }

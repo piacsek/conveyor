@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::io;
 
-use conveyor::config::Config;
+use conveyor::config::{Config, MergeMethod};
 use conveyor::sources::fetch::fetch_prs;
 use conveyor::sources::github::{Github, Variable};
 
@@ -98,6 +98,20 @@ impl Github for FakeGithub {
             Some((_, message)) => Err(io::Error::other(message.clone())),
             None => Ok(()),
         }
+    }
+
+    fn merge(
+        &self,
+        repo: &str,
+        number: u64,
+        method: MergeMethod,
+        head_oid: &str,
+    ) -> io::Result<()> {
+        self.calls.borrow_mut().push((
+            format!("MERGE {repo} {number} {method:?} {head_oid}"),
+            Vec::new(),
+        ));
+        Ok(())
     }
 }
 
