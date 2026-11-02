@@ -322,11 +322,51 @@ fn check_run(name: &str, status: &str, conclusion: &str, id: u64, run: u64) -> S
     )
 }
 
+fn ci_check(name: &str, status: &str, conclusion: &str, id: u64, run: u64) -> String {
+    format!(
+        r#"{{"name": "{name}", "status": "{status}", "conclusion": {conclusion}, "detailsUrl": "",
+            "databaseId": {id}, "checkSuite": {{"conclusion": null,
+              "workflowRun": {{"databaseId": {run}, "event": "pull_request",
+                "workflow": {{"name": "CI"}}}}}}}}"#
+    )
+}
+
 fn with_checks(checks: &[String]) -> conveyor::model::prs::PullRequest {
     one(&format!(
         r#"{{"number": 30, "statusCheckRollup": {{"state": "FAILURE", "contexts": {{"nodes": [{}]}}}}}}"#,
         checks.join(",")
     ))
+}
+
+#[test]
+fn a_failed_run_is_not_offered_once_a_newer_run_of_its_workflow_has_started() {
+    let pr = with_checks(&[
+        ci_check("test", "COMPLETED", r#""FAILURE""#, 1, 70),
+        ci_check("lint", "IN_PROGRESS", "null", 2, 80),
+    ]);
+
+    assert!(pr.rerunnable_runs().is_empty());
+}
+
+#[test]
+fn a_running_older_run_whose_pending_job_a_newer_run_hides_is_not_offered() {
+    let pr = with_checks(&[
+        ci_check("test", "COMPLETED", r#""FAILURE""#, 1, 70),
+        ci_check("e2e", "IN_PROGRESS", "null", 2, 70),
+        ci_check("e2e", "COMPLETED", r#""SUCCESS""#, 3, 80),
+    ]);
+
+    assert!(pr.rerunnable_runs().is_empty());
+}
+
+#[test]
+fn a_newer_run_of_another_workflow_leaves_the_failed_run_rerunnable() {
+    let pr = with_checks(&[
+        ci_check("test", "COMPLETED", r#""FAILURE""#, 1, 70),
+        check_run("docs", "IN_PROGRESS", "null", 2, 80),
+    ]);
+
+    assert_eq!(pr.rerunnable_runs(), vec![70]);
 }
 
 #[test]

@@ -29,6 +29,7 @@ pub struct Check {
     pub started_at: Option<SystemTime>,
     pub completed_at: Option<SystemTime>,
     pub run_id: Option<u64>,
+    pub newer_run_exists: bool,
 }
 
 impl Check {
@@ -132,6 +133,7 @@ impl PullRequest {
                 continue;
             };
             if check.conclusion == CheckConclusion::Failure
+                && !check.newer_run_exists
                 && !runs.contains(&run)
                 && !self.checks_detail.iter().any(|other| {
                     other.run_id == Some(run) && other.conclusion == CheckConclusion::Pending
@@ -230,13 +232,14 @@ fn newest_checks(nodes: &[serde_json::Value]) -> Vec<Check> {
     let newest_runs = newest_runs(nodes);
     let mut newest: Vec<(CheckKey, u64, Check)> = Vec::new();
     for node in nodes {
-        let Some(check) = parse_check(node) else {
+        let Some(mut check) = parse_check(node) else {
             continue;
         };
         let key = check_key(node, &check);
         if superseded(node, &key, &newest_runs) {
             continue;
         }
+        check.newer_run_exists = newer_run_exists(node, &key, &newest_runs);
         let id = node.get("databaseId").and_then(|v| v.as_u64()).unwrap_or(0);
         match newest.iter_mut().find(|(kept, _, _)| *kept == key) {
             Some(kept) if id > kept.1 => *kept = (key, id, check),
@@ -280,6 +283,14 @@ fn superseded(
     if !cancelled {
         return false;
     }
+    newer_run_exists(node, key, newest_runs)
+}
+
+fn newer_run_exists(
+    node: &serde_json::Value,
+    key: &CheckKey,
+    newest_runs: &[((String, String), u64)],
+) -> bool {
     let Some(run) = run_id(node) else {
         return false;
     };
@@ -360,6 +371,7 @@ fn parse_check(node: &serde_json::Value) -> Option<Check> {
             started_at: timestamp(node, "startedAt"),
             completed_at: timestamp(node, "completedAt"),
             run_id: run_id(node),
+            ..Check::default()
         });
     }
     let context = node.get("context").and_then(|v| v.as_str())?;

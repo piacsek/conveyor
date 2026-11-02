@@ -277,8 +277,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 - **`X` is the one write action, and it always asks first.** It reruns failed jobs with
   `gh run rerun <run> --failed -R <repo>`: in Main builds the selected run (only once it has
   settled as a failure or a cancellation), in My PRs every run behind the pull request's
-  failing checks that has no pending check left (`PullRequest::rerunnable_runs`, from
-  `Check::run_id`; a `StatusContext` or a non-Actions app has no run and is skipped). Merge
+  failing checks that has no pending check left and no newer run of the same workflow and
+  event (`PullRequest::rerunnable_runs`, from `Check::run_id` and `Check::newer_run_exists`;
+  a `StatusContext` or a non-Actions app has no run and is skipped). The newer-run rule
+  matters both ways: rerunning an older run can cancel the newer one through a concurrency
+  group, and a newer run's same-name check can hide an older run's pending job. Merge
   queue and Deployed only answer with a footer notice: a failed merge-group run has already
   dropped its pull request from the queue, so rerunning it merges nothing. `X` sets
   `Mode::Confirm`, the footer reads `rerun failed jobs of <run N | #N (k runs)>? y/n`, `y`
