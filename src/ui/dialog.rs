@@ -4,6 +4,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Clear, Padding, Paragraph};
 
 use crate::app::Pending;
+use crate::config::UpdateMethod;
 use crate::text::wrap;
 use crate::ui::style::dim;
 
@@ -15,6 +16,13 @@ fn question(pending: &Pending) -> String {
     match pending {
         Pending::Rerun(rerun) => format!("rerun failed jobs of {}", rerun.label),
         Pending::Merge(target) => format!("merge #{} {}", target.number, target.title),
+        Pending::UpdateBranch(target) => {
+            let verb = match target.method {
+                UpdateMethod::Merge => "update",
+                UpdateMethod::Rebase => "rebase",
+            };
+            format!("{verb} branch of #{} {}", target.number, target.title)
+        }
     }
 }
 
