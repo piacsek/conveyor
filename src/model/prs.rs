@@ -68,6 +68,13 @@ impl fmt::Display for ReviewDecision {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BranchUpdate {
+    Updated,
+    UpToDate,
+    Conflicts,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum MergeState {
     Clean,
