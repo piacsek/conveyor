@@ -1,0 +1,17 @@
+---
+source: tests/snapshots.rs
+assertion_line: 64
+expression: h.screen()
+---
+┌My PRs (3)────────────────────────────┐┌Queue webapp (2)──────────────────────┐┌Main builds───────────────────────────┐┌Deployed──────────────────────────────┐
+│  ✗  #4821 Retry webhook delivery… 2h││  ● #4821 Retry webhook delivery … 12m││fetching…                             ││no [[repo.deploy]] configured         │
+│    webapp · webhook-retry-backoff · …││    alice · position 1 · enqueued 20m…││                                      ││                                      │
+│    ✗ api / test                      ││    run 312 · running · 00000000      ││                                      ││                                      │
+│▌ ●  #4830 Add rate limit headers… 2h││  ○ #4830 Add rate limit heade… queued││                                      ││                                      │
+│▌   auth                              ││    carol · position 2 · enqueued 20m…││                                      ││                                      │
+│▌   checks: pending                   ││    no merge-group run yet · jump · 0…││                                      ││                                      │
+│  ○  #4790 Spike: parallel test r… 2h││                                      ││                                      ││                                      │
+│    webapp                            ││                                      ││                                      ││                                      │
+│    checks: none                      ││                                      ││                                      ││                                      │
+└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘
+refreshed just now                                                                                                                       ▪─▪─▪▸ conveyor v0.16.0
