@@ -21,9 +21,11 @@ pub(crate) fn glyph(checks: CheckState) -> (char, Color) {
     }
 }
 
-pub(crate) fn pr_glyph(is_draft: bool) -> (char, Color) {
+pub(crate) fn pr_glyph(is_draft: bool, queued: bool) -> (char, Color) {
     if is_draft {
         ('\u{f4dd}', Color::DarkGray)
+    } else if queued {
+        ('\u{f4db}', Color::Yellow)
     } else {
         ('\u{f407}', Color::Green)
     }

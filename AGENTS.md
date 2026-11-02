@@ -359,8 +359,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   before the author, wrapped with `text::wrap` over at most `DEPLOYED_TITLE_LINES` lines. Card
   height varies per row; the list widget handles it.
 - **A PR card carries GitHub's pull-request icon** after its check glyph: `pr_glyph` gives
-  U+F407 in green for an open pull request and U+F4DD in grey for a draft, so the meta line no
-  longer says `draft`. They are Nerd Font octicons, the only Nerd Font glyphs in the UI: a
+  U+F407 in green for an open pull request, U+F4DB (git-merge-queue) in yellow once it has a
+  merge queue position, and U+F4DD in grey for a draft, so the meta line no longer says `draft`. They are Nerd Font octicons, the only Nerd Font glyphs in the UI: a
   terminal without a Nerd Font draws a box there. `card()` takes the icon as an
   `Option<(char, Color)>`; every other stage passes `None`.
 - **No URLs in the details pane.** Every line there is text a person reads: the checks, the
