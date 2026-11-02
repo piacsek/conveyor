@@ -642,8 +642,11 @@ Releases are GitHub Releases built by `.github/workflows/release.yml` on a `v*` 
 tarball per target (`conveyor-<target>.tar.gz` holding just the binary; targets
 `aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`) plus `.sha256`,
 with generated notes. Asset names carry no version so `releases/latest/download/` links stay
-valid. Both macOS targets build on `macos-latest` (Intel cross-compiled); `macos-13` is
-retired and queues forever. The workflow refuses a tag whose version differs from
+valid. Both macOS targets build in **one** `macos-latest` job (`cargo build --target … --target
+…`, Intel cross-compiled); `macos-13` is retired and queues forever. They were two matrix jobs
+until v0.19.2: hosted macOS runners regularly failed to come online (the v0.19.1 Intel job was
+cancelled after 15 min without a step), and every macOS job is one more wait on that pool. A
+stuck job is rerun with `gh run rerun <id> --failed`. The workflow refuses a tag whose version differs from
 `Cargo.toml`. Every action is pinned to a commit SHA with the tag in a trailing comment;
 bump pins with `gh api repos/<owner>/<repo>/git/ref/tags/<tag>`. Workflows default to
 `contents: read`; only `publish` gets `contents: write`, `id-token` and `attestations: write`
