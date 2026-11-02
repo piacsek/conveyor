@@ -47,7 +47,7 @@ src/ui/details.rs the `d` pane per stage, including the job list; no URLs
 src/ui/footer.rs footer text, the refresh spinner and the static logo
 src/ui/help.rs   KEYS is the generic table the README mirrors; `keys_for(stage)` swaps the `p`/`b` wording per column
 src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`): the OS seam, not a service, so it stays out of `sources/`
-src/text.rs      truncate/pad_right with `…`, age(), strip_ansi()
+src/text.rs      truncate/pad_right with `…`, age(), duration() (coarse, cards), elapsed() (seconds, details pane), strip_ansi()
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
@@ -97,8 +97,9 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   contexts. The card can therefore read `✓` while GitHub's page still shows a red cross.
   **Each check line carries its time.** `CheckRun.startedAt`/`completedAt` feed `Check::took`:
   finished checks show how long they took, running ones the time since they started (redrawn
-  on every tick), and a check that never started or a `StatusContext` (no timing in the
-  schema) shows none rather than `0s`. Job and run lines in the details pane use the same
+  on every tick). A check with no `startedAt`, a `StatusContext` (no timing in the schema) and
+  a skipped check show none: GitHub stamps skipped checks with both times (equal on about half
+  of them, a second or two apart on the rest), which read as a meaningless `0s`. Job and run lines in the details pane use the same
   `text::elapsed` (`3m59s`, `1h04m`); cards keep the coarse `text::duration` (`3m`) because
   seconds pushed the status word off a 40-column card.
   **Every page of checks is read.** `contexts(first: 100)` is GitHub's cap, and its order is not

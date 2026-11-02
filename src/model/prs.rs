@@ -32,6 +32,9 @@ pub struct Check {
 
 impl Check {
     pub fn took(&self, now: SystemTime) -> Option<Duration> {
+        if self.conclusion == CheckConclusion::Skipped {
+            return None;
+        }
         let started = self.started_at?;
         self.completed_at
             .unwrap_or(now)
