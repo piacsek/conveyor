@@ -1,4 +1,6 @@
-use conveyor::text::wrap;
+use std::time::Duration;
+
+use conveyor::text::{elapsed, wrap};
 
 #[test]
 fn wrap_fills_words_greedily_up_to_the_width() {
@@ -32,4 +34,17 @@ fn wrap_of_nothing_is_nothing() {
     assert!(wrap("   ", 10, 2).is_empty());
     assert!(wrap("text", 0, 2).is_empty());
     assert!(wrap("text", 10, 0).is_empty());
+}
+
+#[test]
+fn elapsed_keeps_seconds_under_an_hour() {
+    assert_eq!(elapsed(Duration::from_secs(45)), "45s");
+    assert_eq!(elapsed(Duration::from_secs(239)), "3m59s");
+    assert_eq!(elapsed(Duration::from_secs(60)), "1m00s");
+}
+
+#[test]
+fn elapsed_keeps_minutes_past_an_hour_and_hours_past_a_day() {
+    assert_eq!(elapsed(Duration::from_secs(3_840)), "1h04m");
+    assert_eq!(elapsed(Duration::from_secs(183_600)), "2d03h");
 }
