@@ -430,3 +430,66 @@ fn shift_m_then_y_runs_gh_pr_merge_pinned_to_the_head_commit() {
         "pr merge 1 -R piacsek/conveyor --squash --match-head-commit 54b33470c91a2ce5a25ddd4bfea8acf6c3b9d481\n"
     );
 }
+
+#[test]
+#[ignore]
+fn shift_u_then_y_runs_gh_pr_update_branch_and_n_runs_nothing() {
+    let home = tempfile::tempdir().unwrap();
+    let fixture = fixture_path(home.path());
+    let argv = home.path().join("update-argv");
+    let path = shim(
+        home.path(),
+        &format!(
+            "case \"$*\" in 'pr update-branch'*) echo \"$*\" >> '{}'; echo '✓ PR branch updated';; *) cat '{fixture}';; esac",
+            argv.display()
+        ),
+    );
+    let server = Server::start("update");
+    server.respawn(
+        &[
+            ("HOME", &home.path().display().to_string()),
+            ("PATH", &path),
+        ],
+        env!("CARGO_BIN_EXE_conveyor"),
+    );
+    server.wait_for_screen("#1 Phase 0: setup");
+
+    server.send_keys(&["U"]);
+    server.wait_for_screen("update branch of #1 Phase 0: setup?");
+    server.send_keys(&["n"]);
+    server.wait_for_screen("update cancelled");
+    assert!(!argv.exists());
+
+    server.send_keys(&["U", "y"]);
+    server.wait_for_screen("branch of #1 updated");
+
+    assert_eq!(
+        fs::read_to_string(&argv).unwrap(),
+        "pr update-branch 1 -R piacsek/conveyor\n"
+    );
+}
+
+#[test]
+#[ignore]
+fn shift_u_on_a_conflicting_branch_says_so() {
+    let home = tempfile::tempdir().unwrap();
+    let fixture = fixture_path(home.path());
+    let path = shim(
+        home.path(),
+        &format!(
+            "case \"$*\" in 'pr update-branch'*) echo 'X Cannot update PR branch due to conflicts' >&2; exit 1;; *) cat '{fixture}';; esac"
+        ),
+    );
+    let server = Server::start("conflict");
+    server.respawn(
+        &[
+            ("HOME", &home.path().display().to_string()),
+            ("PATH", &path),
+        ],
+        env!("CARGO_BIN_EXE_conveyor"),
+    );
+    server.wait_for_screen("#1 Phase 0: setup");
+
+    server.send_keys(&["U", "y"]);
+    server.wait_for_screen("#1 has conflicts with its base; resolve them locally");
+}

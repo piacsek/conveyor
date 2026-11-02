@@ -10,11 +10,11 @@ use ratatui::backend::Backend;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::widgets::ListState;
 
-use crate::config::Config;
+use crate::config::{Config, UpdateMethod};
 use crate::model::builds::{Build, BuildStatus, Builds};
 use crate::model::deployed::{Deployed, Deployment};
 use crate::model::jobs::Job;
-use crate::model::prs::PullRequest;
+use crate::model::prs::{BranchUpdate, MergeState, PullRequest};
 use crate::model::queue::{Queue, QueueEntry};
 use crate::open::Opener;
 use crate::ui;
@@ -65,6 +65,7 @@ pub enum Input {
     Log(u64, Result<Vec<String>, String>),
     Merged(u64, Result<(), String>),
     Rerun(Vec<(u64, Result<(), String>)>),
+    BranchUpdated(u64, Result<BranchUpdate, String>),
     Tick(SystemTime),
 }
 
@@ -106,6 +107,16 @@ pub enum Action {
     Log { run_id: u64, job_id: u64 },
     Rerun { repo: String, run_ids: Vec<u64> },
     Merge(MergeTarget),
+    UpdateBranch(UpdateTarget),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UpdateTarget {
+    pub number: u64,
+    pub repo: String,
+    pub title: String,
+    pub head_oid: String,
+    pub method: UpdateMethod,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -123,6 +134,7 @@ pub enum Request {
     Log { run_id: u64, job_id: u64 },
     Rerun { repo: String, run_ids: Vec<u64> },
     Merge(MergeTarget),
+    UpdateBranch(UpdateTarget),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -136,6 +148,7 @@ pub struct Rerun {
 pub enum Pending {
     Rerun(Rerun),
     Merge(MergeTarget),
+    UpdateBranch(UpdateTarget),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -407,6 +420,7 @@ pub struct App {
     pub utc_offset_secs: i32,
     pub notice: Option<String>,
     pub merging: Option<u64>,
+    pub updating: Option<u64>,
     pub details: bool,
     pub details_scroll: u16,
     pub details_page: u16,
@@ -446,6 +460,7 @@ impl App {
             utc_offset_secs: 0,
             notice: None,
             merging: None,
+            updating: None,
             details: false,
             details_scroll: 0,
             details_page: 0,
@@ -926,6 +941,7 @@ impl App {
         match pending {
             Pending::Rerun(rerun) => self.confirm_rerun(key, rerun),
             Pending::Merge(target) => self.confirm_merge(key, target),
+            Pending::UpdateBranch(target) => self.confirm_update(key, target),
         }
     }
 
@@ -1034,6 +1050,79 @@ impl App {
             Ok(()) => format!("merge sent for #{number}"),
             Err(message) => format!("#{number}: {message}"),
         });
+    }
+
+    fn confirm_update(&mut self, key: KeyEvent, target: UpdateTarget) -> Action {
+        if key.code != KeyCode::Char('y') || !key.modifiers.is_empty() {
+            self.notice = Some("update cancelled".to_string());
+            return Action::Continue;
+        }
+        match self.update_target() {
+            Err(message) => {
+                self.notice = Some(message);
+                return Action::Continue;
+            }
+            Ok(now) if now != target => {
+                self.notice = Some("the pull request changed; press U again".to_string());
+                return Action::Continue;
+            }
+            Ok(_) => {}
+        }
+        self.updating = Some(target.number);
+        self.notice = Some(format!("updating #{}…", target.number));
+        Action::UpdateBranch(target)
+    }
+
+    fn ask_to_update(&mut self) {
+        if let Some(number) = self.updating {
+            self.notice = Some(format!("updating #{number}…"));
+            return;
+        }
+        match self.update_target() {
+            Ok(target) => self.mode = Mode::Confirm(Pending::UpdateBranch(target)),
+            Err(message) => self.notice = Some(message),
+        }
+    }
+
+    fn update_target(&self) -> Result<UpdateTarget, String> {
+        if self.focus != Stage::Prs {
+            return Err("U updates a branch from My PRs".to_string());
+        }
+        if self.focused_error().is_some() {
+            return Err("the last refresh failed; press r and try again".to_string());
+        }
+        let pr = self.prs.selected().ok_or("nothing selected")?;
+        if pr.queue_position.is_some() {
+            return Err(format!(
+                "#{} is in the merge queue; updating it would drop it",
+                pr.number
+            ));
+        }
+        if pr.merge_state == MergeState::Dirty {
+            return Err(conflicts(pr.number));
+        }
+        Ok(UpdateTarget {
+            number: pr.number,
+            repo: pr.repo.clone(),
+            title: pr.title.clone(),
+            head_oid: pr.head_oid.clone(),
+            method: self.config.prs.update_method,
+        })
+    }
+
+    pub fn receive_branch_update(
+        &mut self,
+        number: u64,
+        result: &Result<BranchUpdate, String>,
+    ) -> bool {
+        self.updating = None;
+        self.notice = Some(match result {
+            Ok(BranchUpdate::Updated) => format!("branch of #{number} updated"),
+            Ok(BranchUpdate::UpToDate) => format!("#{number} is already up to date"),
+            Ok(BranchUpdate::Conflicts) => conflicts(number),
+            Err(message) => format!("update failed for #{number}: {message}"),
+        });
+        matches!(result, Ok(BranchUpdate::Updated))
     }
 
     fn ask_rerun(&mut self) {
@@ -1187,6 +1276,7 @@ impl App {
             }
             KeyCode::Char('L') => return self.toggle_log(),
             KeyCode::Char('M') => self.ask_to_merge(),
+            KeyCode::Char('U') => self.ask_to_update(),
             KeyCode::Char('X') => self.ask_rerun(),
             KeyCode::Char('z') => self.zoom = !self.zoom,
             KeyCode::Char('l') if self.focus != Stage::Deployed => self.refocus(Stage::next),
@@ -1288,6 +1378,11 @@ where
             Input::Data(stage, data) => app.receive(stage, data),
             Input::Jobs(run_id, result) => app.receive_jobs(run_id, result),
             Input::Log(job_id, result) => app.receive_log(job_id, result),
+            Input::BranchUpdated(number, result) => {
+                if app.receive_branch_update(number, &result) {
+                    request(Request::Refresh(Stage::Prs));
+                }
+            }
             Input::Merged(number, result) => {
                 app.receive_merged(number, &result);
                 if result.is_ok() {
@@ -1312,6 +1407,7 @@ where
                 }
                 Action::Log { run_id, job_id } => request(Request::Log { run_id, job_id }),
                 Action::Merge(target) => request(Request::Merge(target)),
+                Action::UpdateBranch(target) => request(Request::UpdateBranch(target)),
                 Action::Rerun { repo, run_ids } => request(Request::Rerun { repo, run_ids }),
                 Action::Continue => {}
             },
@@ -1320,4 +1416,8 @@ where
             request(Request::Jobs { run_id });
         }
     }
+}
+
+fn conflicts(number: u64) -> String {
+    format!("#{number} has conflicts with its base; resolve them locally")
 }

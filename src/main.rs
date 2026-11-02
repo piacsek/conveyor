@@ -7,7 +7,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, SystemTime};
 
-use conveyor::app::{App, Input, MergeTarget, Request, Rows, Stage, run};
+use conveyor::app::{App, Input, MergeTarget, Request, Rows, Stage, UpdateTarget, run};
 use conveyor::cli::{self, Command};
 use conveyor::config::{self, Config};
 use conveyor::open::SystemOpener;
@@ -88,6 +88,7 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
     let logs = spawn_log_fetcher(config.clone(), tx.clone());
     let reruns = spawn_rerun_worker(tx.clone());
     let merges = spawn_merger(config.clone(), tx.clone());
+    let updates = spawn_branch_updater(tx.clone());
     spawn_terminal_events(tx);
     let mut app = App::new(config);
     app.notice = config_error;
@@ -112,6 +113,9 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
             }
             Request::Merge(target) => {
                 let _ = merges.send(target);
+            }
+            Request::UpdateBranch(target) => {
+                let _ = updates.send(target);
             }
             Request::Rerun { repo, run_ids } => {
                 let _ = reruns.send((repo, run_ids));
@@ -182,6 +186,25 @@ fn spawn_rerun_worker(tx: Inputs) -> mpsc::Sender<(String, Vec<u64>)> {
         }
     });
     rerun_tx
+}
+
+fn spawn_branch_updater(tx: Inputs) -> mpsc::Sender<UpdateTarget> {
+    let (update_tx, update_rx) = mpsc::channel::<UpdateTarget>();
+    thread::spawn(move || {
+        let gh = CliGh::default();
+        while let Ok(target) = update_rx.recv() {
+            let result = gh
+                .update_branch(&target.repo, target.number, target.method)
+                .map_err(|err| err.to_string());
+            if tx
+                .send(Ok(Input::BranchUpdated(target.number, result)))
+                .is_err()
+            {
+                return;
+            }
+        }
+    });
+    update_tx
 }
 
 fn spawn_merger(config: Config, tx: Inputs) -> mpsc::Sender<MergeTarget> {
