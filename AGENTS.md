@@ -309,11 +309,12 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `Esc` bullet above) and is a no-op with nothing open; it never quits.
 - **Row order is per column, and `merge_keeping_order` alone is not enough.** A refresh merges
   the fresh rows onto the old order and appends whatever is new **at the end**, which is right
-  for My PRs (the search query owns the order) and for Deployed (config order), and wrong for
-  any column whose order carries meaning: a new main build or a jumped queue entry drifted to
-  the bottom over a long session. `Row::ORDER` fixes it per type: `Build` is
-  `ByRankDescending` on `run_number`, `QueueEntry` is `ByRankAscending` on `position`, the
-  rest are `AsFetched`. `Column::receive` applies it on every fetch, so the order holds from
+  for Deployed (config order), and wrong for any column whose order carries meaning: a new
+  main build or a jumped queue entry drifted to the bottom over a long session. `Row::ORDER`
+  fixes it per type: `Build` is `ByRankDescending` on `run_number`, `QueueEntry` is
+  `ByRankAscending` on `position`, `PullRequest` is `ByRankAscending` with queued pull
+  requests first (by queue position), then open ones, then drafts (the sort is stable, so the
+  search order holds inside each group), and `Deployment` is `AsFetched`. `Column::receive` applies it on every fetch, so the order holds from
   the first draw through every incremental refresh and never depends on what order the API
   happened to return.
 - **Keys act on the focused column.** `App::with_focused` dispatches navigation to the

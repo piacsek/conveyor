@@ -642,6 +642,27 @@ fn a_pull_request_in_the_merge_queue_shows_the_merge_queue_icon_in_yellow() {
 }
 
 #[test]
+fn queued_pull_requests_come_first_then_open_then_drafts() {
+    let mut h = Harness::with_size(160, 16);
+    let mut draft = pr(1, "draft");
+    draft.is_draft = true;
+    let open = pr(2, "open");
+    let mut second = pr(3, "second in queue");
+    second.queue_position = Some(2);
+    let mut first = pr(4, "first in queue");
+    first.queue_position = Some(1);
+
+    h.run(vec![prs(vec![draft, open, second, first])]).unwrap();
+
+    let screen = h.screen();
+    let rows: Vec<&str> = screen.lines().collect();
+    assert!(rows[1].contains("#4 first in queue"), "{screen}");
+    assert!(rows[4].contains("#3 second in queue"), "{screen}");
+    assert!(rows[7].contains("#2 open"), "{screen}");
+    assert!(rows[10].contains("#1 draft"), "{screen}");
+}
+
+#[test]
 fn check_glyphs_are_colored_by_state_and_the_age_is_dim() {
     use conveyor::model::prs::CheckState;
     use ratatui::style::{Color, Modifier};
