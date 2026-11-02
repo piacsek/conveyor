@@ -404,7 +404,9 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `changelog::check(CHANGELOG, CARGO_PKG_VERSION)`: the top entry is the crate version, every
   heading reads `## vX.Y.Z (YYYY-MM-DD)`, versions strictly descend, every entry has a `- `
   bullet with text (an indented line continues the bullet above it) and no bullet repeats an
-  older one. A bump without its entry fails the gates.
+  older one. Every `v*` git tag must keep its entry (`check_released`), so relabelling or
+  deleting an old entry fails too; that test needs the tags, hence `fetch-depth: 0` in CI's
+  `check` job, and it fails loudly in a clone without them. A bump without its entry fails the gates.
 - **`q` is the only quit key** (besides `Ctrl-C`). `Esc` closes one thing per press (see the
   `Esc` bullet above) and is a no-op with nothing open; it never quits.
 - **Row order is per column, and `merge_keeping_order` alone is not enough.** A refresh merges
@@ -540,7 +542,8 @@ the help view should carry it.
 All guidelines live in this file, versioned with the code; nothing binding lives only in an
 agent's private memory. When the user says "update the guidelines", edit this file.
 
-- **"Work autonomously" means the whole road to a release, without pausing.** When the user
+- **"Work autonomously" means the whole road to a release, without pausing**, not even for
+  the retro: its outcome is written into `PLAN.md` in step 4 and the user reads it there. When the user
   says it (or "autonomous", "march towards release"), assume this flow and ask only when a
   decision is genuinely theirs:
   1. Plan in `plans/phase-N-<topic>.md` (next free N in `PLAN.md`), in a fresh worktree.
@@ -560,7 +563,7 @@ agent's private memory. When the user says "update the guidelines", edit this fi
   Stop and ask instead of proceeding when: a gate fails for a reason the change did not
   cause, CI fails twice on the same step, a review finding needs a product decision, or the
   next step would force-push, push to `main` or delete a release.
-- **Cadence.** Work runs under `/my-tdd autonomous`: one branch per phase (`phase-N-<topic>`),
+- **Cadence.** Outside the autonomous flow above, work runs under `/my-tdd autonomous`: one branch per phase (`phase-N-<topic>`),
   one commit per task through `scripts/ship.sh`, no pause between tasks, a pause only for the
   end-of-phase retro. Retro outcomes go to `PLAN.md` (facts, decisions) and here (rules).
 - **One worktree per branch, by default.** Start every phase or fix in its own worktree off

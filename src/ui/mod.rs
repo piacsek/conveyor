@@ -1,5 +1,5 @@
 mod card;
-mod changelog;
+pub mod changelog;
 mod columns;
 mod details;
 mod dialog;

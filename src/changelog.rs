@@ -9,7 +9,8 @@ struct Section<'a> {
 fn sections(text: &str) -> Vec<Section<'_>> {
     let mut sections: Vec<Section> = Vec::new();
     for line in text.lines() {
-        if let Some(heading) = line.strip_prefix("## v") {
+        if let Some(heading) = line.strip_prefix("## ") {
+            let heading = heading.strip_prefix('v').unwrap_or(heading);
             let version = heading.split_whitespace().next().unwrap_or_default();
             sections.push(Section {
                 heading: line,
@@ -34,6 +35,9 @@ fn sections(text: &str) -> Vec<Section<'_>> {
 }
 
 fn dated(heading: &str) -> bool {
+    if !heading.starts_with("## v") {
+        return false;
+    }
     let Some(date) = heading
         .split_once(" (")
         .and_then(|(_, rest)| rest.strip_suffix(')'))
@@ -90,4 +94,15 @@ pub fn check(text: &str, version: &str) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+pub fn check_released(text: &str, released: &[&str]) -> Result<(), String> {
+    let sections = sections(text);
+    match released
+        .iter()
+        .find(|version| !sections.iter().any(|section| section.version == **version))
+    {
+        Some(version) => Err(format!("v{version} was released but has no entry")),
+        None => Ok(()),
+    }
 }
