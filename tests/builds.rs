@@ -1440,6 +1440,17 @@ fn a_rerun_run_keeps_its_old_jobs_on_screen_until_the_new_attempt_lands() {
 }
 
 #[test]
+fn a_run_whose_jobs_come_back_empty_shows_its_sha_not_zero_jobs_ok() {
+    let mut h = Harness::with_size(160, 20);
+
+    h.run(vec![builds(three()), jobs(1026, vec![])]).unwrap();
+
+    let col = column(&h.screen(), 2);
+    assert!(!col[4].contains("jobs ok"), "{}", h.screen());
+    assert!(col[4].contains("00000000"), "{}", h.screen());
+}
+
+#[test]
 fn shift_x_on_a_passing_run_says_nothing_failed() {
     let mut h = Harness::with_size(160, 20);
     let mut inputs = focus_builds();
