@@ -521,6 +521,11 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   pull request after `U`/`X`. Both already refresh My PRs as soon as the action lands, so the
   behaviour was kept and no fetch added.
 
+- v0.19.2 (phase 23, `plans/phase-23-follow-up-reload.md`): after `X` from My PRs or a `U`
+  that updated the branch, My PRs reload once more 10 s later. Measured on the way: right after
+  a rerun GitHub drops the rerun's checks from the PR query for about a second, so the
+  immediate reload could show a false `✓`.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.

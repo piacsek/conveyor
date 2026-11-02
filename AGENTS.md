@@ -306,7 +306,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   says why in the footer; any other key (`Esc`, `q` included) cancels; `q` never quits from
   the prompt. One rerun is in flight at a time (`App::rerunning`). The worker asks for every
   run even after one fails and sends one result per run in `Input::Rerun`; the footer says
-  which runs failed, and the column it came from refreshes when any run went through. A rerun keeps its run
+  which runs failed, and the column it came from refreshes when any run went through. From My PRs it
+  also sets `App::follow_up` (see the `U` bullet). A rerun keeps its run
   id, so `age_jobs` and `parse_jobs` (newest `run_attempt`) already carry the jobs over to the
   new attempt. The e2e `gh` shim appends `run rerun …` argv to `reruns.log`; keep any new write
   action behind the same shim so a test can never reach the real `gh`.
@@ -355,6 +356,14 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   when the update mutation hits one. `CliGh::update_branch` turns those into
   `BranchUpdate::{Updated, UpToDate, Conflicts}`, so conflicts are an outcome, not an error.
   Only `Updated` refreshes My PRs. The e2e shim logs `pr update-branch …` argv.
+  **My PRs reload twice after `U` or `X`.** The first refresh, sent as the action lands, often
+  beats GitHub: measured on a rerun, the rerun's Actions checks are missing from the PR query at
+  +0 s (the card can read a false `✓` from the checks that are left) and back as `QUEUED` at
+  +2 s. So an `Updated` branch, and a rerun from My PRs that went through, also set
+  `App::follow_up` to `now + FOLLOW_UP` (10 s); the first `Tick` at or after it sends one more
+  `Request::Refresh(Stage::Prs)` and clears it. A second action before then moves the due time.
+  `UpToDate`, `Conflicts`, errors and a Main builds rerun schedule nothing. `app.now` only
+  moves on a tick, which only comes while no key is pressed, so a held key delays it.
 - **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
   the deploy repo (`App::deploy_repo`: the `[[repo]]` with a deploy, else `builds_repo`).
 - **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by
