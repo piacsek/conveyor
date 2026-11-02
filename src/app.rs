@@ -908,6 +908,17 @@ impl App {
             self.notice = Some("rerun cancelled".to_string());
             return Action::Continue;
         }
+        match self.rerun_target() {
+            Err(message) => {
+                self.notice = Some(message);
+                return Action::Continue;
+            }
+            Ok(now) if now.repo != rerun.repo || now.run_ids != rerun.run_ids => {
+                self.notice = Some("the runs to rerun changed; press X again".to_string());
+                return Action::Continue;
+            }
+            Ok(_) => {}
+        }
         self.notice = Some(format!("rerunning {}…", rerun.label));
         self.rerunning = Some((self.focus, rerun.label));
         Action::Rerun {

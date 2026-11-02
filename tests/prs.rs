@@ -1278,6 +1278,37 @@ fn a_rerun_that_went_through_for_some_runs_says_which_failed_and_still_refreshes
 }
 
 #[test]
+fn y_cancels_when_the_runs_behind_the_pull_request_changed_during_the_prompt() {
+    use conveyor::app::Request;
+    let mut h = Harness::with_size(160, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![failing_in("test", 70), failing_in("e2e", 80)];
+    let mut one_left = failing.clone();
+    one_left.checks_detail[1].run_finished = false;
+
+    h.run(vec![
+        prs(vec![failing]),
+        key(KeyCode::Char('X')),
+        prs(vec![one_left]),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    let footer = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(
+        footer.contains("the runs to rerun changed; press X again"),
+        "{footer}"
+    );
+    assert!(
+        !h.requests
+            .iter()
+            .any(|request| matches!(request, Request::Rerun { .. })),
+        "{:?}",
+        h.requests
+    );
+}
+
+#[test]
 fn shift_x_on_a_pull_request_with_nothing_finished_and_failing_says_so() {
     let mut h = Harness::with_size(160, 20);
 

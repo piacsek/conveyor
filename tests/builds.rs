@@ -1253,6 +1253,25 @@ fn focus_failing_newest() -> Vec<std::io::Result<conveyor::app::Input>> {
 }
 
 #[test]
+fn y_checks_the_target_again_when_a_refresh_landed_during_the_prompt() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_failing_newest();
+    inputs.push(key(KeyCode::Char('X')));
+    let mut newer = vec![build(27, BuildStatus::Running, None)];
+    newer.extend(failing_newest());
+    inputs.push(builds(newer));
+    inputs.push(key(KeyCode::Char('y')));
+    h.run(inputs).unwrap();
+
+    assert!(reruns(&h.requests).is_empty(), "{:?}", h.requests);
+    assert!(
+        footer(&h.screen()).contains("only the newest main build can be rerun"),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
 fn shift_x_refuses_a_failed_build_once_a_newer_main_build_exists() {
     let mut h = Harness::with_size(160, 20);
     let mut inputs = focus_builds();
