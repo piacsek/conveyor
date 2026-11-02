@@ -1,5 +1,5 @@
 use std::fmt;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CheckState {
@@ -26,6 +26,18 @@ pub struct Check {
     pub name: String,
     pub conclusion: CheckConclusion,
     pub url: String,
+    pub started_at: Option<SystemTime>,
+    pub completed_at: Option<SystemTime>,
+}
+
+impl Check {
+    pub fn took(&self, now: SystemTime) -> Option<Duration> {
+        let started = self.started_at?;
+        self.completed_at
+            .unwrap_or(now)
+            .duration_since(started)
+            .ok()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -323,6 +335,8 @@ fn parse_check(node: &serde_json::Value) -> Option<Check> {
             name: name.to_string(),
             conclusion: check_run_conclusion(status, conclusion),
             url: text(node, "detailsUrl"),
+            started_at: timestamp(node, "startedAt"),
+            completed_at: timestamp(node, "completedAt"),
         });
     }
     let context = node.get("context").and_then(|v| v.as_str())?;
@@ -335,6 +349,7 @@ fn parse_check(node: &serde_json::Value) -> Option<Check> {
             _ => CheckConclusion::Unknown,
         },
         url: text(node, "targetUrl"),
+        ..Check::default()
     })
 }
 
@@ -393,4 +408,10 @@ fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
     let day_of_year = (153 * month_index + 2) / 5 + day - 1;
     let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
     era * 146_097 + day_of_era - 719_468
+}
+
+fn timestamp(node: &serde_json::Value, key: &str) -> Option<SystemTime> {
+    node.get(key)
+        .and_then(|v| v.as_str())
+        .and_then(parse_timestamp)
 }

@@ -20,11 +20,13 @@ fn sample() -> Vec<PullRequest> {
             name: "lint".to_string(),
             conclusion: CheckConclusion::Success,
             url: "https://github.com/acme/webapp/actions/runs/1/job/2".to_string(),
+            ..Default::default()
         },
         Check {
             name: "api / test".to_string(),
             conclusion: CheckConclusion::Failure,
             url: "https://github.com/acme/webapp/actions/runs/1/job/3".to_string(),
+            ..Default::default()
         },
     ];
     let mut pending = pr(4830, "Add rate limit headers to the API");

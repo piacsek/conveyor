@@ -24,7 +24,7 @@ query($q: String!, $first: Int!) {
             pageInfo { hasNextPage endCursor }
             nodes {
               ... on CheckRun {
-                name status conclusion detailsUrl
+                name status conclusion detailsUrl startedAt completedAt
                 databaseId checkSuite { conclusion app { slug } workflowRun { databaseId event workflow { name } } }
               }
               ... on StatusContext { context state targetUrl }
