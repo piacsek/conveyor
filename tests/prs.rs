@@ -1215,3 +1215,58 @@ fn each_check_in_the_details_says_how_long_it_took_or_has_been_running() {
     let rest_of_line = after_status.split('│').next().unwrap_or_default();
     assert_eq!(rest_of_line.trim(), "", "{screen}");
 }
+
+fn failing_in(name: &str, run_id: u64) -> conveyor::model::prs::Check {
+    conveyor::model::prs::Check {
+        name: name.to_string(),
+        conclusion: conveyor::model::prs::CheckConclusion::Failure,
+        run_id: Some(run_id),
+        ..Default::default()
+    }
+}
+
+#[test]
+fn shift_x_on_a_pull_request_reruns_every_finished_run_behind_its_failing_checks() {
+    use conveyor::app::Request;
+    let mut h = Harness::with_size(160, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.repo = "acme/api".to_string();
+    failing.checks_detail = vec![failing_in("test", 70), failing_in("e2e", 80)];
+
+    h.run(vec![prs(vec![failing]), key(KeyCode::Char('X'))])
+        .unwrap();
+
+    let footer = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(
+        footer.contains("rerun failed jobs of #4821 (2 runs)? y/n"),
+        "{footer}"
+    );
+
+    h.run(vec![key(KeyCode::Char('y'))]).unwrap();
+
+    assert_eq!(
+        h.requests.last(),
+        Some(&Request::Rerun {
+            repo: "acme/api".to_string(),
+            run_ids: vec![70, 80],
+        })
+    );
+}
+
+#[test]
+fn shift_x_on_a_pull_request_with_nothing_finished_and_failing_says_so() {
+    let mut h = Harness::with_size(160, 20);
+
+    h.run(vec![
+        prs(vec![pr(4821, "Retry hooks")]),
+        key(KeyCode::Char('X')),
+    ])
+    .unwrap();
+
+    let footer = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(
+        footer.contains("no finished failing run to rerun"),
+        "{footer}"
+    );
+    assert!(h.requests.is_empty(), "{:?}", h.requests);
+}

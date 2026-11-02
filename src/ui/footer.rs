@@ -3,11 +3,14 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::Span;
 use ratatui::widgets::Paragraph;
 
-use crate::app::App;
+use crate::app::{App, Mode};
 use crate::text::refreshed;
 use crate::ui::style::dim;
 
 pub(crate) fn footer_text(app: &App) -> String {
+    if let Mode::Confirm(rerun) = &app.mode {
+        return format!("rerun failed jobs of {}? y/n", rerun.label);
+    }
     if let Some(notice) = &app.notice {
         return notice.clone();
     }

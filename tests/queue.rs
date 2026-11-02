@@ -436,3 +436,25 @@ fn a_cancelled_merge_group_run_does_not_blame_its_jobs_either() {
     assert!(!screen.contains("Nx / Status"), "{screen}");
     assert!(screen.contains("run 312 · cancelled"), "{screen}");
 }
+
+#[test]
+fn shift_x_in_the_queue_says_to_re_queue_instead_and_asks_nothing() {
+    let mut h = Harness::with_size(160, 20);
+
+    h.run(vec![
+        queue(two()),
+        key(KeyCode::Char('2')),
+        key(KeyCode::Char('X')),
+    ])
+    .unwrap();
+
+    let footer = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(footer.contains("re-queue the pull request"), "{footer}");
+    assert!(
+        !h.requests
+            .iter()
+            .any(|request| matches!(request, Request::Rerun { .. })),
+        "{:?}",
+        h.requests
+    );
+}

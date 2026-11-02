@@ -63,6 +63,7 @@ pub enum Input {
     Jobs(u64, Result<Vec<Job>, String>),
     /// The tail of one job's failed-step log, keyed by job id.
     Log(u64, Result<Vec<String>, String>),
+    Rerun(Result<(), String>),
     Tick(SystemTime),
 }
 
@@ -102,13 +103,22 @@ pub enum Action {
     Refresh(Stage),
     RefreshAll,
     Log { run_id: u64, job_id: u64 },
+    Rerun { repo: String, run_ids: Vec<u64> },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
     Refresh(Stage),
     Jobs { run_id: u64 },
     Log { run_id: u64, job_id: u64 },
+    Rerun { repo: String, run_ids: Vec<u64> },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Rerun {
+    pub repo: String,
+    pub run_ids: Vec<u64>,
+    pub label: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -117,6 +127,7 @@ pub enum Mode {
     Normal,
     Filter(String),
     Help,
+    Confirm(Rerun),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -391,6 +402,7 @@ pub struct App {
     pub log_page: u16,
     /// The live filter applied to every column; `Mode::Filter` means it is being edited.
     pub query: Option<String>,
+    rerunning: Option<(Stage, String)>,
     pending_g: bool,
     last_open: Option<(String, SystemTime)>,
 }
@@ -425,6 +437,7 @@ impl App {
             log_scroll: u16::MAX,
             log_page: 0,
             query: None,
+            rerunning: None,
             pending_g: false,
             last_open: None,
         }
@@ -873,6 +886,7 @@ impl App {
                 self.mode = Mode::Normal;
                 Action::Continue
             }
+            Mode::Confirm(_) => self.confirm(key),
             _ if control && key.code == KeyCode::Char('d') => {
                 self.scroll_details(1);
                 Action::Continue
@@ -883,6 +897,86 @@ impl App {
             }
             Mode::Filter(_) => self.handle_filter_key(key),
             Mode::Normal => self.handle_normal_key(key),
+        }
+    }
+
+    fn confirm(&mut self, key: KeyEvent) -> Action {
+        let Mode::Confirm(rerun) = std::mem::take(&mut self.mode) else {
+            return Action::Continue;
+        };
+        if key.code != KeyCode::Char('y') {
+            self.notice = Some("rerun cancelled".to_string());
+            return Action::Continue;
+        }
+        self.notice = Some(format!("rerunning {}…", rerun.label));
+        self.rerunning = Some((self.focus, rerun.label));
+        Action::Rerun {
+            repo: rerun.repo,
+            run_ids: rerun.run_ids,
+        }
+    }
+
+    pub fn receive_rerun(&mut self, result: Result<(), String>) -> Option<Stage> {
+        let (stage, label) = self.rerunning.take()?;
+        match result {
+            Ok(()) => {
+                self.notice = Some(format!("rerun requested: {label}"));
+                Some(stage)
+            }
+            Err(message) => {
+                self.notice = Some(format!("rerun failed: {message}"));
+                None
+            }
+        }
+    }
+
+    fn ask_rerun(&mut self) {
+        if self.rerunning.is_some() {
+            self.notice = Some("a rerun is already on its way".to_string());
+            return;
+        }
+        match self.rerun_target() {
+            Ok(rerun) => self.mode = Mode::Confirm(rerun),
+            Err(message) => self.notice = Some(message),
+        }
+    }
+
+    fn rerun_target(&self) -> Result<Rerun, String> {
+        match self.focus {
+            Stage::Builds => {
+                let build = self.builds.selected().ok_or("nothing selected")?;
+                let label = format!("run {}", build.run_number);
+                if !build.is_settled() {
+                    return Err(format!("{label} is still running"));
+                }
+                if !matches!(build.status, BuildStatus::Failure | BuildStatus::Cancelled) {
+                    return Err("nothing failed to rerun".to_string());
+                }
+                let repo = self.builds_repo.clone().ok_or("no repository known")?;
+                Ok(Rerun {
+                    repo,
+                    run_ids: vec![build.id],
+                    label,
+                })
+            }
+            Stage::Prs => {
+                let pr = self.prs.selected().ok_or("nothing selected")?;
+                let run_ids = pr.rerunnable_runs();
+                let label = match run_ids.len() {
+                    0 => return Err("no finished failing run to rerun".to_string()),
+                    1 => format!("#{}", pr.number),
+                    runs => format!("#{} ({runs} runs)", pr.number),
+                };
+                Ok(Rerun {
+                    repo: pr.repo.clone(),
+                    run_ids,
+                    label,
+                })
+            }
+            Stage::Queue => Err(
+                "a failed merge-group run left the queue: re-queue the pull request".to_string(),
+            ),
+            Stage::Deployed => Err("nothing to rerun here".to_string()),
         }
     }
 
@@ -981,6 +1075,7 @@ impl App {
                 self.reset_scroll();
             }
             KeyCode::Char('L') => return self.toggle_log(),
+            KeyCode::Char('X') => self.ask_rerun(),
             KeyCode::Char('z') => self.zoom = !self.zoom,
             KeyCode::Char('l') if self.focus != Stage::Deployed => self.refocus(Stage::next),
             KeyCode::Char('h') if self.focus != Stage::Prs => self.refocus(Stage::previous),
@@ -1081,6 +1176,11 @@ where
             Input::Data(stage, data) => app.receive(stage, data),
             Input::Jobs(run_id, result) => app.receive_jobs(run_id, result),
             Input::Log(job_id, result) => app.receive_log(job_id, result),
+            Input::Rerun(result) => {
+                if let Some(stage) = app.receive_rerun(result) {
+                    request(Request::Refresh(stage));
+                }
+            }
             Input::Key(key) => match app.handle_key(key) {
                 Action::Quit => return Ok(()),
                 Action::Open(url) => attempt(app, opener.open(&url)),
@@ -1092,6 +1192,7 @@ where
                     }
                 }
                 Action::Log { run_id, job_id } => request(Request::Log { run_id, job_id }),
+                Action::Rerun { repo, run_ids } => request(Request::Rerun { repo, run_ids }),
                 Action::Continue => {}
             },
         }
