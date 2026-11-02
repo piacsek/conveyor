@@ -3,7 +3,7 @@ mod support;
 use conveyor::app::{Input, MergeTarget, Request, Stage};
 use conveyor::model::prs::PullRequest;
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, ctrl, entry, key, pr, prs, queue};
+use support::{Harness, ctrl, entry, fetching, key, pr, prs, queue};
 
 fn mergeable(number: u64, title: &str) -> PullRequest {
     let mut pull = pr(number, title);
@@ -272,4 +272,22 @@ fn the_help_lists_shift_m_and_still_fits_seventeen_rows() {
     let screen = h.screen();
     assert!(screen.contains("merge the pull request (y/n)"), "{screen}");
     assert!(screen.contains("help"), "{screen}");
+}
+
+#[test]
+fn a_long_title_is_cut_so_y_n_stays_on_an_eighty_column_footer() {
+    let mut h = Harness::with_size(80, 12);
+    let title = "Retry webhook deliveries with exponential backoff and a dead letter queue";
+
+    h.run(vec![
+        prs(vec![mergeable(1, title)]),
+        key(KeyCode::Char('M')),
+        fetching(Stage::Prs),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    let footer = screen.lines().last().unwrap();
+    assert!(footer.contains("merge #1 Retry webhook"), "{footer}");
+    assert!(footer.contains("…? y/n"), "{footer}");
 }
