@@ -44,7 +44,12 @@ fn dated(heading: &str) -> bool {
     else {
         return false;
     };
-    date.len() == 10 && chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").is_ok()
+    date.len() == 10
+        && date.char_indices().all(|(i, c)| match i {
+            4 | 7 => c == '-',
+            _ => c.is_ascii_digit(),
+        })
+        && chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").is_ok()
 }
 
 fn numbers(version: &str) -> Vec<u64> {
