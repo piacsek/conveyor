@@ -2,7 +2,8 @@ use std::io;
 use std::path::PathBuf;
 use std::process::Command;
 
-use crate::config::MergeMethod;
+use crate::config::{MergeMethod, UpdateMethod};
+use crate::model::prs::BranchUpdate;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Variable {
@@ -43,6 +44,12 @@ pub trait Github {
     fn rerun_failed(&self, repo: &str, run_id: u64) -> io::Result<()>;
     fn merge(&self, repo: &str, number: u64, method: MergeMethod, head_oid: &str)
     -> io::Result<()>;
+    fn update_branch(
+        &self,
+        repo: &str,
+        number: u64,
+        method: UpdateMethod,
+    ) -> io::Result<BranchUpdate>;
 }
 
 pub const MISSING: &str =
@@ -126,6 +133,16 @@ impl CliGh {
         args
     }
 
+    pub fn update_branch_args(repo: &str, number: u64, method: UpdateMethod) -> Vec<String> {
+        let mut args = ["pr", "update-branch", &number.to_string(), "-R", repo]
+            .map(str::to_string)
+            .to_vec();
+        if method == UpdateMethod::Rebase {
+            args.push("--rebase".to_string());
+        }
+        args
+    }
+
     pub fn current_repo_args() -> Vec<String> {
         [
             "repo",
@@ -200,6 +217,26 @@ impl Github for CliGh {
         self.run(&Self::merge_args(repo, number, method, head_oid))
             .map(|_| ())
             .map_err(without_warnings)
+    }
+
+    fn update_branch(
+        &self,
+        repo: &str,
+        number: u64,
+        method: UpdateMethod,
+    ) -> io::Result<BranchUpdate> {
+        match self.run(&Self::update_branch_args(repo, number, method)) {
+            Ok(stdout) if stdout.contains("already up-to-date") => Ok(BranchUpdate::UpToDate),
+            Ok(_) => Ok(BranchUpdate::Updated),
+            Err(err)
+                if err
+                    .to_string()
+                    .contains("Cannot update PR branch due to conflicts") =>
+            {
+                Ok(BranchUpdate::Conflicts)
+            }
+            Err(err) => Err(err),
+        }
     }
 }
 
