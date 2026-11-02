@@ -102,13 +102,23 @@ pub enum Action {
     Refresh(Stage),
     RefreshAll,
     Log { run_id: u64, job_id: u64 },
+    Merge(MergeTarget),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MergeTarget {
+    pub number: u64,
+    pub repo: String,
+    pub title: String,
+    pub head_oid: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
     Refresh(Stage),
     Jobs { run_id: u64 },
     Log { run_id: u64, job_id: u64 },
+    Merge(MergeTarget),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -117,6 +127,7 @@ pub enum Mode {
     Normal,
     Filter(String),
     Help,
+    Confirm(MergeTarget),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -873,6 +884,7 @@ impl App {
                 self.mode = Mode::Normal;
                 Action::Continue
             }
+            Mode::Confirm(_) => self.handle_confirm_key(key),
             _ if control && key.code == KeyCode::Char('d') => {
                 self.scroll_details(1);
                 Action::Continue
@@ -883,6 +895,51 @@ impl App {
             }
             Mode::Filter(_) => self.handle_filter_key(key),
             Mode::Normal => self.handle_normal_key(key),
+        }
+    }
+
+    fn handle_confirm_key(&mut self, key: KeyEvent) -> Action {
+        let Mode::Confirm(target) = std::mem::take(&mut self.mode) else {
+            return Action::Continue;
+        };
+        if key.code == KeyCode::Char('y') && key.modifiers.is_empty() {
+            return Action::Merge(target);
+        }
+        self.notice = Some("merge cancelled".to_string());
+        Action::Continue
+    }
+
+    fn ask_to_merge(&mut self) {
+        if self.focus != Stage::Prs {
+            self.notice = Some("M merges from My PRs".to_string());
+            return;
+        }
+        let Some(pr) = self.prs.selected() else {
+            self.notice = Some("nothing selected".to_string());
+            return;
+        };
+        if pr.is_draft {
+            self.notice = Some(format!("#{} is a draft", pr.number));
+            return;
+        }
+        if pr.queue_position.is_some() {
+            self.notice = Some(format!("#{} is already queued", pr.number));
+            return;
+        }
+        self.mode = Mode::Confirm(MergeTarget {
+            number: pr.number,
+            repo: pr.repo.clone(),
+            title: pr.title.clone(),
+            head_oid: pr.head_oid.clone(),
+        });
+    }
+
+    pub fn merge_prompt(&self) -> Option<String> {
+        match &self.mode {
+            Mode::Confirm(target) => {
+                Some(format!("merge #{} {}? y/n", target.number, target.title))
+            }
+            _ => None,
         }
     }
 
@@ -981,6 +1038,7 @@ impl App {
                 self.reset_scroll();
             }
             KeyCode::Char('L') => return self.toggle_log(),
+            KeyCode::Char('M') => self.ask_to_merge(),
             KeyCode::Char('z') => self.zoom = !self.zoom,
             KeyCode::Char('l') if self.focus != Stage::Deployed => self.refocus(Stage::next),
             KeyCode::Char('h') if self.focus != Stage::Prs => self.refocus(Stage::previous),
@@ -1092,6 +1150,7 @@ where
                     }
                 }
                 Action::Log { run_id, job_id } => request(Request::Log { run_id, job_id }),
+                Action::Merge(target) => request(Request::Merge(target)),
                 Action::Continue => {}
             },
         }

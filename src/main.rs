@@ -108,6 +108,7 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
             Request::Log { run_id, job_id } => {
                 let _ = logs.send((run_id, job_id));
             }
+            Request::Merge(_) => {}
         },
     );
     ratatui::restore();

@@ -8,6 +8,9 @@ use crate::text::refreshed;
 use crate::ui::style::dim;
 
 pub(crate) fn footer_text(app: &App) -> String {
+    if let Some(prompt) = app.merge_prompt() {
+        return prompt;
+    }
     if let Some(notice) = &app.notice {
         return notice.clone();
     }

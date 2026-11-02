@@ -12,7 +12,10 @@ required non-interactively. `--match-head-commit SHA` refuses the merge if the h
 
 Decisions (taken with the user):
 - Strategy comes from a new config key `prs.merge_method` = `squash` | `merge` | `rebase`,
-  default `squash`, always passed (gh ignores it under a queue).
+  default `squash`, always passed. Checked in gh v2.103.3 source (`pkg/cmd/pr/merge`): under a
+  queue a strategy flag only prints a stderr warning (`The merge strategy for <base> is set by the
+  merge queue`) and gh enqueues through `enablePullRequestAutoMerge`; without a flag gh still
+  sends `MERGE` in that same mutation, so the flag adds no failure mode.
 - Help gets its own line `("M", "merge the pull request (y/n)")`: `KEYS` goes 13 → 14, so the help
   pane needs a 17-row terminal; `q` stays first so it is never the clipped line.
 
