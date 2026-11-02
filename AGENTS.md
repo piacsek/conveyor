@@ -322,6 +322,21 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `?`), a blank line and the dim `y confirms · any other key cancels`. The footer carries no
   prompt, only the usual notice or refresh age underneath; it used to hold the question and was
   easy to miss. A new write action adds a `Pending` variant and an arm in `dialog::question`.
+- **`U` updates a pull request's branch, through the same dialog.** On a My PRs card it sets
+  `Mode::Confirm(Pending::UpdateBranch)`; the dialog asks `update branch of #N <title>?`, or
+  `rebase branch of …` when `prs.update_method = "rebase"` (default `merge`; rebase force-pushes
+  the head branch, so the word changes). The method is read when the dialog opens and travels on
+  `UpdateTarget`. Refused with a footer notice and no dialog: other columns, a failed last
+  refresh of My PRs, a queued pull request (a push drops it from the queue) and a
+  `mergeStateStatus` of `DIRTY` (`#N has conflicts with its base; resolve them locally`). Drafts
+  are allowed. `y` re-derives the target like `M` (`the pull request changed; press U again`),
+  one update is in flight at a time (`App::updating`). The worker runs `gh pr update-branch <N>
+  -R <repo> [--rebase]`. Checked in gh v2.103.3 source: success prints `PR branch updated` or
+  `PR branch already up-to-date` on stdout and exits 0; conflicts print `Cannot update PR branch
+  due to conflicts` on stderr and exit 1, both when GitHub already reports the PR conflicting and
+  when the update mutation hits one. `CliGh::update_branch` turns those into
+  `BranchUpdate::{Updated, UpToDate, Conflicts}`, so conflicts are an outcome, not an error.
+  Only `Updated` refreshes My PRs. The e2e shim logs `pr update-branch …` argv.
 - **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
   the deploy repo (`App::deploy_repo`: the `[[repo]]` with a deploy, else `builds_repo`).
 - **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by
@@ -426,7 +441,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   that need one (`b`, `p`) already hand it to the browser. `y`/`Y` copy them.
 - **The keymap pairs the pull request and the build.** `p`/`b` open them, `y`/`Y` copy them,
   `d` is the details pane, `Ctrl-d`/`Ctrl-u` scroll it. `y/Y`, `r/R`, `L/X` and
-  `C-d/C-u` each share one line of `KEYS`; `M` took the 14th, so the help needs 17 rows.
+  `C-d/C-u` each share one line of `KEYS`; `M` took the 14th, so the help needs 17 rows, and `U`
+  shares it (`M/U`).
 - **Colors** come from the ANSI palette so terminal themes apply. Do not hardcode hex.
 
 ## Testing traps hit so far
