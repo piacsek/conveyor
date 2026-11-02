@@ -7,7 +7,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, SystemTime};
 
-use conveyor::app::{App, Input, Request, Rows, Stage, run};
+use conveyor::app::{App, Input, MergeTarget, Request, Rows, Stage, run};
 use conveyor::cli::{self, Command};
 use conveyor::config::{self, Config};
 use conveyor::open::SystemOpener;
@@ -15,7 +15,7 @@ use conveyor::refresh;
 use conveyor::sources::fetch::{
     BuildsSource, DeploySource, fetch_jobs, fetch_log, fetch_prs, fetch_queue, repos,
 };
-use conveyor::sources::github::CliGh;
+use conveyor::sources::github::{CliGh, Github};
 use conveyor::sources::kube::CliKubectl;
 use ratatui::crossterm::event::{self, Event};
 
@@ -86,6 +86,7 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
     }
     let jobs = spawn_jobs_fetcher(config.clone(), tx.clone());
     let logs = spawn_log_fetcher(config.clone(), tx.clone());
+    let merges = spawn_merger(config.clone(), tx.clone());
     spawn_terminal_events(tx);
     let mut app = App::new(config);
     app.notice = config_error;
@@ -108,7 +109,9 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
             Request::Log { run_id, job_id } => {
                 let _ = logs.send((run_id, job_id));
             }
-            Request::Merge(_) => {}
+            Request::Merge(target) => {
+                let _ = merges.send(target);
+            }
         },
     );
     ratatui::restore();
@@ -161,6 +164,27 @@ fn spawn_log_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<(u64, u64)> {
         }
     });
     log_tx
+}
+
+fn spawn_merger(config: Config, tx: Inputs) -> mpsc::Sender<MergeTarget> {
+    let (merge_tx, merge_rx) = mpsc::channel::<MergeTarget>();
+    thread::spawn(move || {
+        let gh = CliGh::default();
+        while let Ok(target) = merge_rx.recv() {
+            let result = gh
+                .merge(
+                    &target.repo,
+                    target.number,
+                    config.prs.merge_method,
+                    &target.head_oid,
+                )
+                .map_err(|err| err.to_string());
+            if tx.send(Ok(Input::Merged(target.number, result))).is_err() {
+                return;
+            }
+        }
+    });
+    merge_tx
 }
 
 fn spawn_terminal_events(tx: Inputs) {
