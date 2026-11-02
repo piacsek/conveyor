@@ -1,6 +1,6 @@
 mod support;
 
-use conveyor::app::{MergeTarget, Request};
+use conveyor::app::{Input, MergeTarget, Request, Stage};
 use conveyor::model::prs::PullRequest;
 use ratatui::crossterm::event::KeyCode;
 use support::{Harness, ctrl, entry, key, pr, prs, queue};
@@ -162,4 +162,75 @@ fn shift_m_with_nothing_selected_says_so() {
     h.run(vec![prs(vec![]), key(KeyCode::Char('M'))]).unwrap();
 
     assert!(h.screen().contains("nothing selected"), "{}", h.screen());
+}
+
+fn merged(number: u64, result: Result<(), &str>) -> std::io::Result<Input> {
+    Ok(Input::Merged(number, result.map_err(str::to_string)))
+}
+
+#[test]
+fn while_a_merge_is_in_flight_shift_m_says_so_instead_of_asking_again() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(vec![mergeable(1, "a")]),
+        key(KeyCode::Char('M')),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    assert!(h.screen().contains("merging #1…"), "{}", h.screen());
+
+    h.run(vec![key(KeyCode::Char('M'))]).unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("merging #1…"), "{screen}");
+    assert!(!screen.contains("y/n"), "{screen}");
+    assert_eq!(h.requests, vec![target(1, "a")]);
+}
+
+#[test]
+fn an_accepted_merge_says_so_and_refreshes_my_prs_and_the_queue() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(vec![mergeable(1, "a")]),
+        key(KeyCode::Char('M')),
+        key(KeyCode::Char('y')),
+        merged(1, Ok(())),
+    ])
+    .unwrap();
+
+    assert!(h.screen().contains("merge sent for #1"), "{}", h.screen());
+    assert_eq!(
+        h.requests,
+        vec![
+            target(1, "a"),
+            Request::Refresh(Stage::Prs),
+            Request::Refresh(Stage::Queue)
+        ]
+    );
+}
+
+#[test]
+fn a_refused_merge_shows_what_gh_said_and_shift_m_asks_again() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(vec![mergeable(1, "a")]),
+        key(KeyCode::Char('M')),
+        key(KeyCode::Char('y')),
+        merged(1, Err("Pull request is not mergeable")),
+    ])
+    .unwrap();
+
+    assert!(
+        h.screen().contains("#1: Pull request is not mergeable"),
+        "{}",
+        h.screen()
+    );
+
+    h.run(vec![key(KeyCode::Char('M'))]).unwrap();
+
+    assert!(h.screen().contains("merge #1 a? y/n"), "{}", h.screen());
 }

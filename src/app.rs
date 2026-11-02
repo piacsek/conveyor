@@ -63,6 +63,7 @@ pub enum Input {
     Jobs(u64, Result<Vec<Job>, String>),
     /// The tail of one job's failed-step log, keyed by job id.
     Log(u64, Result<Vec<String>, String>),
+    Merged(u64, Result<(), String>),
     Tick(SystemTime),
 }
 
@@ -389,6 +390,7 @@ pub struct App {
     pub now: SystemTime,
     pub utc_offset_secs: i32,
     pub notice: Option<String>,
+    pub merging: Option<u64>,
     pub details: bool,
     pub details_scroll: u16,
     pub details_page: u16,
@@ -426,6 +428,7 @@ impl App {
             now,
             utc_offset_secs: 0,
             notice: None,
+            merging: None,
             details: false,
             details_scroll: 0,
             details_page: 0,
@@ -903,6 +906,8 @@ impl App {
             return Action::Continue;
         };
         if key.code == KeyCode::Char('y') && key.modifiers.is_empty() {
+            self.merging = Some(target.number);
+            self.notice = Some(format!("merging #{}…", target.number));
             return Action::Merge(target);
         }
         self.notice = Some("merge cancelled".to_string());
@@ -910,6 +915,10 @@ impl App {
     }
 
     fn ask_to_merge(&mut self) {
+        if let Some(number) = self.merging {
+            self.notice = Some(format!("merging #{number}…"));
+            return;
+        }
         if self.focus != Stage::Prs {
             self.notice = Some("M merges from My PRs".to_string());
             return;
@@ -931,6 +940,14 @@ impl App {
             repo: pr.repo.clone(),
             title: pr.title.clone(),
             head_oid: pr.head_oid.clone(),
+        });
+    }
+
+    pub fn receive_merged(&mut self, number: u64, result: &Result<(), String>) {
+        self.merging = None;
+        self.notice = Some(match result {
+            Ok(()) => format!("merge sent for #{number}"),
+            Err(message) => format!("#{number}: {message}"),
         });
     }
 
@@ -1139,6 +1156,13 @@ where
             Input::Data(stage, data) => app.receive(stage, data),
             Input::Jobs(run_id, result) => app.receive_jobs(run_id, result),
             Input::Log(job_id, result) => app.receive_log(job_id, result),
+            Input::Merged(number, result) => {
+                app.receive_merged(number, &result);
+                if result.is_ok() {
+                    request(Request::Refresh(Stage::Prs));
+                    request(Request::Refresh(Stage::Queue));
+                }
+            }
             Input::Key(key) => match app.handle_key(key) {
                 Action::Quit => return Ok(()),
                 Action::Open(url) => attempt(app, opener.open(&url)),
