@@ -97,6 +97,14 @@ pub fn fetch_log(
     Ok(crate::model::log::tail(&text, LOG_TAIL))
 }
 
+pub fn rerun_failed(gh: &impl Github, repo: &str, run_ids: &[u64]) -> Result<(), String> {
+    for run_id in run_ids {
+        gh.rerun_failed(repo, *run_id)
+            .map_err(|err| format!("run {run_id}: {err}"))?;
+    }
+    Ok(())
+}
+
 pub fn repos(gh: &impl Github, config: &Config) -> Result<Vec<Repo>, String> {
     if !config.repo.is_empty() {
         return Ok(config.repo.clone());
