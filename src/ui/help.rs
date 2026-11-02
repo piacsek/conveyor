@@ -16,7 +16,7 @@ pub const KEYS: [(&str, &str); 14] = [
     ("y/Y", "copy pull request / build URL"),
     ("d C-d/C-u", "details / scroll them"),
     ("L/X", "log of the failed step / rerun failed jobs"),
-    ("M", "merge the pull request (y/n)"),
+    ("M/U", "merge / update the branch (y/n)"),
     ("z", "zoom the column"),
     ("Esc", "close details / zoom / filter"),
     ("/", "filter (Enter keeps, Esc clears)"),

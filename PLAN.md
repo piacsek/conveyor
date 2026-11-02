@@ -509,6 +509,12 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   merge on a merge-queue branch shows gh's reason instead of its strategy warning. Worktrees
   became the default way to work.
 
+- v0.19.0 (phase 21, `plans/phase-21-update-branch.md`): `U` brings the base into the selected
+  pull request's branch after a y/n, through `gh pr update-branch`, merging by default or
+  rebasing with the new `prs.update_method`. Conflicts read
+  `#N has conflicts with its base; resolve them locally`. Every confirm (`X`, `M`, `U`) moved
+  from the footer to a dialog in the middle of the screen.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
