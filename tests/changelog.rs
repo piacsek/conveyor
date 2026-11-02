@@ -1,14 +1,91 @@
-const CHANGELOG: &str = include_str!("../CHANGELOG.md");
+use conveyor::changelog::{CHANGELOG, check};
 
-fn versions() -> Vec<&'static str> {
-    CHANGELOG
-        .lines()
-        .filter_map(|line| line.strip_prefix("## v"))
-        .map(|rest| rest.split_whitespace().next().unwrap_or_default())
-        .collect()
+#[test]
+fn the_changelog_has_a_real_entry_for_the_crate_version() {
+    assert_eq!(check(CHANGELOG, env!("CARGO_PKG_VERSION")), Ok(()));
 }
 
 #[test]
-fn the_newest_section_is_the_crate_version() {
-    assert_eq!(versions().first().copied(), Some(env!("CARGO_PKG_VERSION")));
+fn an_entry_without_bullets_is_refused() {
+    let text = "# Changelog\n\n## v0.2.0 (2026-11-02)\n\n## v0.1.0 (2026-11-01)\n- first\n";
+
+    assert_eq!(
+        check(text, "0.2.0"),
+        Err("v0.2.0 has no `- ` bullet".to_string())
+    );
+}
+
+mod support;
+
+use ratatui::crossterm::event::KeyCode;
+use support::{Harness, ctrl, key, prs};
+
+#[test]
+fn c_opens_the_changelog_at_the_newest_release() {
+    let mut h = Harness::with_size(80, 12);
+
+    h.run(vec![prs(vec![]), key(KeyCode::Char('c'))]).unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("Changelog"), "{screen}");
+    assert!(
+        screen.contains(&format!("v{}", env!("CARGO_PKG_VERSION"))),
+        "{screen}"
+    );
+    assert!(!screen.contains("no open pull requests"), "{screen}");
+}
+
+#[test]
+fn ctrl_d_scrolls_the_changelog_and_ctrl_u_scrolls_it_back() {
+    let mut h = Harness::with_size(80, 12);
+    let newest = format!("v{} ", env!("CARGO_PKG_VERSION"));
+
+    h.run(vec![prs(vec![]), key(KeyCode::Char('c')), ctrl('d')])
+        .unwrap();
+    assert!(h.screen().contains("Changelog"), "{}", h.screen());
+    assert!(!h.screen().contains(&newest), "{}", h.screen());
+
+    h.run(vec![ctrl('u')]).unwrap();
+    assert!(h.screen().contains(&newest), "{}", h.screen());
+}
+
+#[test]
+fn a_version_without_an_entry_is_refused() {
+    let text = "# Changelog\n\n## v0.1.0 (2026-11-01)\n- first\n";
+
+    assert_eq!(
+        check(text, "0.2.0"),
+        Err("CHANGELOG.md has no entry for v0.2.0 at the top (found v0.1.0)".to_string())
+    );
+}
+
+#[test]
+fn a_bullet_copied_from_another_release_is_refused() {
+    let text =
+        "# Changelog\n\n## v0.2.0 (2026-11-02)\n- first\n\n## v0.1.0 (2026-11-01)\n- first\n";
+
+    assert_eq!(
+        check(text, "0.2.0"),
+        Err("v0.2.0 repeats a bullet of v0.1.0: first".to_string())
+    );
+}
+
+#[test]
+fn versions_out_of_order_or_repeated_are_refused() {
+    let text = "# Changelog\n\n## v0.10.0 (2026-11-03)\n- c\n\n## v0.9.0 (2026-11-02)\n- b\n\n## v0.9.0 (2026-11-01)\n- a\n";
+
+    assert_eq!(
+        check(text, "0.10.0"),
+        Err("v0.9.0 is listed above v0.9.0; newest first, once each".to_string())
+    );
+}
+
+#[test]
+fn a_heading_without_a_date_is_refused() {
+    let text = "# Changelog\n\n## v0.2.0\n- second\n\n## v0.1.0 (2026-11-01)\n- first\n";
+
+    assert_eq!(
+        check(text, "0.2.0"),
+        Err("`## v0.2.0` must read `## vX.Y.Z (YYYY-MM-DD)`".to_string())
+    );
 }
