@@ -4,7 +4,7 @@ use conveyor::app::{Input, Request, Stage, UpdateTarget};
 use conveyor::config::{Config, UpdateMethod};
 use conveyor::model::prs::{BranchUpdate, MergeState, PullRequest};
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, entry, failed, fetching, key, pr, prs, queue};
+use support::{Harness, NOW, entry, failed, fetching, key, pr, prs, queue, tick_at};
 
 fn behind(number: u64, title: &str) -> PullRequest {
     let mut pull = pr(number, title);
@@ -388,4 +388,60 @@ fn shift_m_waits_while_an_update_of_the_branch_is_in_flight() {
     assert!(screen.contains("updating #1…"), "{screen}");
     assert!(!screen.contains("y confirms"), "{screen}");
     assert_eq!(h.requests.len(), 1);
+}
+
+fn prs_refreshes(requests: &[Request]) -> usize {
+    requests
+        .iter()
+        .filter(|request| **request == Request::Refresh(Stage::Prs))
+        .count()
+}
+
+#[test]
+fn an_updated_branch_reloads_my_prs_once_more_ten_seconds_later() {
+    let mut h = Harness::new();
+    let mut inputs = confirmed();
+    inputs.push(updated(1, Ok(BranchUpdate::Updated)));
+    inputs.push(tick_at(NOW + 9));
+
+    h.run(inputs).unwrap();
+
+    assert_eq!(prs_refreshes(&h.requests), 1);
+
+    h.run(vec![
+        tick_at(NOW + 10),
+        tick_at(NOW + 11),
+        tick_at(NOW + 30),
+    ])
+    .unwrap();
+
+    assert_eq!(prs_refreshes(&h.requests), 2);
+    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Prs)));
+}
+
+#[test]
+fn an_up_to_date_branch_schedules_no_second_reload() {
+    let mut h = Harness::new();
+    let mut inputs = confirmed();
+    inputs.push(updated(1, Ok(BranchUpdate::UpToDate)));
+    inputs.push(tick_at(NOW + 30));
+
+    h.run(inputs).unwrap();
+
+    assert_eq!(prs_refreshes(&h.requests), 0);
+}
+
+#[test]
+fn conflicts_and_a_refused_update_schedule_no_reload() {
+    let mut h = Harness::new();
+    let mut inputs = confirmed();
+    inputs.push(updated(1, Ok(BranchUpdate::Conflicts)));
+    inputs.push(key(KeyCode::Char('U')));
+    inputs.push(key(KeyCode::Char('y')));
+    inputs.push(updated(1, Err("HTTP 403")));
+    inputs.push(tick_at(NOW + 30));
+
+    h.run(inputs).unwrap();
+
+    assert_eq!(prs_refreshes(&h.requests), 0);
 }
