@@ -1,5 +1,5 @@
 use std::sync::mpsc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use conveyor::refresh::wait;
 
@@ -17,8 +17,10 @@ fn a_burst_of_refresh_signals_wakes_the_fetcher_once() {
 #[test]
 fn the_interval_wakes_the_fetcher_without_a_signal() {
     let (_tx, rx) = mpsc::channel::<()>();
+    let started = Instant::now();
 
     assert!(wait(&rx, Duration::from_millis(10)));
+    assert!(started.elapsed() >= Duration::from_millis(10));
 }
 
 #[test]

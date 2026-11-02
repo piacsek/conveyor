@@ -338,8 +338,9 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   per repeat.
 - **Refreshes coalesce in the fetcher.** `r`/`R` always send a `Request::Refresh`; each
   fetcher thread wakes through `refresh::wait`, which takes one signal and drains the rest, so
-  a held `r` costs one fetch now and at most one queued behind it. A held `r` used to queue a
-  fetch per key repeat, run back to back. A time window in `App` was rejected: `app.now` only
+  a burst costs at most one fetch beyond the one running, and a held `r` refetches back to back
+  until released, with nothing left queued after. It used to queue a fetch per key repeat, which
+  kept running long after the key came up. A time window in `App` was rejected: `app.now` only
   moves on a `Tick`, which never comes while keys arrive under 250 ms apart, and skipping a
   column mid-fetch dropped an `r` meant to catch a change the running fetch predates.
 - **Refresh feedback.** Fetchers send `Input::Fetching(stage)` before each fetch and set the
