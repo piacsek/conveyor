@@ -11,6 +11,7 @@ use conveyor::app::{App, Input, Request, Rows, Stage, run};
 use conveyor::cli::{self, Command};
 use conveyor::config::{self, Config};
 use conveyor::open::SystemOpener;
+use conveyor::refresh;
 use conveyor::sources::fetch::{
     BuildsSource, DeploySource, fetch_jobs, fetch_log, fetch_prs, fetch_queue, repos,
 };
@@ -201,9 +202,8 @@ fn spawn_fetcher(
             if tx.send(Ok(Input::Data(stage, fetch()))).is_err() {
                 return;
             }
-            match refresh_rx.recv_timeout(interval.max(Duration::from_secs(1))) {
-                Ok(()) | Err(mpsc::RecvTimeoutError::Timeout) => {}
-                Err(mpsc::RecvTimeoutError::Disconnected) => return,
+            if !refresh::wait(&refresh_rx, interval.max(Duration::from_secs(1))) {
+                return;
             }
         }
     });
