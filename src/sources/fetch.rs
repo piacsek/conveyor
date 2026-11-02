@@ -97,12 +97,21 @@ pub fn fetch_log(
     Ok(crate::model::log::tail(&text, LOG_TAIL))
 }
 
-pub fn rerun_failed(gh: &impl Github, repo: &str, run_ids: &[u64]) -> Result<(), String> {
-    for run_id in run_ids {
-        gh.rerun_failed(repo, *run_id)
-            .map_err(|err| format!("run {run_id}: {err}"))?;
-    }
-    Ok(())
+pub fn rerun_failed(
+    gh: &impl Github,
+    repo: &str,
+    run_ids: &[u64],
+) -> Vec<(u64, Result<(), String>)> {
+    run_ids
+        .iter()
+        .map(|run_id| {
+            (
+                *run_id,
+                gh.rerun_failed(repo, *run_id)
+                    .map_err(|err| err.to_string()),
+            )
+        })
+        .collect()
 }
 
 pub fn repos(gh: &impl Github, config: &Config) -> Result<Vec<Repo>, String> {

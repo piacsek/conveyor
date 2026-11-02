@@ -63,7 +63,7 @@ pub enum Input {
     Jobs(u64, Result<Vec<Job>, String>),
     /// The tail of one job's failed-step log, keyed by job id.
     Log(u64, Result<Vec<String>, String>),
-    Rerun(Result<(), String>),
+    Rerun(Vec<(u64, Result<(), String>)>),
     Tick(SystemTime),
 }
 
@@ -916,18 +916,28 @@ impl App {
         }
     }
 
-    pub fn receive_rerun(&mut self, result: Result<(), String>) -> Option<Stage> {
+    pub fn receive_rerun(&mut self, results: Vec<(u64, Result<(), String>)>) -> Option<Stage> {
         let (stage, label) = self.rerunning.take()?;
-        match result {
-            Ok(()) => {
-                self.notice = Some(format!("rerun requested: {label}"));
-                Some(stage)
-            }
-            Err(message) => {
-                self.notice = Some(format!("rerun failed: {message}"));
-                None
-            }
-        }
+        let errors: Vec<String> = results
+            .iter()
+            .filter_map(|(run_id, result)| {
+                result
+                    .as_ref()
+                    .err()
+                    .map(|message| format!("run {run_id}: {message}"))
+            })
+            .collect();
+        let reran = results.len() - errors.len();
+        self.notice = Some(match (reran, errors.is_empty()) {
+            (_, true) => format!("rerun requested: {label}"),
+            (0, false) => format!("rerun failed: {}", errors.join("; ")),
+            _ => format!(
+                "rerun requested for {reran} of {} runs; {}",
+                results.len(),
+                errors.join("; ")
+            ),
+        });
+        (reran > 0).then_some(stage)
     }
 
     fn ask_rerun(&mut self) {

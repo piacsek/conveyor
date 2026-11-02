@@ -1254,6 +1254,29 @@ fn shift_x_on_a_pull_request_reruns_every_finished_run_behind_its_failing_checks
 }
 
 #[test]
+fn a_rerun_that_went_through_for_some_runs_says_which_failed_and_still_refreshes() {
+    use conveyor::app::{Request, Stage};
+    let mut h = Harness::with_size(160, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![failing_in("test", 70), failing_in("e2e", 80)];
+
+    h.run(vec![
+        prs(vec![failing]),
+        key(KeyCode::Char('X')),
+        key(KeyCode::Char('y')),
+        support::rerun_done(vec![(70, Ok(())), (80, Err("HTTP 403"))]),
+    ])
+    .unwrap();
+
+    let footer = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(
+        footer.contains("rerun requested for 1 of 2 runs; run 80: HTTP 403"),
+        "{footer}"
+    );
+    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Prs)));
+}
+
+#[test]
 fn shift_x_on_a_pull_request_with_nothing_finished_and_failing_says_so() {
     let mut h = Harness::with_size(160, 20);
 

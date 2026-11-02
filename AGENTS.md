@@ -286,8 +286,9 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   dropped its pull request from the queue, so rerunning it merges nothing. `X` sets
   `Mode::Confirm`, the footer reads `rerun failed jobs of <run N | #N (k runs)>? y/n`, `y`
   sends `Request::Rerun` and any other key (`Esc`, `q` included) cancels; `q` never quits from
-  the prompt. One rerun is in flight at a time (`App::rerunning`); its `Input::Rerun` result
-  goes to the footer and, on success, refreshes the column it came from. A rerun keeps its run
+  the prompt. One rerun is in flight at a time (`App::rerunning`). The worker asks for every
+  run even after one fails and sends one result per run in `Input::Rerun`; the footer says
+  which runs failed, and the column it came from refreshes when any run went through. A rerun keeps its run
   id, so `age_jobs` and `parse_jobs` (newest `run_attempt`) already carry the jobs over to the
   new attempt. The e2e `gh` shim appends `run rerun …` argv to `reruns.log`; keep any new write
   action behind the same shim so a test can never reach the real `gh`.
