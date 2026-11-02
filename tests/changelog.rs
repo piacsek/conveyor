@@ -255,7 +255,7 @@ fn a_released_version_without_its_entry_is_refused() {
     let text = "# Changelog\n\n## v0.21.0 (2026-11-02)\n- relabelled\n";
 
     assert_eq!(
-        check_released(text, &["0.20.0", "0.21.0"]),
+        check_released(text, &["0.20.0", "0.21.0"], "0.21.0"),
         Err("v0.20.0 was released but has no entry".to_string())
     );
 }
@@ -277,7 +277,10 @@ fn every_released_tag_keeps_its_entry() {
         !released.is_empty(),
         "no v* tags: run `git fetch --tags` (CI needs fetch-depth: 0)"
     );
-    assert_eq!(check_released(CHANGELOG, &released), Ok(()));
+    assert_eq!(
+        check_released(CHANGELOG, &released, env!("CARGO_PKG_VERSION")),
+        Ok(())
+    );
 }
 
 #[test]
@@ -330,4 +333,14 @@ fn reopening_the_changelog_starts_at_the_top() {
     .unwrap();
 
     assert!(h.screen().contains("│Changelog"), "{}", h.screen());
+}
+
+#[test]
+fn a_tag_newer_than_the_crate_version_is_not_required() {
+    let text = "# Changelog\n\n## v0.20.0 (2026-11-02)\n- now\n";
+
+    assert_eq!(
+        check_released(text, &["0.20.0", "0.21.0"], "0.20.0"),
+        Ok(())
+    );
 }

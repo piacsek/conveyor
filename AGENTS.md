@@ -404,7 +404,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `changelog::check(CHANGELOG, CARGO_PKG_VERSION)`: the top entry is the crate version, every
   heading reads `## vX.Y.Z (YYYY-MM-DD)`, versions strictly descend, every entry has a `- `
   bullet with text (an indented line continues the bullet above it) and no bullet repeats an
-  older one. Every `v*` git tag must keep its entry (`check_released`), so relabelling or
+  older one. Every `v*` git tag up to the crate version must keep its entry (`check_released`; a newer tag
+  from a sibling worktree's release is ignored), so relabelling or
   deleting an old entry fails too; that test needs the tags, hence `fetch-depth: 0` in CI's
   `check` job, and it fails loudly in a clone without them. A bump without its entry fails the gates.
 - **`q` is the only quit key** (besides `Ctrl-C`). `Esc` closes one thing per press (see the
