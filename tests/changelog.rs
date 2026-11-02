@@ -148,3 +148,63 @@ fn the_help_names_the_changelog_key() {
     assert!(h.screen().contains("?/c"), "{}", h.screen());
     assert!(h.screen().contains("help / changelog"), "{}", h.screen());
 }
+
+#[test]
+fn a_bullet_without_text_is_refused() {
+    let text = "# Changelog\n\n## v0.2.0 (2026-11-02)\n- \n\n## v0.1.0 (2026-11-01)\n- first\n";
+
+    assert_eq!(
+        check(text, "0.2.0"),
+        Err("v0.2.0 has no `- ` bullet".to_string())
+    );
+}
+
+#[test]
+fn a_bullet_continued_on_the_next_line_is_one_bullet() {
+    let text = "# Changelog\n\n## v0.2.0 (2026-11-02)\n- Fixed\n  the queue refresh\n\n## v0.1.0 (2026-11-01)\n- Fixed\n  the build refresh\n";
+
+    assert_eq!(check(text, "0.2.0"), Ok(()));
+}
+
+#[test]
+fn long_bullets_wrap_inside_a_narrow_pane() {
+    let mut h = Harness::with_size(40, 12);
+
+    h.run(vec![prs(vec![]), key(KeyCode::Char('c'))]).unwrap();
+
+    assert!(h.screen().contains("key returns."), "{}", h.screen());
+}
+
+#[test]
+fn q_closes_the_changelog_instead_of_quitting() {
+    let mut h = Harness::with_size(80, 12);
+
+    h.run(vec![
+        prs(vec![]),
+        key(KeyCode::Char('c')),
+        key(KeyCode::Char('q')),
+        prs(vec![]),
+    ])
+    .unwrap();
+
+    assert!(
+        h.screen().contains("no open pull requests"),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
+fn c_is_ordinary_text_in_a_filter() {
+    let mut h = Harness::with_size(80, 12);
+
+    h.run(vec![
+        prs(vec![]),
+        key(KeyCode::Char('/')),
+        key(KeyCode::Char('c')),
+    ])
+    .unwrap();
+
+    assert!(!h.screen().contains("Changelog"), "{}", h.screen());
+    assert!(h.screen().contains("/c▏"), "{}", h.screen());
+}

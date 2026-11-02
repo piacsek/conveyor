@@ -50,7 +50,7 @@ src/ui/help.rs   KEYS is the generic table the README mirrors; `keys_for(stage)`
 src/refresh.rs   `spawn`: one fetcher thread per stage; `wait` sleeps until the interval or a refresh, draining queued signals
 src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`): the OS seam, not a service, so it stays out of `sources/`
 src/changelog.rs CHANGELOG (the bundled CHANGELOG.md) and `check`, the rules a release entry must meet
-src/ui/changelog.rs the `c` pane: headings bold without their `#`, scrolled like the details pane
+src/ui/changelog.rs the `c` pane: wrapped to its width (bullets hang), headings bold without their `#`, scrolled like the details pane
 src/text.rs      truncate/pad_right with `…`, age(), duration() (coarse, cards), elapsed() (seconds, details pane), strip_ansi()
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
@@ -403,7 +403,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   help, so `q` closes it rather than quitting). `tests/changelog.rs` runs
   `changelog::check(CHANGELOG, CARGO_PKG_VERSION)`: the top entry is the crate version, every
   heading reads `## vX.Y.Z (YYYY-MM-DD)`, versions strictly descend, every entry has a `- `
-  bullet and no bullet repeats an older one. A bump without its entry fails the gates.
+  bullet with text (an indented line continues the bullet above it) and no bullet repeats an
+  older one. A bump without its entry fails the gates.
 - **`q` is the only quit key** (besides `Ctrl-C`). `Esc` closes one thing per press (see the
   `Esc` bullet above) and is a no-op with nothing open; it never quits.
 - **Row order is per column, and `merge_keeping_order` alone is not enough.** A refresh merges
@@ -476,7 +477,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   jobs, the sha, the pull request. A URL is 60 columns of noise nobody retypes, and both keys
   that need one (`b`, `p`) already hand it to the browser. `y`/`Y` copy them.
 - **The keymap pairs the pull request and the build.** `p`/`b` open them, `y`/`Y` copy them,
-  `d` is the details pane, `Ctrl-d`/`Ctrl-u` scroll it. `y/Y`, `r/R`, `L/X` and
+  `d` is the details pane, `Ctrl-d`/`Ctrl-u` scroll it. `y/Y`, `r/R`, `L/X`, `?/c` and
   `C-d/C-u` each share one line of `KEYS`; `M` took the 14th, so the help needs 17 rows, and `U`
   shares it (`M/U`).
 - **Colors** come from the ANSI palette so terminal themes apply. Do not hardcode hex.
@@ -539,6 +540,26 @@ the help view should carry it.
 All guidelines live in this file, versioned with the code; nothing binding lives only in an
 agent's private memory. When the user says "update the guidelines", edit this file.
 
+- **"Work autonomously" means the whole road to a release, without pausing.** When the user
+  says it (or "autonomous", "march towards release"), assume this flow and ask only when a
+  decision is genuinely theirs:
+  1. Plan in `plans/phase-N-<topic>.md` (next free N in `PLAN.md`), in a fresh worktree.
+  2. `/my-tdd autonomous`: one task per red-green-refactor cycle, each shipped with
+     `scripts/ship.sh` (gates, dev install, commit, push, draft PR on the first push).
+  3. `/pr-review` the PR (see "Review before ready"). Fix every must and should finding, TDD
+     like any change, ship, and review again. Minor findings are fixed when cheap, else listed
+     in the PR body. The loop ends only on a round with no must/should findings, and that
+     round is **unprimed**: the reviewers get the PR, the repo and this file, never the list
+     of earlier findings or what was decided about them. Never post the review on the PR.
+  4. The phase outcome is in `PLAN.md` and, for a behaviour change, the version bump and its
+     `CHANGELOG.md` entry are on the branch. Re-read the PR title and body, fix what went
+     stale, `gh pr ready`, wait for CI green.
+  5. Rebase-merge. For a behaviour change, tag and release per "Releasing", watch `release`
+     to green and check the tap formula names the new version.
+  6. Remove the worktree and report what shipped, with the release link.
+  Stop and ask instead of proceeding when: a gate fails for a reason the change did not
+  cause, CI fails twice on the same step, a review finding needs a product decision, or the
+  next step would force-push, push to `main` or delete a release.
 - **Cadence.** Work runs under `/my-tdd autonomous`: one branch per phase (`phase-N-<topic>`),
   one commit per task through `scripts/ship.sh`, no pause between tasks, a pause only for the
   end-of-phase retro. Retro outcomes go to `PLAN.md` (facts, decisions) and here (rules).
