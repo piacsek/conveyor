@@ -229,14 +229,10 @@ fn an_accepted_merge_says_so_and_refreshes_my_prs_and_the_queue() {
     .unwrap();
 
     assert!(h.screen().contains("merge sent for #1"), "{}", h.screen());
-    assert_eq!(
-        h.requests,
-        vec![
-            target(1, "a"),
-            Request::Refresh(Stage::Prs),
-            Request::Refresh(Stage::Queue)
-        ]
-    );
+    assert_eq!(h.requests.len(), 3);
+    assert_eq!(h.requests[0], target(1, "a"));
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
+    assert_eq!(h.requests[2], Request::Refresh(Stage::Queue));
 }
 
 #[test]

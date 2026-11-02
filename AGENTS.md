@@ -316,7 +316,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   first on stderr, so `CliGh::merge` drops gh's `! ` lines from an error: the footer shows one
   line, and it used to be the warning instead of the reason. `Input::Merged` puts `merge sent for
   #N` or the error in the footer and, on success, refreshes My PRs and the queue. The prompt cuts
-  the title to the footer's width so `? y/n` always shows.
+  the title to the footer's width so `? y/n` stays on screen (by character count, so a title
+  with wide characters can still push it off).
 - **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
   the deploy repo (`App::deploy_repo`: the `[[repo]]` with a deploy, else `builds_repo`).
 - **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by

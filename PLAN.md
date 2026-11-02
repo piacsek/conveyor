@@ -502,11 +502,21 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   prompt in the footer, for the selected main build or every finished failing run behind a
   pull request. The first write action; its confirm mode is the one later write actions reuse.
 
+- v0.18.0 (phase 20, `plans/phase-20-merge.md`): `M` merges the selected pull request after a
+  `y/n` prompt, through `gh pr merge --<prs.merge_method> --match-head-commit <head sha>`, in the
+  confirm mode `X` introduced (`Pending::Merge`). New config key `prs.merge_method` (default
+  squash). Review fixes: the prompt cuts long titles so `? y/n` stays visible, and a refused
+  merge on a merge-queue branch shows gh's reason instead of its strategy warning. Worktrees
+  became the default way to work.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
-- Write actions with the `X` confirm mode: `gh pr merge --squash --auto`,
-  `gh pr review --approve`, enqueue/dequeue.
+- Write actions with the `X` confirm mode: `gh pr review --approve`, enqueue/dequeue.
+- `M` follow-ups from the phase 20 review: `merge_method` per `[[repo]]` (one global value cannot
+  serve a squash-only and a merge-commit-only repo at once); `M` refusing while the last My PRs
+  refresh failed, as `X` does; a write result that lands while the other prompt is open is
+  hidden by that prompt; the footer cuts titles by characters, not display width.
 - Follow one PR across columns: `f` on a PR highlights its sha/number in queue, builds, deployed.
 - Desktop/tmux notification on queue state change or main build failure (tmux-agents `watch` pattern).
 - Multiple `[[repo]]` entries → repeated column groups or a repo switcher.
