@@ -98,7 +98,9 @@ pub fn check_released(text: &str, released: &[&str], current: &str) -> Result<()
         numbers(version) <= numbers(current)
             && !sections.iter().any(|section| section.version == **version)
     }) {
-        Some(version) => Err(format!("v{version} was released but has no entry")),
+        Some(version) => Err(format!(
+            "v{version} was released but has no entry; restore it, or merge origin/main if another branch released it"
+        )),
         None => Ok(()),
     }
 }
