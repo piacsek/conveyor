@@ -3,6 +3,7 @@ use std::io;
 use std::time::{Duration, SystemTime};
 
 pub const OPEN_DEBOUNCE: Duration = Duration::from_secs(1);
+pub const REFRESH_DEBOUNCE: Duration = Duration::from_secs(2);
 const EAGER_JOBS: usize = 5;
 
 use ratatui::Terminal;
@@ -393,6 +394,7 @@ pub struct App {
     pub query: Option<String>,
     pending_g: bool,
     last_open: Option<(String, SystemTime)>,
+    last_refresh: HashMap<Stage, SystemTime>,
 }
 
 impl App {
@@ -427,6 +429,7 @@ impl App {
             query: None,
             pending_g: false,
             last_open: None,
+            last_refresh: HashMap::new(),
         }
     }
 
@@ -639,6 +642,28 @@ impl App {
             Stage::Builds => self.builds.refreshing = true,
             Stage::Deployed => self.deployed.refreshing = true,
         }
+    }
+
+    fn is_refreshing(&self, stage: Stage) -> bool {
+        match stage {
+            Stage::Prs => self.prs.refreshing,
+            Stage::Queue => self.queue.refreshing,
+            Stage::Builds => self.builds.refreshing,
+            Stage::Deployed => self.deployed.refreshing,
+        }
+    }
+
+    pub fn may_refresh(&mut self, stage: Stage) -> bool {
+        let recent = self.last_refresh.get(&stage).is_some_and(|at| {
+            self.now
+                .duration_since(*at)
+                .is_ok_and(|elapsed| elapsed < REFRESH_DEBOUNCE)
+        });
+        if recent || self.is_refreshing(stage) {
+            return false;
+        }
+        self.last_refresh.insert(stage, self.now);
+        true
     }
 
     pub fn any_refreshing(&self) -> bool {
@@ -1085,10 +1110,16 @@ where
                 Action::Quit => return Ok(()),
                 Action::Open(url) => attempt(app, opener.open(&url)),
                 Action::Copy(text) => attempt(app, opener.copy(&text)),
-                Action::Refresh(stage) => request(Request::Refresh(stage)),
+                Action::Refresh(stage) => {
+                    if app.may_refresh(stage) {
+                        request(Request::Refresh(stage));
+                    }
+                }
                 Action::RefreshAll => {
                     for stage in Stage::ALL {
-                        request(Request::Refresh(stage));
+                        if app.may_refresh(stage) {
+                            request(Request::Refresh(stage));
+                        }
                     }
                 }
                 Action::Log { run_id, job_id } => request(Request::Log { run_id, job_id }),

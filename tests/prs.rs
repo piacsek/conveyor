@@ -843,6 +843,86 @@ fn shift_r_refreshes_every_column() {
 }
 
 #[test]
+fn r_held_down_requests_one_refresh() {
+    use conveyor::app::{Request, Stage};
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(three()),
+        key(KeyCode::Char('r')),
+        key(KeyCode::Char('r')),
+        key(KeyCode::Char('r')),
+    ])
+    .unwrap();
+
+    assert_eq!(h.requests.len(), 1);
+    assert_eq!(h.requests[0], Request::Refresh(Stage::Prs));
+}
+
+#[test]
+fn r_refreshes_again_once_the_debounce_has_passed() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(three()),
+        key(KeyCode::Char('r')),
+        prs(three()),
+        tick_at(NOW + 2),
+        key(KeyCode::Char('r')),
+    ])
+    .unwrap();
+
+    assert_eq!(h.requests.len(), 2);
+}
+
+#[test]
+fn r_on_a_column_already_fetching_requests_nothing() {
+    use conveyor::app::Stage;
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(three()),
+        support::fetching(Stage::Prs),
+        tick_at(NOW + 10),
+        key(KeyCode::Char('r')),
+    ])
+    .unwrap();
+
+    assert!(h.requests.is_empty(), "{:?}", h.requests);
+}
+
+#[test]
+fn shift_r_held_down_requests_each_column_once() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(three()),
+        key(KeyCode::Char('R')),
+        key(KeyCode::Char('R')),
+    ])
+    .unwrap();
+
+    assert_eq!(h.requests.len(), 4);
+}
+
+#[test]
+fn shift_r_skips_a_column_r_just_refreshed() {
+    use conveyor::app::{Request, Stage};
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(three()),
+        key(KeyCode::Char('r')),
+        key(KeyCode::Char('R')),
+    ])
+    .unwrap();
+
+    assert_eq!(h.requests.len(), 4);
+    assert_eq!(h.requests[0], Request::Refresh(Stage::Prs));
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Queue));
+}
+
+#[test]
 fn a_static_dim_logo_with_the_version_sits_at_the_bottom_right() {
     use ratatui::style::Modifier;
     use support::tick_at_ms;
