@@ -373,7 +373,7 @@ fn d_on_a_main_build_lists_the_runs_jobs() {
 
 #[test]
 #[ignore]
-fn shift_x_reruns_a_failed_main_build_only_after_y() {
+fn s_then_f_reruns_a_failed_main_build_and_any_other_key_runs_nothing() {
     let home = tempfile::tempdir().unwrap();
     let path = dispatching_shim(home.path());
     let server = Server::sized("rerun", "30");
@@ -386,11 +386,11 @@ fn shift_x_reruns_a_failed_main_build_only_after_y() {
         env!("CARGO_BIN_EXE_conveyor"),
     );
     server.wait_for_screen("Main webapp (4)");
-    server.send_keys(&["l", "l", "X"]);
-    server.wait_for_screen("rerun failed jobs of run 24?");
+    server.send_keys(&["l", "l", "S"]);
+    server.wait_for_screen("Manage run 24");
     server.send_keys(&["n"]);
-    server.wait_for_screen("rerun cancelled");
-    server.send_keys(&["X", "y"]);
+    server.wait_for_screen("nothing changed");
+    server.send_keys(&["S", "f"]);
     server.wait_for_screen("rerun requested: run 24");
 
     let log = fs::read_to_string(home.path().join("reruns.log")).unwrap();
@@ -399,7 +399,7 @@ fn shift_x_reruns_a_failed_main_build_only_after_y() {
 
 #[test]
 #[ignore]
-fn shift_m_then_y_runs_gh_pr_merge_pinned_to_the_head_commit() {
+fn s_m_then_y_runs_gh_pr_merge_pinned_to_the_head_commit() {
     let home = tempfile::tempdir().unwrap();
     let fixture = fixture_path(home.path());
     let argv = home.path().join("merge-argv");
@@ -420,7 +420,7 @@ fn shift_m_then_y_runs_gh_pr_merge_pinned_to_the_head_commit() {
     );
     server.wait_for_screen("#1 Phase 0: setup");
 
-    server.send_keys(&["M"]);
+    server.send_keys(&["S", "m"]);
     server.wait_for_screen("merge #1 Phase 0: setup?");
     server.send_keys(&["y"]);
     server.wait_for_screen("merge sent for #1");
@@ -433,7 +433,7 @@ fn shift_m_then_y_runs_gh_pr_merge_pinned_to_the_head_commit() {
 
 #[test]
 #[ignore]
-fn shift_u_then_y_runs_gh_pr_update_branch_and_n_runs_nothing() {
+fn s_then_u_runs_gh_pr_update_branch_and_n_runs_nothing() {
     let home = tempfile::tempdir().unwrap();
     let fixture = fixture_path(home.path());
     let argv = home.path().join("update-argv");
@@ -454,13 +454,13 @@ fn shift_u_then_y_runs_gh_pr_update_branch_and_n_runs_nothing() {
     );
     server.wait_for_screen("#1 Phase 0: setup");
 
-    server.send_keys(&["U"]);
-    server.wait_for_screen("update branch of #1 Phase 0: setup?");
+    server.send_keys(&["S"]);
+    server.wait_for_screen("Manage #1");
     server.send_keys(&["n"]);
-    server.wait_for_screen("update cancelled");
+    server.wait_for_screen("nothing changed");
     assert!(!argv.exists());
 
-    server.send_keys(&["U", "y"]);
+    server.send_keys(&["S", "u"]);
     server.wait_for_screen("branch of #1 updated");
 
     assert_eq!(
@@ -471,7 +471,7 @@ fn shift_u_then_y_runs_gh_pr_update_branch_and_n_runs_nothing() {
 
 #[test]
 #[ignore]
-fn shift_u_on_a_conflicting_branch_says_so() {
+fn s_then_u_on_a_conflicting_branch_says_so() {
     let home = tempfile::tempdir().unwrap();
     let fixture = fixture_path(home.path());
     let path = shim(
@@ -490,6 +490,38 @@ fn shift_u_on_a_conflicting_branch_says_so() {
     );
     server.wait_for_screen("#1 Phase 0: setup");
 
-    server.send_keys(&["U", "y"]);
+    server.send_keys(&["S", "u"]);
     server.wait_for_screen("#1 has conflicts with its base; resolve them locally");
+}
+
+#[test]
+#[ignore]
+fn s_then_t_runs_gh_pr_ready_undo_on_an_open_pull_request() {
+    let home = tempfile::tempdir().unwrap();
+    let fixture = fixture_path(home.path());
+    let argv = home.path().join("status-argv");
+    let path = shim(
+        home.path(),
+        &format!(
+            "case \"$*\" in 'pr ready'*) echo \"$*\" >> '{}';; *) cat '{fixture}';; esac",
+            argv.display()
+        ),
+    );
+    let server = Server::start("status");
+    server.respawn(
+        &[
+            ("HOME", &home.path().display().to_string()),
+            ("PATH", &path),
+        ],
+        env!("CARGO_BIN_EXE_conveyor"),
+    );
+    server.wait_for_screen("#1 Phase 0: setup");
+
+    server.send_keys(&["S", "t"]);
+    server.wait_for_screen("#1 converted to draft");
+
+    assert_eq!(
+        fs::read_to_string(&argv).unwrap(),
+        "pr ready 1 -R piacsek/conveyor --undo\n"
+    );
 }

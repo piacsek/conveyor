@@ -438,19 +438,19 @@ fn a_cancelled_merge_group_run_does_not_blame_its_jobs_either() {
 }
 
 #[test]
-fn shift_x_in_the_queue_says_there_is_nothing_to_rerun_and_asks_nothing() {
+fn s_in_the_queue_says_where_it_works_and_requests_nothing() {
     let mut h = Harness::with_size(160, 20);
 
     h.run(vec![
         queue(two()),
         key(KeyCode::Char('2')),
-        key(KeyCode::Char('X')),
+        key(KeyCode::Char('S')),
     ])
     .unwrap();
 
     let footer = h.screen().lines().last().unwrap_or_default().to_string();
     assert!(
-        footer.contains("nothing to rerun in the merge queue"),
+        footer.contains("S manages My PRs and Main builds"),
         "{footer}"
     );
     assert!(

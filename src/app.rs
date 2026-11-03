@@ -15,7 +15,7 @@ use crate::config::{Config, UpdateMethod};
 use crate::model::builds::{Build, BuildStatus, Builds};
 use crate::model::deployed::{Deployed, Deployment};
 use crate::model::jobs::Job;
-use crate::model::prs::{BranchUpdate, MergeState, PullRequest};
+use crate::model::prs::{BranchUpdate, MergeState, PullRequest, StatusChange};
 use crate::model::queue::{Queue, QueueEntry};
 use crate::open::Opener;
 use crate::ui;
@@ -67,6 +67,7 @@ pub enum Input {
     Merged(u64, Result<(), String>),
     Rerun(Vec<(u64, Result<(), String>)>),
     BranchUpdated(u64, Result<BranchUpdate, String>),
+    StatusChanged(u64, StatusChange, Result<(), String>),
     Tick(SystemTime),
 }
 
@@ -109,6 +110,37 @@ pub enum Action {
     Rerun { repo: String, run_ids: Vec<u64> },
     Merge(MergeTarget),
     UpdateBranch(UpdateTarget),
+    ChangeStatus(StatusTarget),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StatusTarget {
+    pub number: u64,
+    pub repo: String,
+    pub title: String,
+    pub head_oid: String,
+    pub change: StatusChange,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Choice {
+    Merge(MergeTarget),
+    Update(UpdateTarget),
+    Rerun(Rerun),
+    Status(StatusTarget),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Offer {
+    pub key: char,
+    pub label: String,
+    pub choice: Result<Choice, String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Menu {
+    pub title: String,
+    pub offers: Vec<Offer>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -136,6 +168,7 @@ pub enum Request {
     Rerun { repo: String, run_ids: Vec<u64> },
     Merge(MergeTarget),
     UpdateBranch(UpdateTarget),
+    ChangeStatus(StatusTarget),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -147,9 +180,9 @@ pub struct Rerun {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Pending {
-    Rerun(Rerun),
     Merge(MergeTarget),
     UpdateBranch(UpdateTarget),
+    Close(StatusTarget),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -160,6 +193,7 @@ pub enum Mode {
     Help,
     Changelog,
     Confirm(Pending),
+    Manage(Menu),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -442,6 +476,7 @@ pub struct App {
     /// The live filter applied to every column; `Mode::Filter` means it is being edited.
     pub query: Option<String>,
     rerunning: Option<(Stage, String)>,
+    changing: Option<(u64, StatusChange)>,
     pending_g: bool,
     last_open: Option<(String, SystemTime)>,
 }
@@ -484,6 +519,7 @@ impl App {
             log_page: 0,
             query: None,
             rerunning: None,
+            changing: None,
             pending_g: false,
             last_open: None,
         }
@@ -963,6 +999,7 @@ impl App {
                 Action::Continue
             }
             Mode::Confirm(_) => self.confirm(key),
+            Mode::Manage(_) => self.manage(key),
             _ if control && key.code == KeyCode::Char('d') => {
                 self.scroll_details(1);
                 Action::Continue
@@ -981,28 +1018,242 @@ impl App {
             return Action::Continue;
         };
         match pending {
-            Pending::Rerun(rerun) => self.confirm_rerun(key, rerun),
             Pending::Merge(target) => self.confirm_merge(key, target),
             Pending::UpdateBranch(target) => self.confirm_update(key, target),
+            Pending::Close(target) => self.confirm_close(key, target),
         }
     }
 
-    fn confirm_rerun(&mut self, key: KeyEvent, rerun: Rerun) -> Action {
-        if key.code != KeyCode::Char('y') {
-            self.notice = Some("rerun cancelled".to_string());
-            return Action::Continue;
+    fn ask_to_manage(&mut self) {
+        if let Some(busy) = self.write_in_flight() {
+            self.notice = Some(busy);
+            return;
         }
-        match self.rerun_target() {
+        match self.menu() {
+            Ok(menu) => self.mode = Mode::Manage(menu),
+            Err(message) => self.notice = Some(message),
+        }
+    }
+
+    fn write_in_flight(&self) -> Option<String> {
+        if let Some(number) = self.merging {
+            return Some(format!("merging #{number}…"));
+        }
+        if let Some(number) = self.updating {
+            return Some(format!("updating #{number}…"));
+        }
+        if let Some((number, change)) = &self.changing {
+            return Some(progress(*number, change));
+        }
+        self.rerunning
+            .as_ref()
+            .map(|(_, label)| format!("rerunning {label}…"))
+    }
+
+    fn menu(&self) -> Result<Menu, String> {
+        if matches!(self.focus, Stage::Prs | Stage::Builds) && self.focused_error().is_some() {
+            return Err("the last refresh failed; press r and try again".to_string());
+        }
+        match self.focus {
+            Stage::Prs => {
+                let pr = self.prs.selected().ok_or("nothing selected")?;
+                Ok(Menu {
+                    title: format!("Manage #{}", pr.number),
+                    offers: self.pr_offers(pr),
+                })
+            }
+            Stage::Builds => {
+                let build = self.builds.selected().ok_or("nothing selected")?;
+                Ok(Menu {
+                    title: format!("Manage run {}", build.run_number),
+                    offers: vec![self.rerun_offer()],
+                })
+            }
+            Stage::Queue | Stage::Deployed => Err("S manages My PRs and Main builds".to_string()),
+        }
+    }
+
+    fn rerun_offer(&self) -> Offer {
+        let target = self.rerun_target();
+        let label = match &target {
+            Ok(rerun) if rerun.run_ids.len() > 1 => {
+                format!("rerun failed jobs ({} runs)", rerun.run_ids.len())
+            }
+            _ => "rerun failed jobs".to_string(),
+        };
+        offer('f', &label, target.map(Choice::Rerun))
+    }
+
+    fn pr_offers(&self, pr: &PullRequest) -> Vec<Offer> {
+        let status = |change| {
+            Ok(Choice::Status(StatusTarget {
+                number: pr.number,
+                repo: pr.repo.clone(),
+                title: pr.title.clone(),
+                head_oid: pr.head_oid.clone(),
+                change,
+            }))
+        };
+        let update = match self.config.prs.update_method {
+            UpdateMethod::Merge => "update branch",
+            UpdateMethod::Rebase => "rebase branch",
+        };
+        let queued = pr.queue_position.is_some();
+        let draft = if pr.is_draft {
+            offer('t', "mark ready", status(StatusChange::Ready))
+        } else if queued {
+            offer(
+                't',
+                "convert to draft",
+                Err(format!("#{} is in the merge queue", pr.number)),
+            )
+        } else {
+            offer('t', "convert to draft", status(StatusChange::Draft))
+        };
+        let auto = if pr.can_disable_auto_merge {
+            offer(
+                'a',
+                "disable auto-merge",
+                status(StatusChange::DisableAutoMerge),
+            )
+        } else if pr.can_enable_auto_merge {
+            offer(
+                'a',
+                "enable auto-merge",
+                status(StatusChange::EnableAutoMerge {
+                    method: self.config.prs.merge_method,
+                    head_oid: pr.head_oid.clone(),
+                }),
+            )
+        } else {
+            offer(
+                'a',
+                "enable auto-merge",
+                Err(format!("GitHub does not allow it for #{}", pr.number)),
+            )
+        };
+        let dequeue = if queued {
+            status(StatusChange::Dequeue {
+                node_id: pr.node_id.clone(),
+            })
+        } else {
+            Err(format!("#{} is not queued", pr.number))
+        };
+        vec![
+            offer('m', "merge", self.merge_target().map(Choice::Merge)),
+            offer('u', update, self.update_target().map(Choice::Update)),
+            self.rerun_offer(),
+            draft,
+            auto,
+            offer('e', "leave the merge queue", dequeue),
+            offer('x', "close", status(StatusChange::Close)),
+        ]
+    }
+
+    fn manage(&mut self, key: KeyEvent) -> Action {
+        let Mode::Manage(menu) = std::mem::take(&mut self.mode) else {
+            return Action::Continue;
+        };
+        let picked = match key.code {
+            KeyCode::Char(letter) if key.modifiers.is_empty() => menu
+                .offers
+                .iter()
+                .find(|offer| offer.key == letter)
+                .cloned(),
+            _ => None,
+        };
+        let Some(picked) = picked else {
+            self.notice = Some("nothing changed".to_string());
+            return Action::Continue;
+        };
+        let Ok(choice) = picked.choice.clone() else {
+            self.mode = Mode::Manage(menu);
+            return Action::Continue;
+        };
+        match self.menu() {
             Err(message) => {
                 self.notice = Some(message);
                 return Action::Continue;
             }
-            Ok(now) if now.repo != rerun.repo || now.run_ids != rerun.run_ids => {
-                self.notice = Some("the runs to rerun changed; press X again".to_string());
+            Ok(fresh) if fresh.title != menu.title => {
+                self.notice = Some(changed(self.focus));
                 return Action::Continue;
             }
-            Ok(_) => {}
+            Ok(fresh) => match fresh
+                .offers
+                .into_iter()
+                .find(|offer| offer.key == picked.key)
+            {
+                Some(offer) if offer == picked => {}
+                Some(Offer {
+                    choice: Err(reason),
+                    ..
+                }) => {
+                    self.notice = Some(reason);
+                    return Action::Continue;
+                }
+                _ => {
+                    self.notice = Some(changed(self.focus));
+                    return Action::Continue;
+                }
+            },
         }
+        match choice {
+            Choice::Merge(target) => self.mode = Mode::Confirm(Pending::Merge(target)),
+            Choice::Update(target) if target.method == UpdateMethod::Rebase => {
+                self.mode = Mode::Confirm(Pending::UpdateBranch(target));
+            }
+            Choice::Update(target) => return self.send_update(target),
+            Choice::Rerun(rerun) => return self.send_rerun(rerun),
+            Choice::Status(target) if target.change == StatusChange::Close => {
+                self.mode = Mode::Confirm(Pending::Close(target));
+            }
+            Choice::Status(target) => return self.send_status(target),
+        }
+        Action::Continue
+    }
+
+    fn confirm_close(&mut self, key: KeyEvent, target: StatusTarget) -> Action {
+        if key.code != KeyCode::Char('y') || !key.modifiers.is_empty() {
+            self.notice = Some("close cancelled".to_string());
+            return Action::Continue;
+        }
+        let still = self
+            .menu()
+            .ok()
+            .and_then(|menu| menu.offers.into_iter().find(|offer| offer.key == 'x'))
+            .is_some_and(|offer| offer.choice == Ok(Choice::Status(target.clone())));
+        if !still {
+            self.notice = Some(changed(Stage::Prs));
+            return Action::Continue;
+        }
+        self.send_status(target)
+    }
+
+    fn send_status(&mut self, target: StatusTarget) -> Action {
+        self.notice = Some(progress(target.number, &target.change));
+        self.changing = Some((target.number, target.change.clone()));
+        Action::ChangeStatus(target)
+    }
+
+    pub fn receive_status(
+        &mut self,
+        number: u64,
+        change: &StatusChange,
+        result: &Result<(), String>,
+    ) -> bool {
+        self.changing = None;
+        self.notice = Some(match result {
+            Ok(()) => done(number, change),
+            Err(message) => format!("#{number}: {message}"),
+        });
+        if result.is_ok() && matches!(change, StatusChange::EnableAutoMerge { .. }) {
+            self.merge_landing = Some((number, false));
+        }
+        result.is_ok()
+    }
+
+    fn send_rerun(&mut self, rerun: Rerun) -> Action {
         self.notice = Some(format!("rerunning {}…", rerun.label));
         self.rerunning = Some((self.focus, rerun.label));
         Action::Rerun {
@@ -1046,7 +1297,7 @@ impl App {
                 return Action::Continue;
             }
             Ok(now) if now != target => {
-                self.notice = Some("the pull request changed; press M again".to_string());
+                self.notice = Some(changed(Stage::Prs));
                 return Action::Continue;
             }
             Ok(_) => {}
@@ -1056,25 +1307,7 @@ impl App {
         Action::Merge(target)
     }
 
-    fn ask_to_merge(&mut self) {
-        if let Some(number) = self.merging {
-            self.notice = Some(format!("merging #{number}…"));
-            return;
-        }
-        if let Some(number) = self.updating {
-            self.notice = Some(format!("updating #{number}…"));
-            return;
-        }
-        match self.merge_target() {
-            Ok(target) => self.mode = Mode::Confirm(Pending::Merge(target)),
-            Err(message) => self.notice = Some(message),
-        }
-    }
-
     fn merge_target(&self) -> Result<MergeTarget, String> {
-        if self.focus != Stage::Prs {
-            return Err("M merges from My PRs".to_string());
-        }
         let pr = self.prs.selected().ok_or("nothing selected")?;
         if pr.is_draft {
             return Err(format!("#{} is a draft", pr.number));
@@ -1110,35 +1343,21 @@ impl App {
                 return Action::Continue;
             }
             Ok(now) if now != target => {
-                self.notice = Some("the pull request changed; press U again".to_string());
+                self.notice = Some(changed(Stage::Prs));
                 return Action::Continue;
             }
             Ok(_) => {}
         }
+        self.send_update(target)
+    }
+
+    fn send_update(&mut self, target: UpdateTarget) -> Action {
         self.updating = Some(target.number);
         self.notice = Some(format!("updating #{}…", target.number));
         Action::UpdateBranch(target)
     }
 
-    fn ask_to_update(&mut self) {
-        if let Some(number) = self.updating {
-            self.notice = Some(format!("updating #{number}…"));
-            return;
-        }
-        if let Some(number) = self.merging {
-            self.notice = Some(format!("merging #{number}…"));
-            return;
-        }
-        match self.update_target() {
-            Ok(target) => self.mode = Mode::Confirm(Pending::UpdateBranch(target)),
-            Err(message) => self.notice = Some(message),
-        }
-    }
-
     fn update_target(&self) -> Result<UpdateTarget, String> {
-        if self.focus != Stage::Prs {
-            return Err("U updates a branch from My PRs".to_string());
-        }
         if self.focused_error().is_some() {
             return Err("the last refresh failed; press r and try again".to_string());
         }
@@ -1191,17 +1410,6 @@ impl App {
             Err(message) => format!("update failed for #{number}: {message}"),
         });
         matches!(result, Ok(BranchUpdate::Updated))
-    }
-
-    fn ask_rerun(&mut self) {
-        if self.rerunning.is_some() {
-            self.notice = Some("a rerun is already on its way".to_string());
-            return;
-        }
-        match self.rerun_target() {
-            Ok(rerun) => self.mode = Mode::Confirm(Pending::Rerun(rerun)),
-            Err(message) => self.notice = Some(message),
-        }
     }
 
     fn rerun_target(&self) -> Result<Rerun, String> {
@@ -1347,9 +1555,7 @@ impl App {
                 self.reset_scroll();
             }
             KeyCode::Char('L') => return self.toggle_log(),
-            KeyCode::Char('M') => self.ask_to_merge(),
-            KeyCode::Char('U') => self.ask_to_update(),
-            KeyCode::Char('X') => self.ask_rerun(),
+            KeyCode::Char('S') => self.ask_to_manage(),
             KeyCode::Char('z') => self.zoom = !self.zoom,
             KeyCode::Char('l') if self.focus != Stage::Deployed => self.refocus(Stage::next),
             KeyCode::Char('h') if self.focus != Stage::Prs => self.refocus(Stage::previous),
@@ -1468,6 +1674,18 @@ where
                     request(Request::Refresh(Stage::Queue));
                 }
             }
+            Input::StatusChanged(number, change, result) => {
+                if app.receive_status(number, &change, &result) {
+                    request(Request::Refresh(Stage::Prs));
+                    if !matches!(
+                        change,
+                        StatusChange::Ready | StatusChange::Draft | StatusChange::Close
+                    ) {
+                        request(Request::Refresh(Stage::Queue));
+                    }
+                    app.follow_up_prs();
+                }
+            }
             Input::Rerun(result) => {
                 if let Some(stage) = app.receive_rerun(result) {
                     request(Request::Refresh(stage));
@@ -1490,12 +1708,50 @@ where
                 Action::Merge(target) => request(Request::Merge(target)),
                 Action::UpdateBranch(target) => request(Request::UpdateBranch(target)),
                 Action::Rerun { repo, run_ids } => request(Request::Rerun { repo, run_ids }),
+                Action::ChangeStatus(target) => request(Request::ChangeStatus(target)),
                 Action::Continue => {}
             },
         }
         if let Some(run_id) = app.jobs_needed() {
             request(Request::Jobs { run_id });
         }
+    }
+}
+
+fn offer(key: char, label: &str, choice: Result<Choice, String>) -> Offer {
+    Offer {
+        key,
+        label: label.to_string(),
+        choice,
+    }
+}
+
+fn changed(stage: Stage) -> String {
+    match stage {
+        Stage::Builds => "the run changed; press S again".to_string(),
+        _ => "the pull request changed; press S again".to_string(),
+    }
+}
+
+fn progress(number: u64, change: &StatusChange) -> String {
+    match change {
+        StatusChange::Ready => format!("marking #{number} ready…"),
+        StatusChange::Draft => format!("converting #{number} to draft…"),
+        StatusChange::EnableAutoMerge { .. } => format!("enabling auto-merge for #{number}…"),
+        StatusChange::DisableAutoMerge => format!("disabling auto-merge for #{number}…"),
+        StatusChange::Dequeue { .. } => format!("taking #{number} out of the merge queue…"),
+        StatusChange::Close => format!("closing #{number}…"),
+    }
+}
+
+fn done(number: u64, change: &StatusChange) -> String {
+    match change {
+        StatusChange::Ready => format!("#{number} marked ready"),
+        StatusChange::Draft => format!("#{number} converted to draft"),
+        StatusChange::EnableAutoMerge { .. } => format!("auto-merge enabled for #{number}"),
+        StatusChange::DisableAutoMerge => format!("auto-merge disabled for #{number}"),
+        StatusChange::Dequeue { .. } => format!("#{number} left the merge queue"),
+        StatusChange::Close => format!("#{number} closed"),
     }
 }
 

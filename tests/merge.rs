@@ -21,12 +21,13 @@ fn target(number: u64, title: &str) -> Request {
 }
 
 #[test]
-fn shift_m_asks_in_a_dialog_and_y_requests_the_merge() {
+fn s_then_m_asks_in_a_dialog_and_y_requests_the_merge() {
     let mut h = Harness::new();
 
     h.run(vec![
         prs(vec![mergeable(1, "Retry webhooks")]),
-        key(KeyCode::Char('M')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
     ])
     .unwrap();
 
@@ -49,7 +50,8 @@ fn any_other_key_cancels_and_leaves_the_prompt() {
 
     h.run(vec![
         prs(vec![mergeable(1, "a")]),
-        key(KeyCode::Char('M')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
         key(KeyCode::Char('n')),
     ])
     .unwrap();
@@ -72,14 +74,20 @@ fn esc_and_ctrl_d_cancel_the_prompt_instead_of_closing_or_scrolling() {
 
     h.run(vec![
         prs(vec![mergeable(1, "a")]),
-        key(KeyCode::Char('M')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
         key(KeyCode::Esc),
     ])
     .unwrap();
 
     assert!(h.screen().contains("merge cancelled"), "{}", h.screen());
 
-    h.run(vec![key(KeyCode::Char('M')), ctrl('d')]).unwrap();
+    h.run(vec![
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        ctrl('d'),
+    ])
+    .unwrap();
 
     assert!(h.screen().contains("merge cancelled"), "{}", h.screen());
     assert!(h.requests.is_empty());
@@ -91,7 +99,8 @@ fn ctrl_c_still_quits_while_the_prompt_is_open() {
 
     h.run(vec![
         prs(vec![mergeable(1, "a")]),
-        key(KeyCode::Char('M')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
         ctrl('c'),
         key(KeyCode::Char('y')),
     ])
@@ -101,12 +110,13 @@ fn ctrl_c_still_quits_while_the_prompt_is_open() {
 }
 
 #[test]
-fn y_after_a_refresh_moved_the_selection_asks_for_m_again() {
+fn y_after_a_refresh_moved_the_selection_asks_for_s_again() {
     let mut h = Harness::new();
 
     h.run(vec![
         prs(vec![mergeable(1, "a"), mergeable(2, "b")]),
-        key(KeyCode::Char('M')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
         prs(vec![mergeable(2, "b")]),
         key(KeyCode::Char('y')),
     ])
@@ -114,21 +124,22 @@ fn y_after_a_refresh_moved_the_selection_asks_for_m_again() {
 
     let screen = h.screen();
     assert!(
-        screen.contains("the pull request changed; press M again"),
+        screen.contains("the pull request changed; press S again"),
         "{screen}"
     );
     assert!(h.requests.is_empty());
 }
 
 #[test]
-fn y_after_a_new_head_commit_asks_for_m_again() {
+fn y_after_a_new_head_commit_asks_for_s_again() {
     let mut h = Harness::new();
     let mut pushed = mergeable(1, "a");
     pushed.head_oid = "b0b51365".to_string();
 
     h.run(vec![
         prs(vec![mergeable(1, "a")]),
-        key(KeyCode::Char('M')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
         prs(vec![pushed]),
         key(KeyCode::Char('y')),
     ])
@@ -136,20 +147,24 @@ fn y_after_a_new_head_commit_asks_for_m_again() {
 
     let screen = h.screen();
     assert!(
-        screen.contains("the pull request changed; press M again"),
+        screen.contains("the pull request changed; press S again"),
         "{screen}"
     );
     assert!(h.requests.is_empty());
 }
 
 #[test]
-fn a_draft_is_refused_without_a_prompt() {
+fn a_draft_lists_merge_as_refused_and_m_asks_nothing() {
     let mut h = Harness::new();
     let mut draft = mergeable(1, "a");
     draft.is_draft = true;
 
-    h.run(vec![prs(vec![draft]), key(KeyCode::Char('M'))])
-        .unwrap();
+    h.run(vec![
+        prs(vec![draft]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+    ])
+    .unwrap();
 
     let screen = h.screen();
     assert!(screen.contains("#1 is a draft"), "{screen}");
@@ -157,13 +172,17 @@ fn a_draft_is_refused_without_a_prompt() {
 }
 
 #[test]
-fn a_queued_pull_request_is_refused_without_a_prompt() {
+fn a_queued_pull_request_lists_merge_as_refused_and_m_asks_nothing() {
     let mut h = Harness::new();
     let mut queued = mergeable(1, "a");
     queued.queue_position = Some(1);
 
-    h.run(vec![prs(vec![queued]), key(KeyCode::Char('M'))])
-        .unwrap();
+    h.run(vec![
+        prs(vec![queued]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+    ])
+    .unwrap();
 
     let screen = h.screen();
     assert!(screen.contains("#1 is already queued"), "{screen}");
@@ -171,26 +190,29 @@ fn a_queued_pull_request_is_refused_without_a_prompt() {
 }
 
 #[test]
-fn shift_m_outside_my_prs_says_where_it_works() {
+fn s_in_the_merge_queue_says_where_it_works() {
     let mut h = Harness::new();
 
     h.run(vec![
         queue(vec![entry(1, 7, "alice", "a")]),
         key(KeyCode::Char('2')),
-        key(KeyCode::Char('M')),
+        key(KeyCode::Char('S')),
     ])
     .unwrap();
 
     let screen = h.screen();
-    assert!(screen.contains("M merges from My PRs"), "{screen}");
+    assert!(
+        screen.contains("S manages My PRs and Main builds"),
+        "{screen}"
+    );
     assert!(!screen.contains("y confirms"), "{screen}");
 }
 
 #[test]
-fn shift_m_with_nothing_selected_says_so() {
+fn s_with_nothing_selected_says_so() {
     let mut h = Harness::new();
 
-    h.run(vec![prs(vec![]), key(KeyCode::Char('M'))]).unwrap();
+    h.run(vec![prs(vec![]), key(KeyCode::Char('S'))]).unwrap();
 
     assert!(h.screen().contains("nothing selected"), "{}", h.screen());
 }
@@ -200,19 +222,20 @@ fn merged(number: u64, result: Result<(), &str>) -> std::io::Result<Input> {
 }
 
 #[test]
-fn while_a_merge_is_in_flight_shift_m_says_so_instead_of_asking_again() {
+fn while_a_merge_is_in_flight_s_says_so_instead_of_opening() {
     let mut h = Harness::new();
 
     h.run(vec![
         prs(vec![mergeable(1, "a")]),
-        key(KeyCode::Char('M')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
         key(KeyCode::Char('y')),
     ])
     .unwrap();
 
     assert!(h.screen().contains("merging #1…"), "{}", h.screen());
 
-    h.run(vec![key(KeyCode::Char('M'))]).unwrap();
+    h.run(vec![key(KeyCode::Char('S'))]).unwrap();
 
     let screen = h.screen();
     assert!(screen.contains("merging #1…"), "{screen}");
@@ -226,7 +249,8 @@ fn an_accepted_merge_says_so_and_refreshes_my_prs_and_the_queue() {
 
     h.run(vec![
         prs(vec![mergeable(1, "a")]),
-        key(KeyCode::Char('M')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
         key(KeyCode::Char('y')),
         merged(1, Ok(())),
     ])
@@ -240,12 +264,13 @@ fn an_accepted_merge_says_so_and_refreshes_my_prs_and_the_queue() {
 }
 
 #[test]
-fn a_refused_merge_shows_what_gh_said_and_shift_m_asks_again() {
+fn a_refused_merge_shows_what_gh_said_and_s_m_asks_again() {
     let mut h = Harness::new();
 
     h.run(vec![
         prs(vec![mergeable(1, "a")]),
-        key(KeyCode::Char('M')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
         key(KeyCode::Char('y')),
         merged(1, Err("Pull request is not mergeable")),
     ])
@@ -257,13 +282,14 @@ fn a_refused_merge_shows_what_gh_said_and_shift_m_asks_again() {
         h.screen()
     );
 
-    h.run(vec![key(KeyCode::Char('M'))]).unwrap();
+    h.run(vec![key(KeyCode::Char('S')), key(KeyCode::Char('m'))])
+        .unwrap();
 
     assert!(h.screen().contains("merge #1 a?"), "{}", h.screen());
 }
 
 #[test]
-fn the_help_lists_shift_m_and_shift_u_and_still_fits_seventeen_rows() {
+fn the_help_lists_shift_s_and_still_fits_seventeen_rows() {
     let mut h = Harness::with_size(160, 17);
 
     h.run(vec![prs(vec![mergeable(1, "a")]), key(KeyCode::Char('?'))])
@@ -271,7 +297,7 @@ fn the_help_lists_shift_m_and_shift_u_and_still_fits_seventeen_rows() {
 
     let screen = h.screen();
     assert!(
-        screen.contains("merge / update the branch (y/n)"),
+        screen.contains("manage: merge, update, rerun, status"),
         "{screen}"
     );
     assert!(screen.contains("help"), "{screen}");
@@ -291,7 +317,8 @@ fn the_prompt_is_a_dialog_in_the_middle_of_the_screen_not_the_footer() {
 
     h.run(vec![
         prs(vec![mergeable(1, "Retry webhooks")]),
-        key(KeyCode::Char('M')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
     ])
     .unwrap();
 
@@ -314,7 +341,8 @@ fn a_long_title_wraps_inside_the_dialog() {
 
     h.run(vec![
         prs(vec![mergeable(1, title)]),
-        key(KeyCode::Char('M')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
     ])
     .unwrap();
 
@@ -330,7 +358,8 @@ fn a_title_too_long_for_a_small_terminal_is_cut_before_the_question_mark() {
 
     h.run(vec![
         prs(vec![mergeable(1, title)]),
-        key(KeyCode::Char('M')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
     ])
     .unwrap();
 
@@ -351,7 +380,8 @@ fn the_dialog_uses_the_whole_body_when_the_details_pane_is_open() {
     h.run(vec![
         prs(vec![mergeable(1, title)]),
         key(KeyCode::Char('d')),
-        key(KeyCode::Char('M')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
     ])
     .unwrap();
 
@@ -367,8 +397,12 @@ fn the_dialog_uses_the_whole_body_when_the_details_pane_is_open() {
 fn on_a_narrow_body_the_hint_wraps_instead_of_being_cut() {
     let mut h = Harness::with_size(36, 14);
 
-    h.run(vec![prs(vec![mergeable(1, "a")]), key(KeyCode::Char('M'))])
-        .unwrap();
+    h.run(vec![
+        prs(vec![mergeable(1, "a")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+    ])
+    .unwrap();
 
     let screen = h.screen();
     assert!(screen.contains("y confirms"), "{screen}");

@@ -525,8 +525,9 @@ fn question_mark_shows_the_key_help_and_any_key_returns() {
         "zoom",
         "Esc",
         "close details / zoom / filter",
-        "L/X",
-        "log of the failed step / rerun failed jobs",
+        "log of the failed step",
+        "S",
+        "manage: merge, update, rerun, status",
         "y/Y",
         "copy pull request / build URL",
         "d",
@@ -1227,23 +1228,20 @@ fn failing_in(name: &str, run_id: u64) -> conveyor::model::prs::Check {
 }
 
 #[test]
-fn shift_x_on_a_pull_request_reruns_every_finished_run_behind_its_failing_checks() {
+fn f_on_a_pull_request_reruns_every_finished_run_behind_its_failing_checks() {
     use conveyor::app::Request;
     let mut h = Harness::with_size(160, 20);
     let mut failing = pr(4821, "Retry hooks");
     failing.repo = "acme/api".to_string();
     failing.checks_detail = vec![failing_in("test", 70), failing_in("e2e", 80)];
 
-    h.run(vec![prs(vec![failing]), key(KeyCode::Char('X'))])
+    h.run(vec![prs(vec![failing]), key(KeyCode::Char('S'))])
         .unwrap();
 
     let screen = h.screen();
-    assert!(
-        screen.contains("rerun failed jobs of #4821 (2 runs)?"),
-        "{screen}"
-    );
+    assert!(screen.contains("f  rerun failed jobs (2 runs)"), "{screen}");
 
-    h.run(vec![key(KeyCode::Char('y'))]).unwrap();
+    h.run(vec![key(KeyCode::Char('f'))]).unwrap();
 
     assert_eq!(
         h.requests.last(),
@@ -1263,8 +1261,8 @@ fn a_rerun_that_went_through_for_some_runs_says_which_failed_and_still_refreshes
 
     h.run(vec![
         prs(vec![failing]),
-        key(KeyCode::Char('X')),
-        key(KeyCode::Char('y')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('f')),
         support::rerun_done(vec![(70, Ok(())), (80, Err("HTTP 403"))]),
     ])
     .unwrap();
@@ -1278,7 +1276,7 @@ fn a_rerun_that_went_through_for_some_runs_says_which_failed_and_still_refreshes
 }
 
 #[test]
-fn y_cancels_when_the_runs_behind_the_pull_request_changed_during_the_prompt() {
+fn f_refuses_when_the_runs_behind_the_pull_request_changed_while_the_popup_was_open() {
     use conveyor::app::Request;
     let mut h = Harness::with_size(160, 20);
     let mut failing = pr(4821, "Retry hooks");
@@ -1288,15 +1286,15 @@ fn y_cancels_when_the_runs_behind_the_pull_request_changed_during_the_prompt() {
 
     h.run(vec![
         prs(vec![failing]),
-        key(KeyCode::Char('X')),
+        key(KeyCode::Char('S')),
         prs(vec![one_left]),
-        key(KeyCode::Char('y')),
+        key(KeyCode::Char('f')),
     ])
     .unwrap();
 
     let footer = h.screen().lines().last().unwrap_or_default().to_string();
     assert!(
-        footer.contains("the runs to rerun changed; press X again"),
+        footer.contains("the pull request changed; press S again"),
         "{footer}"
     );
     assert!(
@@ -1309,7 +1307,7 @@ fn y_cancels_when_the_runs_behind_the_pull_request_changed_during_the_prompt() {
 }
 
 #[test]
-fn shift_x_on_a_pull_request_refuses_while_the_last_refresh_failed() {
+fn s_on_a_pull_request_refuses_while_the_last_refresh_failed() {
     let mut h = Harness::with_size(160, 20);
     let mut failing = pr(4821, "Retry hooks");
     failing.checks_detail = vec![failing_in("test", 70)];
@@ -1317,7 +1315,7 @@ fn shift_x_on_a_pull_request_refuses_while_the_last_refresh_failed() {
     h.run(vec![
         prs(vec![failing]),
         support::failed(conveyor::app::Stage::Prs, "gh: HTTP 502"),
-        key(KeyCode::Char('X')),
+        key(KeyCode::Char('S')),
     ])
     .unwrap();
 
@@ -1330,19 +1328,21 @@ fn shift_x_on_a_pull_request_refuses_while_the_last_refresh_failed() {
 }
 
 #[test]
-fn shift_x_on_a_pull_request_with_nothing_finished_and_failing_says_so() {
+fn a_pull_request_with_nothing_finished_and_failing_lists_the_rerun_as_refused() {
     let mut h = Harness::with_size(160, 20);
 
     h.run(vec![
         prs(vec![pr(4821, "Retry hooks")]),
-        key(KeyCode::Char('X')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('f')),
     ])
     .unwrap();
 
-    let footer = h.screen().lines().last().unwrap_or_default().to_string();
     assert!(
-        footer.contains("no finished failing run to rerun"),
-        "{footer}"
+        h.screen()
+            .contains("f  rerun failed jobs · no finished failing run to rerun"),
+        "{}",
+        h.screen()
     );
     assert!(h.requests.is_empty(), "{:?}", h.requests);
 }
@@ -1356,8 +1356,8 @@ fn a_rerun_from_my_prs_reloads_them_once_more_ten_seconds_later() {
 
     h.run(vec![
         prs(vec![failing]),
-        key(KeyCode::Char('X')),
-        key(KeyCode::Char('y')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('f')),
         support::rerun_done(vec![(70, Ok(()))]),
         tick_at(NOW + 9),
     ])
@@ -1385,8 +1385,8 @@ fn a_rerun_that_failed_for_every_run_schedules_no_reload() {
 
     h.run(vec![
         prs(vec![failing]),
-        key(KeyCode::Char('X')),
-        key(KeyCode::Char('y')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('f')),
         support::rerun_done(vec![(70, Err("HTTP 403"))]),
         tick_at(NOW + 30),
     ])

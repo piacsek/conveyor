@@ -7,7 +7,9 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, SystemTime};
 
-use conveyor::app::{App, Input, MergeTarget, Request, Rows, Stage, UpdateTarget, run};
+use conveyor::app::{
+    App, Input, MergeTarget, Request, Rows, Stage, StatusTarget, UpdateTarget, run,
+};
 use conveyor::cli::{self, Command};
 use conveyor::config::{self, Config};
 use conveyor::open::SystemOpener;
@@ -89,6 +91,7 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
     let reruns = spawn_rerun_worker(tx.clone());
     let merges = spawn_merger(config.clone(), tx.clone());
     let updates = spawn_branch_updater(tx.clone());
+    let statuses = spawn_status_changer(tx.clone());
     spawn_terminal_events(tx);
     let mut app = App::new(config);
     app.notice = config_error;
@@ -116,6 +119,9 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
             }
             Request::UpdateBranch(target) => {
                 let _ = updates.send(target);
+            }
+            Request::ChangeStatus(target) => {
+                let _ = statuses.send(target);
             }
             Request::Rerun { repo, run_ids } => {
                 let _ = reruns.send((repo, run_ids));
@@ -205,6 +211,23 @@ fn spawn_branch_updater(tx: Inputs) -> mpsc::Sender<UpdateTarget> {
         }
     });
     update_tx
+}
+
+fn spawn_status_changer(tx: Inputs) -> mpsc::Sender<StatusTarget> {
+    let (status_tx, status_rx) = mpsc::channel::<StatusTarget>();
+    thread::spawn(move || {
+        let gh = CliGh::default();
+        while let Ok(target) = status_rx.recv() {
+            let result = gh
+                .change_status(&target.repo, target.number, &target.change)
+                .map_err(|err| err.to_string());
+            let landed = Input::StatusChanged(target.number, target.change, result);
+            if tx.send(Ok(landed)).is_err() {
+                return;
+            }
+        }
+    });
+    status_tx
 }
 
 fn spawn_merger(config: Config, tx: Inputs) -> mpsc::Sender<MergeTarget> {
