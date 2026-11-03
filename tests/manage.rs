@@ -7,39 +7,6 @@ use conveyor::model::prs::{PullRequest, StatusChange};
 use ratatui::crossterm::event::KeyCode;
 use support::{Harness, build, builds, failed, key, pr, prs};
 
-fn tall() -> Harness {
-    Harness::with_size(160, 20)
-}
-
-fn open(number: u64, title: &str) -> PullRequest {
-    let mut pull = pr(number, title);
-    pull.head_oid = format!("8c1f2a7d{number}");
-    pull.node_id = format!("PR_node{number}");
-    pull
-}
-
-fn status(number: u64, title: &str, change: StatusChange) -> Request {
-    Request::ChangeStatus(StatusTarget {
-        number,
-        repo: "acme/webapp".to_string(),
-        title: title.to_string(),
-        head_oid: format!("8c1f2a7d{number}"),
-        change,
-    })
-}
-
-fn status_changed(
-    number: u64,
-    change: StatusChange,
-    result: Result<(), &str>,
-) -> std::io::Result<Input> {
-    Ok(Input::StatusChanged(
-        number,
-        change,
-        result.map_err(str::to_string),
-    ))
-}
-
 #[test]
 fn shift_s_opens_a_manage_popup_listing_every_action_for_the_pull_request() {
     let mut h = tall();
@@ -155,9 +122,9 @@ fn a_queued_pull_request_cannot_become_a_draft_but_can_leave_the_queue() {
 }
 
 #[test]
-fn a_enables_auto_merge_with_the_configured_method_when_github_allows_it() {
+fn a_asks_before_enabling_auto_merge_because_it_merges_later_and_y_enables_it() {
     let mut h = tall();
-    let mut pull = open(1, "a");
+    let mut pull = open(1, "Retry webhooks");
     pull.can_enable_auto_merge = true;
 
     h.run(vec![
@@ -167,11 +134,21 @@ fn a_enables_auto_merge_with_the_configured_method_when_github_allows_it() {
     ])
     .unwrap();
 
+    assert!(
+        h.screen()
+            .contains("enable auto-merge for #1 Retry webhooks?"),
+        "{}",
+        h.screen()
+    );
+    assert!(h.requests.is_empty(), "{:?}", h.requests);
+
+    h.run(vec![key(KeyCode::Char('y'))]).unwrap();
+
     assert_eq!(
         h.requests,
         vec![status(
             1,
-            "a",
+            "Retry webhooks",
             StatusChange::EnableAutoMerge {
                 node_id: "PR_node1".to_string(),
                 method: MergeMethod::Squash,
@@ -514,4 +491,37 @@ fn closing_also_refreshes_the_merge_queue() {
     assert!(h.screen().contains("#1 closed"), "{}", h.screen());
     assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
     assert_eq!(h.requests[2], Request::Refresh(Stage::Queue));
+}
+
+fn tall() -> Harness {
+    Harness::with_size(160, 20)
+}
+
+fn open(number: u64, title: &str) -> PullRequest {
+    let mut pull = pr(number, title);
+    pull.head_oid = format!("8c1f2a7d{number}");
+    pull.node_id = format!("PR_node{number}");
+    pull
+}
+
+fn status(number: u64, title: &str, change: StatusChange) -> Request {
+    Request::ChangeStatus(StatusTarget {
+        number,
+        repo: "acme/webapp".to_string(),
+        title: title.to_string(),
+        head_oid: format!("8c1f2a7d{number}"),
+        change,
+    })
+}
+
+fn status_changed(
+    number: u64,
+    change: StatusChange,
+    result: Result<(), &str>,
+) -> std::io::Result<Input> {
+    Ok(Input::StatusChanged(
+        number,
+        change,
+        result.map_err(str::to_string),
+    ))
 }

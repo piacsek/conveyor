@@ -11,7 +11,7 @@ changes: draft ↔ ready, auto-merge on/off, leaving the merge queue, closing.
 (`m  merge · #12 is a draft`) and its letter does nothing. Any other key cancels, `q` included.
 Letters avoid every Normal-mode key, so a habit press cancels instead of writing.
 
-Merge, close and a rebase update (force-push) ask `y` in the confirm dialog. The rest act on
+Merge, enabling auto-merge (on a merge-queue repo it enqueues), close and a rebase update (force-push) ask `y` in the confirm dialog. The rest act on
 the letter: the popup is the confirmation and each is cheap to undo.
 
 | key | action                        | offered when                                      | then        |
@@ -20,7 +20,7 @@ the letter: the popup is the confirmation and each is cheap to undo.
 | `u` | update / rebase branch        | `update_target` rules                             | `y` on rebase |
 | `f` | rerun failed jobs             | `rerun_target` rules                              | direct      |
 | `t` | mark ready / convert to draft | draft, or open and not queued                     | direct      |
-| `a` | enable / disable auto-merge   | `viewerCanEnableAutoMerge` / `viewerCanDisableAutoMerge` | direct |
+| `a` | enable / disable auto-merge   | `viewerCanEnableAutoMerge` / `viewerCanDisableAutoMerge` | `y` to enable |
 | `e` | exit the merge queue          | queued                                            | direct      |
 | `x` | close                         | always                                            | confirm `y` |
 

@@ -65,12 +65,6 @@ fn with_update_method_rebase_u_asks_first_and_the_request_carries_it() {
     assert_eq!(h.requests, vec![target(1, "a", UpdateMethod::Rebase)]);
 }
 
-fn rebasing() -> Config {
-    let mut config = Config::default();
-    config.prs.update_method = UpdateMethod::Rebase;
-    config
-}
-
 #[test]
 fn any_other_key_cancels_a_rebase() {
     let mut h = Harness::with_config(160, 12, rebasing());
@@ -507,4 +501,10 @@ fn y_refuses_a_rebase_when_a_refresh_of_my_prs_failed_while_the_dialog_was_open(
         h.screen()
     );
     assert!(h.requests.is_empty(), "{:?}", h.requests);
+}
+
+fn rebasing() -> Config {
+    let mut config = Config::default();
+    config.prs.update_method = UpdateMethod::Rebase;
+    config
 }

@@ -298,8 +298,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   PRs and Main builds`). `X`, `M` and `U` were removed in v0.21.0; `S` replaced them.
   A letter re-derives the menu: a different title (another row selected) or a different offer
   under the letter says `the pull request changed; press S again` (`the run changed` in Main
-  builds), and an offer that turned into a refusal says its reason. **Only sensitive actions
-  ask `y` second**: merge (`m`), close (`x`) and a rebase update (`u` with `prs.update_method =
+  builds), and an offer that turned into a refusal says its reason. A refresh that lands while
+  the popup is open does not redraw its offers: a dim offer that became possible stays dim until
+  `S` is pressed again (nothing is sent either way). **Only sensitive actions
+  ask `y` second**: merge (`m`), enabling auto-merge (`a` while off: on a merge-queue repo it
+  enqueues, which is a merge), close (`x`) and a rebase update (`u` with `prs.update_method =
   "rebase"`, a force-push) go to the confirm dialog; the rest act on the letter, since the popup
   already was the confirmation and each is cheap to undo. Offers per stage:
   - My PRs: `m` merge, `u` update/rebase branch, `f` rerun failed jobs (`(k runs)` when more
@@ -318,7 +321,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
     disable, else `viewerCanEnableAutoMerge` offers enable, else it is refused (`GitHub does not
     allow it for #N`: a draft, or the repository has auto-merge off). On a merge-queue repo,
     enabling auto-merge enqueues (gh), so a success sets `merge_landing` like a merge. The card's
-    meta line reads `auto-merge` while `autoMergeRequest` is set. `Input::StatusChanged` puts
+    meta line reads `auto-merge` while `autoMergeRequest` is set, before the branch name, which
+    `meta()` would otherwise cut it behind on a narrow card. `Input::StatusChanged` puts
     `#N converted to draft` (etc.) or `#N: <gh error>` in the footer; a success refreshes My PRs
     (and the queue, except after `mark ready`) and sets `App::follow_up`. No reopen: the default `prs.query`
     is `is:open`, so a closed pull request leaves the column on the next refresh.
@@ -361,7 +365,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 - **Every sensitive write asks in one dialog.** `ui::dialog::draw_confirm` draws over the body
   while `Mode::Confirm`, centred over the whole body (the details pane included, so an open pane
   never squeezes it), at most 56 columns inside and 2 off each edge: `Clear`, a
-  bordered `Confirm` block, the question wrapped over at most 3 lines (cut with `…` before the
+  bordered `Confirm` block, the question (`Pending::{Merge, UpdateBranch, Status}`) wrapped over at most 3 lines (cut with `…` before the
   `?`), a blank line and the dim `y confirms · any other key cancels`, wrapped over 2 lines on a
   narrow body rather than cut. `draw_manage` draws the `S` popup with the same geometry: each
   offer wraps over at most 2 lines with a hanging indent, then the dim `a letter acts · any
