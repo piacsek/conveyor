@@ -18,6 +18,9 @@ query($q: String!, $first: Int!) {
         additions
         deletions
         mergeQueueEntry { position state }
+        autoMergeRequest { enabledAt }
+        viewerCanEnableAutoMerge
+        viewerCanDisableAutoMerge
         statusCheckRollup {
           state
           contexts(first: 100) {
