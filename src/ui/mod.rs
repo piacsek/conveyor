@@ -18,7 +18,7 @@ use crate::app::{App, Mode, Stage};
 use crate::ui::changelog::draw_changelog;
 use crate::ui::columns::{column_title, draw_column};
 use crate::ui::details::draw_details;
-use crate::ui::dialog::draw_confirm;
+use crate::ui::dialog::{draw_confirm, draw_manage};
 use crate::ui::footer::draw_footer;
 use crate::ui::help::draw_help;
 use crate::ui::style::dim;
@@ -73,6 +73,9 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     }
     if let Mode::Confirm(pending) = &app.mode {
         draw_confirm(frame, whole, pending);
+    }
+    if let Mode::Manage(menu) = &app.mode {
+        draw_manage(frame, whole, menu);
     }
 }
 

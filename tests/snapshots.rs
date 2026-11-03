@@ -196,6 +196,18 @@ fn zoom_layout() {
 #[test]
 fn confirm_layout() {
     let mut h = Harness::with_size(80, 16);
-    h.run(vec![prs(sample()), key(KeyCode::Char('M'))]).unwrap();
+    h.run(vec![
+        prs(sample()),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+    ])
+    .unwrap();
+    insta::assert_snapshot!(h.screen());
+}
+
+#[test]
+fn manage_layout() {
+    let mut h = Harness::with_size(80, 16);
+    h.run(vec![prs(sample()), key(KeyCode::Char('S'))]).unwrap();
     insta::assert_snapshot!(h.screen());
 }
