@@ -354,7 +354,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   again through `App::reconfirm` (the same `menu()` the popup used, so a My PRs refresh that
   failed while the dialog was open refuses too) and sends `Request::Merge` only if the offer
   under `m` is still the same number, repo, title and head sha; otherwise the footer says why,
-  or `the pull request changed; press S again`. `confirm_update` and `confirm_close` use the
+  or `the pull request changed; press S again`. `confirm_update` and `confirm_status` (close, enable auto-merge) use the
   same check. Drafts and queued pull requests are refused in the popup. The worker runs `gh pr merge <N>
   -R <repo> --<prs.merge_method> --match-head-commit <headRefOid>`; the pin refuses a head pushed
   after the card was drawn. On a merge-queue branch gh only warns that the queue sets the
@@ -383,8 +383,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   are allowed. `y` re-derives the target like `m` (`the pull request changed; press S again`).
   A merge that just queued the pull request has no `queue_position`
   until the next refresh, and the push would drop it from the queue. For that reason a
-  successful merge sets `App::merge_landing` and `u` is refused with `waiting for My PRs to refresh
-  after merging #N` until a My PRs fetch that started after the merge (`Input::Fetching`) has
+  successful merge, or enabling auto-merge, sets `App::merge_landing` and `u` and `t` (to draft)
+  are refused with `waiting for My PRs to catch up with #N` until a My PRs fetch that started after the merge (`Input::Fetching`) has
   landed; a fetch already in flight when the merge came back does not count. The worker runs `gh pr update-branch <N>
   -R <repo> [--rebase]`. Checked in gh v2.103.3 source: success prints `PR branch updated` or
   `PR branch already up-to-date` on stdout and exits 0; conflicts print `Cannot update PR branch

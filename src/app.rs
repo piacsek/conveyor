@@ -1111,9 +1111,7 @@ impl App {
             offer(
                 't',
                 "convert to draft",
-                Err(format!(
-                    "waiting for My PRs to refresh after merging #{number}"
-                )),
+                Err(format!("waiting for My PRs to catch up with #{number}")),
             )
         } else {
             offer('t', "convert to draft", status(StatusChange::Draft))
@@ -1382,9 +1380,7 @@ impl App {
         }
         let pr = self.prs.selected().ok_or("nothing selected")?;
         if let Some((number, _)) = self.merge_landing {
-            return Err(format!(
-                "waiting for My PRs to refresh after merging #{number}"
-            ));
+            return Err(format!("waiting for My PRs to catch up with #{number}"));
         }
         if pr.queue_position.is_some() {
             return Err(format!(

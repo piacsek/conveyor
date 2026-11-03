@@ -341,7 +341,7 @@ fn after_a_merge_lands_the_update_waits_for_a_refresh_that_started_after_it() {
 
     let screen = h.screen();
     assert!(
-        screen.contains("u  update branch · waiting for My PRs to refresh after"),
+        screen.contains("u  update branch · waiting for My PRs to catch up with"),
         "{screen}"
     );
     assert!(
