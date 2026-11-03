@@ -75,10 +75,13 @@ pub enum StatusChange {
     Ready,
     Draft,
     EnableAutoMerge {
+        node_id: String,
         method: MergeMethod,
         head_oid: String,
     },
-    DisableAutoMerge,
+    DisableAutoMerge {
+        node_id: String,
+    },
     Dequeue {
         node_id: String,
     },

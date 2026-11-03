@@ -408,3 +408,25 @@ fn on_a_narrow_body_the_hint_wraps_instead_of_being_cut() {
     assert!(screen.contains("y confirms"), "{screen}");
     assert!(screen.contains("cancels"), "{screen}");
 }
+
+#[test]
+fn y_refuses_when_a_refresh_of_my_prs_failed_while_the_dialog_was_open() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(vec![mergeable(1, "a")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        support::failed(Stage::Prs, "gh: HTTP 502"),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    assert!(
+        h.screen()
+            .contains("the last refresh failed; press r and try again"),
+        "{}",
+        h.screen()
+    );
+    assert!(h.requests.is_empty(), "{:?}", h.requests);
+}

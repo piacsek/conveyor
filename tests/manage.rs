@@ -173,6 +173,7 @@ fn a_enables_auto_merge_with_the_configured_method_when_github_allows_it() {
             1,
             "a",
             StatusChange::EnableAutoMerge {
+                node_id: "PR_node1".to_string(),
                 method: MergeMethod::Squash,
                 head_oid: "8c1f2a7d1".to_string()
             }
@@ -200,7 +201,13 @@ fn a_disables_auto_merge_once_it_is_on() {
 
     assert_eq!(
         h.requests,
-        vec![status(1, "a", StatusChange::DisableAutoMerge)]
+        vec![status(
+            1,
+            "a",
+            StatusChange::DisableAutoMerge {
+                node_id: "PR_node1".to_string()
+            }
+        )]
     );
 }
 
@@ -435,4 +442,76 @@ fn the_old_write_keys_do_nothing() {
 
     assert!(!h.screen().contains("Confirm"), "{}", h.screen());
     assert!(h.requests.is_empty());
+}
+
+#[test]
+fn y_refuses_a_close_when_a_refresh_of_my_prs_failed_while_the_dialog_was_open() {
+    let mut h = tall();
+
+    h.run(vec![
+        prs(vec![open(1, "a")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('x')),
+        failed(Stage::Prs, "gh: HTTP 502"),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    assert!(
+        h.screen()
+            .contains("the last refresh failed; press r and try again"),
+        "{}",
+        h.screen()
+    );
+    assert!(h.requests.is_empty(), "{:?}", h.requests);
+}
+
+#[test]
+fn right_after_a_merge_lands_converting_to_draft_waits_for_a_refresh() {
+    let mut h = tall();
+
+    h.run(vec![
+        prs(vec![open(1, "a")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+        Ok(Input::Merged(1, Ok(()))),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+    ])
+    .unwrap();
+
+    assert!(
+        h.screen()
+            .contains("t  convert to draft · waiting for My PRs to refresh"),
+        "{}",
+        h.screen()
+    );
+    assert!(
+        !h.requests
+            .iter()
+            .any(|request| matches!(request, Request::ChangeStatus(_))),
+        "{:?}",
+        h.requests
+    );
+}
+
+#[test]
+fn closing_also_refreshes_the_merge_queue() {
+    let mut h = tall();
+    let mut queued = open(1, "a");
+    queued.queue_position = Some(1);
+
+    h.run(vec![
+        prs(vec![queued]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('x')),
+        key(KeyCode::Char('y')),
+        status_changed(1, StatusChange::Close, Ok(())),
+    ])
+    .unwrap();
+
+    assert!(h.screen().contains("#1 closed"), "{}", h.screen());
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
+    assert_eq!(h.requests[2], Request::Refresh(Stage::Queue));
 }

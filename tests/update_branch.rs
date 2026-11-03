@@ -486,3 +486,25 @@ fn a_second_update_before_the_follow_up_moves_it_to_ten_seconds_after_the_second
 
     assert_eq!(prs_refreshes(&h.requests), 3);
 }
+
+#[test]
+fn y_refuses_a_rebase_when_a_refresh_of_my_prs_failed_while_the_dialog_was_open() {
+    let mut h = Harness::with_config(160, 12, rebasing());
+
+    h.run(vec![
+        prs(vec![behind(1, "a")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('u')),
+        failed(Stage::Prs, "gh: HTTP 502"),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    assert!(
+        h.screen()
+            .contains("the last refresh failed; press r and try again"),
+        "{}",
+        h.screen()
+    );
+    assert!(h.requests.is_empty(), "{:?}", h.requests);
+}
