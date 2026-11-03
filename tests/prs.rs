@@ -1398,3 +1398,21 @@ fn a_rerun_that_failed_for_every_run_schedules_no_reload() {
         h.requests
     );
 }
+
+#[test]
+fn a_pull_request_with_auto_merge_on_says_so_on_its_meta_line() {
+    let mut h = Harness::new();
+    let mut auto = pr(1, "a");
+    auto.head_ref = "retry".to_string();
+    auto.auto_merge = true;
+
+    h.run(vec![prs(vec![auto, pr(2, "b")])]).unwrap();
+
+    let screen = h.screen();
+    let rows: Vec<&str> = screen.lines().collect();
+    assert!(
+        rows[2].starts_with("│▌   webapp · retry · auto-merge"),
+        "{screen}"
+    );
+    assert!(!rows[5].contains("auto-merge"), "{screen}");
+}

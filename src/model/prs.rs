@@ -120,6 +120,10 @@ pub struct PullRequest {
     pub deletions: u64,
     pub queue_position: Option<u64>,
     pub updated_at: Option<SystemTime>,
+    pub node_id: String,
+    pub auto_merge: bool,
+    pub can_enable_auto_merge: bool,
+    pub can_disable_auto_merge: bool,
 }
 
 impl PullRequest {
@@ -201,7 +205,15 @@ fn parse_pull_request(node: &serde_json::Value) -> Option<PullRequest> {
             .get("updatedAt")
             .and_then(|v| v.as_str())
             .and_then(parse_timestamp),
+        node_id: text(node, "id"),
+        auto_merge: node.get("autoMergeRequest").is_some_and(|v| v.is_object()),
+        can_enable_auto_merge: flag(node, "viewerCanEnableAutoMerge"),
+        can_disable_auto_merge: flag(node, "viewerCanDisableAutoMerge"),
     })
+}
+
+fn flag(node: &serde_json::Value, key: &str) -> bool {
+    node.get(key).and_then(|v| v.as_bool()).unwrap_or(false)
 }
 
 fn text(node: &serde_json::Value, key: &str) -> String {

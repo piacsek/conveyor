@@ -448,3 +448,23 @@ fn two_failures_in_one_run_rerun_it_once_and_each_failing_run_is_listed() {
 
     assert_eq!(pr.rerunnable_runs(), vec![70, 80]);
 }
+
+#[test]
+fn the_node_id_and_auto_merge_state_are_read() {
+    let pr = one(
+        r#"{"number": 7, "id": "PR_kwDOabc", "autoMergeRequest": {"enabledAt": "2026-11-03T10:00:00Z"},
+            "viewerCanEnableAutoMerge": false, "viewerCanDisableAutoMerge": true}"#,
+    );
+    assert_eq!(pr.node_id, "PR_kwDOabc");
+    assert!(pr.auto_merge);
+    assert!(!pr.can_enable_auto_merge);
+    assert!(pr.can_disable_auto_merge);
+}
+
+#[test]
+fn a_null_auto_merge_request_means_auto_merge_is_off() {
+    let pr = one(r#"{"number": 7, "autoMergeRequest": null, "viewerCanEnableAutoMerge": true}"#);
+    assert!(!pr.auto_merge);
+    assert!(pr.can_enable_auto_merge);
+    assert!(!pr.can_disable_auto_merge);
+}
