@@ -542,6 +542,9 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   close and a rebase ask `y`. Auto-merge follows GitHub's `viewerCan{Enable,Disable}AutoMerge` rather than a guess.
   Reopen was dropped: the default query lists open pull requests only.
 
+- v0.21.1 (phase 27, `plans/phase-27-manage-no-hint.md`): the `S` popup drops its
+  `a letter acts · any other key cancels` hint line; it lists the actions and nothing else.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.

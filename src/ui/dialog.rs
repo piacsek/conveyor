@@ -68,7 +68,6 @@ pub(crate) fn draw_confirm(frame: &mut Frame, area: Rect, pending: &Pending) {
     );
 }
 
-const MANAGE_HINT: &str = "a letter acts · any other key cancels";
 const OFFER_LINES: usize = 2;
 
 pub(crate) fn draw_manage(frame: &mut Frame, area: Rect, menu: &Menu) {
@@ -95,18 +94,15 @@ pub(crate) fn draw_manage(frame: &mut Frame, area: Rect, menu: &Menu) {
                 })
         })
         .collect();
-    let hint = wrap(MANAGE_HINT, room, 2);
     let inner = offers
         .iter()
-        .map(|(line, _)| line)
-        .chain(&hint)
-        .map(|line| line.chars().count())
+        .map(|(line, _)| line.chars().count())
         .chain([menu.title.chars().count()])
         .max()
         .unwrap_or(0)
         .min(room);
-    let height = offers.len() + hint.len() + 3;
-    let mut text: Vec<Line> = offers
+    let height = offers.len() + 2;
+    let text: Vec<Line> = offers
         .into_iter()
         .map(|(line, live)| {
             if live {
@@ -116,11 +112,6 @@ pub(crate) fn draw_manage(frame: &mut Frame, area: Rect, menu: &Menu) {
             }
         })
         .collect();
-    text.push(Line::default());
-    text.extend(
-        hint.into_iter()
-            .map(|line| Line::from(Span::styled(line, dim()))),
-    );
     let dialog = area.centered(
         Constraint::Length(inner as u16 + 4),
         Constraint::Length(height as u16),

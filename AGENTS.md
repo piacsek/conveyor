@@ -368,8 +368,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   bordered `Confirm` block, the question (`Pending::{Merge, UpdateBranch, Status}`) wrapped over at most 3 lines (cut with `…` before the
   `?`), a blank line and the dim `y confirms · any other key cancels`, wrapped over 2 lines on a
   narrow body rather than cut. `draw_manage` draws the `S` popup with the same geometry: each
-  offer wraps over at most 2 lines with a hanging indent, then the dim `a letter acts · any
-  other key cancels`. On a short terminal the popup's bottom is clipped. The footer carries no
+  offer wraps over at most 2 lines with a hanging indent, and nothing else: no hint line (the
+  user called it pollution; the dim reasons already explain the popup). On a short terminal the popup's bottom is clipped. The footer carries no
   prompt, only the usual notice or refresh age underneath; it used to hold the question and was
   easy to miss. A new sensitive action adds a `Pending` variant and an arm in `dialog::question`. Widths are counted in characters,
   like the rest of the UI, so a title of wide characters (CJK, emoji) can be clipped at the

@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.21.1 (2026-11-03)
+- The `S` menu no longer ends with a hint line; it lists the actions and nothing else.
+
 ## v0.21.0 (2026-11-03)
 - `S` opens one popup with everything you can do to the selected pull request or main build; actions that do not apply are listed with the reason.
 - `X`, `M` and `U` are gone: rerun failed jobs is `S f`, merge is `S m`, update the branch is `S u`.
