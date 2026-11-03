@@ -460,7 +460,7 @@ fn right_after_a_merge_lands_converting_to_draft_waits_for_a_refresh() {
 
     assert!(
         h.screen()
-            .contains("t  convert to draft · waiting for My PRs to refresh"),
+            .contains("t  convert to draft · waiting for My PRs to catch up"),
         "{}",
         h.screen()
     );
@@ -491,6 +491,63 @@ fn closing_also_refreshes_the_merge_queue() {
     assert!(h.screen().contains("#1 closed"), "{}", h.screen());
     assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
     assert_eq!(h.requests[2], Request::Refresh(Stage::Queue));
+}
+
+#[test]
+fn after_auto_merge_is_enabled_update_and_draft_wait_for_my_prs_to_catch_up() {
+    let mut h = tall();
+    let mut pull = open(1, "a");
+    pull.can_enable_auto_merge = true;
+    let change = StatusChange::EnableAutoMerge {
+        node_id: "PR_node1".to_string(),
+        method: MergeMethod::Squash,
+        head_oid: "8c1f2a7d1".to_string(),
+    };
+
+    h.run(vec![
+        prs(vec![pull]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('a')),
+        key(KeyCode::Char('y')),
+        status_changed(1, change, Ok(())),
+    ])
+    .unwrap();
+
+    assert!(
+        h.screen().contains("auto-merge enabled for #1"),
+        "{}",
+        h.screen()
+    );
+
+    h.run(vec![key(KeyCode::Char('S'))]).unwrap();
+
+    let screen = h.screen();
+    assert!(
+        screen.contains("u  update branch · waiting for My PRs to catch up with"),
+        "{screen}"
+    );
+    assert!(
+        screen.contains("t  convert to draft · waiting for My PRs to catch up"),
+        "{screen}"
+    );
+}
+
+#[test]
+fn marking_ready_refreshes_my_prs_but_not_the_merge_queue() {
+    let mut h = tall();
+    let mut draft = open(1, "a");
+    draft.is_draft = true;
+
+    h.run(vec![
+        prs(vec![draft]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        status_changed(1, StatusChange::Ready, Ok(())),
+    ])
+    .unwrap();
+
+    assert_eq!(h.requests.len(), 2, "{:?}", h.requests);
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
 }
 
 fn tall() -> Harness {
