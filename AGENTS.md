@@ -27,7 +27,7 @@ src/main.rs      CLI dispatch, config load, wiring
 src/cli.rs       `conveyor` (TUI) | `config` | `--help` | `--version`; hand-rolled, no clap
 src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override
 src/sources/     everything that reaches out to an external service, and nothing else
-src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`, `log_failed`, `rerun_failed`), CliGh spawns `gh api …` / `gh repo view` / `gh run view --log-failed` / `gh run rerun --failed`, error mapping
+src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`, `log_failed`, `rerun_failed`, `merge`, `update_branch`, `change_status`), CliGh spawns `gh api …` / `gh repo view` / `gh run view --log-failed` / `gh run rerun --failed` / `gh pr merge|update-branch|ready|close`, error mapping
 src/sources/kube.rs   Kube trait (`image(env)`), CliKubectl (`kubectl --context … get deploy … -o jsonpath`, 10 s timeout)
 src/sources/fetch.rs  repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), fetch_jobs, fetch_log (LOG_TAIL lines), BuildsSource (caches workflow id and sha→PR), DeploySource (per-env kubectl + cached sha→PR)
 src/sources/queries/  GraphQL documents, `include_str!`ed
@@ -45,7 +45,7 @@ src/ui/columns.rs column titles, blocks and draw_list
 src/ui/rows.rs   one card builder per stage: pr_row, queue_row, build_row, deployed_row
 src/ui/details.rs the `d` pane per stage, including the job list; no URLs
 src/ui/footer.rs footer text, the refresh spinner and the static logo
-src/ui/dialog.rs the confirm dialog every write action (`X`, `M`, `U`) opens over the body
+src/ui/dialog.rs the `S` popup (`draw_manage`) and the confirm dialog (`draw_confirm`) for `m`, `x` and a rebase
 src/ui/help.rs   KEYS is the generic table the README mirrors; `keys_for(stage)` swaps the `p`/`b` wording per column
 src/refresh.rs   `spawn`: one fetcher thread per stage; `wait` sleeps until the interval or a refresh, draining queued signals
 src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`): the OS seam, not a service, so it stays out of `sources/`
@@ -285,7 +285,40 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   appended the log under the job list, where a 37-job run hid it below the fold: never put
   the thing a key opens where the user has to scroll to find it. No failed job known yet →
   footer notice, no request.
-- **`X` reruns failed jobs, and it always asks first.** It reruns failed jobs with
+- **`S` is the one write key.** It opens `Mode::Manage(Menu)`: a popup titled `Manage #N`
+  (My PRs) or `Manage run N` (Main builds) with one `Offer` per action, `key  label`, built by
+  `App::menu` from the rows on screen. An offer that does not apply keeps its line, dim, with the
+  reason after a `·` (`m  merge · #12 is a draft`), and its letter does nothing, so the popup
+  explains itself instead of hiding actions. Any key that is not an offer closes it (`nothing
+  changed`), `q` included; `q` never quits from the popup. Letters (`m u f t a e x`) avoid every
+  Normal-mode key, so a press from habit closes the popup instead of writing. `S` refuses with a
+  footer notice while the focused column's last refresh failed (the rows it would judge by are
+  older than they look), while any write is in flight (`merging`, `updating`, `rerunning`,
+  `changing`: one at a time across all actions) and in Merge queue and Deployed (`S manages My
+  PRs and Main builds`). `X`, `M` and `U` were removed in v0.21.0; `S` replaced them.
+  A letter re-derives the menu: a different title (another row selected) or a different offer
+  under the letter says `the pull request changed; press S again` (`the run changed` in Main
+  builds), and an offer that turned into a refusal says its reason. **Only sensitive actions
+  ask `y` second**: merge (`m`), close (`x`) and a rebase update (`u` with `prs.update_method =
+  "rebase"`, a force-push) go to the confirm dialog; the rest act on the letter, since the popup
+  already was the confirmation and each is cheap to undo. Offers per stage:
+  - My PRs: `m` merge, `u` update/rebase branch, `f` rerun failed jobs (`(k runs)` when more
+    than one), `t` mark ready / convert to draft, `a` enable/disable auto-merge, `e` leave the
+    merge queue, `x` close. Main builds: `f` only.
+  - **`t`, `a`, `e`, `x` change the status.** `Request::ChangeStatus(StatusTarget)` carries a
+    `StatusChange`; `CliGh::status_args` runs `gh pr ready <N> -R <repo> [--undo]`, `gh pr
+    merge <N> -R <repo> --<prs.merge_method> --match-head-commit <oid> --auto`, `gh pr merge
+    <N> -R <repo> --disable-auto`, `gh pr close <N> -R <repo>`, and for `e` the GraphQL
+    `dequeuePullRequest(input: {id})` with the pull request's node `id`. A queued pull request
+    cannot become a draft. `a` follows GitHub, not a guess: `viewerCanDisableAutoMerge` offers
+    disable, else `viewerCanEnableAutoMerge` offers enable, else it is refused (`GitHub does not
+    allow it for #N`: a draft, or the repository has auto-merge off). On a merge-queue repo,
+    enabling auto-merge enqueues (gh), so a success sets `merge_landing` like a merge. The card's
+    meta line reads `auto-merge` while `autoMergeRequest` is set. `Input::StatusChanged` puts
+    `#N converted to draft` (etc.) or `#N: <gh error>` in the footer; a success refreshes My PRs
+    (and the queue for `a`/`e`) and sets `App::follow_up`. No reopen: the default `prs.query`
+    is `is:open`, so a closed pull request leaves the column on the next refresh.
+- **`f` reruns failed jobs.** It reruns failed jobs with
   `gh run rerun <run> --failed -R <repo>`: in Main builds the selected run, only when it is the
   newest main build (highest `run_number`) and has settled as a failure or a cancellation.
   An older one is refused: with `cancel-in-progress` its rerun would cancel the newest build,
@@ -298,70 +331,62 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   older run's pending job. A newer run blocks only while it runs, because rerunning the older
   one could cancel it through a concurrency group; once it has finished it does not, so the
   `✗` a finished run keeps under a newer `labeled` run that skipped the job stays rerunnable.
-  Merge
-  queue and Deployed only answer with a footer notice: a failed merge-group run has already
-  dropped its pull request from the queue, so rerunning it merges nothing. `X` sets
-  `Mode::Confirm(Pending::Rerun)`, and the confirm dialog asks `rerun failed jobs of <run N | #N (k runs)>?`. While the last refresh of Main builds or
-  My PRs failed, `X` refuses (`the last refresh failed; press r and try again`): the rows it
-  would judge "newest" or "finished" by are older than they look. `y` works the target out again from the rows on screen (a refresh may have landed while the
-  prompt was open) and sends `Request::Rerun` only if it still names the same runs, else it
-  says why in the footer; any other key (`Esc`, `q` included) cancels; `q` never quits from
-  the prompt. One rerun is in flight at a time (`App::rerunning`). The worker asks for every
+  The Merge queue has no `S`: a failed merge-group run has already dropped its pull request
+  from the queue, so rerunning it merges nothing. The worker asks for every
   run even after one fails and sends one result per run in `Input::Rerun`; the footer says
   which runs failed, and the column it came from refreshes when any run went through. From My PRs it
-  also sets `App::follow_up` (see the `U` bullet). A rerun keeps its run
+  also sets `App::follow_up` (see the `u` bullet). A rerun keeps its run
   id, so `age_jobs` and `parse_jobs` (newest `run_attempt`) already carry the jobs over to the
   new attempt. The e2e `gh` shim appends `run rerun …` argv to `reruns.log`; keep any new write
   action behind the same shim so a test can never reach the real `gh`.
-- **`M` merges a pull request, and it asks the same way.** On a My PRs card it sets
+- **`m` merges a pull request, and it asks first.** It sets
   `Mode::Confirm(Pending::Merge)` and the confirm dialog asks `merge #N <title>?`. Only a bare `y`
   goes on, every other key cancels (`merge cancelled`), and the Confirm arm sits before the
-  `Ctrl-d`/`Ctrl-u` arms so nothing slips past the prompt. Like `X`, `y` works the target out
+  `Ctrl-d`/`Ctrl-u` arms so nothing slips past the prompt. `y` works the target out
   again from the rows on screen (`App::merge_target`) and sends `Request::Merge` only if it is
   still the same number, repo, title and head sha; otherwise the footer says `the pull request
-  changed; press M again`. Drafts, queued pull requests, other columns and a merge already in
-  flight (`App::merging`) get a footer notice and no prompt. The worker runs `gh pr merge <N>
+  changed; press S again`. Drafts and queued pull requests are refused in the popup. The worker runs `gh pr merge <N>
   -R <repo> --<prs.merge_method> --match-head-commit <headRefOid>`; the pin refuses a head pushed
   after the card was drawn. On a merge-queue branch gh only warns that the queue sets the
   strategy and enqueues through auto-merge (checked in gh v2.103.3 source). That warning comes
-  first on stderr, so `CliGh::merge` drops gh's `! ` lines from an error: the footer shows one
+  first on stderr, so `CliGh::merge` (and `change_status`) drop gh's `! ` lines from an error: the footer shows one
   line, and it used to be the warning instead of the reason. `Input::Merged` puts `merge sent for
   #N` or the error in the footer and, on success, refreshes My PRs and the queue.
-- **Every write action asks in one dialog.** `ui::dialog::draw_confirm` draws over the body
+- **Every sensitive write asks in one dialog.** `ui::dialog::draw_confirm` draws over the body
   while `Mode::Confirm`, centred over the whole body (the details pane included, so an open pane
   never squeezes it), at most 56 columns inside and 2 off each edge: `Clear`, a
   bordered `Confirm` block, the question wrapped over at most 3 lines (cut with `…` before the
   `?`), a blank line and the dim `y confirms · any other key cancels`, wrapped over 2 lines on a
-  narrow body rather than cut. The footer carries no
+  narrow body rather than cut. `draw_manage` draws the `S` popup with the same geometry: each
+  offer wraps over at most 2 lines with a hanging indent, then the dim `a letter acts · any
+  other key cancels`. On a short terminal the popup's bottom is clipped. The footer carries no
   prompt, only the usual notice or refresh age underneath; it used to hold the question and was
-  easy to miss. A new write action adds a `Pending` variant and an arm in `dialog::question`. Widths are counted in characters,
+  easy to miss. A new sensitive action adds a `Pending` variant and an arm in `dialog::question`. Widths are counted in characters,
   like the rest of the UI, so a title of wide characters (CJK, emoji) can be clipped at the
   dialog's right border.
-- **`U` updates a pull request's branch, through the same dialog.** On a My PRs card it sets
-  `Mode::Confirm(Pending::UpdateBranch)`; the dialog asks `update branch of #N <title>?`, or
-  `rebase branch of …` when `prs.update_method = "rebase"` (default `merge`; rebase force-pushes
-  the head branch, so the word changes). The method is read when the dialog opens and travels on
-  `UpdateTarget`. Refused with a footer notice and no dialog: other columns, a failed last
-  refresh of My PRs, a queued pull request (a push drops it from the queue) and a
+- **`u` updates a pull request's branch.** The label is `update branch`, or
+  `rebase branch` when `prs.update_method = "rebase"` (default `merge`). Merge acts on the
+  letter; rebase force-pushes the head branch, so it asks `rebase branch of #N <title>?` first.
+  The method is read when the menu is built and travels on
+  `UpdateTarget`. Refused in the popup: a queued pull request (a push drops it from the queue) and a
   `mergeStateStatus` of `DIRTY` (`#N has conflicts with its base; resolve them locally`). Drafts
-  are allowed. `y` re-derives the target like `M` (`the pull request changed; press U again`),
-  one update is in flight at a time (`App::updating`), and `U` also waits while a merge is in
-  flight (`App::merging`): a merge that just queued the pull request has no `queue_position`
-  until the next refresh, and the push would drop it from the queue. For the same reason a
-  successful merge sets `App::merge_landing` and `U` answers `waiting for My PRs to refresh
+  are allowed. `y` re-derives the target like `m` (`the pull request changed; press S again`).
+  A merge that just queued the pull request has no `queue_position`
+  until the next refresh, and the push would drop it from the queue. For that reason a
+  successful merge sets `App::merge_landing` and `u` is refused with `waiting for My PRs to refresh
   after merging #N` until a My PRs fetch that started after the merge (`Input::Fetching`) has
-  landed; a fetch already in flight when the merge came back does not count. `M` likewise waits
-  while an update is in flight, since the push would drop the pull request it just queued. The worker runs `gh pr update-branch <N>
+  landed; a fetch already in flight when the merge came back does not count. The worker runs `gh pr update-branch <N>
   -R <repo> [--rebase]`. Checked in gh v2.103.3 source: success prints `PR branch updated` or
   `PR branch already up-to-date` on stdout and exits 0; conflicts print `Cannot update PR branch
   due to conflicts` on stderr and exit 1, both when GitHub already reports the PR conflicting and
   when the update mutation hits one. `CliGh::update_branch` turns those into
   `BranchUpdate::{Updated, UpToDate, Conflicts}`, so conflicts are an outcome, not an error.
   Only `Updated` refreshes My PRs. The e2e shim logs `pr update-branch …` argv.
-  **My PRs reload twice after `U` or `X`.** The first refresh, sent as the action lands, often
+  **My PRs reload twice after `u`, `f` or a status change.** The first refresh, sent as the action lands, often
   beats GitHub: measured on a rerun, the rerun's Actions checks are missing from the PR query at
   +0 s (the card can read a false `✓` from the checks that are left) and back as `QUEUED` at
-  +2 s. So an `Updated` branch, and a rerun from My PRs that went through, also set
+  +2 s. So an `Updated` branch, a rerun from My PRs that went through and a status change that
+  landed also set
   `App::follow_up` to `now + FOLLOW_UP` (10 s); the first `Tick` at or after it sends one more
   `Request::Refresh(Stage::Prs)` and clears it. A second action before then moves the due time.
   `UpToDate`, `Conflicts`, errors and a Main builds rerun schedule nothing. `app.now` only
@@ -484,9 +509,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   jobs, the sha, the pull request. A URL is 60 columns of noise nobody retypes, and both keys
   that need one (`b`, `p`) already hand it to the browser. `y`/`Y` copy them.
 - **The keymap pairs the pull request and the build.** `p`/`b` open them, `y`/`Y` copy them,
-  `d` is the details pane, `Ctrl-d`/`Ctrl-u` scroll it. `y/Y`, `r/R`, `L/X`, `?/c` and
-  `C-d/C-u` each share one line of `KEYS`; `M` took the 14th, so the help needs 17 rows, and `U`
-  shares it (`M/U`).
+  `d` is the details pane, `Ctrl-d`/`Ctrl-u` scroll it. `y/Y`, `r/R`, `?/c` and
+  `C-d/C-u` each share one line of `KEYS`; `L` and `S` have one each, so the help needs 17 rows.
 - **Colors** come from the ANSI palette so terminal themes apply. Do not hardcode hex.
 
 ## Testing traps hit so far
