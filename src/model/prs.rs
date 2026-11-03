@@ -1,6 +1,8 @@
 use std::fmt;
 use std::time::{Duration, SystemTime};
 
+use crate::config::MergeMethod;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CheckState {
     Success,
@@ -66,6 +68,21 @@ impl fmt::Display for ReviewDecision {
             Self::Unknown => "?",
         })
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StatusChange {
+    Ready,
+    Draft,
+    EnableAutoMerge {
+        method: MergeMethod,
+        head_oid: String,
+    },
+    DisableAutoMerge,
+    Dequeue {
+        node_id: String,
+    },
+    Close,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::io;
 
 use conveyor::config::{Config, MergeMethod, UpdateMethod};
-use conveyor::model::prs::BranchUpdate;
+use conveyor::model::prs::{BranchUpdate, StatusChange};
 use conveyor::sources::fetch::fetch_prs;
 use conveyor::sources::github::{Github, Variable};
 
@@ -125,6 +125,13 @@ impl Github for FakeGithub {
             .borrow_mut()
             .push((format!("UPDATE {repo} {number} {method:?}"), Vec::new()));
         Ok(BranchUpdate::Updated)
+    }
+
+    fn change_status(&self, repo: &str, number: u64, change: &StatusChange) -> io::Result<()> {
+        self.calls
+            .borrow_mut()
+            .push((format!("STATUS {repo} {number} {change:?}"), Vec::new()));
+        Ok(())
     }
 }
 
