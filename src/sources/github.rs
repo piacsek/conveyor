@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use crate::config::{MergeMethod, UpdateMethod};
-use crate::model::prs::BranchUpdate;
+use crate::model::prs::{BranchUpdate, StatusChange};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Variable {
@@ -50,7 +50,11 @@ pub trait Github {
         number: u64,
         method: UpdateMethod,
     ) -> io::Result<BranchUpdate>;
+    fn change_status(&self, repo: &str, number: u64, change: &StatusChange) -> io::Result<()>;
 }
+
+const DEQUEUE: &str =
+    "mutation($id: ID!) { dequeuePullRequest(input: {id: $id}) { clientMutationId } }";
 
 pub const MISSING: &str =
     "gh not found on PATH; install gh (brew install gh) and run gh auth login";
@@ -141,6 +145,30 @@ impl CliGh {
             args.push("--rebase".to_string());
         }
         args
+    }
+
+    pub fn status_args(repo: &str, number: u64, change: &StatusChange) -> Vec<String> {
+        let pr = |verb: &str| -> Vec<String> {
+            ["pr", verb, &number.to_string(), "-R", repo]
+                .map(str::to_string)
+                .to_vec()
+        };
+        match change {
+            StatusChange::Ready => pr("ready"),
+            StatusChange::Draft => [pr("ready"), vec!["--undo".to_string()]].concat(),
+            StatusChange::EnableAutoMerge { method, head_oid } => [
+                Self::merge_args(repo, number, *method, head_oid),
+                vec!["--auto".to_string()],
+            ]
+            .concat(),
+            StatusChange::DisableAutoMerge => {
+                [pr("merge"), vec!["--disable-auto".to_string()]].concat()
+            }
+            StatusChange::Close => pr("close"),
+            StatusChange::Dequeue { node_id } => {
+                Self::graphql_args(DEQUEUE, &[("id", node_id.as_str().into())])
+            }
+        }
     }
 
     pub fn current_repo_args() -> Vec<String> {
@@ -237,6 +265,12 @@ impl Github for CliGh {
             }
             Err(err) => Err(err),
         }
+    }
+
+    fn change_status(&self, repo: &str, number: u64, change: &StatusChange) -> io::Result<()> {
+        self.run(&Self::status_args(repo, number, change))
+            .map(|_| ())
+            .map_err(without_warnings)
     }
 }
 
