@@ -333,33 +333,41 @@ fn status_argv_converts_a_pull_request_to_draft() {
 }
 
 #[test]
-fn status_argv_enables_auto_merge_with_the_method_and_the_head_pinned() {
+fn status_argv_enables_auto_merge_through_the_graphql_mutation_never_gh_pr_merge() {
     let change = StatusChange::EnableAutoMerge {
+        node_id: "PR_kwDOabc".to_string(),
         method: MergeMethod::Squash,
         head_oid: "8c1f2a7d".to_string(),
     };
+    let args = CliGh::status_args("acme/webapp", 42, &change);
+    assert_eq!(args[0..3], ["api", "graphql", "-f"]);
+    assert!(args[3].contains("enablePullRequestAutoMerge("), "{args:?}");
+    assert!(args[3].contains("expectedHeadOid: $head"), "{args:?}");
     assert_eq!(
-        CliGh::status_args("acme/webapp", 42, &change),
-        vec![
-            "pr",
-            "merge",
-            "42",
-            "-R",
-            "acme/webapp",
-            "--squash",
-            "--match-head-commit",
-            "8c1f2a7d",
-            "--auto"
+        args[4..],
+        [
+            "-f",
+            "id=PR_kwDOabc",
+            "-f",
+            "method=SQUASH",
+            "-f",
+            "head=8c1f2a7d"
         ]
     );
 }
 
 #[test]
-fn status_argv_disables_auto_merge() {
-    assert_eq!(
-        CliGh::status_args("acme/webapp", 42, &StatusChange::DisableAutoMerge),
-        vec!["pr", "merge", "42", "-R", "acme/webapp", "--disable-auto"]
+fn status_argv_disables_auto_merge_through_the_graphql_mutation() {
+    let change = StatusChange::DisableAutoMerge {
+        node_id: "PR_kwDOabc".to_string(),
+    };
+    let args = CliGh::status_args("acme/webapp", 42, &change);
+    assert_eq!(args[0..3], ["api", "graphql", "-f"]);
+    assert!(
+        args[3].contains("disablePullRequestAutoMerge(input: {pullRequestId: $id})"),
+        "{args:?}"
     );
+    assert_eq!(args[4..], ["-f", "id=PR_kwDOabc"]);
 }
 
 #[test]
@@ -394,7 +402,7 @@ fn a_refused_status_change_reports_what_gh_said_without_its_warnings() {
     );
 
     let err = gh
-        .change_status("acme/webapp", 42, &StatusChange::DisableAutoMerge)
+        .change_status("acme/webapp", 42, &StatusChange::Close)
         .unwrap_err();
 
     assert_eq!(err.to_string(), "Pull request is in clean status");

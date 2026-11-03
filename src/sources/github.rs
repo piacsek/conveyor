@@ -53,6 +53,10 @@ pub trait Github {
     fn change_status(&self, repo: &str, number: u64, change: &StatusChange) -> io::Result<()>;
 }
 
+const ENABLE_AUTO_MERGE: &str = "mutation($id: ID!, $method: PullRequestMergeMethod!, $head: GitObjectID) { enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head}) { clientMutationId } }";
+
+const DISABLE_AUTO_MERGE: &str = "mutation($id: ID!) { disablePullRequestAutoMerge(input: {pullRequestId: $id}) { clientMutationId } }";
+
 const DEQUEUE: &str =
     "mutation($id: ID!) { dequeuePullRequest(input: {id: $id}) { clientMutationId } }";
 
@@ -156,13 +160,24 @@ impl CliGh {
         match change {
             StatusChange::Ready => pr("ready"),
             StatusChange::Draft => [pr("ready"), vec!["--undo".to_string()]].concat(),
-            StatusChange::EnableAutoMerge { method, head_oid } => [
-                Self::merge_args(repo, number, *method, head_oid),
-                vec!["--auto".to_string()],
-            ]
-            .concat(),
-            StatusChange::DisableAutoMerge => {
-                [pr("merge"), vec!["--disable-auto".to_string()]].concat()
+            StatusChange::EnableAutoMerge {
+                node_id,
+                method,
+                head_oid,
+            } => {
+                let method = match method {
+                    MergeMethod::Squash => "SQUASH",
+                    MergeMethod::Merge => "MERGE",
+                    MergeMethod::Rebase => "REBASE",
+                };
+                let mut vars = vec![("id", node_id.as_str().into()), ("method", method.into())];
+                if !head_oid.is_empty() {
+                    vars.push(("head", head_oid.as_str().into()));
+                }
+                Self::graphql_args(ENABLE_AUTO_MERGE, &vars)
+            }
+            StatusChange::DisableAutoMerge { node_id } => {
+                Self::graphql_args(DISABLE_AUTO_MERGE, &[("id", node_id.as_str().into())])
             }
             StatusChange::Close => pr("close"),
             StatusChange::Dequeue { node_id } => {

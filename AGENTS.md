@@ -37,7 +37,7 @@ src/model/builds.rs Build, BuildStatus, PullRef, Builds; `parse_runs`, `pr_numbe
 src/model/deployed.rs Deployment, Deployed; `sha_from_image` (40-hex tag or `-<sha>` suffix)
 src/model/jobs.rs Job, `parse_jobs` (failures first), `failed_step`
 src/model/log.rs  `tail`: the failed step's log as gh prints it, minus job/step/timestamp prefixes and ANSI
-src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Input::{Key, Fetching, Data, Jobs, Log, Rerun, Tick}, Request::{Refresh, Jobs, Log, Rerun}, run()
+src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Mode::{Normal, Filter, Help, Changelog, Confirm, Manage}, Menu/Offer/Choice (the `S` popup), Input::{Key, Fetching, Data, Jobs, Log, Merged, Rerun, BranchUpdated, StatusChanged, Tick}, Request::{Refresh, Jobs, Log, Rerun, Merge, UpdateBranch, ChangeStatus}, run()
 src/ui/mod.rs    draw: 4 columns or tabs below `4 × ui.min_column_width`
 src/ui/style.rs  the shared vocabulary: BAR, INDENT, dim(), glyphs and status words, short_repo, sha8
 src/ui/card.rs   card() and meta(): one title line plus indented span lines
@@ -306,17 +306,21 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
     than one), `t` mark ready / convert to draft, `a` enable/disable auto-merge, `e` leave the
     merge queue, `x` close. Main builds: `f` only.
   - **`t`, `a`, `e`, `x` change the status.** `Request::ChangeStatus(StatusTarget)` carries a
-    `StatusChange`; `CliGh::status_args` runs `gh pr ready <N> -R <repo> [--undo]`, `gh pr
-    merge <N> -R <repo> --<prs.merge_method> --match-head-commit <oid> --auto`, `gh pr merge
-    <N> -R <repo> --disable-auto`, `gh pr close <N> -R <repo>`, and for `e` the GraphQL
-    `dequeuePullRequest(input: {id})` with the pull request's node `id`. A queued pull request
-    cannot become a draft. `a` follows GitHub, not a guess: `viewerCanDisableAutoMerge` offers
+    `StatusChange`; `CliGh::status_args` runs `gh pr ready <N> -R <repo> [--undo]` and `gh pr
+    close <N> -R <repo>`, and GraphQL mutations by the pull request's node `id` for the rest:
+    `enablePullRequestAutoMerge` (with `prs.merge_method` and the head as `expectedHeadOid`),
+    `disablePullRequestAutoMerge` and `dequeuePullRequest`. **Never `gh pr merge --auto` or
+    `--disable-auto`** (gh v2.103.3 source): `--auto` merges at once when the merge state is
+    `CLEAN`, `HAS_HOOKS` or `UNSTABLE`, which would merge without the `y` a merge asks for, and
+    `--disable-auto` exits 0 without disabling anything on a pull request that just joined the
+    queue. A queued pull request cannot become a draft, and neither can one whose merge just
+    landed (`merge_landing`), since it may be queued already. `a` follows GitHub, not a guess: `viewerCanDisableAutoMerge` offers
     disable, else `viewerCanEnableAutoMerge` offers enable, else it is refused (`GitHub does not
     allow it for #N`: a draft, or the repository has auto-merge off). On a merge-queue repo,
     enabling auto-merge enqueues (gh), so a success sets `merge_landing` like a merge. The card's
     meta line reads `auto-merge` while `autoMergeRequest` is set. `Input::StatusChanged` puts
     `#N converted to draft` (etc.) or `#N: <gh error>` in the footer; a success refreshes My PRs
-    (and the queue for `a`/`e`) and sets `App::follow_up`. No reopen: the default `prs.query`
+    (and the queue, except after `mark ready`) and sets `App::follow_up`. No reopen: the default `prs.query`
     is `is:open`, so a closed pull request leaves the column on the next refresh.
 - **`f` reruns failed jobs.** It reruns failed jobs with
   `gh run rerun <run> --failed -R <repo>`: in Main builds the selected run, only when it is the
@@ -343,9 +347,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `Mode::Confirm(Pending::Merge)` and the confirm dialog asks `merge #N <title>?`. Only a bare `y`
   goes on, every other key cancels (`merge cancelled`), and the Confirm arm sits before the
   `Ctrl-d`/`Ctrl-u` arms so nothing slips past the prompt. `y` works the target out
-  again from the rows on screen (`App::merge_target`) and sends `Request::Merge` only if it is
-  still the same number, repo, title and head sha; otherwise the footer says `the pull request
-  changed; press S again`. Drafts and queued pull requests are refused in the popup. The worker runs `gh pr merge <N>
+  again through `App::reconfirm` (the same `menu()` the popup used, so a My PRs refresh that
+  failed while the dialog was open refuses too) and sends `Request::Merge` only if the offer
+  under `m` is still the same number, repo, title and head sha; otherwise the footer says why,
+  or `the pull request changed; press S again`. `confirm_update` and `confirm_close` use the
+  same check. Drafts and queued pull requests are refused in the popup. The worker runs `gh pr merge <N>
   -R <repo> --<prs.merge_method> --match-head-commit <headRefOid>`; the pin refuses a head pushed
   after the card was drawn. On a merge-queue branch gh only warns that the queue sets the
   strategy and enqueues through auto-merge (checked in gh v2.103.3 source). That warning comes

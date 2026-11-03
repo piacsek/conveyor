@@ -1107,6 +1107,14 @@ impl App {
                 "convert to draft",
                 Err(format!("#{} is in the merge queue", pr.number)),
             )
+        } else if let Some((number, _)) = self.merge_landing {
+            offer(
+                't',
+                "convert to draft",
+                Err(format!(
+                    "waiting for My PRs to refresh after merging #{number}"
+                )),
+            )
         } else {
             offer('t', "convert to draft", status(StatusChange::Draft))
         };
@@ -1114,13 +1122,16 @@ impl App {
             offer(
                 'a',
                 "disable auto-merge",
-                status(StatusChange::DisableAutoMerge),
+                status(StatusChange::DisableAutoMerge {
+                    node_id: pr.node_id.clone(),
+                }),
             )
         } else if pr.can_enable_auto_merge {
             offer(
                 'a',
                 "enable auto-merge",
                 status(StatusChange::EnableAutoMerge {
+                    node_id: pr.node_id.clone(),
                     method: self.config.prs.merge_method,
                     head_oid: pr.head_oid.clone(),
                 }),
@@ -1218,16 +1229,28 @@ impl App {
             self.notice = Some("close cancelled".to_string());
             return Action::Continue;
         }
-        let still = self
-            .menu()
-            .ok()
-            .and_then(|menu| menu.offers.into_iter().find(|offer| offer.key == 'x'))
-            .is_some_and(|offer| offer.choice == Ok(Choice::Status(target.clone())));
-        if !still {
-            self.notice = Some(changed(Stage::Prs));
+        if let Err(message) = self.reconfirm('x', target.number, Choice::Status(target.clone())) {
+            self.notice = Some(message);
             return Action::Continue;
         }
         self.send_status(target)
+    }
+
+    fn reconfirm(&self, key: char, number: u64, expected: Choice) -> Result<(), String> {
+        let menu = self.menu()?;
+        if menu.title != format!("Manage #{number}") {
+            return Err(changed(Stage::Prs));
+        }
+        match menu.offers.into_iter().find(|offer| offer.key == key) {
+            Some(Offer {
+                choice: Ok(choice), ..
+            }) if choice == expected => Ok(()),
+            Some(Offer {
+                choice: Err(reason),
+                ..
+            }) => Err(reason),
+            _ => Err(changed(Stage::Prs)),
+        }
     }
 
     fn send_status(&mut self, target: StatusTarget) -> Action {
@@ -1291,16 +1314,9 @@ impl App {
             self.notice = Some("merge cancelled".to_string());
             return Action::Continue;
         }
-        match self.merge_target() {
-            Err(message) => {
-                self.notice = Some(message);
-                return Action::Continue;
-            }
-            Ok(now) if now != target => {
-                self.notice = Some(changed(Stage::Prs));
-                return Action::Continue;
-            }
-            Ok(_) => {}
+        if let Err(message) = self.reconfirm('m', target.number, Choice::Merge(target.clone())) {
+            self.notice = Some(message);
+            return Action::Continue;
         }
         self.merging = Some(target.number);
         self.notice = Some(format!("merging #{}…", target.number));
@@ -1337,16 +1353,9 @@ impl App {
             self.notice = Some("update cancelled".to_string());
             return Action::Continue;
         }
-        match self.update_target() {
-            Err(message) => {
-                self.notice = Some(message);
-                return Action::Continue;
-            }
-            Ok(now) if now != target => {
-                self.notice = Some(changed(Stage::Prs));
-                return Action::Continue;
-            }
-            Ok(_) => {}
+        if let Err(message) = self.reconfirm('u', target.number, Choice::Update(target.clone())) {
+            self.notice = Some(message);
+            return Action::Continue;
         }
         self.send_update(target)
     }
@@ -1677,10 +1686,7 @@ where
             Input::StatusChanged(number, change, result) => {
                 if app.receive_status(number, &change, &result) {
                     request(Request::Refresh(Stage::Prs));
-                    if !matches!(
-                        change,
-                        StatusChange::Ready | StatusChange::Draft | StatusChange::Close
-                    ) {
+                    if change != StatusChange::Ready {
                         request(Request::Refresh(Stage::Queue));
                     }
                     app.follow_up_prs();
@@ -1738,7 +1744,7 @@ fn progress(number: u64, change: &StatusChange) -> String {
         StatusChange::Ready => format!("marking #{number} ready…"),
         StatusChange::Draft => format!("converting #{number} to draft…"),
         StatusChange::EnableAutoMerge { .. } => format!("enabling auto-merge for #{number}…"),
-        StatusChange::DisableAutoMerge => format!("disabling auto-merge for #{number}…"),
+        StatusChange::DisableAutoMerge { .. } => format!("disabling auto-merge for #{number}…"),
         StatusChange::Dequeue { .. } => format!("taking #{number} out of the merge queue…"),
         StatusChange::Close => format!("closing #{number}…"),
     }
@@ -1749,7 +1755,7 @@ fn done(number: u64, change: &StatusChange) -> String {
         StatusChange::Ready => format!("#{number} marked ready"),
         StatusChange::Draft => format!("#{number} converted to draft"),
         StatusChange::EnableAutoMerge { .. } => format!("auto-merge enabled for #{number}"),
-        StatusChange::DisableAutoMerge => format!("auto-merge disabled for #{number}"),
+        StatusChange::DisableAutoMerge { .. } => format!("auto-merge disabled for #{number}"),
         StatusChange::Dequeue { .. } => format!("#{number} left the merge queue"),
         StatusChange::Close => format!("#{number} closed"),
     }
