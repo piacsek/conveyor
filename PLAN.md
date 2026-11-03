@@ -535,16 +535,19 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   result that lands while the changelog or help is open shows in its footer; release dates
   must be calendar dates; a missing older entry says to merge `origin/main`.
 
-- phase 26 (in progress, `plans/phase-26-manage.md`): `S` opens one popup for every write
-  action on the selected card and replaces `X`, `M` and `U`.
+- v0.21.0 (phase 26, `plans/phase-26-manage.md`): `S` opens one popup for every write action
+  on the selected card and replaces `X`, `M` and `U`. My PRs offer merge, update, rerun, draft
+  or ready, auto-merge on or off, leave the queue and close; Main builds offer the rerun.
+  Actions that do not apply stay listed, dim, with the reason. Only merge, close and a rebase
+  ask `y`. Auto-merge follows GitHub's `viewerCan{Enable,Disable}AutoMerge` rather than a guess.
+  Reopen was dropped: the default query lists open pull requests only.
 
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
-- Write actions with the `X` confirm mode: `gh pr review --approve`, enqueue/dequeue.
-- `M` follow-ups from the phase 20 review: `merge_method` per `[[repo]]` (one global value cannot
-  serve a squash-only and a merge-commit-only repo at once); `M` refusing while the last My PRs
-  refresh failed, as `X` does; a write result that lands while the other prompt is open is
+- More `S` actions: `gh pr review --approve`; reopen if the query ever lists closed pull requests.
+- Merge follow-ups from the phase 20 review: `merge_method` per `[[repo]]` (one global value cannot
+  serve a squash-only and a merge-commit-only repo at once); a write result that lands while the other prompt is open is
   hidden by that prompt; the footer cuts titles by characters, not display width.
 - Follow one PR across columns: `f` on a PR highlights its sha/number in queue, builds, deployed.
 - Desktop/tmux notification on queue state change or main build failure (tmux-agents `watch` pattern).
