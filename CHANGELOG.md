@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.21.0 (2026-11-03)
+- `S` opens one popup with everything you can do to the selected pull request or main build; actions that do not apply are listed with the reason.
+- `X`, `M` and `U` are gone: rerun failed jobs is `S f`, merge is `S m`, update the branch is `S u`.
+- From `S` you can also mark a pull request ready or convert it to draft (`t`), turn auto-merge on or off (`a`), take it out of the merge queue (`e`) and close it (`x`).
+- Only merge, close and a rebase ask for `y`; the other actions run as soon as you press their letter.
+- A pull request card says `auto-merge` while auto-merge is on.
+
 ## v0.20.1 (2026-11-02)
 - A merge, rerun or branch update that finishes while the changelog or help is open shows its result in that pane's footer.
 
