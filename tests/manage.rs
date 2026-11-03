@@ -550,6 +550,17 @@ fn marking_ready_refreshes_my_prs_but_not_the_merge_queue() {
     assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
 }
 
+#[test]
+fn the_popup_lists_only_the_actions_without_a_hint_line() {
+    let mut h = tall();
+
+    h.run(vec![prs(vec![open(1, "a")]), key(KeyCode::Char('S'))])
+        .unwrap();
+
+    assert!(h.screen().contains("x  close"), "{}", h.screen());
+    assert!(!h.screen().contains("a letter acts"), "{}", h.screen());
+}
+
 fn tall() -> Harness {
     Harness::with_size(160, 20)
 }
