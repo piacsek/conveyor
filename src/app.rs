@@ -182,7 +182,7 @@ pub struct Rerun {
 pub enum Pending {
     Merge(MergeTarget),
     UpdateBranch(UpdateTarget),
-    Close(StatusTarget),
+    Status(StatusTarget),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -1020,7 +1020,7 @@ impl App {
         match pending {
             Pending::Merge(target) => self.confirm_merge(key, target),
             Pending::UpdateBranch(target) => self.confirm_update(key, target),
-            Pending::Close(target) => self.confirm_close(key, target),
+            Pending::Status(target) => self.confirm_status(key, target),
         }
     }
 
@@ -1216,20 +1216,30 @@ impl App {
             }
             Choice::Update(target) => return self.send_update(target),
             Choice::Rerun(rerun) => return self.send_rerun(rerun),
-            Choice::Status(target) if target.change == StatusChange::Close => {
-                self.mode = Mode::Confirm(Pending::Close(target));
+            Choice::Status(target)
+                if matches!(
+                    target.change,
+                    StatusChange::Close | StatusChange::EnableAutoMerge { .. }
+                ) =>
+            {
+                self.mode = Mode::Confirm(Pending::Status(target));
             }
             Choice::Status(target) => return self.send_status(target),
         }
         Action::Continue
     }
 
-    fn confirm_close(&mut self, key: KeyEvent, target: StatusTarget) -> Action {
+    fn confirm_status(&mut self, key: KeyEvent, target: StatusTarget) -> Action {
         if key.code != KeyCode::Char('y') || !key.modifiers.is_empty() {
-            self.notice = Some("close cancelled".to_string());
+            self.notice = Some("nothing changed".to_string());
             return Action::Continue;
         }
-        if let Err(message) = self.reconfirm('x', target.number, Choice::Status(target.clone())) {
+        let letter = match target.change {
+            StatusChange::EnableAutoMerge { .. } => 'a',
+            _ => 'x',
+        };
+        if let Err(message) = self.reconfirm(letter, target.number, Choice::Status(target.clone()))
+        {
             self.notice = Some(message);
             return Action::Continue;
         }

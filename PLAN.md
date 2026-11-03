@@ -538,8 +538,8 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
 - v0.21.0 (phase 26, `plans/phase-26-manage.md`): `S` opens one popup for every write action
   on the selected card and replaces `X`, `M` and `U`. My PRs offer merge, update, rerun, draft
   or ready, auto-merge on or off, leave the queue and close; Main builds offer the rerun.
-  Actions that do not apply stay listed, dim, with the reason. Only merge, close and a rebase
-  ask `y`. Auto-merge follows GitHub's `viewerCan{Enable,Disable}AutoMerge` rather than a guess.
+  Actions that do not apply stay listed, dim, with the reason. Only merge, enabling auto-merge,
+  close and a rebase ask `y`. Auto-merge follows GitHub's `viewerCan{Enable,Disable}AutoMerge` rather than a guess.
   Reopen was dropped: the default query lists open pull requests only.
 
 ## Deferred / backlog (discuss at retros)

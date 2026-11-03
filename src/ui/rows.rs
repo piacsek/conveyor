@@ -39,12 +39,12 @@ pub(crate) fn pr_row(
     };
     let parts = [
         short_repo(&pr.repo).to_string(),
-        pr.head_ref.clone(),
         if pr.auto_merge {
             "auto-merge".to_string()
         } else {
             String::new()
         },
+        pr.head_ref.clone(),
         match pr.review {
             ReviewDecision::None => String::new(),
             review => review.to_string(),

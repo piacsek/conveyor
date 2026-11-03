@@ -1411,7 +1411,7 @@ fn a_pull_request_with_auto_merge_on_says_so_on_its_meta_line() {
     let screen = h.screen();
     let rows: Vec<&str> = screen.lines().collect();
     assert!(
-        rows[2].starts_with("│▌   webapp · retry · auto-merge"),
+        rows[2].starts_with("│▌   webapp · auto-merge · retry"),
         "{screen}"
     );
     assert!(!rows[5].contains("auto-merge"), "{screen}");

@@ -5,6 +5,7 @@ use ratatui::widgets::{Block, Clear, Padding, Paragraph};
 
 use crate::app::{Menu, Pending};
 use crate::config::UpdateMethod;
+use crate::model::prs::StatusChange;
 use crate::text::wrap;
 use crate::ui::style::dim;
 
@@ -22,7 +23,12 @@ fn question(pending: &Pending) -> String {
             };
             format!("{verb} branch of #{} {}", target.number, target.title)
         }
-        Pending::Close(target) => format!("close #{} {}", target.number, target.title),
+        Pending::Status(target) => match target.change {
+            StatusChange::EnableAutoMerge { .. } => {
+                format!("enable auto-merge for #{} {}", target.number, target.title)
+            }
+            _ => format!("close #{} {}", target.number, target.title),
+        },
     }
 }
 
