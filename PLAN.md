@@ -535,6 +535,9 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   result that lands while the changelog or help is open shows in its footer; release dates
   must be calendar dates; a missing older entry says to merge `origin/main`.
 
+- phase 26 (in progress, `plans/phase-26-manage.md`): `S` opens one popup for every write
+  action on the selected card and replaces `X`, `M` and `U`.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
