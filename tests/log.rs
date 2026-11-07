@@ -103,3 +103,15 @@ fn a_log_that_cannot_be_opened_drops_lines_instead_of_failing() {
     let blocker_text = std::fs::read_to_string(&blocker).unwrap();
     assert_eq!(blocker_text, "");
 }
+
+#[test]
+fn the_log_is_readable_by_its_owner_only() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("conveyor.log");
+
+    Log::open(&file).line("private");
+
+    let mode = std::fs::metadata(&file).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode, 0o600);
+}

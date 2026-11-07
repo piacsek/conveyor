@@ -11,8 +11,9 @@ printed. A log file answers "why did that column go red at 14:02" after the fact
   where `<program>` is the file name the binary was started as (`argv[0]`): `conveyor` and
   `conveyor-dev` running side by side each keep their own log, and neither one's start rotates
   the other's file away. `CONVEYOR_LOG` overrides both (tests, and anyone who wants it
-  elsewhere). The directory is created on start. Two copies of the *same* program still share
-  one file.
+  elsewhere). The directory is created on start. Two copies of the *same* program do not share
+  cleanly: the second start rotates the first one's live file to `.log.1`, and a third start
+  replaces it, so the first copy's later lines are lost. Accepted for a diagnostics file.
 - **Retention:** on start, an existing `conveyor.log` is renamed to `conveyor.log.1` (replacing
   the old one). Two sessions on disk, never unbounded growth, and a restart after a bad session
   keeps the evidence.

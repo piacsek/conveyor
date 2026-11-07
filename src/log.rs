@@ -1,6 +1,7 @@
 use std::ffi::OsString;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
+use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Output;
 use std::sync::{Arc, Mutex};
@@ -43,7 +44,12 @@ impl Log {
         let mut previous = path.as_os_str().to_owned();
         previous.push(".1");
         let _ = fs::rename(path, previous);
-        let file = OpenOptions::new().create(true).append(true).open(path).ok();
+        let file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .mode(0o600)
+            .open(path)
+            .ok();
         Log {
             file: file.map(|file| Arc::new(Mutex::new(file))),
         }
