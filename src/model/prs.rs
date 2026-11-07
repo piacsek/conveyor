@@ -92,6 +92,12 @@ pub enum StatusChange {
     Close,
 }
 
+impl StatusChange {
+    pub fn lands_a_merge(&self) -> bool {
+        matches!(self, Self::EnableAutoMerge { .. } | Self::Enqueue { .. })
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BranchUpdate {
     Updated,
