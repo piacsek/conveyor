@@ -25,7 +25,7 @@ On a pull request whose base has a merge queue, `m` reads `add to merge queue` a
 2. `StatusChange::Enqueue { node_id, head_oid }` and its `CliGh::status_args` (the
    `enqueuePullRequest` mutation). `tests/github.rs`.
 3. The `m` offer on a merge-queue pull request: label, confirm question
-   `add #N <title> to the merge queue?`, `y` re-checks and sends `Enqueue`, success sets
+   `add to the merge queue #N <title>?`, `y` re-checks and sends `Enqueue`, success sets
    `merge_landing` and refreshes My PRs and the queue. Drafts and queued pull requests stay refused.
    `tests/manage.rs`.
 4. AGENTS.md (`S`/`m` bullets), `PLAN.md` outcome, v0.21.2 with its `CHANGELOG.md` entry.
