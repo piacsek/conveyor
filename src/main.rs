@@ -12,6 +12,7 @@ use conveyor::app::{
 };
 use conveyor::cli::{self, Command};
 use conveyor::config::{self, Config};
+use conveyor::log;
 use conveyor::open::SystemOpener;
 use conveyor::refresh;
 use conveyor::sources::fetch::{
@@ -31,6 +32,10 @@ fn main() -> ExitCode {
             println!("conveyor {}", env!("CARGO_PKG_VERSION"));
             return ExitCode::SUCCESS;
         }
+        Ok(Command::Log) => {
+            println!("{}", log_path().display());
+            return ExitCode::SUCCESS;
+        }
         Ok(command) => command,
         Err(err) => return fail(&err),
     };
@@ -48,7 +53,7 @@ fn main() -> ExitCode {
             Ok(())
         }
         Command::Tui => tui(config, config_error),
-        Command::Help | Command::Version => Ok(()),
+        Command::Help | Command::Version | Command::Log => Ok(()),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,
@@ -61,6 +66,15 @@ fn config_path() -> PathBuf {
         env::var_os("CONVEYOR_CONFIG").map(PathBuf::from),
         env::var_os("XDG_CONFIG_HOME").map(PathBuf::from),
         &env::var_os("HOME").map(PathBuf::from).unwrap_or_default(),
+    )
+}
+
+fn log_path() -> PathBuf {
+    log::path(
+        env::var_os("CONVEYOR_LOG").map(PathBuf::from),
+        env::var_os("XDG_STATE_HOME").map(PathBuf::from),
+        &env::var_os("HOME").map(PathBuf::from).unwrap_or_default(),
+        &log::program_name(env::args_os().next()),
     )
 }
 
