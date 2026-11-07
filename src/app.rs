@@ -1148,8 +1148,22 @@ impl App {
         } else {
             Err(format!("#{} is not queued", pr.number))
         };
+        let merge = if pr.merge_queue_enabled {
+            offer(
+                'm',
+                "add to merge queue",
+                self.merge_target().and_then(|_| {
+                    status(StatusChange::Enqueue {
+                        node_id: pr.node_id.clone(),
+                        head_oid: pr.head_oid.clone(),
+                    })
+                }),
+            )
+        } else {
+            offer('m', "merge", self.merge_target().map(Choice::Merge))
+        };
         vec![
-            offer('m', "merge", self.merge_target().map(Choice::Merge)),
+            merge,
             offer('u', update, self.update_target().map(Choice::Update)),
             self.rerun_offer(),
             draft,
@@ -1217,7 +1231,9 @@ impl App {
             Choice::Status(target)
                 if matches!(
                     target.change,
-                    StatusChange::Close | StatusChange::EnableAutoMerge { .. }
+                    StatusChange::Close
+                        | StatusChange::EnableAutoMerge { .. }
+                        | StatusChange::Enqueue { .. }
                 ) =>
             {
                 self.mode = Mode::Confirm(Pending::Status(target));
@@ -1234,6 +1250,7 @@ impl App {
         }
         let letter = match target.change {
             StatusChange::EnableAutoMerge { .. } => 'a',
+            StatusChange::Enqueue { .. } => 'm',
             _ => 'x',
         };
         if let Err(message) = self.reconfirm(letter, target.number, Choice::Status(target.clone()))
