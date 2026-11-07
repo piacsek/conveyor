@@ -28,6 +28,7 @@ Needs `gh` logged in (`gh auth login`); Homebrew installs it. The Deployed colum
 ```sh
 conveyor           # the TUI, for the repository in the current directory
 conveyor config    # print the effective configuration
+conveyor log       # print the path of the log file
 ```
 
 | Key | Action |

@@ -545,6 +545,14 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
 - v0.21.1 (phase 27, `plans/phase-27-manage-no-hint.md`): the `S` popup drops its
   `a letter acts · any other key cancels` hint line; it lists the actions and nothing else.
 
+- v0.22.0 (phase 28, `plans/phase-28-log.md`): conveyor writes a log, one line per `gh` and
+  `kubectl` call (argv with GraphQL documents shown as `query=<N chars>`, duration in ms, `ok` or
+  `exit N: <stderr>`), plus start and quit. It lives at `$XDG_STATE_HOME/conveyor/<program>.log`
+  (`~/.local/state/...` by default, `CONVEYOR_LOG` overrides), named after `argv[0]` so
+  `conveyor` and `conveyor-dev` never share or rotate each other's file; each start keeps the
+  previous session as `.log.1`. `conveyor log` prints the path. Two copies of the same program
+  still share one file.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.

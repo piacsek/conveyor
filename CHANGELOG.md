@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.22.0 (2026-11-06)
+- Conveyor writes a log: one line per `gh` and `kubectl` call with its arguments, how long it took and how it ended, plus when the TUI started and quit.
+- `conveyor log` prints where the log is (`~/.local/state/conveyor/conveyor.log`); `conveyor-dev` keeps its own `conveyor-dev.log`.
+- Each start keeps the previous session's log as `.log.1`.
+
 ## v0.21.1 (2026-11-03)
 - The `S` menu no longer ends with a hint line; it lists the actions and nothing else.
 

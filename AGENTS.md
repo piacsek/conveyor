@@ -24,7 +24,7 @@ check is skipped where the file is absent, so CI does not enforce it).
 
 ```
 src/main.rs      CLI dispatch, config load, wiring
-src/cli.rs       `conveyor` (TUI) | `config` | `--help` | `--version`; hand-rolled, no clap
+src/cli.rs       `conveyor` (TUI) | `config` | `log` | `--help` | `--version`; hand-rolled, no clap
 src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override
 src/sources/     everything that reaches out to an external service, and nothing else
 src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`, `log_failed`, `rerun_failed`, `merge`, `update_branch`, `change_status`), CliGh spawns `gh api …` / `gh repo view` / `gh run view --log-failed` / `gh run rerun --failed` / `gh pr merge|update-branch|ready|close`, error mapping
@@ -51,6 +51,7 @@ src/refresh.rs   `spawn`: one fetcher thread per stage; `wait` sleeps until the 
 src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`): the OS seam, not a service, so it stays out of `sources/`
 src/changelog.rs CHANGELOG (the bundled CHANGELOG.md) and `check`, the rules a release entry must meet
 src/ui/changelog.rs the `c` pane: wrapped to its width (bullets hang), headings bold without their `#`, scrolled like the details pane
+src/log.rs       `path` (CONVEYOR_LOG, else XDG_STATE_HOME/conveyor/<program>.log), `program_name` (argv[0]), Log (`open` rotates to `.1`, `line`, `call`)
 src/text.rs      truncate/pad_right with `…`, age(), duration() (coarse, cards), elapsed() (seconds, details pane), strip_ansi()
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
@@ -408,6 +409,14 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `file://` paths, app bundles or any custom URL scheme handler. `open::web_url` is the one
   check; `App::open` applies it (footer notice, nothing spawned) and `SystemOpener::open`
   applies it again as the last line before the spawn.
+- **Every `gh` and `kubectl` call is logged, nothing else from them.** `CliGh::run` and
+  `CliKubectl::image` time the spawn and hand the raw `Output` to `Log::call`: argv (a
+  `query=` argument becomes `query=<N chars>`), milliseconds, then `ok`, `exit N: <stderr lines
+  joined by |>` or `did not start: <err>`. Stdout is never written: it is megabytes of JSON and
+  the job logs. A new runner of an external program takes a `Log` the same way. The file is
+  `<program>.log` after `argv[0]`, so `conveyor` and `conveyor-dev` keep separate files; only
+  the TUI opens it (and rotates the old one to `.1`), so `conveyor config` and `conveyor log`
+  never touch it. A log that cannot be opened is a silent no-op.
 - **`gh` never inherits the terminal.** `CliGh::run` gives it a null stdin, so a `gh` that
   wants to prompt (no auth, `HOME` pointing elsewhere) fails fast instead of hanging the
   fetch thread behind `fetching…`.
@@ -534,10 +543,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   the pane's login shell rebuilt `PATH` (macOS `path_helper` and rc files), the shim was
   never found and the real `gh` ran. Sockets are per test so parallel tests never share a
   server.
-- **A scratch `HOME` does not isolate the config.** `XDG_CONFIG_HOME` and `CONVEYOR_CONFIG`
-  outrank `HOME`, and a shell that exports one made the e2e panes and `screenshots.sh` read the
+- **A scratch `HOME` does not isolate the config or the log.** `XDG_CONFIG_HOME`,
+  `CONVEYOR_CONFIG`, `XDG_STATE_HOME` and `CONVEYOR_LOG` outrank `HOME`, and a shell that exports one made the e2e panes and `screenshots.sh` read the
   real config (real repo names on screen, three e2e failures that CI never saw). Both launch the
-  binary with `env -u XDG_CONFIG_HOME -u CONVEYOR_CONFIG …`; any new launcher must do the same.
+  binary with `env -u XDG_CONFIG_HOME -u CONVEYOR_CONFIG -u XDG_STATE_HOME -u CONVEYOR_LOG …`; any new launcher must do the same.
 - **`gh` shim tests share one process, so they race on fork.** `tests/github.rs` writes a
   shell script per test and spawns it; on Linux CI one test's `fs::write` was still open when
   another test's `Command` forked, the child inherited the fd and `exec` failed with
