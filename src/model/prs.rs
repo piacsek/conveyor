@@ -144,6 +144,7 @@ pub struct PullRequest {
     pub auto_merge: bool,
     pub can_enable_auto_merge: bool,
     pub can_disable_auto_merge: bool,
+    pub merge_queue_enabled: bool,
 }
 
 impl PullRequest {
@@ -229,6 +230,7 @@ fn parse_pull_request(node: &serde_json::Value) -> Option<PullRequest> {
         auto_merge: node.get("autoMergeRequest").is_some_and(|v| v.is_object()),
         can_enable_auto_merge: flag(node, "viewerCanEnableAutoMerge"),
         can_disable_auto_merge: flag(node, "viewerCanDisableAutoMerge"),
+        merge_queue_enabled: flag(node, "isMergeQueueEnabled"),
     })
 }
 
