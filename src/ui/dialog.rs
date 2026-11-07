@@ -27,6 +27,9 @@ fn question(pending: &Pending) -> String {
             StatusChange::EnableAutoMerge { .. } => {
                 format!("enable auto-merge for #{} {}", target.number, target.title)
             }
+            StatusChange::Enqueue { .. } => {
+                format!("add to the merge queue #{} {}", target.number, target.title)
+            }
             _ => format!("close #{} {}", target.number, target.title),
         },
     }

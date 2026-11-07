@@ -1148,8 +1148,22 @@ impl App {
         } else {
             Err(format!("#{} is not queued", pr.number))
         };
+        let merge = if pr.merge_queue_enabled {
+            offer(
+                'm',
+                "add to merge queue",
+                self.merge_target().and_then(|_| {
+                    status(StatusChange::Enqueue {
+                        node_id: pr.node_id.clone(),
+                        head_oid: pr.head_oid.clone(),
+                    })
+                }),
+            )
+        } else {
+            offer('m', "merge", self.merge_target().map(Choice::Merge))
+        };
         vec![
-            offer('m', "merge", self.merge_target().map(Choice::Merge)),
+            merge,
             offer('u', update, self.update_target().map(Choice::Update)),
             self.rerun_offer(),
             draft,
@@ -1215,10 +1229,7 @@ impl App {
             Choice::Update(target) => return self.send_update(target),
             Choice::Rerun(rerun) => return self.send_rerun(rerun),
             Choice::Status(target)
-                if matches!(
-                    target.change,
-                    StatusChange::Close | StatusChange::EnableAutoMerge { .. }
-                ) =>
+                if target.change == StatusChange::Close || target.change.lands_a_merge() =>
             {
                 self.mode = Mode::Confirm(Pending::Status(target));
             }
@@ -1234,6 +1245,7 @@ impl App {
         }
         let letter = match target.change {
             StatusChange::EnableAutoMerge { .. } => 'a',
+            StatusChange::Enqueue { .. } => 'm',
             _ => 'x',
         };
         if let Err(message) = self.reconfirm(letter, target.number, Choice::Status(target.clone()))
@@ -1278,7 +1290,7 @@ impl App {
             Ok(()) => done(number, change),
             Err(message) => format!("#{number}: {message}"),
         });
-        if result.is_ok() && matches!(change, StatusChange::EnableAutoMerge { .. }) {
+        if result.is_ok() && change.lands_a_merge() {
             self.merge_landing = Some((number, false));
         }
         result.is_ok()
@@ -1752,6 +1764,7 @@ fn progress(number: u64, change: &StatusChange) -> String {
         StatusChange::EnableAutoMerge { .. } => format!("enabling auto-merge for #{number}…"),
         StatusChange::DisableAutoMerge { .. } => format!("disabling auto-merge for #{number}…"),
         StatusChange::Dequeue { .. } => format!("taking #{number} out of the merge queue…"),
+        StatusChange::Enqueue { .. } => format!("adding #{number} to the merge queue…"),
         StatusChange::Close => format!("closing #{number}…"),
     }
 }
@@ -1763,6 +1776,7 @@ fn done(number: u64, change: &StatusChange) -> String {
         StatusChange::EnableAutoMerge { .. } => format!("auto-merge enabled for #{number}"),
         StatusChange::DisableAutoMerge { .. } => format!("auto-merge disabled for #{number}"),
         StatusChange::Dequeue { .. } => format!("#{number} left the merge queue"),
+        StatusChange::Enqueue { .. } => format!("#{number} added to the merge queue"),
         StatusChange::Close => format!("#{number} closed"),
     }
 }

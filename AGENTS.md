@@ -306,7 +306,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   enqueues, which is a merge), close (`x`) and a rebase update (`u` with `prs.update_method =
   "rebase"`, a force-push) go to the confirm dialog; the rest act on the letter, since the popup
   already was the confirmation and each is cheap to undo. Offers per stage:
-  - My PRs: `m` merge, `u` update/rebase branch, `f` rerun failed jobs (`(k runs)` when more
+  - My PRs: `m` merge (`add to merge queue` on a merge-queue base), `u` update/rebase branch, `f` rerun failed jobs (`(k runs)` when more
     than one), `t` mark ready / convert to draft, `a` enable/disable auto-merge, `e` leave the
     merge queue, `x` close. Main builds: `f` only.
   - **`t`, `a`, `e`, `x` change the status.** `Request::ChangeStatus(StatusTarget)` carries a
@@ -355,7 +355,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   again through `App::reconfirm` (the same `menu()` the popup used, so a My PRs refresh that
   failed while the dialog was open refuses too) and sends `Request::Merge` only if the offer
   under `m` is still the same number, repo, title and head sha; otherwise the footer says why,
-  or `the pull request changed; press S again`. `confirm_update` and `confirm_status` (close, enable auto-merge) use the
+  or `the pull request changed; press S again`. `confirm_update` and `confirm_status` (close, enable auto-merge, enqueue) use the
   same check. Drafts and queued pull requests are refused in the popup. The worker runs `gh pr merge <N>
   -R <repo> --<prs.merge_method> --match-head-commit <headRefOid>`; the pin refuses a head pushed
   after the card was drawn. On a merge-queue branch gh only warns that the queue sets the
@@ -363,6 +363,16 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   first on stderr, so `CliGh::merge` (and `change_status`) drop gh's `! ` lines from an error: the footer shows one
   line, and it used to be the warning instead of the reason. `Input::Merged` puts `merge sent for
   #N` or the error in the footer and, on success, refreshes My PRs and the queue.
+  **On a merge-queue base `m` never runs `gh pr merge`.** gh enqueues through
+  `enablePullRequestAutoMerge`, which GitHub refuses with `Auto merge is not allowed for this
+  repository` when the repository has auto-merge off, while its own "Merge when ready" button
+  sends `enqueuePullRequest` and works. So when `isMergeQueueEnabled`
+  (`PullRequest::merge_queue_enabled`), the offer reads `m  add to merge queue`, keeps the
+  draft and queued refusals, asks `add to the merge queue #N <title>?` (the verb first, so a long
+  title cannot cut it) and sends `StatusChange::Enqueue`: `enqueuePullRequest` by node id with
+  the head as `expectedHeadOid`. A pull request whose checks still run joins as
+  `AWAITING_CHECKS`, as on the web. Like enabling auto-merge (`StatusChange::lands_a_merge`), a
+  success sets `merge_landing`. `a` is untouched and still follows GitHub's `viewerCan*` flags.
 - **Every sensitive write asks in one dialog.** `ui::dialog::draw_confirm` draws over the body
   while `Mode::Confirm`, centred over the whole body (the details pane included, so an open pane
   never squeezes it), at most 56 columns inside and 2 off each edge: `Clear`, a

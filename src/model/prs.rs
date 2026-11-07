@@ -85,7 +85,17 @@ pub enum StatusChange {
     Dequeue {
         node_id: String,
     },
+    Enqueue {
+        node_id: String,
+        head_oid: String,
+    },
     Close,
+}
+
+impl StatusChange {
+    pub fn lands_a_merge(&self) -> bool {
+        matches!(self, Self::EnableAutoMerge { .. } | Self::Enqueue { .. })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -144,6 +154,7 @@ pub struct PullRequest {
     pub auto_merge: bool,
     pub can_enable_auto_merge: bool,
     pub can_disable_auto_merge: bool,
+    pub merge_queue_enabled: bool,
 }
 
 impl PullRequest {
@@ -229,6 +240,7 @@ fn parse_pull_request(node: &serde_json::Value) -> Option<PullRequest> {
         auto_merge: node.get("autoMergeRequest").is_some_and(|v| v.is_object()),
         can_enable_auto_merge: flag(node, "viewerCanEnableAutoMerge"),
         can_disable_auto_merge: flag(node, "viewerCanDisableAutoMerge"),
+        merge_queue_enabled: flag(node, "isMergeQueueEnabled"),
     })
 }
 
