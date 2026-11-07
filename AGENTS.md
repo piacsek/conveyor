@@ -428,8 +428,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   the TUI opens it (and rotates the old one to `.1`), so `conveyor config` and `conveyor log`
   never touch it. A log that cannot be opened is a silent no-op. The file is created `0600`
   (it names repos and kube contexts). `log::path` returns `None`, and the log stays off, rather
-  than build a path relative to the working directory: an empty `CONVEYOR_LOG` counts as unset, a
-  relative `XDG_STATE_HOME` is ignored (the XDG spec says so) and a non-absolute `HOME` gives up.
+  than build a path relative to the working directory from a base it derived: an empty
+  `CONVEYOR_LOG` counts as unset, a relative `XDG_STATE_HOME` is ignored (the XDG spec says so) and
+  a non-absolute `HOME` gives up. A relative `CONVEYOR_LOG` is an explicit choice and is used as
+  given.
 - **`gh` never inherits the terminal.** `CliGh::run` gives it a null stdin, so a `gh` that
   wants to prompt (no auth, `HOME` pointing elsewhere) fails fast instead of hanging the
   fetch thread behind `fetching…`.
