@@ -468,3 +468,16 @@ fn a_null_auto_merge_request_means_auto_merge_is_off() {
     assert!(pr.can_enable_auto_merge);
     assert!(!pr.can_disable_auto_merge);
 }
+
+#[test]
+fn whether_the_base_has_a_merge_queue_is_read() {
+    let pr = one(r#"{"number": 7, "isMergeQueueEnabled": true}"#);
+    assert!(pr.merge_queue_enabled);
+    assert!(conveyor::sources::fetch::PRS_QUERY.contains("isMergeQueueEnabled"));
+}
+
+#[test]
+fn a_missing_merge_queue_flag_means_no_merge_queue() {
+    let pr = one(r#"{"number": 7}"#);
+    assert!(!pr.merge_queue_enabled);
+}

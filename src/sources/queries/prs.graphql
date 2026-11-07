@@ -21,6 +21,7 @@ query($q: String!, $first: Int!) {
         autoMergeRequest { enabledAt }
         viewerCanEnableAutoMerge
         viewerCanDisableAutoMerge
+        isMergeQueueEnabled
         statusCheckRollup {
           state
           contexts(first: 100) {
