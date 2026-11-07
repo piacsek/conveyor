@@ -620,7 +620,8 @@ agent's private memory. When the user says "update the guidelines", edit this fi
   4. The phase outcome is in `PLAN.md` and, for a behaviour change, the version bump and its
      `CHANGELOG.md` entry are on the branch. Re-read the PR title and body, fix what went
      stale, `gh pr ready`, wait for CI green.
-  5. Rebase-merge (squash when GitHub cannot rebase the branch). For a behaviour change, tag and release per "Releasing", watch `release`
+  5. Rebase-merge (squash when GitHub cannot rebase the branch).
+     For a behaviour change, tag and release per "Releasing", watch `release`
      to green and check the tap formula names the new version.
   6. Remove the worktree and report what shipped, with the release link.
   Stop and ask instead of proceeding when: a gate fails for a reason the change did not
@@ -663,11 +664,13 @@ agent's private memory. When the user says "update the guidelines", edit this fi
 - **Catching up with `main` on a pushed branch is a merge, not a rebase.** A rebase rewrites
   the pushed commits and the next `scripts/ship.sh` push is refused; the no-force-push rule
   then leaves only `git reset --hard origin/<branch>`, `git merge origin/main` and a
-  cherry-pick of the new work. A merge that resolved conflicts makes the branch impossible to
-  rebase-merge: GitHub answers `This branch can't be rebased`, because the resolutions live only
-  in the merge commit and cannot be replayed (phase 28, after v0.21.2 shipped mid-phase and its
-  snapshots and `CHANGELOG.md` conflicted). Such a branch lands as a **squash merge** instead,
-  subject `<type>(<scope>): <summary> (#N)`; the per-task commits stay readable on the PR.
+  cherry-pick of the new work. The rebase-merge into `main` drops a clean merge commit anyway.
+  A merge that resolved conflicts can stop GitHub from rebase-merging: it answers `This branch
+  can't be rebased`, because the resolutions live only in the merge commit and replaying the
+  branch's own commits hits the same conflicts again (phase 28, after v0.21.2 shipped mid-phase
+  and its snapshots and `CHANGELOG.md` conflicted). When GitHub refuses, the branch lands as a
+  **squash merge** instead, subject `<type>(<scope>): <summary> (#N)`; the per-task commits stay
+  readable on the PR.
 - **Two binaries.** `conveyor` on PATH is the Homebrew release; `conveyor-dev` is a working
   tree (`scripts/dev-install.sh`). Never `cargo install` the crate into a PATH directory.
 - **Plan before code, plans in the repo.** Each phase starts from a written plan, re-planned
