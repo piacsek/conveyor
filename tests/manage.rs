@@ -561,6 +561,47 @@ fn the_popup_lists_only_the_actions_without_a_hint_line() {
     assert!(!h.screen().contains("a letter acts"), "{}", h.screen());
 }
 
+#[test]
+fn m_on_a_merge_queue_pull_request_asks_and_y_adds_it_to_the_queue() {
+    let mut h = tall();
+
+    h.run(vec![
+        prs(vec![queueable(1, "Retry webhooks")]),
+        key(KeyCode::Char('S')),
+    ])
+    .unwrap();
+
+    assert!(
+        h.screen().contains("m  add to merge queue"),
+        "{}",
+        h.screen()
+    );
+
+    h.run(vec![key(KeyCode::Char('m'))]).unwrap();
+
+    assert!(
+        h.screen()
+            .contains("add to the merge queue #1 Retry webhooks?"),
+        "{}",
+        h.screen()
+    );
+    assert!(h.requests.is_empty(), "{:?}", h.requests);
+
+    h.run(vec![key(KeyCode::Char('y'))]).unwrap();
+
+    assert_eq!(
+        h.requests,
+        vec![status(
+            1,
+            "Retry webhooks",
+            StatusChange::Enqueue {
+                node_id: "PR_node1".to_string(),
+                head_oid: "8c1f2a7d1".to_string()
+            }
+        )]
+    );
+}
+
 fn tall() -> Harness {
     Harness::with_size(160, 20)
 }
@@ -592,4 +633,10 @@ fn status_changed(
         change,
         result.map_err(str::to_string),
     ))
+}
+
+fn queueable(number: u64, title: &str) -> PullRequest {
+    let mut pull = open(number, title);
+    pull.merge_queue_enabled = true;
+    pull
 }
