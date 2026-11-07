@@ -46,7 +46,7 @@ impl Server {
     fn respawn(&self, env: &[(&str, &str)], command: &str) {
         let pairs: Vec<String> = env.iter().map(|(k, v)| format!("{k}='{v}'")).collect();
         let command = format!(
-            "env -u XDG_CONFIG_HOME -u CONVEYOR_CONFIG {} '{command}'",
+            "env -u XDG_CONFIG_HOME -u CONVEYOR_CONFIG -u XDG_STATE_HOME -u CONVEYOR_LOG {} '{command}'",
             pairs.join(" ")
         );
         let status = self
@@ -206,6 +206,33 @@ fn the_binary_draws_my_prs_from_gh_before_any_key() {
     assert!(screen.contains("My PRs (1)"), "{screen}");
     assert!(screen.contains("conveyor · "), "the meta line: {screen}");
     assert!(screen.contains("Merge queue"), "{screen}");
+}
+
+#[test]
+#[ignore]
+fn a_session_logs_its_start_each_gh_call_and_its_quit() {
+    let home = tempfile::tempdir().unwrap();
+    let fixture = fixture_path(home.path());
+    let path = shim(home.path(), &format!("cat '{fixture}'"));
+    let server = Server::start("log");
+    server.respawn(
+        &[
+            ("HOME", &home.path().display().to_string()),
+            ("PATH", &path),
+        ],
+        env!("CARGO_BIN_EXE_conveyor"),
+    );
+    server.wait_for_screen("#1 Phase 0: setup");
+
+    server.send_keys(&["q"]);
+
+    let log = home.path().join(".local/state/conveyor/conveyor.log");
+    let text = wait_for_file_line(&log, " conveyor quit");
+    assert!(
+        text.contains(&format!(" conveyor {} started", env!("CARGO_PKG_VERSION"))),
+        "{text}"
+    );
+    assert!(text.contains(" gh api graphql -f query=<"), "{text}");
 }
 
 #[test]
@@ -524,4 +551,17 @@ fn s_then_t_runs_gh_pr_ready_undo_on_an_open_pull_request() {
         fs::read_to_string(&argv).unwrap(),
         "pr ready 1 -R piacsek/conveyor --undo\n"
     );
+}
+
+fn wait_for_file_line(path: &Path, needle: &str) -> String {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut text = String::new();
+    while Instant::now() < deadline {
+        text = fs::read_to_string(path).unwrap_or_default();
+        if text.contains(needle) {
+            return text;
+        }
+        sleep(Duration::from_millis(100));
+    }
+    panic!("never saw {needle:?} in {}:\n{text}", path.display());
 }
