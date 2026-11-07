@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -7,13 +8,22 @@ pub fn path(
     env_override: Option<PathBuf>,
     xdg_state_home: Option<PathBuf>,
     home: &Path,
+    program: &str,
 ) -> PathBuf {
     env_override.unwrap_or_else(|| {
         xdg_state_home
             .unwrap_or_else(|| home.join(".local").join("state"))
             .join("conveyor")
-            .join("conveyor.log")
+            .join(format!("{program}.log"))
     })
+}
+
+pub fn program_name(argv0: Option<OsString>) -> String {
+    argv0
+        .as_deref()
+        .and_then(|arg| Path::new(arg).file_name())
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "conveyor".to_string())
 }
 
 #[derive(Clone, Default)]

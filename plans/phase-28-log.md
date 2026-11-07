@@ -7,18 +7,21 @@ printed. A log file answers "why did that column go red at 14:02" after the fact
 
 ## Decisions
 - **Always on, no config key.** A log nobody enabled is the one that is missing when it is needed.
-- **Path:** `$XDG_STATE_HOME/conveyor/conveyor.log`, else `~/.local/state/conveyor/conveyor.log`;
-  `CONVEYOR_LOG` overrides both (tests, and anyone who wants it elsewhere). The directory is
-  created on start.
+- **Path:** `$XDG_STATE_HOME/conveyor/<program>.log`, else `~/.local/state/conveyor/<program>.log`,
+  where `<program>` is the file name the binary was started as (`argv[0]`): `conveyor` and
+  `conveyor-dev` running side by side each keep their own log, and neither one's start rotates
+  the other's file away. `CONVEYOR_LOG` overrides both (tests, and anyone who wants it
+  elsewhere). The directory is created on start. Two copies of the *same* program still share
+  one file.
 - **Retention:** on start, an existing `conveyor.log` is renamed to `conveyor.log.1` (replacing
   the old one). Two sessions on disk, never unbounded growth, and a restart after a bad session
   keeps the evidence.
-- **What one line holds:** local time; the program (`gh`/`kubectl`), its argv, the
+- **What one line holds:** local date and time; the program (`gh`/`kubectl`), its argv, the
   duration, and `ok` or `exit <code>: <stderr>`. Stdout is never logged (megabytes of JSON). A
   GraphQL `query=` argument is logged as `query=<N chars>`: the documents are anonymous and
   multi-line, the variables beside them already say what was asked.
   Example:
-  `14:02:11 gh api graphql -f query=<812 chars> -F owner=acme -F name=api 412ms exit 1: HTTP 502`
+  `2026-11-06 14:02:11 gh api graphql -f query=<812 chars> -F owner=acme -F name=api 412ms exit 1: HTTP 502`
 - **Also logged:** start (version, config path, config error if any) and quit.
 - **Never breaks the TUI.** A log that cannot be opened or written is a no-op; the app runs as
   before. No footer notice: the log is a diagnostic, not a feature.
@@ -35,7 +38,7 @@ clone (`Arc<Mutex<File>>` inside, one `write_all` per line), and `line(&self, &s
 every fetcher and worker thread.
 
 ## Tasks (each starts red)
-1. `log::path(CONVEYOR_LOG, XDG_STATE_HOME, HOME)`: precedence, unit tests next to `config::path`'s.
+1. `log::path(CONVEYOR_LOG, XDG_STATE_HOME, HOME, program)` and `log::program_name(argv[0])`: precedence, unit tests next to `config::path`'s.
 2. `Log::open` rotates `.log` to `.log.1` and creates the directory; an unwritable path yields a
    disabled `Log` that drops lines. Tests in a tempdir.
 3. `conveyor log` prints the path and exits 0; `--help` lists it. `tests/cli.rs`.

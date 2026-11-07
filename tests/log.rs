@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use conveyor::log::{Log, path};
+use conveyor::log::{Log, path, program_name};
 
 #[test]
 fn the_log_path_prefers_the_override_then_xdg_state_then_home() {
@@ -10,18 +10,39 @@ fn the_log_path_prefers_the_override_then_xdg_state_then_home() {
         path(
             Some(PathBuf::from("/x/c.log")),
             Some(PathBuf::from("/state")),
-            home
+            home,
+            "conveyor"
         ),
         PathBuf::from("/x/c.log")
     );
     assert_eq!(
-        path(None, Some(PathBuf::from("/state")), home),
+        path(None, Some(PathBuf::from("/state")), home, "conveyor"),
         PathBuf::from("/state/conveyor/conveyor.log")
     );
     assert_eq!(
-        path(None, None, home),
+        path(None, None, home, "conveyor"),
         PathBuf::from("/home/me/.local/state/conveyor/conveyor.log")
     );
+}
+
+#[test]
+fn each_program_writes_its_own_log() {
+    let home = Path::new("/home/me");
+
+    assert_eq!(
+        path(None, None, home, "conveyor-dev"),
+        PathBuf::from("/home/me/.local/state/conveyor/conveyor-dev.log")
+    );
+}
+
+#[test]
+fn the_program_name_is_the_file_name_it_was_started_as() {
+    assert_eq!(
+        program_name(Some("/home/me/.local/bin/conveyor-dev".into())),
+        "conveyor-dev"
+    );
+    assert_eq!(program_name(Some("conveyor".into())), "conveyor");
+    assert_eq!(program_name(None), "conveyor");
 }
 
 #[test]
