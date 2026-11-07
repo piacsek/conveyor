@@ -109,3 +109,21 @@ fn log_prints_the_log_path_named_after_the_program() {
             .to_string()
     );
 }
+
+#[test]
+fn log_without_an_absolute_home_says_so_and_exits_one() {
+    let out = Command::new(env!("CARGO_BIN_EXE_conveyor"))
+        .arg("log")
+        .env("HOME", "")
+        .env_remove("CONVEYOR_LOG")
+        .env_remove("XDG_STATE_HOME")
+        .output()
+        .unwrap();
+
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("no log: HOME is not an absolute path"),
+        "{stderr}"
+    );
+}

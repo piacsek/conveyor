@@ -13,16 +13,32 @@ fn the_log_path_prefers_the_override_then_xdg_state_then_home() {
             home,
             "conveyor"
         ),
-        PathBuf::from("/x/c.log")
+        Some(PathBuf::from("/x/c.log"))
     );
     assert_eq!(
         path(None, Some(PathBuf::from("/state")), home, "conveyor"),
-        PathBuf::from("/state/conveyor/conveyor.log")
+        Some(PathBuf::from("/state/conveyor/conveyor.log"))
     );
     assert_eq!(
         path(None, None, home, "conveyor"),
-        PathBuf::from("/home/me/.local/state/conveyor/conveyor.log")
+        Some(PathBuf::from("/home/me/.local/state/conveyor/conveyor.log"))
     );
+}
+
+#[test]
+fn a_relative_or_empty_base_never_puts_the_log_under_the_working_directory() {
+    let home = Path::new("/home/me");
+
+    assert_eq!(
+        path(Some(PathBuf::from("")), None, home, "conveyor"),
+        Some(PathBuf::from("/home/me/.local/state/conveyor/conveyor.log"))
+    );
+    assert_eq!(
+        path(None, Some(PathBuf::from("rel")), home, "conveyor"),
+        Some(PathBuf::from("/home/me/.local/state/conveyor/conveyor.log"))
+    );
+    assert_eq!(path(None, None, Path::new(""), "conveyor"), None);
+    assert_eq!(path(None, None, Path::new("rel"), "conveyor"), None);
 }
 
 #[test]
@@ -31,7 +47,9 @@ fn each_program_writes_its_own_log() {
 
     assert_eq!(
         path(None, None, home, "conveyor-dev"),
-        PathBuf::from("/home/me/.local/state/conveyor/conveyor-dev.log")
+        Some(PathBuf::from(
+            "/home/me/.local/state/conveyor/conveyor-dev.log"
+        ))
     );
 }
 

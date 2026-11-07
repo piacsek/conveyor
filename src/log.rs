@@ -11,13 +11,15 @@ pub fn path(
     xdg_state_home: Option<PathBuf>,
     home: &Path,
     program: &str,
-) -> PathBuf {
-    env_override.unwrap_or_else(|| {
-        xdg_state_home
-            .unwrap_or_else(|| home.join(".local").join("state"))
-            .join("conveyor")
-            .join(format!("{program}.log"))
-    })
+) -> Option<PathBuf> {
+    if let Some(file) = env_override.filter(|file| !file.as_os_str().is_empty()) {
+        return Some(file);
+    }
+    let base = xdg_state_home.filter(|dir| dir.is_absolute()).or_else(|| {
+        home.is_absolute()
+            .then(|| home.join(".local").join("state"))
+    })?;
+    Some(base.join("conveyor").join(format!("{program}.log")))
 }
 
 pub fn program_name(argv0: Option<OsString>) -> String {

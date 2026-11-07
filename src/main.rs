@@ -33,8 +33,13 @@ fn main() -> ExitCode {
             return ExitCode::SUCCESS;
         }
         Ok(Command::Log) => {
-            println!("{}", log_path().display());
-            return ExitCode::SUCCESS;
+            return match log_path() {
+                Some(path) => {
+                    println!("{}", path.display());
+                    ExitCode::SUCCESS
+                }
+                None => fail("no log: HOME is not an absolute path"),
+            };
         }
         Ok(command) => command,
         Err(err) => return fail(&err),
@@ -69,7 +74,7 @@ fn config_path() -> PathBuf {
     )
 }
 
-fn log_path() -> PathBuf {
+fn log_path() -> Option<PathBuf> {
     log::path(
         env::var_os("CONVEYOR_LOG").map(PathBuf::from),
         env::var_os("XDG_STATE_HOME").map(PathBuf::from),
@@ -86,7 +91,7 @@ fn fail(message: &str) -> ExitCode {
 type Inputs = mpsc::Sender<io::Result<Input>>;
 
 fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
-    let log = Log::open(&log_path());
+    let log = log_path().map_or_else(Log::default, |path| Log::open(&path));
     log.line(&format!(
         "conveyor {} started; config {}",
         env!("CARGO_PKG_VERSION"),
