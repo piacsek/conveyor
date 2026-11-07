@@ -102,6 +102,6 @@ impl Log {
 fn shown(arg: &str) -> String {
     match arg.strip_prefix("query=") {
         Some(query) => format!("query=<{} chars>", query.chars().count()),
-        None => arg.to_string(),
+        None => arg.escape_debug().to_string(),
     }
 }

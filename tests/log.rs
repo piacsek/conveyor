@@ -115,3 +115,22 @@ fn the_log_is_readable_by_its_owner_only() {
     let mode = std::fs::metadata(&file).unwrap().permissions().mode() & 0o777;
     assert_eq!(mode, 0o600);
 }
+
+#[test]
+fn an_argument_with_a_newline_stays_on_one_log_line() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("conveyor.log");
+    let log = Log::open(&file);
+    let output = std::process::Command::new("true").output();
+
+    log.call(
+        "gh",
+        &["-f".to_string(), "q=is:pr\nis:open".to_string()],
+        std::time::Duration::from_millis(5),
+        &output,
+    );
+
+    let text = std::fs::read_to_string(&file).unwrap();
+    assert_eq!(text.lines().count(), 1, "{text}");
+    assert!(text.contains(" gh -f q=is:pr\\nis:open 5ms ok"), "{text}");
+}
