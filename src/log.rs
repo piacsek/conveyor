@@ -1,8 +1,10 @@
 use std::ffi::OsString;
 use std::fs::{self, File, OpenOptions};
-use std::io::Write;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::process::Output;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 pub fn path(
     env_override: Option<PathBuf>,
@@ -51,5 +53,47 @@ impl Log {
         if let Ok(mut file) = file.lock() {
             let _ = file.write_all(format!("{stamp} {text}\n").as_bytes());
         }
+    }
+
+    pub fn call(
+        &self,
+        program: &str,
+        args: &[String],
+        took: Duration,
+        output: &io::Result<Output>,
+    ) {
+        if self.file.is_none() {
+            return;
+        }
+        let argv: Vec<String> = args.iter().map(|arg| shown(arg)).collect();
+        let outcome = match output {
+            Ok(output) if output.status.success() => "ok".to_string(),
+            Ok(output) => {
+                let code = output
+                    .status
+                    .code()
+                    .map_or_else(|| "by signal".to_string(), |code| code.to_string());
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                let lines: Vec<&str> = stderr
+                    .lines()
+                    .map(str::trim)
+                    .filter(|l| !l.is_empty())
+                    .collect();
+                format!("exit {code}: {}", lines.join(" | "))
+            }
+            Err(err) => format!("did not start: {err}"),
+        };
+        self.line(&format!(
+            "{program} {} {}ms {outcome}",
+            argv.join(" "),
+            took.as_millis()
+        ));
+    }
+}
+
+fn shown(arg: &str) -> String {
+    match arg.strip_prefix("query=") {
+        Some(query) => format!("query=<{} chars>", query.chars().count()),
+        None => arg.to_string(),
     }
 }
