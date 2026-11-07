@@ -85,6 +85,10 @@ pub enum StatusChange {
     Dequeue {
         node_id: String,
     },
+    Enqueue {
+        node_id: String,
+        head_oid: String,
+    },
     Close,
 }
 

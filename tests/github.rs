@@ -379,6 +379,21 @@ fn status_argv_closes_a_pull_request() {
 }
 
 #[test]
+fn status_argv_enqueues_through_the_graphql_mutation_pinned_to_the_head() {
+    let change = StatusChange::Enqueue {
+        node_id: "PR_kwDOabc".to_string(),
+        head_oid: "8c1f2a7d".to_string(),
+    };
+    let args = CliGh::status_args("acme/webapp", 42, &change);
+    assert_eq!(args[0..3], ["api", "graphql", "-f"]);
+    assert!(
+        args[3].contains("enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid: $head})"),
+        "{args:?}"
+    );
+    assert_eq!(args[4..], ["-f", "id=PR_kwDOabc", "-f", "head=8c1f2a7d"]);
+}
+
+#[test]
 fn status_argv_dequeues_through_the_graphql_mutation_by_node_id() {
     let change = StatusChange::Dequeue {
         node_id: "PR_kwDOabc".to_string(),
