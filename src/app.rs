@@ -1752,6 +1752,7 @@ fn progress(number: u64, change: &StatusChange) -> String {
         StatusChange::EnableAutoMerge { .. } => format!("enabling auto-merge for #{number}…"),
         StatusChange::DisableAutoMerge { .. } => format!("disabling auto-merge for #{number}…"),
         StatusChange::Dequeue { .. } => format!("taking #{number} out of the merge queue…"),
+        StatusChange::Enqueue { .. } => format!("adding #{number} to the merge queue…"),
         StatusChange::Close => format!("closing #{number}…"),
     }
 }
@@ -1763,6 +1764,7 @@ fn done(number: u64, change: &StatusChange) -> String {
         StatusChange::EnableAutoMerge { .. } => format!("auto-merge enabled for #{number}"),
         StatusChange::DisableAutoMerge { .. } => format!("auto-merge disabled for #{number}"),
         StatusChange::Dequeue { .. } => format!("#{number} left the merge queue"),
+        StatusChange::Enqueue { .. } => format!("#{number} added to the merge queue"),
         StatusChange::Close => format!("#{number} closed"),
     }
 }

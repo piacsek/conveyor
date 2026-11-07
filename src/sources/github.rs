@@ -57,6 +57,8 @@ const ENABLE_AUTO_MERGE: &str = "mutation($id: ID!, $method: PullRequestMergeMet
 
 const DISABLE_AUTO_MERGE: &str = "mutation($id: ID!) { disablePullRequestAutoMerge(input: {pullRequestId: $id}) { clientMutationId } }";
 
+const ENQUEUE: &str = "mutation($id: ID!, $head: GitObjectID) { enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid: $head}) { clientMutationId } }";
+
 const DEQUEUE: &str =
     "mutation($id: ID!) { dequeuePullRequest(input: {id: $id}) { clientMutationId } }";
 
@@ -170,11 +172,8 @@ impl CliGh {
                     MergeMethod::Merge => "MERGE",
                     MergeMethod::Rebase => "REBASE",
                 };
-                let mut vars = vec![("id", node_id.as_str().into()), ("method", method.into())];
-                if !head_oid.is_empty() {
-                    vars.push(("head", head_oid.as_str().into()));
-                }
-                Self::graphql_args(ENABLE_AUTO_MERGE, &vars)
+                let vars = vec![("id", node_id.as_str().into()), ("method", method.into())];
+                Self::graphql_args(ENABLE_AUTO_MERGE, &pinned(vars, head_oid))
             }
             StatusChange::DisableAutoMerge { node_id } => {
                 Self::graphql_args(DISABLE_AUTO_MERGE, &[("id", node_id.as_str().into())])
@@ -182,6 +181,10 @@ impl CliGh {
             StatusChange::Close => pr("close"),
             StatusChange::Dequeue { node_id } => {
                 Self::graphql_args(DEQUEUE, &[("id", node_id.as_str().into())])
+            }
+            StatusChange::Enqueue { node_id, head_oid } => {
+                let vars = vec![("id", node_id.as_str().into())];
+                Self::graphql_args(ENQUEUE, &pinned(vars, head_oid))
             }
         }
     }
@@ -287,6 +290,13 @@ impl Github for CliGh {
             .map(|_| ())
             .map_err(without_warnings)
     }
+}
+
+fn pinned<'a>(mut vars: Vec<(&'a str, Variable)>, head_oid: &str) -> Vec<(&'a str, Variable)> {
+    if !head_oid.is_empty() {
+        vars.push(("head", head_oid.into()));
+    }
+    vars
 }
 
 fn without_warnings(err: io::Error) -> io::Error {
