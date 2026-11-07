@@ -602,6 +602,41 @@ fn m_on_a_merge_queue_pull_request_asks_and_y_adds_it_to_the_queue() {
     );
 }
 
+#[test]
+fn a_landed_enqueue_refreshes_both_columns_and_update_waits_for_my_prs() {
+    let mut h = tall();
+    let change = StatusChange::Enqueue {
+        node_id: "PR_node1".to_string(),
+        head_oid: "8c1f2a7d1".to_string(),
+    };
+
+    h.run(vec![
+        prs(vec![queueable(1, "a")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+        status_changed(1, change, Ok(())),
+    ])
+    .unwrap();
+
+    assert!(
+        h.screen().contains("#1 added to the merge queue"),
+        "{}",
+        h.screen()
+    );
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
+    assert_eq!(h.requests[2], Request::Refresh(Stage::Queue));
+
+    h.run(vec![key(KeyCode::Char('S'))]).unwrap();
+
+    assert!(
+        h.screen()
+            .contains("u  update branch · waiting for My PRs to catch up with"),
+        "{}",
+        h.screen()
+    );
+}
+
 fn tall() -> Harness {
     Harness::with_size(160, 20)
 }

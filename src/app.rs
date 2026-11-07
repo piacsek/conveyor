@@ -1229,12 +1229,7 @@ impl App {
             Choice::Update(target) => return self.send_update(target),
             Choice::Rerun(rerun) => return self.send_rerun(rerun),
             Choice::Status(target)
-                if matches!(
-                    target.change,
-                    StatusChange::Close
-                        | StatusChange::EnableAutoMerge { .. }
-                        | StatusChange::Enqueue { .. }
-                ) =>
+                if target.change == StatusChange::Close || target.change.lands_a_merge() =>
             {
                 self.mode = Mode::Confirm(Pending::Status(target));
             }
@@ -1295,7 +1290,7 @@ impl App {
             Ok(()) => done(number, change),
             Err(message) => format!("#{number}: {message}"),
         });
-        if result.is_ok() && matches!(change, StatusChange::EnableAutoMerge { .. }) {
+        if result.is_ok() && change.lands_a_merge() {
             self.merge_landing = Some((number, false));
         }
         result.is_ok()
