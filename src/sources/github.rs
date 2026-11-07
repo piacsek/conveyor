@@ -1,8 +1,10 @@
 use std::io;
 use std::path::PathBuf;
 use std::process::Command;
+use std::time::Instant;
 
 use crate::config::{MergeMethod, UpdateMethod};
+use crate::log::Log;
 use crate::model::prs::{BranchUpdate, StatusChange};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -67,6 +69,7 @@ pub const MISSING: &str =
 
 pub struct CliGh {
     program: PathBuf,
+    log: Log,
 }
 
 impl Default for CliGh {
@@ -77,7 +80,14 @@ impl Default for CliGh {
 
 impl CliGh {
     pub fn with_program(program: PathBuf) -> Self {
-        Self { program }
+        Self {
+            program,
+            log: Log::default(),
+        }
+    }
+
+    pub fn with_log(self, log: Log) -> Self {
+        Self { log, ..self }
     }
 
     pub fn graphql_args(query: &str, vars: &[(&str, Variable)]) -> Vec<String> {
@@ -203,6 +213,7 @@ impl CliGh {
     }
 
     fn run(&self, args: &[String]) -> io::Result<String> {
+        let started = Instant::now();
         let output = Command::new(&self.program)
             .args(args)
             .stdin(std::process::Stdio::null())
@@ -213,7 +224,9 @@ impl CliGh {
                 } else {
                     err
                 }
-            })?;
+            });
+        self.log.call("gh", args, started.elapsed(), &output);
+        let output = output?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
             let message = if stderr.is_empty() {

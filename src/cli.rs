@@ -1,10 +1,11 @@
-pub const USAGE: &str = "usage: conveyor [config]
+pub const USAGE: &str = "usage: conveyor [config | log]
        conveyor --help | --version";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     Tui,
     Config,
+    Log,
     Help,
     Version,
 }
@@ -18,6 +19,7 @@ where
     match args.next().as_deref() {
         None => Ok(Command::Tui),
         Some("config") => Ok(Command::Config),
+        Some("log") => Ok(Command::Log),
         Some("--help" | "-h" | "help") => Ok(Command::Help),
         Some("--version" | "-V" | "version") => Ok(Command::Version),
         Some(arg) => Err(format!("unknown argument '{arg}'\n{USAGE}")),

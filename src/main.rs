@@ -12,6 +12,7 @@ use conveyor::app::{
 };
 use conveyor::cli::{self, Command};
 use conveyor::config::{self, Config};
+use conveyor::log::{self, Log};
 use conveyor::open::SystemOpener;
 use conveyor::refresh;
 use conveyor::sources::fetch::{
@@ -31,6 +32,15 @@ fn main() -> ExitCode {
             println!("conveyor {}", env!("CARGO_PKG_VERSION"));
             return ExitCode::SUCCESS;
         }
+        Ok(Command::Log) => {
+            return match log_path() {
+                Some(path) => {
+                    println!("{}", path.display());
+                    ExitCode::SUCCESS
+                }
+                None => fail("no log: HOME is not an absolute path"),
+            };
+        }
         Ok(command) => command,
         Err(err) => return fail(&err),
     };
@@ -48,7 +58,7 @@ fn main() -> ExitCode {
             Ok(())
         }
         Command::Tui => tui(config, config_error),
-        Command::Help | Command::Version => Ok(()),
+        Command::Help | Command::Version | Command::Log => Ok(()),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,
@@ -64,6 +74,15 @@ fn config_path() -> PathBuf {
     )
 }
 
+fn log_path() -> Option<PathBuf> {
+    log::path(
+        env::var_os("CONVEYOR_LOG").map(PathBuf::from),
+        env::var_os("XDG_STATE_HOME").map(PathBuf::from),
+        &env::var_os("HOME").map(PathBuf::from).unwrap_or_default(),
+        &log::program_name(env::args_os().next()),
+    )
+}
+
 fn fail(message: &str) -> ExitCode {
     eprintln!("conveyor: {message}");
     ExitCode::FAILURE
@@ -72,26 +91,38 @@ fn fail(message: &str) -> ExitCode {
 type Inputs = mpsc::Sender<io::Result<Input>>;
 
 fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
+    let log = log_path().map_or_else(Log::default, |path| Log::open(&path));
+    log.line(&format!(
+        "conveyor {} started; config {}",
+        env!("CARGO_PKG_VERSION"),
+        config_path().display()
+    ));
+    if let Some(err) = &config_error {
+        log.line(&format!("config error: {err}"));
+    }
     let (tx, rx) = mpsc::channel::<io::Result<Input>>();
     let mut refreshers: HashMap<Stage, mpsc::Sender<()>> = HashMap::new();
-    refreshers.insert(Stage::Prs, spawn_prs_fetcher(config.clone(), tx.clone()));
+    refreshers.insert(
+        Stage::Prs,
+        spawn_prs_fetcher(&log, config.clone(), tx.clone()),
+    );
     refreshers.insert(
         Stage::Queue,
-        spawn_queue_fetcher(config.clone(), tx.clone()),
+        spawn_queue_fetcher(&log, config.clone(), tx.clone()),
     );
     refreshers.insert(
         Stage::Builds,
-        spawn_builds_fetcher(config.clone(), tx.clone()),
+        spawn_builds_fetcher(&log, config.clone(), tx.clone()),
     );
-    if let Some(refresh) = spawn_deploy_fetcher(config.clone(), tx.clone()) {
+    if let Some(refresh) = spawn_deploy_fetcher(&log, config.clone(), tx.clone()) {
         refreshers.insert(Stage::Deployed, refresh);
     }
-    let jobs = spawn_jobs_fetcher(config.clone(), tx.clone());
-    let logs = spawn_log_fetcher(config.clone(), tx.clone());
-    let reruns = spawn_rerun_worker(tx.clone());
-    let merges = spawn_merger(config.clone(), tx.clone());
-    let updates = spawn_branch_updater(tx.clone());
-    let statuses = spawn_status_changer(tx.clone());
+    let jobs = spawn_jobs_fetcher(&log, config.clone(), tx.clone());
+    let logs = spawn_log_fetcher(&log, config.clone(), tx.clone());
+    let reruns = spawn_rerun_worker(&log, tx.clone());
+    let merges = spawn_merger(&log, config.clone(), tx.clone());
+    let updates = spawn_branch_updater(&log, tx.clone());
+    let statuses = spawn_status_changer(&log, tx.clone());
     spawn_terminal_events(tx);
     let mut app = App::new(config);
     app.notice = config_error;
@@ -129,13 +160,14 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
         },
     );
     ratatui::restore();
+    log.line("conveyor quit");
     result
 }
 
-fn spawn_jobs_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<u64> {
+fn spawn_jobs_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<u64> {
     let (jobs_tx, jobs_rx) = mpsc::channel::<u64>();
+    let gh = CliGh::default().with_log(log.clone());
     thread::spawn(move || {
-        let gh = CliGh::default();
         let mut repo: Option<String> = None;
         while let Ok(run_id) = jobs_rx.recv() {
             if repo.is_none() {
@@ -156,10 +188,10 @@ fn spawn_jobs_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<u64> {
     jobs_tx
 }
 
-fn spawn_log_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<(u64, u64)> {
+fn spawn_log_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<(u64, u64)> {
     let (log_tx, log_rx) = mpsc::channel::<(u64, u64)>();
+    let gh = CliGh::default().with_log(log.clone());
     thread::spawn(move || {
-        let gh = CliGh::default();
         let mut repo: Option<String> = None;
         while let Ok((run_id, job_id)) = log_rx.recv() {
             if repo.is_none() {
@@ -180,10 +212,10 @@ fn spawn_log_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<(u64, u64)> {
     log_tx
 }
 
-fn spawn_rerun_worker(tx: Inputs) -> mpsc::Sender<(String, Vec<u64>)> {
+fn spawn_rerun_worker(log: &Log, tx: Inputs) -> mpsc::Sender<(String, Vec<u64>)> {
     let (rerun_tx, rerun_rx) = mpsc::channel::<(String, Vec<u64>)>();
+    let gh = CliGh::default().with_log(log.clone());
     thread::spawn(move || {
-        let gh = CliGh::default();
         while let Ok((repo, run_ids)) = rerun_rx.recv() {
             let result = rerun_failed(&gh, &repo, &run_ids);
             if tx.send(Ok(Input::Rerun(result))).is_err() {
@@ -194,10 +226,10 @@ fn spawn_rerun_worker(tx: Inputs) -> mpsc::Sender<(String, Vec<u64>)> {
     rerun_tx
 }
 
-fn spawn_branch_updater(tx: Inputs) -> mpsc::Sender<UpdateTarget> {
+fn spawn_branch_updater(log: &Log, tx: Inputs) -> mpsc::Sender<UpdateTarget> {
     let (update_tx, update_rx) = mpsc::channel::<UpdateTarget>();
+    let gh = CliGh::default().with_log(log.clone());
     thread::spawn(move || {
-        let gh = CliGh::default();
         while let Ok(target) = update_rx.recv() {
             let result = gh
                 .update_branch(&target.repo, target.number, target.method)
@@ -213,10 +245,10 @@ fn spawn_branch_updater(tx: Inputs) -> mpsc::Sender<UpdateTarget> {
     update_tx
 }
 
-fn spawn_status_changer(tx: Inputs) -> mpsc::Sender<StatusTarget> {
+fn spawn_status_changer(log: &Log, tx: Inputs) -> mpsc::Sender<StatusTarget> {
     let (status_tx, status_rx) = mpsc::channel::<StatusTarget>();
+    let gh = CliGh::default().with_log(log.clone());
     thread::spawn(move || {
-        let gh = CliGh::default();
         while let Ok(target) = status_rx.recv() {
             let result = gh
                 .change_status(&target.repo, target.number, &target.change)
@@ -230,10 +262,10 @@ fn spawn_status_changer(tx: Inputs) -> mpsc::Sender<StatusTarget> {
     status_tx
 }
 
-fn spawn_merger(config: Config, tx: Inputs) -> mpsc::Sender<MergeTarget> {
+fn spawn_merger(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<MergeTarget> {
     let (merge_tx, merge_rx) = mpsc::channel::<MergeTarget>();
+    let gh = CliGh::default().with_log(log.clone());
     thread::spawn(move || {
-        let gh = CliGh::default();
         while let Ok(target) = merge_rx.recv() {
             let result = gh
                 .merge(
@@ -276,16 +308,16 @@ fn spawn_terminal_events(tx: Inputs) {
     });
 }
 
-fn spawn_prs_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<()> {
+fn spawn_prs_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<()> {
     let interval = Duration::from_secs(config.prs.refresh_secs);
-    let gh = CliGh::default();
+    let gh = CliGh::default().with_log(log.clone());
     refresh::spawn(Stage::Prs, interval, tx, move || {
         fetch_prs(&gh, &config).map(Rows::Prs)
     })
 }
 
-fn spawn_queue_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<()> {
-    let gh = CliGh::default();
+fn spawn_queue_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<()> {
+    let gh = CliGh::default().with_log(log.clone());
     let interval = Duration::from_secs(config.repo.first().map_or(30, |repo| repo.refresh_secs));
     let mut repo = None;
     refresh::spawn(Stage::Queue, interval, tx, move || {
@@ -299,8 +331,8 @@ fn spawn_queue_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<()> {
     })
 }
 
-fn spawn_builds_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<()> {
-    let gh = CliGh::default();
+fn spawn_builds_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<()> {
+    let gh = CliGh::default().with_log(log.clone());
     let interval = Duration::from_secs(config.repo.first().map_or(30, |repo| repo.refresh_secs));
     let mut source: Option<BuildsSource> = None;
     refresh::spawn(Stage::Builds, interval, tx, move || {
@@ -319,13 +351,13 @@ fn spawn_builds_fetcher(config: Config, tx: Inputs) -> mpsc::Sender<()> {
     })
 }
 
-fn spawn_deploy_fetcher(config: Config, tx: Inputs) -> Option<mpsc::Sender<()>> {
+fn spawn_deploy_fetcher(log: &Log, config: Config, tx: Inputs) -> Option<mpsc::Sender<()>> {
     let repo = config.repo.iter().find(|repo| !repo.deploy.is_empty())?;
     let deploy = repo.deploy.first()?.clone();
     let interval = Duration::from_secs(deploy.refresh_secs);
     let mut source = DeploySource::new(repo.name.clone(), deploy);
-    let gh = CliGh::default();
-    let kube = CliKubectl::default();
+    let gh = CliGh::default().with_log(log.clone());
+    let kube = CliKubectl::default().with_log(log.clone());
     Some(refresh::spawn(Stage::Deployed, interval, tx, move || {
         Ok(Rows::Deployed(source.fetch(&gh, &kube, SystemTime::now())))
     }))

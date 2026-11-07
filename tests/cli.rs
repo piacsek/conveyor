@@ -87,3 +87,43 @@ fn config_reads_the_file_named_by_conveyor_config_and_reports_errors() {
     assert!(stderr.contains("limt"), "{stderr}");
     assert!(out.stdout.is_empty());
 }
+
+#[test]
+fn log_prints_the_log_path_named_after_the_program() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let out = Command::new(env!("CARGO_BIN_EXE_conveyor"))
+        .arg("log")
+        .env("HOME", dir.path())
+        .env_remove("CONVEYOR_LOG")
+        .env_remove("XDG_STATE_HOME")
+        .output()
+        .unwrap();
+
+    assert!(out.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout).trim(),
+        dir.path()
+            .join(".local/state/conveyor/conveyor.log")
+            .display()
+            .to_string()
+    );
+}
+
+#[test]
+fn log_without_an_absolute_home_says_so_and_exits_one() {
+    let out = Command::new(env!("CARGO_BIN_EXE_conveyor"))
+        .arg("log")
+        .env("HOME", "")
+        .env_remove("CONVEYOR_LOG")
+        .env_remove("XDG_STATE_HOME")
+        .output()
+        .unwrap();
+
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("no log: HOME is not an absolute path"),
+        "{stderr}"
+    );
+}

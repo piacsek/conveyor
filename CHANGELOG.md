@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.22.0 (2026-11-06)
+- Conveyor writes a log: one line per `gh` and `kubectl` call with its arguments, how long it took and how it ended, plus when the TUI started and quit.
+- `conveyor log` prints where the log is (`~/.local/state/conveyor/conveyor.log`); `conveyor-dev` keeps its own `conveyor-dev.log`.
+- Each start keeps the previous session's log as `.log.1`.
+
 ## v0.21.2 (2026-11-06)
 - On a pull request whose base has a merge queue, `S` then `m` reads `add to merge queue` and adds it the way GitHub's "Merge when ready" does, so it works on repositories with auto-merge turned off.
 

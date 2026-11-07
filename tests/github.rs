@@ -3,6 +3,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::sync::{Mutex, MutexGuard};
 
 use conveyor::config::{MergeMethod, UpdateMethod};
+use conveyor::log::Log;
 use conveyor::model::prs::{BranchUpdate, StatusChange};
 use conveyor::sources::github::{CliGh, Github};
 
@@ -21,6 +22,48 @@ fn shim(dir: &tempfile::TempDir, script: &str) -> CliGh {
     fs::write(&gh, format!("#!/bin/sh\n{script}\n")).unwrap();
     fs::set_permissions(&gh, fs::Permissions::from_mode(0o755)).unwrap();
     CliGh::with_program(gh)
+}
+
+#[test]
+fn a_failing_call_is_logged_with_its_argv_duration_and_stderr() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("conveyor.log");
+    let gh = shim(
+        &dir,
+        "echo 'gh: HTTP 502' >&2; echo 'retry later' >&2; exit 1",
+    )
+    .with_log(Log::open(&file));
+
+    let _ = gh.graphql("query { x }", &[("q", "is:pr".into())]);
+
+    let text = fs::read_to_string(&file).unwrap();
+    assert!(
+        text.contains(" gh api graphql -f query=<11 chars> -f q=is:pr "),
+        "{text}"
+    );
+    assert!(
+        text.ends_with("ms exit 1: gh: HTTP 502 | retry later\n"),
+        "{text}"
+    );
+}
+
+#[test]
+fn a_successful_call_is_logged_as_ok_without_its_stdout() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("conveyor.log");
+    let gh = shim(&dir, r#"echo '{"secret":"payload"}'"#).with_log(Log::open(&file));
+
+    let _ = gh.rest("repos/acme/webapp/actions/runs");
+
+    let text = fs::read_to_string(&file).unwrap();
+    assert!(
+        text.contains(" gh api repos/acme/webapp/actions/runs "),
+        "{text}"
+    );
+    assert!(text.ends_with("ms ok\n"), "{text}");
+    assert!(!text.contains("payload"), "{text}");
 }
 
 #[test]

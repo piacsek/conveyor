@@ -1,8 +1,10 @@
 use std::io;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::time::Instant;
 
 use crate::config::DeployEnv;
+use crate::log::Log;
 
 pub const MISSING: &str = "kubectl not found on PATH; install kubectl and log in to the cluster";
 
@@ -12,6 +14,7 @@ pub trait Kube {
 
 pub struct CliKubectl {
     program: PathBuf,
+    log: Log,
 }
 
 impl Default for CliKubectl {
@@ -22,7 +25,14 @@ impl Default for CliKubectl {
 
 impl CliKubectl {
     pub fn with_program(program: PathBuf) -> Self {
-        Self { program }
+        Self {
+            program,
+            log: Log::default(),
+        }
+    }
+
+    pub fn with_log(self, log: Log) -> Self {
+        Self { log, ..self }
     }
 
     pub fn image_args(env: &DeployEnv) -> Vec<String> {
@@ -45,8 +55,10 @@ impl CliKubectl {
 
 impl Kube for CliKubectl {
     fn image(&self, env: &DeployEnv) -> io::Result<String> {
+        let args = Self::image_args(env);
+        let started = Instant::now();
         let output = Command::new(&self.program)
-            .args(Self::image_args(env))
+            .args(&args)
             .stdin(Stdio::null())
             .output()
             .map_err(|err| {
@@ -55,7 +67,9 @@ impl Kube for CliKubectl {
                 } else {
                     err
                 }
-            })?;
+            });
+        self.log.call("kubectl", &args, started.elapsed(), &output);
+        let output = output?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
             let message = if stderr.is_empty() {

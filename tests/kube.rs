@@ -3,6 +3,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::sync::{Mutex, MutexGuard};
 
 use conveyor::config::DeployEnv;
+use conveyor::log::Log;
 use conveyor::model::deployed::sha_from_image;
 use conveyor::sources::kube::{CliKubectl, Kube};
 
@@ -31,6 +32,27 @@ fn env() -> DeployEnv {
         deployment: "api".to_string(),
         ..DeployEnv::default()
     }
+}
+
+#[test]
+fn a_failing_kubectl_call_is_logged_with_its_argv_and_stderr() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("conveyor.log");
+    let kubectl =
+        shim(&dir, "echo 'error: You must be logged in' >&2; exit 1").with_log(Log::open(&file));
+
+    let _ = kubectl.image(&env());
+
+    let text = fs::read_to_string(&file).unwrap();
+    assert!(
+        text.contains(" kubectl --context teleport-prod -n api get deploy api "),
+        "{text}"
+    );
+    assert!(
+        text.ends_with("ms exit 1: error: You must be logged in\n"),
+        "{text}"
+    );
 }
 
 #[test]
