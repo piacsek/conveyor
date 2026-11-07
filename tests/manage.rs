@@ -637,6 +637,22 @@ fn a_landed_enqueue_refreshes_both_columns_and_update_waits_for_my_prs() {
     );
 }
 
+#[test]
+fn a_draft_on_a_merge_queue_repository_is_not_offered_to_the_queue() {
+    let mut h = tall();
+    let mut draft = queueable(1, "a");
+    draft.is_draft = true;
+
+    h.run(vec![prs(vec![draft]), key(KeyCode::Char('S'))])
+        .unwrap();
+
+    assert!(
+        h.screen().contains("m  add to merge queue · #1 is a draft"),
+        "{}",
+        h.screen()
+    );
+}
+
 fn tall() -> Harness {
     Harness::with_size(160, 20)
 }

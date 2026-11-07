@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.21.2 (2026-11-06)
+- On a pull request whose base has a merge queue, `S` then `m` reads `add to merge queue` and adds it the way GitHub's "Merge when ready" does, so it works on repositories with auto-merge turned off.
+
 ## v0.21.1 (2026-11-03)
 - The `S` menu no longer ends with a hint line; it lists the actions and nothing else.
 

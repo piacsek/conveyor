@@ -1,6 +1,5 @@
 ---
 source: tests/snapshots.rs
-assertion_line: 212
 expression: h.screen()
 ---
 My PRs (3) │ Merge queue │ Main builds │ Deployed                               
@@ -18,4 +17,4 @@ My PRs (3) │ Merge queue │ Main builds │ Deployed
 │          └─────────────────────────────────────────────────────────┘         │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
-refreshed just now                                       ▪─▪─▪▸ conveyor v0.21.1
+refreshed just now                                       ▪─▪─▪▸ conveyor v0.21.2
