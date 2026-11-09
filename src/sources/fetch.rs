@@ -377,17 +377,22 @@ impl DeploySource {
     ) -> crate::model::deployed::Deployment {
         let mut row = crate::model::deployed::Deployment {
             env: env.name.clone(),
+            target: format!("{} / {} / {}", env.context, env.namespace, env.deployment),
             ..Default::default()
         };
-        let image = match kube.image(env) {
-            Ok(image) => image,
+        let rollout = match kube
+            .deployment(env)
+            .map_err(|err| err.to_string())
+            .and_then(|json| crate::model::deployed::parse_deployment(&json))
+        {
+            Ok(rollout) => rollout,
             Err(err) => {
-                row.error = Some(err.to_string());
+                row.error = Some(err);
                 return row;
             }
         };
-        row.image = Some(image.clone());
-        match crate::model::deployed::sha_from_image(&image) {
+        row.image = Some(rollout.image.clone());
+        match crate::model::deployed::sha_from_image(&rollout.image) {
             Ok(sha) => {
                 row.pull = self.pulls.for_sha(gh, &sha, None, now);
                 row.sha = Some(sha);
@@ -395,6 +400,27 @@ impl DeploySource {
             }
             Err(err) => row.error = Some(err),
         }
+        match pods(kube, env, &rollout.selector) {
+            Ok(pods) => row.pods = pods,
+            Err(err) => row.pods_error = Some(err),
+        }
+        row.health = crate::model::deployed::health(
+            &rollout,
+            row.pods_error.is_none().then_some(row.pods.as_slice()),
+        );
+        row.rollout = Some(rollout);
         row
     }
+}
+
+fn pods(
+    kube: &impl crate::sources::kube::Kube,
+    env: &crate::config::DeployEnv,
+    selector: &str,
+) -> Result<Vec<crate::model::deployed::Pod>, String> {
+    if selector.is_empty() {
+        return Err("the deployment's selector has no matchLabels".to_string());
+    }
+    let json = kube.pods(env, selector).map_err(|err| err.to_string())?;
+    crate::model::deployed::parse_pods(&json)
 }

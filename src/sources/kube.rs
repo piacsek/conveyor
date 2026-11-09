@@ -9,7 +9,8 @@ use crate::log::Log;
 pub const MISSING: &str = "kubectl not found on PATH; install kubectl and log in to the cluster";
 
 pub trait Kube {
-    fn image(&self, env: &DeployEnv) -> io::Result<String>;
+    fn deployment(&self, env: &DeployEnv) -> io::Result<String>;
+    fn pods(&self, env: &DeployEnv, selector: &str) -> io::Result<String>;
 }
 
 pub struct CliKubectl {
@@ -35,37 +36,12 @@ impl CliKubectl {
         Self { log, ..self }
     }
 
-    pub fn image_args(env: &DeployEnv) -> Vec<String> {
-        [
-            "--context",
-            env.context.as_str(),
-            "-n",
-            env.namespace.as_str(),
-            "get",
-            "deploy",
-            env.deployment.as_str(),
-            "-o",
-            "jsonpath={.spec.template.spec.containers[0].image}",
-            "--request-timeout=10s",
-        ]
-        .map(str::to_string)
-        .to_vec()
-    }
-
     pub fn deployment_args(env: &DeployEnv) -> Vec<String> {
         Self::get_args(env, &["deploy", env.deployment.as_str()])
     }
 
     pub fn pods_args(env: &DeployEnv, selector: &str) -> Vec<String> {
         Self::get_args(env, &["pods", "-l", selector])
-    }
-
-    pub fn deployment(&self, env: &DeployEnv) -> io::Result<String> {
-        self.run(&Self::deployment_args(env))
-    }
-
-    pub fn pods(&self, env: &DeployEnv, selector: &str) -> io::Result<String> {
-        self.run(&Self::pods_args(env, selector))
     }
 
     fn get_args(env: &DeployEnv, what: &[&str]) -> Vec<String> {
@@ -112,7 +88,11 @@ impl CliKubectl {
 }
 
 impl Kube for CliKubectl {
-    fn image(&self, env: &DeployEnv) -> io::Result<String> {
-        self.run(&Self::image_args(env))
+    fn deployment(&self, env: &DeployEnv) -> io::Result<String> {
+        self.run(&Self::deployment_args(env))
+    }
+
+    fn pods(&self, env: &DeployEnv, selector: &str) -> io::Result<String> {
+        self.run(&Self::pods_args(env, selector))
     }
 }

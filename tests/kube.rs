@@ -42,7 +42,7 @@ fn a_failing_kubectl_call_is_logged_with_its_argv_and_stderr() {
     let kubectl =
         shim(&dir, "echo 'error: You must be logged in' >&2; exit 1").with_log(Log::open(&file));
 
-    let _ = kubectl.image(&env());
+    let _ = kubectl.deployment(&env());
 
     let text = fs::read_to_string(&file).unwrap();
     assert!(
@@ -52,52 +52,6 @@ fn a_failing_kubectl_call_is_logged_with_its_argv_and_stderr() {
     assert!(
         text.ends_with("ms exit 1: error: You must be logged in\n"),
         "{text}"
-    );
-}
-
-#[test]
-fn image_argv_targets_the_context_namespace_and_deployment_with_a_timeout() {
-    assert_eq!(
-        CliKubectl::image_args(&env()),
-        vec![
-            "--context",
-            "teleport-prod",
-            "-n",
-            "api",
-            "get",
-            "deploy",
-            "api",
-            "-o",
-            "jsonpath={.spec.template.spec.containers[0].image}",
-            "--request-timeout=10s",
-        ]
-    );
-}
-
-#[test]
-fn image_returns_the_trimmed_stdout_and_maps_failures() {
-    let _serialized = serialized();
-    let dir = tempfile::tempdir().unwrap();
-    let ok = shim(
-        &dir,
-        "printf 'ghcr.io/acme/api:0123456789abcdef0123456789abcdef01234567'",
-    );
-    assert_eq!(
-        ok.image(&env()).unwrap(),
-        "ghcr.io/acme/api:0123456789abcdef0123456789abcdef01234567"
-    );
-
-    let dir = tempfile::tempdir().unwrap();
-    let failing = shim(&dir, "echo 'ERROR: Active profile expired.' >&2; exit 1");
-    assert_eq!(
-        failing.image(&env()).unwrap_err().to_string(),
-        "ERROR: Active profile expired."
-    );
-
-    let missing = CliKubectl::with_program("/nonexistent/kubectl".into());
-    assert_eq!(
-        missing.image(&env()).unwrap_err().to_string(),
-        "kubectl not found on PATH; install kubectl and log in to the cluster"
     );
 }
 
