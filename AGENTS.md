@@ -239,9 +239,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `kubectl … get pods -l <matchLabels as k=v,k=v> -o json --request-timeout=10s` and
   `deployed::health(&Rollout, Option<&[Pod]>)` judges the row, in this order: `Alert` when the
   `Available` condition is not `True` (`0 of 2 available`); `Warning` when a pod that is not
-  terminating has a container (init containers included) waiting in `CrashLoopBackOff`,
-  `ImagePullBackOff`, `ErrImagePull` or `CreateContainerConfigError` (`1 of 3 pods
-  CrashLoopBackOff`), or when `Progressing` is `False` with `ProgressDeadlineExceeded`
+  terminating, `Failed` or `Succeeded` has a container (init containers included) waiting in
+  `CrashLoopBackOff`, `ImagePullBackOff`, `ErrImagePull` or `CreateContainerConfigError` (`1 of 3
+  pods CrashLoopBackOff`; `2 of 3 pods stuck` when the reasons differ), or a container that is
+  not ready, has restarted and has a last exit (`restarting`: a crashlooping container spends
+  part of each cycle running, and a refresh landing there used to read healthy), or when `Progressing` is `False` with `ProgressDeadlineExceeded`
   (`rollout stalled`); `Unread` when the pods were not read; else `Healthy`.
   The health icon sits in the card's icon slot after the version glyph, which keeps meaning
   "which sha is live": yellow `⚠`, red `‼`, grey `?`. A card with no icon means the pods were
@@ -249,12 +251,14 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   timeout), unparseable output or a selector without `matchLabels` sets `pods_error`, not the
   row's `error`, and the card shows the grey `?` with `pods not read: <error>`. The user asked
   for that: without it a crashlooping version looked healthy wherever `get pods` was denied.
-  Two calls per env means a dead session can cost 20 s per env. A row whose Deployment call
+  A dead session still costs 10 s per env (the pods call is skipped when the Deployment call
+  fails); 20 s needs the Deployment call to answer and the pods call to hang. A row whose Deployment call
   failed keeps its last sha and pull request (`keep_last_known`) but not its last health or
   pods, which would be stale under the `✗`. Only `matchLabels` is used, so pods of another
   workload sharing those labels are listed too. The details pane lists the target
   (`context / namespace / deployment`), the replica counts, every condition that is not `True`,
-  and one line per pod (status, restarts, age, sha8) with `last exit: OOMKilled (137) · <waiting
+  and one line per pod (status, restarts, age, sha8; red `✗` only for a stuck pod, yellow `●`
+  for one that is merely starting) with `last exit: OOMKilled (137) · <waiting
   message>` under a stuck one. `tests/fixtures/deployment.json` and `pods.json` are
   **synthetic**: the only clusters at hand are private.
 - **sha → pull request** goes through `fetch::Pulls`; `BuildsSource` and `DeploySource` each
@@ -442,7 +446,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   check; `App::open` applies it (footer notice, nothing spawned) and `SystemOpener::open`
   applies it again as the last line before the spawn.
 - **Every `gh` and `kubectl` call is logged, nothing else from them.** `CliGh::run` and
-  `CliKubectl::image` time the spawn and hand the raw `Output` to `Log::call`: argv (a
+  `CliKubectl::run` time the spawn and hand the raw `Output` to `Log::call`: argv (a
   `query=` argument becomes `query=<N chars>`), milliseconds, then `ok`, `exit N: <stderr lines
   joined by |>` or `did not start: <err>`. Stdout is never written: it is megabytes of JSON and
   the job logs. A new runner of an external program takes a `Log` the same way. The file is

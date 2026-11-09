@@ -4,7 +4,7 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use conveyor::app::Stage;
 use conveyor::model::builds::BuildStatus;
-use conveyor::model::deployed::{Health, parse_deployment, parse_pods};
+use conveyor::model::deployed::{Health, Pod, Waiting, parse_deployment, parse_pods};
 use ratatui::crossterm::event::KeyCode;
 use ratatui::style::Color;
 use support::{Harness, build, builds, deployed, deployment, failed, key};
@@ -272,6 +272,34 @@ fn d_lists_the_target_the_replicas_the_failing_condition_and_every_pod() {
     );
     assert!(
         screen.contains("✓ api-5b8f7c6d94-m7wvn  Running"),
+        "{screen}"
+    );
+}
+
+#[test]
+fn d_marks_a_pod_that_is_only_starting_as_pending_not_failed() {
+    let mut h = Harness::with_size(160, 30);
+    let mut staging = deployment("staging", 26, Some((4840, "bob", "Speed up CI")));
+    staging.pods = vec![Pod {
+        name: "api-1".to_string(),
+        phase: "Pending".to_string(),
+        waiting: Some(Waiting {
+            reason: "ContainerCreating".to_string(),
+            message: String::new(),
+        }),
+        ..Pod::default()
+    }];
+
+    h.run(vec![
+        deployed(vec![staging]),
+        key(KeyCode::Char('4')),
+        key(KeyCode::Char('d')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(
+        screen.contains("│● api-1  ContainerCreating  restarts 0"),
         "{screen}"
     );
 }
