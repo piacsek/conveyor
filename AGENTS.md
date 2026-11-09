@@ -791,6 +791,12 @@ pipeline went from ~3 min 20 s to 37 s:
   trigger if advisories should be caught between pushes.
 - **Pins.** Every action stays pinned to a commit SHA with the tag in a trailing comment (see
   Releasing for how to bump one).
+- **`main` is protected by a ruleset** (`main`, Settings → Rules): a pull request, green `check`
+  and `audit`, linear history, no force-push or deletion, and no bypass for anyone. The checks
+  are matched by job name, so renaming either job in `ci.yml` blocks every merge, the rename's
+  own PR included; an advisory with no fixed version does the same through `audit`. Disable the
+  ruleset to get out (`gh api -X PUT repos/<owner>/<repo>/rulesets/<id> -f enforcement=disabled`),
+  fix, and enable it again.
 
 ## Releasing
 
