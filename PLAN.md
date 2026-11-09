@@ -562,6 +562,15 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   Accepted for a diagnostics file. The file is `0600`, and an empty or relative base (`HOME`,
   `XDG_STATE_HOME`, `CONVEYOR_LOG=`) never puts it under the working directory.
 
+- v0.23.0 (phase 30, `plans/phase-30-deploy-health.md`): a Deployed card shows the health of
+  what runs, not only its sha. A second `kubectl get pods` per environment feeds a yellow `⚠`
+  (a pod in CrashLoopBackOff or a stalled rollout while the app still serves), a red `‼` (the
+  Deployment is not Available) and a grey `?` (the pods could not be read), each with a reason
+  line; `d` lists the target, replicas, failing conditions and every pod with its last exit.
+  The grey `?` was added after the plan was approved: the first design showed nothing when
+  `get pods` failed, which read as healthy. Fixtures are synthetic. Not done: deploy age from
+  the cluster, `matchExpressions` selectors, health in the `/` filter.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
