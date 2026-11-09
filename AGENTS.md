@@ -244,21 +244,26 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   pods CrashLoopBackOff`; `2 of 3 pods stuck` when the reasons differ), or a container that is
   not ready, has restarted and has a last exit (`restarting`: a crashlooping container spends
   part of each cycle running, and a refresh landing there used to read healthy), or when `Progressing` is `False` with `ProgressDeadlineExceeded`
-  (`rollout stalled`); `Unread` when the pods were not read; else `Healthy`.
+  (`rollout stalled`), or when `ReplicaFailure` is `True` (`replicas cannot be created`: a quota
+  error leaves no pod to show as stuck); `Unread` when the pods were not read; else `Healthy`.
+  The pod's waiting reason and `last exit` come from the container that makes it stuck, not
+  from the first one that waits.
   The health icon sits in the card's icon slot after the version glyph, which keeps meaning
   "which sha is live": yellow `⚠`, red `‼`, grey `?`. A card with no icon means the pods were
   read and are fine. **Pods that cannot be read are never silent**: a failed pods call (RBAC, a
   timeout), unparseable output or a selector without `matchLabels` sets `pods_error`, not the
-  row's `error`, and the card shows the grey `?` with `pods not read: <error>`. The user asked
+  row's `error`, and the card shows the grey `?` with `pods not read: <error>`; under a louder `‼` or `⚠` the
+  icon gives way but the line stays. The user asked
   for that: without it a crashlooping version looked healthy wherever `get pods` was denied.
   A dead session still costs 10 s per env (the pods call is skipped when the Deployment call
   fails); 20 s needs the Deployment call to answer and the pods call to hang. A row whose Deployment call
   failed keeps its last sha and pull request (`keep_last_known`) but not its last health or
   pods, which would be stale under the `✗`. Only `matchLabels` is used, so pods of another
   workload sharing those labels are listed too. The details pane lists the target
-  (`context / namespace / deployment`), the replica counts, every condition that is not `True`,
+  (`context / namespace / deployment`), the replica counts, every failing condition (not `True`, or `ReplicaFailure` that is `True`),
   and one line per pod (status, restarts, age, sha8; red `✗` only for a stuck pod, yellow `●`
-  for one that is merely starting) with `last exit: OOMKilled (137) · <waiting
+  for one that is merely starting, grey `⊘` for a terminating one, grey `○` last for a `Failed`
+  or `Succeeded` one) with `last exit: OOMKilled (137) · <waiting
   message>` under a stuck one. `tests/fixtures/deployment.json` and `pods.json` are
   **synthetic**: the only clusters at hand are private.
 - **sha → pull request** goes through `fetch::Pulls`; `BuildsSource` and `DeploySource` each

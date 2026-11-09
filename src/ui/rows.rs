@@ -282,10 +282,19 @@ pub(crate) fn deployed_row(
             dim().fg(Color::Red),
         )]);
     }
-    if let Some((reason, style)) = health_reason(row) {
+    if let Some((reason, color)) = health_reason(&row.health) {
         below.push(vec![Span::styled(
-            truncate(&reason, width.saturating_sub(INDENT)),
-            style,
+            truncate(reason, width.saturating_sub(INDENT)),
+            Style::default().fg(color),
+        )]);
+    }
+    if let Some(error) = &row.pods_error {
+        below.push(vec![Span::styled(
+            truncate(
+                &format!("pods not read: {error}"),
+                width.saturating_sub(INDENT),
+            ),
+            dim(),
         )]);
     }
     if let Some(sha) = &row.sha {
@@ -313,17 +322,10 @@ pub(crate) fn deployed_row(
     )
 }
 
-fn health_reason(row: &Deployment) -> Option<(String, Style)> {
-    match &row.health {
-        Health::Warning(reason) => Some((reason.clone(), Style::default().fg(Color::Yellow))),
-        Health::Alert(reason) => Some((reason.clone(), Style::default().fg(Color::Red))),
-        Health::Unread => Some((
-            format!(
-                "pods not read: {}",
-                row.pods_error.as_deref().unwrap_or_default()
-            ),
-            dim(),
-        )),
-        Health::Healthy | Health::Unknown => None,
+fn health_reason(health: &Health) -> Option<(&str, Color)> {
+    match health {
+        Health::Warning(reason) => Some((reason, Color::Yellow)),
+        Health::Alert(reason) => Some((reason, Color::Red)),
+        Health::Unread | Health::Healthy | Health::Unknown => None,
     }
 }

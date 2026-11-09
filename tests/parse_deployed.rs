@@ -1,4 +1,4 @@
-use conveyor::model::deployed::{Health, Pod, health, parse_deployment, parse_pods};
+use conveyor::model::deployed::{Condition, Health, Pod, health, parse_deployment, parse_pods};
 use conveyor::model::prs::parse_timestamp;
 
 const DEPLOYMENT: &str = include_str!("fixtures/deployment.json");
@@ -231,5 +231,51 @@ fn pods_stuck_for_different_reasons_are_counted_without_naming_one() {
     assert_eq!(
         health(&rollout, Some(&pods)),
         Health::Warning("2 of 2 pods stuck".to_string())
+    );
+}
+
+#[test]
+fn the_last_exit_comes_from_the_restarting_container_not_one_that_merely_waits() {
+    let pods = parse_pods(
+        &serde_json::json!({"items": [{
+            "metadata": {"name": "api-1"},
+            "status": {
+                "phase": "Pending",
+                "initContainerStatuses": [{
+                    "ready": false, "restartCount": 3, "state": {"running": {}},
+                    "lastState": {"terminated": {"exitCode": 1, "reason": "Error"}}
+                }],
+                "containerStatuses": [{
+                    "ready": false, "restartCount": 0,
+                    "state": {"waiting": {"reason": "PodInitializing"}}
+                }]
+            }
+        }]})
+        .to_string(),
+    )
+    .unwrap();
+
+    assert_eq!(pods[0].stuck.as_deref(), Some("restarting"));
+    assert_eq!(
+        pods[0].last_exit.as_ref().map(|exit| exit.exit_code),
+        Some(1)
+    );
+    assert_eq!(pods[0].waiting, None);
+}
+
+#[test]
+fn a_replica_failure_is_a_warning_while_the_deployment_is_still_available() {
+    let mut rollout = parse_deployment(DEPLOYMENT).unwrap();
+    rollout.conditions[1].status = "True".to_string();
+    rollout.conditions.push(Condition {
+        kind: "ReplicaFailure".to_string(),
+        status: "True".to_string(),
+        reason: "FailedCreate".to_string(),
+        message: "exceeded quota".to_string(),
+    });
+
+    assert_eq!(
+        health(&rollout, Some(&[])),
+        Health::Warning("replicas cannot be created".to_string())
     );
 }
