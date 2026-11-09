@@ -8,13 +8,13 @@ use ratatui::widgets::{Block, Paragraph};
 
 use crate::app::{App, JobsState, LogState, Stage};
 use crate::model::builds::Build;
-use crate::model::deployed::Deployment;
+use crate::model::deployed::{Deployment, Pod, Rollout};
 use crate::model::jobs::Job;
 use crate::model::prs::PullRequest;
 use crate::model::queue::QueueEntry;
 use crate::text::{age, clock, duration, elapsed};
 use crate::ui::rows::build_label;
-use crate::ui::style::{build_glyph, check_word, conclusion_glyph, dim, status_word};
+use crate::ui::style::{build_glyph, check_word, conclusion_glyph, dim, sha8, status_word};
 
 pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
     let (title, lines) = match app.focus {
@@ -225,6 +225,92 @@ fn deployed_details(row: &Deployment, now: SystemTime) -> Vec<Line<'static>> {
         lines.push(Line::from(Span::styled(
             error.clone(),
             Style::default().fg(Color::Red),
+        )));
+    }
+    if !row.target.is_empty() {
+        lines.push(Line::from(Span::styled(row.target.clone(), dim())));
+    }
+    if let Some(rollout) = &row.rollout {
+        lines.extend(rollout_lines(rollout));
+    }
+    for pod in &row.pods {
+        lines.extend(pod_lines(pod, now));
+    }
+    if let Some(error) = &row.pods_error {
+        lines.push(Line::from(Span::styled(
+            format!("pods: {error}"),
+            Style::default().fg(Color::Red),
+        )));
+    }
+    lines
+}
+
+fn rollout_lines(rollout: &Rollout) -> Vec<Line<'static>> {
+    let mut lines = vec![Line::from(format!(
+        "replicas: {} desired · {} updated · {} ready · {} available",
+        rollout.desired, rollout.updated, rollout.ready, rollout.available
+    ))];
+    lines.extend(
+        rollout
+            .conditions
+            .iter()
+            .filter(|condition| condition.status != "True")
+            .map(|condition| {
+                let color = if condition.kind == "Available" {
+                    Color::Red
+                } else {
+                    Color::Yellow
+                };
+                Line::from(Span::styled(
+                    [
+                        format!("{} {}", condition.kind, condition.status),
+                        condition.reason.clone(),
+                        condition.message.clone(),
+                    ]
+                    .into_iter()
+                    .filter(|part| !part.is_empty())
+                    .collect::<Vec<_>>()
+                    .join(" · "),
+                    Style::default().fg(color),
+                ))
+            }),
+    );
+    lines
+}
+
+fn pod_lines(pod: &Pod, now: SystemTime) -> Vec<Line<'static>> {
+    let (glyph, color, status) = match (&pod.waiting, pod.terminating, pod.ready) {
+        (_, true, _) => ('⊘', Color::DarkGray, "Terminating".to_string()),
+        (Some(waiting), _, _) => ('✗', Color::Red, waiting.reason.clone()),
+        (None, _, true) => ('✓', Color::Green, pod.phase.clone()),
+        (None, _, false) => ('●', Color::Yellow, pod.phase.clone()),
+    };
+    let mut parts = vec![
+        pod.name.clone(),
+        status,
+        format!("restarts {}", pod.restarts),
+    ];
+    parts.extend(pod.started_at.map(|at| age(at, now)));
+    parts.extend(pod.sha.as_deref().map(sha8));
+    let mut lines = vec![Line::from(vec![
+        Span::styled(glyph.to_string(), Style::default().fg(color)),
+        Span::raw(format!(" {}", parts.join("  "))),
+    ])];
+    let mut why: Vec<String> = pod
+        .last_exit
+        .iter()
+        .map(|exit| format!("last exit: {} ({})", exit.reason, exit.exit_code))
+        .collect();
+    why.extend(
+        pod.waiting
+            .iter()
+            .map(|waiting| waiting.message.clone())
+            .filter(|message| !message.is_empty()),
+    );
+    if !why.is_empty() {
+        lines.push(Line::from(Span::styled(
+            format!("    {}", why.join(" · ")),
+            dim(),
         )));
     }
     lines

@@ -1,8 +1,10 @@
 mod support;
 
+use std::time::{Duration, UNIX_EPOCH};
+
 use conveyor::app::Stage;
 use conveyor::model::builds::BuildStatus;
-use conveyor::model::deployed::Health;
+use conveyor::model::deployed::{Health, parse_deployment, parse_pods};
 use ratatui::crossterm::event::KeyCode;
 use ratatui::style::Color;
 use support::{Harness, build, builds, deployed, deployment, failed, key};
@@ -216,6 +218,82 @@ fn p_opens_the_pull_request_and_d_shows_the_image_and_target() {
     assert!(
         !screen.contains("https://"),
         "no URLs in the pane: {screen}"
+    );
+}
+
+#[test]
+fn d_lists_the_target_the_replicas_the_failing_condition_and_every_pod() {
+    let mut h = Harness::with_size(160, 30);
+    let rollout = parse_deployment(include_str!("fixtures/deployment.json")).unwrap();
+    let mut pods = parse_pods(include_str!("fixtures/pods.json")).unwrap();
+    pods[0].started_at = Some(UNIX_EPOCH + Duration::from_secs(support::NOW - 2 * 3600));
+    pods[1].started_at = Some(UNIX_EPOCH + Duration::from_secs(support::NOW - 7 * 86_400));
+    let mut staging = deployment("staging", 26, Some((4840, "bob", "Speed up CI")));
+    staging.target = "ctx-staging / web / api".to_string();
+    staging.health = Health::Warning("1 of 3 pods CrashLoopBackOff".to_string());
+    staging.rollout = Some(rollout);
+    staging.pods = pods;
+
+    h.run(vec![
+        deployed(vec![staging]),
+        key(KeyCode::Char('4')),
+        key(KeyCode::Char('d')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("ctx-staging / web / api"), "{screen}");
+    assert!(
+        screen.contains("replicas: 2 desired · 1 updated · 2 ready · 2 available"),
+        "{screen}"
+    );
+    assert!(
+        screen.contains(
+            "Progressing False · ProgressDeadlineExceeded · ReplicaSet \"api-7d9c6b5f48\" has timed out progressing."
+        ),
+        "{screen}"
+    );
+    assert!(
+        !screen.contains("MinimumReplicasAvailable"),
+        "a healthy condition is not listed: {screen}"
+    );
+    assert!(
+        screen.contains("✗ api-7d9c6b5f48-x2k9p  CrashLoopBackOff  restarts 7  2h  8c1f2a7d"),
+        "{screen}"
+    );
+    assert!(
+        screen
+            .contains("last exit: OOMKilled (137) · back-off 5m0s restarting failed container=api"),
+        "{screen}"
+    );
+    assert!(
+        screen.contains("✓ api-5b8f7c6d94-hq4zt  Running  restarts 0  7d  4e9b01c3"),
+        "{screen}"
+    );
+    assert!(
+        screen.contains("✓ api-5b8f7c6d94-m7wvn  Running"),
+        "{screen}"
+    );
+}
+
+#[test]
+fn d_says_why_the_pods_were_not_read() {
+    let mut h = Harness::with_size(160, 30);
+    let mut staging = deployment("staging", 26, Some((4840, "bob", "Speed up CI")));
+    staging.health = Health::Unread;
+    staging.pods_error = Some("Error from server (Forbidden): pods is forbidden".to_string());
+
+    h.run(vec![
+        deployed(vec![staging]),
+        key(KeyCode::Char('4')),
+        key(KeyCode::Char('d')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(
+        screen.contains("│pods: Error from server (Forbidden): pods is forbidden"),
+        "{screen}"
     );
 }
 
