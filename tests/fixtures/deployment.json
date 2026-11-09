@@ -1,0 +1,62 @@
+{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+    "name": "api",
+    "namespace": "api",
+    "generation": 42,
+    "labels": { "app.kubernetes.io/name": "api" }
+  },
+  "spec": {
+    "replicas": 2,
+    "progressDeadlineSeconds": 600,
+    "selector": {
+      "matchLabels": {
+        "app.kubernetes.io/name": "api",
+        "app.kubernetes.io/instance": "api"
+      }
+    },
+    "template": {
+      "metadata": {
+        "labels": {
+          "app.kubernetes.io/name": "api",
+          "app.kubernetes.io/instance": "api"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "api",
+            "image": "ghcr.io/acme/api:8c1f2a7d4e9b01c35f6a7b8c9d0e1f2a3b4c5d6e"
+          }
+        ]
+      }
+    }
+  },
+  "status": {
+    "observedGeneration": 42,
+    "replicas": 3,
+    "updatedReplicas": 1,
+    "readyReplicas": 2,
+    "availableReplicas": 2,
+    "unavailableReplicas": 1,
+    "conditions": [
+      {
+        "type": "Available",
+        "status": "True",
+        "reason": "MinimumReplicasAvailable",
+        "message": "Deployment has minimum availability.",
+        "lastTransitionTime": "2026-11-02T09:14:07Z",
+        "lastUpdateTime": "2026-11-02T09:14:07Z"
+      },
+      {
+        "type": "Progressing",
+        "status": "False",
+        "reason": "ProgressDeadlineExceeded",
+        "message": "ReplicaSet \"api-7d9c6b5f48\" has timed out progressing.",
+        "lastTransitionTime": "2026-11-09T10:31:55Z",
+        "lastUpdateTime": "2026-11-09T10:31:55Z"
+      }
+    ]
+  }
+}
