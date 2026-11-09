@@ -53,6 +53,22 @@ pub struct Rollout {
     pub conditions: Vec<Condition>,
 }
 
+impl Rollout {
+    fn stalled(&self) -> bool {
+        self.conditions.iter().any(|condition| {
+            condition.kind == "Progressing"
+                && condition.status == "False"
+                && condition.reason == "ProgressDeadlineExceeded"
+        })
+    }
+
+    fn is(&self, kind: &str, status: &str) -> bool {
+        self.conditions
+            .iter()
+            .any(|condition| condition.kind == kind && condition.status == status)
+    }
+}
+
 pub fn parse_deployment(json: &str) -> Result<Rollout, String> {
     let value: serde_json::Value = serde_json::from_str(json)
         .map_err(|err| format!("unexpected kubectl output for the deployment: {err}"))?;
@@ -204,5 +220,51 @@ fn parse_pod(pod: &serde_json::Value) -> Pod {
             })
         }),
         terminating: pod.pointer("/metadata/deletionTimestamp").is_some(),
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum Health {
+    #[default]
+    Unknown,
+    Healthy,
+    Unread,
+    Warning(String),
+    Alert(String),
+}
+
+const STUCK: [&str; 4] = [
+    "CrashLoopBackOff",
+    "ImagePullBackOff",
+    "ErrImagePull",
+    "CreateContainerConfigError",
+];
+
+pub fn health(rollout: &Rollout, pods: Option<&[Pod]>) -> Health {
+    if !rollout.is("Available", "True") {
+        return Health::Alert(format!(
+            "{} of {} available",
+            rollout.available, rollout.desired
+        ));
+    }
+    let live: Vec<&Pod> = pods
+        .unwrap_or_default()
+        .iter()
+        .filter(|pod| !pod.terminating)
+        .collect();
+    let stuck: Vec<&str> = live
+        .iter()
+        .filter_map(|pod| Some(pod.waiting.as_ref()?.reason.as_str()))
+        .filter(|reason| STUCK.contains(reason))
+        .collect();
+    if let Some(reason) = stuck.first() {
+        return Health::Warning(format!("{} of {} pods {reason}", stuck.len(), live.len()));
+    }
+    if rollout.stalled() {
+        return Health::Warning("rollout stalled".to_string());
+    }
+    match pods {
+        Some(_) => Health::Healthy,
+        None => Health::Unread,
     }
 }

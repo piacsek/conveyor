@@ -1,4 +1,4 @@
-use conveyor::model::deployed::{parse_deployment, parse_pods};
+use conveyor::model::deployed::{Health, Pod, health, parse_deployment, parse_pods};
 use conveyor::model::prs::parse_timestamp;
 
 const DEPLOYMENT: &str = include_str!("fixtures/deployment.json");
@@ -68,4 +68,79 @@ fn pods_parse_problems_first_with_the_waiting_reason_and_the_last_exit() {
         Some("4e9b01c3a7d2f5e68b9c0d1e2f3a4b5c6d7e8f90")
     );
     assert_eq!(pods[2].name, "api-5b8f7c6d94-m7wvn");
+}
+
+#[test]
+fn a_crashlooping_pod_under_an_available_deployment_is_a_warning() {
+    let rollout = parse_deployment(DEPLOYMENT).unwrap();
+    let pods = parse_pods(PODS).unwrap();
+
+    assert_eq!(
+        health(&rollout, Some(&pods)),
+        Health::Warning("1 of 3 pods CrashLoopBackOff".to_string())
+    );
+}
+
+#[test]
+fn a_deployment_that_is_not_available_is_an_alert_whatever_its_pods_say() {
+    let mut rollout = parse_deployment(DEPLOYMENT).unwrap();
+    rollout.available = 0;
+    rollout.conditions[0].status = "False".to_string();
+    let pods = parse_pods(PODS).unwrap();
+
+    assert_eq!(
+        health(&rollout, Some(&pods)),
+        Health::Alert("0 of 2 available".to_string())
+    );
+    assert_eq!(
+        health(&rollout, None),
+        Health::Alert("0 of 2 available".to_string())
+    );
+}
+
+#[test]
+fn an_available_deployment_whose_pods_were_not_read_is_unread() {
+    let mut rollout = parse_deployment(DEPLOYMENT).unwrap();
+    rollout.conditions[1].status = "True".to_string();
+
+    assert_eq!(health(&rollout, None), Health::Unread);
+}
+
+#[test]
+fn a_rollout_past_its_progress_deadline_is_a_warning_even_without_a_stuck_pod() {
+    let rollout = parse_deployment(DEPLOYMENT).unwrap();
+    let pods: Vec<Pod> = parse_pods(PODS)
+        .unwrap()
+        .into_iter()
+        .filter(|pod| pod.waiting.is_none())
+        .collect();
+
+    assert_eq!(
+        health(&rollout, Some(&pods)),
+        Health::Warning("rollout stalled".to_string())
+    );
+    assert_eq!(
+        health(&rollout, None),
+        Health::Warning("rollout stalled".to_string())
+    );
+}
+
+#[test]
+fn a_terminating_pod_never_counts_towards_health() {
+    let mut rollout = parse_deployment(DEPLOYMENT).unwrap();
+    rollout.conditions[1].status = "True".to_string();
+    let mut pods = parse_pods(PODS).unwrap();
+    pods[0].terminating = true;
+
+    assert_eq!(health(&rollout, Some(&pods)), Health::Healthy);
+}
+
+#[test]
+fn a_deployment_scaled_to_zero_is_healthy() {
+    let mut rollout = parse_deployment(DEPLOYMENT).unwrap();
+    rollout.desired = 0;
+    rollout.available = 0;
+    rollout.conditions[1].status = "True".to_string();
+
+    assert_eq!(health(&rollout, Some(&[])), Health::Healthy);
 }
