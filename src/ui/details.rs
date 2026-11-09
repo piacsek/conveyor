@@ -279,11 +279,16 @@ fn rollout_lines(rollout: &Rollout) -> Vec<Line<'static>> {
 }
 
 fn pod_lines(pod: &Pod, now: SystemTime) -> Vec<Line<'static>> {
-    let (glyph, color, status) = match (&pod.waiting, pod.terminating, pod.ready) {
+    let waiting = pod.waiting.as_ref().map(|waiting| waiting.reason.clone());
+    let (glyph, color, status) = match (&pod.stuck, pod.terminating, pod.ready) {
         (_, true, _) => ('⊘', Color::DarkGray, "Terminating".to_string()),
-        (Some(waiting), _, _) => ('✗', Color::Red, waiting.reason.clone()),
+        (Some(stuck), _, _) => ('✗', Color::Red, waiting.unwrap_or_else(|| stuck.clone())),
         (None, _, true) => ('✓', Color::Green, pod.phase.clone()),
-        (None, _, false) => ('●', Color::Yellow, pod.phase.clone()),
+        (None, _, false) => (
+            '●',
+            Color::Yellow,
+            waiting.unwrap_or_else(|| pod.phase.clone()),
+        ),
     };
     let mut parts = vec![
         pod.name.clone(),

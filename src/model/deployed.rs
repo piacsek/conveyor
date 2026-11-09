@@ -146,6 +146,7 @@ pub struct Pod {
     pub started_at: Option<SystemTime>,
     pub sha: Option<String>,
     pub waiting: Option<Waiting>,
+    pub stuck: Option<String>,
     pub last_exit: Option<LastExit>,
     pub terminating: bool,
 }
@@ -161,12 +162,27 @@ pub fn parse_pods(json: &str) -> Result<Vec<Pod>, String> {
         .iter()
         .map(parse_pod)
         .collect();
-    pods.sort_by_key(|pod| match (&pod.waiting, pod.ready) {
+    pods.sort_by_key(|pod| match (&pod.stuck, pod.ready) {
         (Some(_), _) => 0,
         (None, false) => 1,
         (None, true) => 2,
     });
     Ok(pods)
+}
+
+fn waiting_reason(container: &serde_json::Value) -> Option<&str> {
+    container
+        .pointer("/state/waiting/reason")
+        .and_then(|v| v.as_str())
+}
+
+fn restarting(container: &serde_json::Value) -> bool {
+    container.get("ready").and_then(|v| v.as_bool()) != Some(true)
+        && container
+            .get("restartCount")
+            .and_then(|v| v.as_u64())
+            .is_some_and(|restarts| restarts > 0)
+        && container.pointer("/lastState/terminated").is_some()
 }
 
 fn parse_pod(pod: &serde_json::Value) -> Pod {
@@ -175,9 +191,20 @@ fn parse_pod(pod: &serde_json::Value) -> Pod {
         .filter_map(|key| pod.pointer(&format!("/status/{key}"))?.as_array())
         .flatten()
         .collect();
-    let stuck = containers
+    let waiting = containers
         .iter()
-        .find(|container| container.pointer("/state/waiting/reason").is_some());
+        .find(|container| waiting_reason(container).is_some_and(|reason| STUCK.contains(&reason)))
+        .or_else(|| {
+            containers
+                .iter()
+                .find(|container| waiting_reason(container).is_some())
+        });
+    let restarting = containers.iter().find(|container| restarting(container));
+    let stuck = waiting
+        .and_then(|container| waiting_reason(container))
+        .filter(|reason| STUCK.contains(reason))
+        .map(str::to_string)
+        .or_else(|| restarting.map(|_| "restarting".to_string()));
     Pod {
         name: pod
             .pointer("/metadata/name")
@@ -210,14 +237,15 @@ fn parse_pod(pod: &serde_json::Value) -> Pod {
             .pointer("/spec/containers/0/image")
             .and_then(|v| v.as_str())
             .and_then(|image| sha_from_image(image).ok()),
-        waiting: stuck.and_then(|container| {
+        waiting: waiting.and_then(|container| {
             let waiting = container.pointer("/state/waiting")?;
             Some(Waiting {
                 reason: text(waiting, "reason"),
                 message: text(waiting, "message"),
             })
         }),
-        last_exit: stuck.and_then(|container| {
+        stuck,
+        last_exit: waiting.or(restarting).and_then(|container| {
             let terminated = container.pointer("/lastState/terminated")?;
             Some(LastExit {
                 reason: text(terminated, "reason"),
@@ -255,14 +283,15 @@ pub fn health(rollout: &Rollout, pods: Option<&[Pod]>) -> Health {
     let live: Vec<&Pod> = pods
         .unwrap_or_default()
         .iter()
-        .filter(|pod| !pod.terminating)
+        .filter(|pod| !pod.terminating && !matches!(pod.phase.as_str(), "Failed" | "Succeeded"))
         .collect();
-    let stuck: Vec<&str> = live
-        .iter()
-        .filter_map(|pod| Some(pod.waiting.as_ref()?.reason.as_str()))
-        .filter(|reason| STUCK.contains(reason))
-        .collect();
-    if let Some(reason) = stuck.first() {
+    let stuck: Vec<&str> = live.iter().filter_map(|pod| pod.stuck.as_deref()).collect();
+    if let Some(first) = stuck.first() {
+        let reason = if stuck.iter().all(|reason| reason == first) {
+            first
+        } else {
+            "stuck"
+        };
         return Health::Warning(format!("{} of {} pods {reason}", stuck.len(), live.len()));
     }
     if rollout.stalled() {

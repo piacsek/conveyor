@@ -144,3 +144,92 @@ fn a_deployment_scaled_to_zero_is_healthy() {
 
     assert_eq!(health(&rollout, Some(&[])), Health::Healthy);
 }
+
+#[test]
+fn a_pod_caught_running_between_crashes_is_still_stuck() {
+    let mut rollout = parse_deployment(DEPLOYMENT).unwrap();
+    rollout.conditions[1].status = "True".to_string();
+    let pods = parse_pods(
+        &serde_json::json!({"items": [{
+            "metadata": {"name": "api-1"},
+            "status": {"phase": "Running", "containerStatuses": [{
+                "ready": false,
+                "restartCount": 3,
+                "state": {"running": {}},
+                "lastState": {"terminated": {"exitCode": 1, "reason": "Error"}}
+            }]}
+        }]})
+        .to_string(),
+    )
+    .unwrap();
+
+    assert_eq!(pods[0].stuck.as_deref(), Some("restarting"));
+    assert_eq!(
+        pods[0].last_exit.as_ref().map(|exit| exit.exit_code),
+        Some(1)
+    );
+    assert_eq!(
+        health(&rollout, Some(&pods)),
+        Health::Warning("1 of 1 pods restarting".to_string())
+    );
+}
+
+#[test]
+fn a_pod_is_judged_by_its_stuck_container_not_its_first_waiting_one() {
+    let pods = parse_pods(
+        &serde_json::json!({"items": [{
+            "metadata": {"name": "api-1"},
+            "status": {"phase": "Pending", "containerStatuses": [
+                {"ready": false, "restartCount": 0,
+                 "state": {"waiting": {"reason": "ContainerCreating"}}},
+                {"ready": false, "restartCount": 4,
+                 "state": {"waiting": {"reason": "CrashLoopBackOff", "message": "back-off 40s"}},
+                 "lastState": {"terminated": {"exitCode": 2, "reason": "Error"}}}
+            ]}
+        }]})
+        .to_string(),
+    )
+    .unwrap();
+
+    assert_eq!(pods[0].stuck.as_deref(), Some("CrashLoopBackOff"));
+    assert_eq!(
+        pods[0]
+            .waiting
+            .as_ref()
+            .map(|waiting| waiting.reason.as_str()),
+        Some("CrashLoopBackOff")
+    );
+    assert_eq!(
+        pods[0].last_exit.as_ref().map(|exit| exit.exit_code),
+        Some(2)
+    );
+}
+
+#[test]
+fn pods_stuck_for_different_reasons_are_counted_without_naming_one() {
+    let mut rollout = parse_deployment(DEPLOYMENT).unwrap();
+    rollout.conditions[1].status = "True".to_string();
+    let pods = [
+        Pod {
+            stuck: Some("CrashLoopBackOff".to_string()),
+            ..Pod::default()
+        },
+        Pod {
+            stuck: Some("ImagePullBackOff".to_string()),
+            ..Pod::default()
+        },
+        Pod {
+            phase: "Failed".to_string(),
+            ..Pod::default()
+        },
+        Pod {
+            phase: "Succeeded".to_string(),
+            ..Pod::default()
+        },
+    ];
+
+    assert_eq!(
+        health(&rollout, Some(&pods)),
+        Health::Warning("2 of 2 pods stuck".to_string())
+    );
+}
