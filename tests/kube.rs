@@ -102,6 +102,91 @@ fn image_returns_the_trimmed_stdout_and_maps_failures() {
 }
 
 #[test]
+fn deployment_and_pods_argv_ask_for_json_with_a_timeout() {
+    assert_eq!(
+        CliKubectl::deployment_args(&env()),
+        vec![
+            "--context",
+            "teleport-prod",
+            "-n",
+            "api",
+            "get",
+            "deploy",
+            "api",
+            "-o",
+            "json",
+            "--request-timeout=10s",
+        ]
+    );
+    assert_eq!(
+        CliKubectl::pods_args(&env(), "app=api,tier=web"),
+        vec![
+            "--context",
+            "teleport-prod",
+            "-n",
+            "api",
+            "get",
+            "pods",
+            "-l",
+            "app=api,tier=web",
+            "-o",
+            "json",
+            "--request-timeout=10s",
+        ]
+    );
+}
+
+#[test]
+fn deployment_and_pods_return_stdout_and_map_failures() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let ok = shim(
+        &dir,
+        r#"case "$*" in *"get pods -l app=api"*) printf '{"items":[]}';; *) printf '{"kind":"Deployment"}';; esac"#,
+    );
+    assert_eq!(ok.deployment(&env()).unwrap(), r#"{"kind":"Deployment"}"#);
+    assert_eq!(ok.pods(&env(), "app=api").unwrap(), r#"{"items":[]}"#);
+
+    let dir = tempfile::tempdir().unwrap();
+    let failing = shim(&dir, "echo 'ERROR: Active profile expired.' >&2; exit 1");
+    assert_eq!(
+        failing.deployment(&env()).unwrap_err().to_string(),
+        "ERROR: Active profile expired."
+    );
+    assert_eq!(
+        failing.pods(&env(), "app=api").unwrap_err().to_string(),
+        "ERROR: Active profile expired."
+    );
+
+    let missing = CliKubectl::with_program("/nonexistent/kubectl".into());
+    assert_eq!(
+        missing.pods(&env(), "app=api").unwrap_err().to_string(),
+        "kubectl not found on PATH; install kubectl and log in to the cluster"
+    );
+}
+
+#[test]
+fn a_failing_pods_call_is_logged_with_its_argv_and_stderr() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("conveyor.log");
+    let kubectl =
+        shim(&dir, "echo 'Error from server (Forbidden)' >&2; exit 1").with_log(Log::open(&file));
+
+    let _ = kubectl.pods(&env(), "app=api");
+
+    let text = fs::read_to_string(&file).unwrap();
+    assert!(
+        text.contains(" kubectl --context teleport-prod -n api get pods -l app=api "),
+        "{text}"
+    );
+    assert!(
+        text.ends_with("ms exit 1: Error from server (Forbidden)\n"),
+        "{text}"
+    );
+}
+
+#[test]
 fn the_sha_is_the_40_hex_tag_or_a_40_hex_suffix() {
     assert_eq!(
         sha_from_image("ghcr.io/acme/api:0123456789abcdef0123456789abcdef01234567").unwrap(),

@@ -51,14 +51,42 @@ impl CliKubectl {
         .map(str::to_string)
         .to_vec()
     }
-}
 
-impl Kube for CliKubectl {
-    fn image(&self, env: &DeployEnv) -> io::Result<String> {
-        let args = Self::image_args(env);
+    pub fn deployment_args(env: &DeployEnv) -> Vec<String> {
+        Self::get_args(env, &["deploy", env.deployment.as_str()])
+    }
+
+    pub fn pods_args(env: &DeployEnv, selector: &str) -> Vec<String> {
+        Self::get_args(env, &["pods", "-l", selector])
+    }
+
+    pub fn deployment(&self, env: &DeployEnv) -> io::Result<String> {
+        self.run(&Self::deployment_args(env))
+    }
+
+    pub fn pods(&self, env: &DeployEnv, selector: &str) -> io::Result<String> {
+        self.run(&Self::pods_args(env, selector))
+    }
+
+    fn get_args(env: &DeployEnv, what: &[&str]) -> Vec<String> {
+        [
+            "--context",
+            env.context.as_str(),
+            "-n",
+            env.namespace.as_str(),
+            "get",
+        ]
+        .iter()
+        .chain(what)
+        .chain(&["-o", "json", "--request-timeout=10s"])
+        .map(|arg| arg.to_string())
+        .collect()
+    }
+
+    fn run(&self, args: &[String]) -> io::Result<String> {
         let started = Instant::now();
         let output = Command::new(&self.program)
-            .args(&args)
+            .args(args)
             .stdin(Stdio::null())
             .output()
             .map_err(|err| {
@@ -68,7 +96,7 @@ impl Kube for CliKubectl {
                     err
                 }
             });
-        self.log.call("kubectl", &args, started.elapsed(), &output);
+        self.log.call("kubectl", args, started.elapsed(), &output);
         let output = output?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -80,5 +108,11 @@ impl Kube for CliKubectl {
             return Err(io::Error::other(message));
         }
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    }
+}
+
+impl Kube for CliKubectl {
+    fn image(&self, env: &DeployEnv) -> io::Result<String> {
+        self.run(&Self::image_args(env))
     }
 }
