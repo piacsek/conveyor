@@ -457,24 +457,37 @@ fn the_default_workflow_name_falls_back_to_common_ci_workflows() {
 }
 
 struct FakeKube {
-    images: Vec<(String, io::Result<String>)>,
+    deployments: Vec<(String, io::Result<String>)>,
+    pods: Result<String, String>,
+    selectors: std::cell::RefCell<Vec<String>>,
 }
 
 impl FakeKube {
     fn returning(image: &str) -> Self {
+        Self::with(vec![("prod".to_string(), Ok(deployment_json(image)))])
+    }
+
+    fn with(deployments: Vec<(String, io::Result<String>)>) -> Self {
         Self {
-            images: vec![("prod".to_string(), Ok(image.to_string()))],
+            deployments,
+            pods: Ok(r#"{"items":[]}"#.to_string()),
+            selectors: std::cell::RefCell::new(Vec::new()),
         }
     }
 }
 
 impl conveyor::sources::kube::Kube for FakeKube {
-    fn image(&self, env: &conveyor::config::DeployEnv) -> io::Result<String> {
-        match self.images.iter().find(|(name, _)| *name == env.name) {
-            Some((_, Ok(image))) => Ok(image.clone()),
+    fn deployment(&self, env: &conveyor::config::DeployEnv) -> io::Result<String> {
+        match self.deployments.iter().find(|(name, _)| *name == env.name) {
+            Some((_, Ok(json))) => Ok(json.clone()),
             Some((_, Err(err))) => Err(io::Error::new(err.kind(), err.to_string())),
             None => Err(io::Error::other("no such env")),
         }
+    }
+
+    fn pods(&self, _env: &conveyor::config::DeployEnv, selector: &str) -> io::Result<String> {
+        self.selectors.borrow_mut().push(selector.to_string());
+        self.pods.clone().map_err(io::Error::other)
     }
 }
 
@@ -493,19 +506,22 @@ fn deploy_source_reads_each_environment_and_keeps_per_env_errors_on_the_row() {
             serde_json::json!([]),
         ),
     ];
-    let kube = FakeKube {
-        images: vec![
-            (
-                "staging".to_string(),
-                Ok("ghcr.io/acme/api:0123456789abcdef0123456789abcdef01234567".to_string()),
-            ),
-            (
-                "prod".to_string(),
-                Err(io::Error::other("ERROR: Active profile expired.")),
-            ),
-            ("dev".to_string(), Ok("ghcr.io/acme/api:latest".to_string())),
-        ],
-    };
+    let kube = FakeKube::with(vec![
+        (
+            "staging".to_string(),
+            Ok(deployment_json(
+                "ghcr.io/acme/api:0123456789abcdef0123456789abcdef01234567",
+            )),
+        ),
+        (
+            "prod".to_string(),
+            Err(io::Error::other("ERROR: Active profile expired.")),
+        ),
+        (
+            "dev".to_string(),
+            Ok(deployment_json("ghcr.io/acme/api:latest")),
+        ),
+    ]);
     let deploy = Deploy {
         system: "api".to_string(),
         env: ["staging", "prod", "dev"]
@@ -753,6 +769,93 @@ fn a_commit_with_no_associated_pull_falls_back_to_the_squash_suffix() {
     assert_eq!(pull.title, "Fix the handbook share");
     assert_eq!(pull.author, "ailin");
     assert_eq!(pull.url, "https://github.com/acme/webapp/pull/6882");
+}
+
+#[test]
+fn deploy_source_reads_the_pods_behind_the_deployment_and_judges_its_health() {
+    use conveyor::config::{Deploy, DeployEnv};
+    use conveyor::model::deployed::Health;
+    use conveyor::sources::fetch::DeploySource;
+    let gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    let mut kube = FakeKube::with(vec![(
+        "prod".to_string(),
+        Ok(include_str!("fixtures/deployment.json").to_string()),
+    )]);
+    kube.pods = Ok(include_str!("fixtures/pods.json").to_string());
+    let deploy = Deploy {
+        env: vec![DeployEnv {
+            name: "prod".to_string(),
+            context: "ctx-prod".to_string(),
+            namespace: "web".to_string(),
+            deployment: "api".to_string(),
+            ..DeployEnv::default()
+        }],
+        ..Deploy::default()
+    };
+    let mut source = DeploySource::new("acme/webapp".to_string(), deploy);
+
+    let deployed = source.fetch(&gh, &kube, NOW);
+
+    let row = &deployed.rows[0];
+    assert_eq!(
+        row.sha.as_deref(),
+        Some("8c1f2a7d4e9b01c35f6a7b8c9d0e1f2a3b4c5d6e")
+    );
+    assert_eq!(row.error, None);
+    assert_eq!(
+        row.health,
+        Health::Warning("1 of 3 pods CrashLoopBackOff".to_string())
+    );
+    assert_eq!(row.pods.len(), 3);
+    assert_eq!(row.pods_error, None);
+    assert_eq!(row.rollout.as_ref().map(|rollout| rollout.desired), Some(2));
+    assert_eq!(row.target, "ctx-prod / web / api");
+    assert_eq!(
+        *kube.selectors.borrow(),
+        vec!["app.kubernetes.io/instance=api,app.kubernetes.io/name=api"]
+    );
+}
+
+#[test]
+fn pods_that_cannot_be_read_leave_the_row_unread_instead_of_failing_it() {
+    use conveyor::model::deployed::Health;
+    let (gh, mut kube, mut source) = deploy_source_for(SHA, Vec::new());
+    kube.pods = Err("Error from server (Forbidden): pods is forbidden".to_string());
+
+    let deployed = source.fetch(&gh, &kube, NOW);
+
+    let row = &deployed.rows[0];
+    assert_eq!(row.error, None);
+    assert_eq!(row.sha.as_deref(), Some(SHA));
+    assert_eq!(row.health, Health::Unread);
+    assert_eq!(
+        row.pods_error.as_deref(),
+        Some("Error from server (Forbidden): pods is forbidden")
+    );
+}
+
+#[test]
+fn a_deployment_without_match_labels_is_unread_and_asks_for_no_pods() {
+    use conveyor::model::deployed::Health;
+    let (gh, mut kube, mut source) = deploy_source_for(SHA, Vec::new());
+    kube.deployments = vec![(
+        "prod".to_string(),
+        Ok(serde_json::json!({
+            "spec": {"template": {"spec": {"containers": [{"image": format!("ghcr.io/acme/api:{SHA}")}]}}},
+            "status": {"conditions": [{"type": "Available", "status": "True"}]}
+        })
+        .to_string()),
+    )];
+
+    let deployed = source.fetch(&gh, &kube, NOW);
+
+    let row = &deployed.rows[0];
+    assert_eq!(row.health, Health::Unread);
+    assert_eq!(
+        row.pods_error.as_deref(),
+        Some("the deployment's selector has no matchLabels")
+    );
+    assert_eq!(kube.selectors.borrow().len(), 0);
 }
 
 fn deploy_source_for(
@@ -1097,4 +1200,22 @@ fn fetch_prs_reads_every_page_of_a_pull_requests_checks() {
             ("after".to_string(), Variable::from("c1")),
         ]
     );
+}
+
+fn deployment_json(image: &str) -> String {
+    serde_json::json!({
+        "spec": {
+            "replicas": 1,
+            "selector": {"matchLabels": {"app": "api"}},
+            "template": {"spec": {"containers": [{"image": image}]}}
+        },
+        "status": {
+            "replicas": 1,
+            "updatedReplicas": 1,
+            "readyReplicas": 1,
+            "availableReplicas": 1,
+            "conditions": [{"type": "Available", "status": "True"}]
+        }
+    })
+    .to_string()
 }

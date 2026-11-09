@@ -185,6 +185,7 @@ pub fn deployment(env: &str, sha_seed: u64, pr: Option<(u64, &str, &str)>) -> De
         }),
         error: None,
         fetched_at: Some(UNIX_EPOCH + Duration::from_secs(NOW - 6 * 86_400)),
+        ..Deployment::default()
     }
 }
 

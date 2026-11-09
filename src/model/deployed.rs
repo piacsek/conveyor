@@ -11,6 +11,11 @@ pub struct Deployment {
     pub pull: Option<PullRef>,
     pub error: Option<String>,
     pub fetched_at: Option<SystemTime>,
+    pub target: String,
+    pub health: Health,
+    pub rollout: Option<Rollout>,
+    pub pods: Vec<Pod>,
+    pub pods_error: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]

@@ -132,10 +132,22 @@ deployment = "api"
 }
 
 fn kubectl_shim(home: &Path) {
+    let deployment = home.join("deployment.json");
+    fs::write(
+        &deployment,
+        r#"{"spec":{"replicas":1,"selector":{"matchLabels":{"app":"api"}},"template":{"spec":{"containers":[{"image":"ghcr.io/acme/api:b0b5136548f2d7c37a7c09c03e39e34aadad16bd"}]}}},"status":{"availableReplicas":1,"conditions":[{"type":"Available","status":"True"}]}}"#,
+    )
+    .unwrap();
+    let pods = home.join("pods.json");
+    fs::write(&pods, include_str!("fixtures/pods.json")).unwrap();
     let kubectl = home.join("bin").join("kubectl");
     fs::write(
         &kubectl,
-        "#!/bin/sh\ncase \"$*\" in *ctx-prod*) echo 'ERROR: Active profile expired.' >&2; exit 1;; *) printf 'ghcr.io/acme/api:b0b5136548f2d7c37a7c09c03e39e34aadad16bd';; esac\n",
+        format!(
+            "#!/bin/sh\ncase \"$*\" in *ctx-prod*) echo 'ERROR: Active profile expired.' >&2; exit 1;; *'get pods -l app=api'*) cat '{}';; *) cat '{}';; esac\n",
+            pods.display(),
+            deployment.display()
+        ),
     )
     .unwrap();
     fs::set_permissions(&kubectl, fs::Permissions::from_mode(0o755)).unwrap();
