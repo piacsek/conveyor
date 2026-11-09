@@ -358,3 +358,31 @@ fn a_container_that_cannot_be_created_is_stuck_and_a_terminating_pod_sorts_last(
     assert_eq!(pods[2].stuck.as_deref(), Some("InvalidImageName"));
     assert_eq!(pods[3].name, "api-leaving");
 }
+
+#[test]
+fn a_deployment_short_of_available_but_still_serving_is_a_warning_not_an_alert() {
+    let mut rollout = parse_deployment(DEPLOYMENT).unwrap();
+    rollout.available = 1;
+    rollout.conditions[0].status = "False".to_string();
+    let pods = parse_pods(PODS).unwrap();
+
+    assert_eq!(
+        health(&rollout, Some(&pods)),
+        Health::Warning("1 of 2 available".to_string())
+    );
+    assert_eq!(
+        health(&rollout, None),
+        Health::Warning("1 of 2 available".to_string())
+    );
+}
+
+#[test]
+fn nothing_serving_is_an_alert_even_when_the_available_condition_is_true() {
+    let mut rollout = parse_deployment(DEPLOYMENT).unwrap();
+    rollout.available = 0;
+
+    assert_eq!(
+        health(&rollout, Some(&[])),
+        Health::Alert("0 of 2 available".to_string())
+    );
+}

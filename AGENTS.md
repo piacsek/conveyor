@@ -237,8 +237,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   expired; the 10 s timeout returns the row to an error instead of hanging.
 - **Deploy health comes from a second call.** After the Deployment, `DeploySource` runs
   `kubectl … get pods -l <matchLabels as k=v,k=v> -o json --request-timeout=10s` and
-  `deployed::health(&Rollout, Option<&[Pod]>)` judges the row, in this order: `Alert` when the
-  `Available` condition is not `True` (`0 of 2 available`); `Warning` when a pod that is not
+  `deployed::health(&Rollout, Option<&[Pod]>)` judges the row, in this order: `Alert` when
+  replicas are wanted and none is available (`0 of 2 available`), whatever the `Available`
+  condition says; `Warning` when the `Available` condition is not `True` but something still
+  serves (`1 of 2 available`); `Warning` when a pod that is not
   terminating, `Failed` or `Succeeded` has a container (init containers included) waiting in
   `CrashLoopBackOff`, `ImagePullBackOff`, `ErrImagePull`, `CreateContainerConfigError`,
   `CreateContainerError`, `RunContainerError` or `InvalidImageName` (`1 of 3
@@ -256,6 +258,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   when the condition is absent. The `restarting` word can be stale: `lastState.terminated`
   stays for as long as `restartCount > 0`, so a pod that crashed long ago and is unready now
   for another reason still reads `restarting` with its old exit.
+  **Red means nothing is serving, not "Kubernetes says not Available".** `Available` is
+  `availableReplicas >= replicas - maxUnavailable`, and the default 25% rounds down to 0 for 2
+  or 3 replicas, so one pod down flipped it and the card read `1 of 2 available` in red while
+  the other pod served; the user chose red for an outage only. It also catches the reverse: with
+  `maxUnavailable` at 100% the condition stays `True` with nothing running.
   The health icon sits in the card's icon slot after the version glyph, which keeps meaning
   "which sha is live": yellow `⚠`, red `‼`, grey `?`. A card with no icon means the pods were
   read and are fine. **Pods that cannot be read are never silent**: a failed pods call (RBAC, a

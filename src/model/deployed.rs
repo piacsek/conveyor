@@ -300,11 +300,12 @@ const STUCK: [&str; 7] = [
 ];
 
 pub fn health(rollout: &Rollout, pods: Option<&[Pod]>) -> Health {
+    let available = format!("{} of {} available", rollout.available, rollout.desired);
+    if rollout.desired > 0 && rollout.available == 0 {
+        return Health::Alert(available);
+    }
     if !rollout.is("Available", "True") {
-        return Health::Alert(format!(
-            "{} of {} available",
-            rollout.available, rollout.desired
-        ));
+        return Health::Warning(available);
     }
     let live: Vec<&Pod> = pods
         .unwrap_or_default()
