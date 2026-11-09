@@ -1,0 +1,125 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "metadata": {
+        "name": "api-5b8f7c6d94-hq4zt",
+        "namespace": "api",
+        "labels": {
+          "app.kubernetes.io/name": "api",
+          "app.kubernetes.io/instance": "api"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "api",
+            "image": "ghcr.io/acme/api:4e9b01c3a7d2f5e68b9c0d1e2f3a4b5c6d7e8f90"
+          }
+        ]
+      },
+      "status": {
+        "phase": "Running",
+        "startTime": "2026-11-02T09:13:51Z",
+        "containerStatuses": [
+          {
+            "name": "api",
+            "image": "ghcr.io/acme/api:4e9b01c3a7d2f5e68b9c0d1e2f3a4b5c6d7e8f90",
+            "ready": true,
+            "started": true,
+            "restartCount": 0,
+            "state": {
+              "running": {
+                "startedAt": "2026-11-02T09:13:51Z"
+              }
+            },
+            "lastState": {}
+          }
+        ]
+      }
+    },
+    {
+      "metadata": {
+        "name": "api-5b8f7c6d94-m7wvn",
+        "namespace": "api",
+        "labels": {
+          "app.kubernetes.io/name": "api",
+          "app.kubernetes.io/instance": "api"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "api",
+            "image": "ghcr.io/acme/api:4e9b01c3a7d2f5e68b9c0d1e2f3a4b5c6d7e8f90"
+          }
+        ]
+      },
+      "status": {
+        "phase": "Running",
+        "startTime": "2026-11-02T09:13:58Z",
+        "containerStatuses": [
+          {
+            "name": "api",
+            "image": "ghcr.io/acme/api:4e9b01c3a7d2f5e68b9c0d1e2f3a4b5c6d7e8f90",
+            "ready": true,
+            "started": true,
+            "restartCount": 0,
+            "state": {
+              "running": {
+                "startedAt": "2026-11-02T09:13:58Z"
+              }
+            },
+            "lastState": {}
+          }
+        ]
+      }
+    },
+    {
+      "metadata": {
+        "name": "api-7d9c6b5f48-x2k9p",
+        "namespace": "api",
+        "labels": {
+          "app.kubernetes.io/name": "api",
+          "app.kubernetes.io/instance": "api"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "api",
+            "image": "ghcr.io/acme/api:8c1f2a7d4e9b01c35f6a7b8c9d0e1f2a3b4c5d6e"
+          }
+        ]
+      },
+      "status": {
+        "phase": "Running",
+        "startTime": "2026-11-09T10:21:40Z",
+        "containerStatuses": [
+          {
+            "name": "api",
+            "image": "ghcr.io/acme/api:8c1f2a7d4e9b01c35f6a7b8c9d0e1f2a3b4c5d6e",
+            "ready": false,
+            "started": false,
+            "restartCount": 7,
+            "state": {
+              "waiting": {
+                "reason": "CrashLoopBackOff",
+                "message": "back-off 5m0s restarting failed container=api pod=api-7d9c6b5f48-x2k9p_api(1b0f6f0e)"
+              }
+            },
+            "lastState": {
+              "terminated": {
+                "exitCode": 137,
+                "reason": "OOMKilled",
+                "startedAt": "2026-11-09T10:36:02Z",
+                "finishedAt": "2026-11-09T10:36:09Z"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
