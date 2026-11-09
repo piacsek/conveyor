@@ -28,13 +28,13 @@ src/cli.rs       `conveyor` (TUI) | `config` | `log` | `--help` | `--version`; h
 src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override
 src/sources/     everything that reaches out to an external service, and nothing else
 src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`, `log_failed`, `rerun_failed`, `merge`, `update_branch`, `change_status`), CliGh spawns `gh api …` / `gh repo view` / `gh run view --log-failed` / `gh run rerun --failed` / `gh pr merge|update-branch|ready|close`, error mapping
-src/sources/kube.rs   Kube trait (`image(env)`), CliKubectl (`kubectl --context … get deploy … -o jsonpath`, 10 s timeout)
+src/sources/kube.rs   Kube trait (`deployment(env)`, `pods(env, selector)`), CliKubectl (`kubectl --context … get deploy|pods … -o json`, 10 s timeout each)
 src/sources/fetch.rs  repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), fetch_jobs, fetch_log (LOG_TAIL lines), BuildsSource (caches workflow id and sha→PR), DeploySource (per-env kubectl + cached sha→PR)
 src/sources/queries/  GraphQL documents, `include_str!`ed
 src/model/prs.rs PullRequest, CheckState, Check, ReviewDecision, MergeState; lenient `parse` of gh JSON
 src/model/queue.rs Queue, QueueEntry, QueueState, MergeGroupRun; `parse`, `parse_merge_group_runs`, `attach_runs`
 src/model/builds.rs Build, BuildStatus, PullRef, Builds; `parse_runs`, `pr_number_from_title`, `parse_pull_numbers`
-src/model/deployed.rs Deployment, Deployed; `sha_from_image` (40-hex tag or `-<sha>` suffix)
+src/model/deployed.rs Deployment, Deployed, Rollout, Condition, Pod, Health; `sha_from_image` (40-hex tag or `-<sha>` suffix), `parse_deployment`, `parse_pods` (problems first), `health`
 src/model/jobs.rs Job, `parse_jobs` (failures first), `failed_step`
 src/model/log.rs  `tail`: the failed step's log as gh prints it, minus job/step/timestamp prefixes and ANSI
 src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Mode::{Normal, Filter, Help, Changelog, Confirm, Manage}, Menu/Offer/Choice (the `S` popup), Input::{Key, Fetching, Data, Jobs, Log, Merged, Rerun, BranchUpdated, StatusChanged, Tick}, Request::{Refresh, Jobs, Log, Rerun, Merge, UpdateBranch, ChangeStatus}, run()
@@ -222,8 +222,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   A job's failed step is the first step with a failing conclusion.
   `tests/fixtures/jobs.json` is a real capture of this repo's run 34509123916, trimmed to
   `id name status conclusion started_at completed_at html_url steps[]`.
-- **Deployed**: `kubectl --context C -n NS get deploy D -o jsonpath={.spec.template.spec.containers[0].image} --request-timeout=10s`
-  per `[[repo.deploy.env]]`; verified live 2026-09-10: the tag is the bare 40-hex commit sha
+- **Deployed**: `kubectl --context C -n NS get deploy D -o json --request-timeout=10s`
+  per `[[repo.deploy.env]]` (the image is `.spec.template.spec.containers[0].image`); verified live 2026-09-10: the tag is the bare 40-hex commit sha
   (a GitOps image updater writes it; preview deployments use `<label>-<sha>`, which
   `sha_from_image` also accepts). Errors are per row, never per column: an expired session
   or a missing deployment (`Error from server (NotFound): deployments.apps "x" not found`)
@@ -235,6 +235,28 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   Main builds column (0 = `at main`), so it needs that column loaded and only sees the last
   `builds` runs. kubectl may itself start a teleport browser login when the session is
   expired; the 10 s timeout returns the row to an error instead of hanging.
+- **Deploy health comes from a second call.** After the Deployment, `DeploySource` runs
+  `kubectl … get pods -l <matchLabels as k=v,k=v> -o json --request-timeout=10s` and
+  `deployed::health(&Rollout, Option<&[Pod]>)` judges the row, in this order: `Alert` when the
+  `Available` condition is not `True` (`0 of 2 available`); `Warning` when a pod that is not
+  terminating has a container (init containers included) waiting in `CrashLoopBackOff`,
+  `ImagePullBackOff`, `ErrImagePull` or `CreateContainerConfigError` (`1 of 3 pods
+  CrashLoopBackOff`), or when `Progressing` is `False` with `ProgressDeadlineExceeded`
+  (`rollout stalled`); `Unread` when the pods were not read; else `Healthy`.
+  The health icon sits in the card's icon slot after the version glyph, which keeps meaning
+  "which sha is live": yellow `⚠`, red `‼`, grey `?`. A card with no icon means the pods were
+  read and are fine. **Pods that cannot be read are never silent**: a failed pods call (RBAC, a
+  timeout), unparseable output or a selector without `matchLabels` sets `pods_error`, not the
+  row's `error`, and the card shows the grey `?` with `pods not read: <error>`. The user asked
+  for that: without it a crashlooping version looked healthy wherever `get pods` was denied.
+  Two calls per env means a dead session can cost 20 s per env. A row whose Deployment call
+  failed keeps its last sha and pull request (`keep_last_known`) but not its last health or
+  pods, which would be stale under the `✗`. Only `matchLabels` is used, so pods of another
+  workload sharing those labels are listed too. The details pane lists the target
+  (`context / namespace / deployment`), the replica counts, every condition that is not `True`,
+  and one line per pod (status, restarts, age, sha8) with `last exit: OOMKilled (137) · <waiting
+  message>` under a stuck one. `tests/fixtures/deployment.json` and `pods.json` are
+  **synthetic**: the only clusters at hand are private.
 - **sha → pull request** goes through `fetch::Pulls`; `BuildsSource` and `DeploySource` each
   own one, so the same sha costs one association call per column and each keeps its own retry
   window. The order is: `repos/{r}/commits/{sha}/pulls`; then, only when that did not parse to
