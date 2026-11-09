@@ -254,7 +254,9 @@ fn rollout_lines(rollout: &Rollout) -> Vec<Line<'static>> {
         rollout
             .conditions
             .iter()
-            .filter(|condition| condition.status != "True")
+            .filter(|condition| {
+                (condition.kind == "ReplicaFailure") == (condition.status == "True")
+            })
             .map(|condition| {
                 let color = if condition.kind == "Available" {
                     Color::Red
@@ -280,15 +282,20 @@ fn rollout_lines(rollout: &Rollout) -> Vec<Line<'static>> {
 
 fn pod_lines(pod: &Pod, now: SystemTime) -> Vec<Line<'static>> {
     let waiting = pod.waiting.as_ref().map(|waiting| waiting.reason.clone());
-    let (glyph, color, status) = match (&pod.stuck, pod.terminating, pod.ready) {
-        (_, true, _) => ('⊘', Color::DarkGray, "Terminating".to_string()),
-        (Some(stuck), _, _) => ('✗', Color::Red, waiting.unwrap_or_else(|| stuck.clone())),
-        (None, _, true) => ('✓', Color::Green, pod.phase.clone()),
-        (None, _, false) => (
+    let (glyph, color, status) = if pod.terminating {
+        ('⊘', Color::DarkGray, "Terminating".to_string())
+    } else if pod.finished() {
+        ('○', Color::DarkGray, pod.phase.clone())
+    } else if let Some(stuck) = &pod.stuck {
+        ('✗', Color::Red, waiting.unwrap_or_else(|| stuck.clone()))
+    } else if pod.ready {
+        ('✓', Color::Green, pod.phase.clone())
+    } else {
+        (
             '●',
             Color::Yellow,
             waiting.unwrap_or_else(|| pod.phase.clone()),
-        ),
+        )
     };
     let mut parts = vec![
         pod.name.clone(),

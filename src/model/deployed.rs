@@ -151,6 +151,12 @@ pub struct Pod {
     pub terminating: bool,
 }
 
+impl Pod {
+    pub fn finished(&self) -> bool {
+        matches!(self.phase.as_str(), "Failed" | "Succeeded")
+    }
+}
+
 pub fn parse_pods(json: &str) -> Result<Vec<Pod>, String> {
     let value: serde_json::Value = serde_json::from_str(json)
         .map_err(|err| format!("unexpected kubectl output for the pods: {err}"))?;
@@ -162,11 +168,13 @@ pub fn parse_pods(json: &str) -> Result<Vec<Pod>, String> {
         .iter()
         .map(parse_pod)
         .collect();
-    pods.sort_by_key(|pod| match (&pod.stuck, pod.ready) {
-        (Some(_), _) => 0,
-        (None, false) => 1,
-        (None, true) => 2,
+    pods.sort_by_key(|pod| match (pod.finished(), &pod.stuck, pod.ready) {
+        (true, _, _) => 3,
+        (false, Some(_), _) => 0,
+        (false, None, false) => 1,
+        (false, None, true) => 2,
     });
+
     Ok(pods)
 }
 
@@ -191,18 +199,17 @@ fn parse_pod(pod: &serde_json::Value) -> Pod {
         .filter_map(|key| pod.pointer(&format!("/status/{key}"))?.as_array())
         .flatten()
         .collect();
-    let waiting = containers
+    let backing_off = containers
         .iter()
-        .find(|container| waiting_reason(container).is_some_and(|reason| STUCK.contains(&reason)))
-        .or_else(|| {
-            containers
-                .iter()
-                .find(|container| waiting_reason(container).is_some())
-        });
+        .find(|container| waiting_reason(container).is_some_and(|reason| STUCK.contains(&reason)));
     let restarting = containers.iter().find(|container| restarting(container));
-    let stuck = waiting
+    let culprit = backing_off.or(restarting).or_else(|| {
+        containers
+            .iter()
+            .find(|container| waiting_reason(container).is_some())
+    });
+    let stuck = backing_off
         .and_then(|container| waiting_reason(container))
-        .filter(|reason| STUCK.contains(reason))
         .map(str::to_string)
         .or_else(|| restarting.map(|_| "restarting".to_string()));
     Pod {
@@ -237,7 +244,7 @@ fn parse_pod(pod: &serde_json::Value) -> Pod {
             .pointer("/spec/containers/0/image")
             .and_then(|v| v.as_str())
             .and_then(|image| sha_from_image(image).ok()),
-        waiting: waiting.and_then(|container| {
+        waiting: culprit.and_then(|container| {
             let waiting = container.pointer("/state/waiting")?;
             Some(Waiting {
                 reason: text(waiting, "reason"),
@@ -245,7 +252,7 @@ fn parse_pod(pod: &serde_json::Value) -> Pod {
             })
         }),
         stuck,
-        last_exit: waiting.or(restarting).and_then(|container| {
+        last_exit: culprit.and_then(|container| {
             let terminated = container.pointer("/lastState/terminated")?;
             Some(LastExit {
                 reason: text(terminated, "reason"),
@@ -283,7 +290,7 @@ pub fn health(rollout: &Rollout, pods: Option<&[Pod]>) -> Health {
     let live: Vec<&Pod> = pods
         .unwrap_or_default()
         .iter()
-        .filter(|pod| !pod.terminating && !matches!(pod.phase.as_str(), "Failed" | "Succeeded"))
+        .filter(|pod| !pod.terminating && !pod.finished())
         .collect();
     let stuck: Vec<&str> = live.iter().filter_map(|pod| pod.stuck.as_deref()).collect();
     if let Some(first) = stuck.first() {
@@ -296,6 +303,9 @@ pub fn health(rollout: &Rollout, pods: Option<&[Pod]>) -> Health {
     }
     if rollout.stalled() {
         return Health::Warning("rollout stalled".to_string());
+    }
+    if rollout.is("ReplicaFailure", "True") {
+        return Health::Warning("replicas cannot be created".to_string());
     }
     match pods {
         Some(_) => Health::Healthy,

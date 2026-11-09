@@ -4,7 +4,7 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use conveyor::app::Stage;
 use conveyor::model::builds::BuildStatus;
-use conveyor::model::deployed::{Health, Pod, Waiting, parse_deployment, parse_pods};
+use conveyor::model::deployed::{Condition, Health, Pod, Waiting, parse_deployment, parse_pods};
 use ratatui::crossterm::event::KeyCode;
 use ratatui::style::Color;
 use support::{Harness, build, builds, deployed, deployment, failed, key};
@@ -122,6 +122,26 @@ fn an_unavailable_deployment_gets_a_red_alert_and_unread_pods_a_grey_question_ma
         h.screen()
     );
     assert_eq!(h.cell(125, 6).fg, Color::DarkGray);
+}
+
+#[test]
+fn unread_pods_stay_on_the_card_under_an_alert() {
+    let mut h = Harness::with_size(160, 20);
+    let mut staging = deployment("staging", 26, Some((4840, "bob", "Speed up CI")));
+    staging.health = Health::Alert("0 of 2 available".to_string());
+    staging.pods_error = Some("Error from server (Forbidden): pods is forbidden".to_string());
+
+    h.run(vec![builds(main_builds()), deployed(vec![staging])])
+        .unwrap();
+
+    let col = column(&h.screen(), 3);
+    assert!(col[1].contains("✓ ‼ staging"), "{}", h.screen());
+    assert!(col[4].contains("0 of 2 available"), "{}", h.screen());
+    assert!(
+        col[5].contains("pods not read: Error from server"),
+        "{}",
+        h.screen()
+    );
 }
 
 #[test]
@@ -302,6 +322,62 @@ fn d_marks_a_pod_that_is_only_starting_as_pending_not_failed() {
         screen.contains("│● api-1  ContainerCreating  restarts 0"),
         "{screen}"
     );
+}
+
+#[test]
+fn d_lists_a_replica_failure_although_its_status_is_true() {
+    let mut h = Harness::with_size(160, 30);
+    let mut rollout = parse_deployment(include_str!("fixtures/deployment.json")).unwrap();
+    rollout.conditions[1].status = "True".to_string();
+    rollout.conditions.push(Condition {
+        kind: "ReplicaFailure".to_string(),
+        status: "True".to_string(),
+        reason: "FailedCreate".to_string(),
+        message: "exceeded quota".to_string(),
+    });
+    let mut staging = deployment("staging", 26, Some((4840, "bob", "Speed up CI")));
+    staging.rollout = Some(rollout);
+
+    h.run(vec![
+        deployed(vec![staging]),
+        key(KeyCode::Char('4')),
+        key(KeyCode::Char('d')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(
+        screen.contains("│ReplicaFailure True · FailedCreate · exceeded quota"),
+        "{screen}"
+    );
+    assert!(!screen.contains("│Progressing True"), "{screen}");
+}
+
+#[test]
+fn d_draws_a_finished_pod_in_grey_below_the_running_ones() {
+    let mut h = Harness::with_size(160, 30);
+    let mut staging = deployment("staging", 26, Some((4840, "bob", "Speed up CI")));
+    staging.pods = parse_pods(
+        &serde_json::json!({"items": [
+            {"metadata": {"name": "api-evicted"}, "status": {"phase": "Failed"}},
+            {"metadata": {"name": "api-1"},
+             "status": {"phase": "Running", "containerStatuses": [{"ready": true, "restartCount": 0}]}}
+        ]})
+        .to_string(),
+    )
+    .unwrap();
+
+    h.run(vec![
+        deployed(vec![staging]),
+        key(KeyCode::Char('4')),
+        key(KeyCode::Char('d')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    let running = screen.find("│✓ api-1  Running").unwrap();
+    let finished = screen.find("│○ api-evicted  Failed").unwrap();
+    assert!(running < finished, "{screen}");
 }
 
 #[test]
