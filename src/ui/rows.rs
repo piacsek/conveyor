@@ -5,15 +5,15 @@ use ratatui::text::{Line, Span};
 
 use crate::app::JobsState;
 use crate::model::builds::{Build, BuildStatus};
-use crate::model::deployed::Deployment;
+use crate::model::deployed::{Deployment, Health};
 use crate::model::jobs::Job;
 use crate::model::prs::{Check, CheckConclusion, MergeState, PullRequest, ReviewDecision};
 use crate::model::queue::QueueEntry;
 use crate::text::{age, duration, truncate, wrap};
 use crate::ui::card::{card, meta};
 use crate::ui::style::{
-    INDENT, build_glyph, check_word, conclusion_glyph, dim, glyph, pr_glyph, sha8, short_repo,
-    status_word,
+    INDENT, build_glyph, check_word, conclusion_glyph, dim, glyph, health_icon, pr_glyph, sha8,
+    short_repo, status_word,
 };
 
 const DEPLOYED_TITLE_LINES: usize = 2;
@@ -282,6 +282,12 @@ pub(crate) fn deployed_row(
             dim().fg(Color::Red),
         )]);
     }
+    if let Some((reason, style)) = health_reason(row) {
+        below.push(vec![Span::styled(
+            truncate(&reason, width.saturating_sub(INDENT)),
+            style,
+        )]);
+    }
     if let Some(sha) = &row.sha {
         below.push(meta(
             &[
@@ -296,5 +302,28 @@ pub(crate) fn deployed_row(
     if below.is_empty() {
         below.push(meta(&["unknown".to_string()], width));
     }
-    card(selected, glyph, None, row.env.clone(), right, below, width)
+    card(
+        selected,
+        glyph,
+        health_icon(&row.health),
+        row.env.clone(),
+        right,
+        below,
+        width,
+    )
+}
+
+fn health_reason(row: &Deployment) -> Option<(String, Style)> {
+    match &row.health {
+        Health::Warning(reason) => Some((reason.clone(), Style::default().fg(Color::Yellow))),
+        Health::Alert(reason) => Some((reason.clone(), Style::default().fg(Color::Red))),
+        Health::Unread => Some((
+            format!(
+                "pods not read: {}",
+                row.pods_error.as_deref().unwrap_or_default()
+            ),
+            dim(),
+        )),
+        Health::Healthy | Health::Unknown => None,
+    }
 }
