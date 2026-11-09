@@ -240,14 +240,22 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `deployed::health(&Rollout, Option<&[Pod]>)` judges the row, in this order: `Alert` when the
   `Available` condition is not `True` (`0 of 2 available`); `Warning` when a pod that is not
   terminating, `Failed` or `Succeeded` has a container (init containers included) waiting in
-  `CrashLoopBackOff`, `ImagePullBackOff`, `ErrImagePull` or `CreateContainerConfigError` (`1 of 3
+  `CrashLoopBackOff`, `ImagePullBackOff`, `ErrImagePull`, `CreateContainerConfigError`,
+  `CreateContainerError`, `RunContainerError` or `InvalidImageName` (`1 of 3
   pods CrashLoopBackOff`; `2 of 3 pods stuck` when the reasons differ), or a container that is
   not ready, has restarted and has a last exit (`restarting`: a crashlooping container spends
-  part of each cycle running, and a refresh landing there used to read healthy), or when `Progressing` is `False` with `ProgressDeadlineExceeded`
+  part of each cycle running, and a refresh landing there used to read healthy), or the pod
+  cannot be placed (`PodScheduled` is `False` with `Unschedulable`: it has no container yet, so
+  nothing else fires until the progress deadline, about 10 minutes; with a cluster autoscaler
+  this can show for a minute or two of a normal rollout while a node boots), or when `Progressing` is `False` with `ProgressDeadlineExceeded`
   (`rollout stalled`), or when `ReplicaFailure` is `True` (`replicas cannot be created`: a quota
   error leaves no pod to show as stuck); `Unread` when the pods were not read; else `Healthy`.
   The pod's waiting reason and `last exit` come from the container that makes it stuck, not
-  from the first one that waits.
+  from the first one that waits. A pod is ready when its `Ready` condition is `True` (a
+  readiness gate can hold a pod whose containers are all ready); the containers decide only
+  when the condition is absent. The `restarting` word can be stale: `lastState.terminated`
+  stays for as long as `restartCount > 0`, so a pod that crashed long ago and is unready now
+  for another reason still reads `restarting` with its old exit.
   The health icon sits in the card's icon slot after the version glyph, which keeps meaning
   "which sha is live": yellow `⚠`, red `‼`, grey `?`. A card with no icon means the pods were
   read and are fine. **Pods that cannot be read are never silent**: a failed pods call (RBAC, a
