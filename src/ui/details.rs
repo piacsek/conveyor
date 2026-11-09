@@ -258,7 +258,7 @@ fn rollout_lines(rollout: &Rollout) -> Vec<Line<'static>> {
                 (condition.kind == "ReplicaFailure") == (condition.status == "True")
             })
             .map(|condition| {
-                let color = if condition.kind == "Available" {
+                let color = if rollout.desired > 0 && rollout.available == 0 {
                     Color::Red
                 } else {
                     Color::Yellow

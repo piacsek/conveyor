@@ -381,6 +381,32 @@ fn d_draws_a_finished_pod_in_grey_below_the_running_ones() {
 }
 
 #[test]
+fn d_paints_a_lost_available_condition_red_only_when_nothing_serves() {
+    let mut h = Harness::with_size(160, 30);
+    let mut rollout = parse_deployment(include_str!("fixtures/deployment.json")).unwrap();
+    rollout.available = 1;
+    rollout.conditions[0].status = "False".to_string();
+    let mut staging = deployment("staging", 26, Some((4840, "bob", "Speed up CI")));
+    staging.rollout = Some(rollout.clone());
+    rollout.available = 0;
+    let mut prod = deployment("prod", 24, Some((4790, "dave", "Spike tests")));
+    prod.rollout = Some(rollout);
+
+    h.run(vec![
+        deployed(vec![staging, prod]),
+        key(KeyCode::Char('4')),
+        key(KeyCode::Char('d')),
+    ])
+    .unwrap();
+    let serving = condition_row(&h.screen(), "Available False");
+    assert_eq!(h.cell(1, serving).fg, Color::Yellow);
+
+    h.run(vec![key(KeyCode::Char('j'))]).unwrap();
+    let down = condition_row(&h.screen(), "Available False");
+    assert_eq!(h.cell(1, down).fg, Color::Red);
+}
+
+#[test]
 fn d_says_why_the_pods_were_not_read() {
     let mut h = Harness::with_size(160, 30);
     let mut staging = deployment("staging", 26, Some((4840, "bob", "Speed up CI")));
@@ -489,4 +515,11 @@ fn p_says_which_lookup_failed_and_y_says_nothing_is_selected() {
 
     assert!(h.screen().contains("nothing selected"), "{}", h.screen());
     assert!(h.opener.copied().is_empty());
+}
+
+fn condition_row(screen: &str, text: &str) -> u16 {
+    screen
+        .lines()
+        .position(|line| line.starts_with(&format!("│{text}")))
+        .unwrap_or_else(|| panic!("no `{text}` line: {screen}")) as u16
 }

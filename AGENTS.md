@@ -257,7 +257,12 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   readiness gate can hold a pod whose containers are all ready); the containers decide only
   when the condition is absent. The `restarting` word can be stale: `lastState.terminated`
   stays for as long as `restartCount > 0`, so a pod that crashed long ago and is unready now
-  for another reason still reads `restarting` with its old exit.
+  for another reason still reads `restarting` with its old exit. Two states still read healthy
+  and are accepted: a crashlooping container with no readiness probe is `ready` whenever it
+  runs, so a refresh landing there shows no icon; and a Deployment of four or more replicas
+  that lost one pod to a failing readiness probe stays `Available` (the default 25% allowance),
+  because warning on `available < desired` would flag every normal rollout, which the user
+  declined.
   **Red means nothing is serving, not "Kubernetes says not Available".** `Available` is
   `availableReplicas >= replicas - maxUnavailable`, and the default 25% rounds down to 0 for 2
   or 3 replicas, so one pod down flipped it and the card read `1 of 2 available` in red while
@@ -275,7 +280,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   failed keeps its last sha and pull request (`keep_last_known`) but not its last health or
   pods, which would be stale under the `✗`. Only `matchLabels` is used, so pods of another
   workload sharing those labels are listed too. The details pane lists the target
-  (`context / namespace / deployment`), the replica counts, every failing condition (not `True`, or `ReplicaFailure` that is `True`),
+  (`context / namespace / deployment`), the replica counts, every failing condition (not `True`, or `ReplicaFailure` that is `True`; yellow, red only
+  while nothing serves),
   and one line per pod (status, restarts, age, sha8; red `✗` only for a stuck pod, yellow `●`
   for one that is merely starting, grey `⊘` for a terminating one, grey `○` last for a `Failed`
   or `Succeeded` one) with `last exit: OOMKilled (137) · <waiting
