@@ -112,12 +112,29 @@ esac
 SHIM
 chmod +x "$home/bin/gh"
 
+deployment() {
+  printf '{"spec":{"replicas":2,"selector":{"matchLabels":{"app":"api"}},"template":{"spec":{"containers":[{"image":"ghcr.io/acme/api:%s"}]}}},"status":{"updatedReplicas":%s,"readyReplicas":2,"availableReplicas":2,"conditions":[{"type":"Available","status":"True"},{"type":"Progressing","status":"True"}]}}' "$1" "$2"
+}
+pod() {
+  printf '{"metadata":{"name":"%s"},"spec":{"containers":[{"image":"ghcr.io/acme/api:%s"}]},"status":{"phase":"Running","startTime":"%s","containerStatuses":[%s]}}' "$1" "$2" "$mg_started" "$3"
+}
+deployment "$sha_4840" 2 >"$home/deploy-dev.json"
+deployment "$sha_4821" 1 >"$home/deploy-staging.json"
+deployment "$sha_4790" 2 >"$home/deploy-prod.json"
+running='{"ready":true,"restartCount":0,"state":{"running":{}}}'
+crashing='{"ready":false,"restartCount":7,"state":{"waiting":{"reason":"CrashLoopBackOff","message":"back-off 5m0s restarting failed container=api"}},"lastState":{"terminated":{"exitCode":137,"reason":"OOMKilled"}}}'
+printf '{"items":[%s,%s,%s]}' \
+  "$(pod api-5b8f7c6d94-hq4zt "$sha_4790" "$running")" \
+  "$(pod api-5b8f7c6d94-m7wvn "$sha_4790" "$running")" \
+  "$(pod api-7d9c6b5f48-x2k9p "$sha_4821" "$crashing")" >"$home/pods-staging.json"
 cat >"$home/bin/kubectl" <<KUBE
 #!/bin/sh
 case "\$*" in
-  *ctx-dev*) printf 'ghcr.io/acme/api:$sha_4840';;
-  *ctx-staging*) printf 'ghcr.io/acme/api:$sha_4821';;
-  *ctx-prod*) printf 'ghcr.io/acme/api:$sha_4790';;
+  *ctx-staging*'get pods'*) cat "$home/pods-staging.json";;
+  *ctx-dev*'get pods'*|*ctx-prod*'get pods'*) echo '{"items":[]}';;
+  *ctx-dev*) cat "$home/deploy-dev.json";;
+  *ctx-staging*) cat "$home/deploy-staging.json";;
+  *ctx-prod*) cat "$home/deploy-prod.json";;
   *) echo 'ERROR: Active profile expired.' >&2; exit 1;;
 esac
 KUBE
