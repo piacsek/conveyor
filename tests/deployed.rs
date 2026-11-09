@@ -2,7 +2,9 @@ mod support;
 
 use conveyor::app::Stage;
 use conveyor::model::builds::BuildStatus;
+use conveyor::model::deployed::Health;
 use ratatui::crossterm::event::KeyCode;
+use ratatui::style::Color;
 use support::{Harness, build, builds, deployed, deployment, failed, key};
 
 fn column(screen: &str, index: usize) -> Vec<String> {
@@ -69,6 +71,55 @@ fn deployed_cards_give_each_field_its_own_line_with_the_title_before_the_author(
         "the error takes the place of a pull request: {}",
         h.screen()
     );
+}
+
+#[test]
+fn a_crashlooping_pod_puts_a_yellow_warning_after_the_glyph_and_its_reason_on_the_card() {
+    let mut h = Harness::with_size(160, 20);
+    let mut staging = deployment("staging", 26, Some((4840, "bob", "Speed up CI")));
+    staging.health = Health::Warning("1 of 3 pods CrashLoopBackOff".to_string());
+
+    h.run(vec![builds(main_builds()), deployed(vec![staging])])
+        .unwrap();
+
+    let col = column(&h.screen(), 3);
+    assert!(col[1].contains("✓ ⚠ staging"), "{}", h.screen());
+    assert!(col[1].contains("at main"), "{}", h.screen());
+    assert!(col[3].contains("bob"), "{}", h.screen());
+    assert!(
+        col[4].contains("1 of 3 pods CrashLoopBackOff"),
+        "{}",
+        h.screen()
+    );
+    assert!(col[5].contains("00000000 · read 6d ago"), "{}", h.screen());
+    assert_eq!(h.cell(125, 1).fg, Color::Yellow);
+    assert_eq!(h.cell(125, 4).fg, Color::Yellow);
+}
+
+#[test]
+fn an_unavailable_deployment_gets_a_red_alert_and_unread_pods_a_grey_question_mark() {
+    let mut h = Harness::with_size(160, 20);
+    let mut staging = deployment("staging", 26, Some((4840, "bob", "Speed up CI")));
+    staging.health = Health::Alert("0 of 2 available".to_string());
+    let mut prod = deployment("prod", 24, Some((4790, "dave", "Spike tests")));
+    prod.health = Health::Unread;
+    prod.pods_error = Some("Error from server (Forbidden): pods is forbidden".to_string());
+
+    h.run(vec![builds(main_builds()), deployed(vec![staging, prod])])
+        .unwrap();
+
+    let col = column(&h.screen(), 3);
+    assert!(col[1].contains("✓ ‼ staging"), "{}", h.screen());
+    assert!(col[4].contains("0 of 2 available"), "{}", h.screen());
+    assert_eq!(h.cell(125, 1).fg, Color::Red);
+    assert_eq!(h.cell(125, 4).fg, Color::Red);
+    assert!(col[6].contains("◐ ? prod"), "{}", h.screen());
+    assert!(
+        col[9].contains("pods not read: Error from server"),
+        "{}",
+        h.screen()
+    );
+    assert_eq!(h.cell(125, 6).fg, Color::DarkGray);
 }
 
 #[test]

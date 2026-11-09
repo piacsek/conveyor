@@ -1,6 +1,7 @@
 use ratatui::style::{Color, Modifier, Style};
 
 use crate::model::builds::BuildStatus;
+use crate::model::deployed::Health;
 use crate::model::prs::{CheckConclusion, CheckState};
 
 pub(crate) const BAR: &str = "▌";
@@ -79,4 +80,13 @@ pub(crate) fn short_repo(repo: &str) -> &str {
 
 pub(crate) fn sha8(sha: &str) -> String {
     sha.chars().take(8).collect()
+}
+
+pub(crate) fn health_icon(health: &Health) -> Option<(char, Color)> {
+    match health {
+        Health::Warning(_) => Some(('⚠', Color::Yellow)),
+        Health::Alert(_) => Some(('‼', Color::Red)),
+        Health::Unread => Some(('?', Color::DarkGray)),
+        Health::Healthy | Health::Unknown => None,
+    }
 }
