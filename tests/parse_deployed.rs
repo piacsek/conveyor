@@ -279,3 +279,82 @@ fn a_replica_failure_is_a_warning_while_the_deployment_is_still_available() {
         Health::Warning("replicas cannot be created".to_string())
     );
 }
+
+#[test]
+fn a_pod_that_cannot_be_scheduled_is_stuck_before_it_has_any_container() {
+    let mut rollout = parse_deployment(DEPLOYMENT).unwrap();
+    rollout.conditions[1].status = "True".to_string();
+    let pods = parse_pods(
+        &serde_json::json!({"items": [{
+            "metadata": {"name": "api-1"},
+            "status": {"phase": "Pending", "conditions": [{
+                "type": "PodScheduled", "status": "False", "reason": "Unschedulable",
+                "message": "0/3 nodes are available: 3 Insufficient memory."
+            }]}
+        }]})
+        .to_string(),
+    )
+    .unwrap();
+
+    assert_eq!(pods[0].stuck.as_deref(), Some("Unschedulable"));
+    let waiting = pods[0].waiting.as_ref().unwrap();
+    assert_eq!(waiting.reason, "Unschedulable");
+    assert_eq!(
+        waiting.message,
+        "0/3 nodes are available: 3 Insufficient memory."
+    );
+    assert_eq!(
+        health(&rollout, Some(&pods)),
+        Health::Warning("1 of 1 pods Unschedulable".to_string())
+    );
+}
+
+#[test]
+fn a_pod_is_ready_when_its_ready_condition_says_so_whatever_its_containers_report() {
+    let pods = parse_pods(
+        &serde_json::json!({"items": [{
+            "metadata": {"name": "api-gated"},
+            "status": {
+                "phase": "Running",
+                "conditions": [{"type": "Ready", "status": "False", "reason": "ReadinessGatesNotReady"}],
+                "containerStatuses": [{"ready": true, "restartCount": 0, "state": {"running": {}}}]
+            }
+        }]})
+        .to_string(),
+    )
+    .unwrap();
+
+    assert!(!pods[0].ready);
+}
+
+#[test]
+fn a_container_that_cannot_be_created_is_stuck_and_a_terminating_pod_sorts_last() {
+    let pods = parse_pods(
+        &serde_json::json!({"items": [
+            {"metadata": {"name": "api-leaving", "deletionTimestamp": "2026-11-09T10:00:00Z"},
+             "status": {"phase": "Running", "containerStatuses": [
+                {"ready": false, "restartCount": 2,
+                 "state": {"waiting": {"reason": "CrashLoopBackOff"}}}]}},
+            {"metadata": {"name": "api-create"},
+             "status": {"phase": "Pending", "containerStatuses": [
+                {"ready": false, "restartCount": 0,
+                 "state": {"waiting": {"reason": "CreateContainerError"}}}]}},
+            {"metadata": {"name": "api-run"},
+             "status": {"phase": "Pending", "containerStatuses": [
+                {"ready": false, "restartCount": 0,
+                 "state": {"waiting": {"reason": "RunContainerError"}}}]}},
+            {"metadata": {"name": "api-name"},
+             "status": {"phase": "Pending", "containerStatuses": [
+                {"ready": false, "restartCount": 0,
+                 "state": {"waiting": {"reason": "InvalidImageName"}}}]}}
+        ]})
+        .to_string(),
+    )
+    .unwrap();
+
+    assert_eq!(pods[0].name, "api-create");
+    assert_eq!(pods[0].stuck.as_deref(), Some("CreateContainerError"));
+    assert_eq!(pods[1].stuck.as_deref(), Some("RunContainerError"));
+    assert_eq!(pods[2].stuck.as_deref(), Some("InvalidImageName"));
+    assert_eq!(pods[3].name, "api-leaving");
+}

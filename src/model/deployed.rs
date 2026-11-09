@@ -168,14 +168,23 @@ pub fn parse_pods(json: &str) -> Result<Vec<Pod>, String> {
         .iter()
         .map(parse_pod)
         .collect();
-    pods.sort_by_key(|pod| match (pod.finished(), &pod.stuck, pod.ready) {
-        (true, _, _) => 3,
-        (false, Some(_), _) => 0,
-        (false, None, false) => 1,
-        (false, None, true) => 2,
-    });
+    pods.sort_by_key(
+        |pod| match (pod.finished() || pod.terminating, &pod.stuck, pod.ready) {
+            (true, _, _) => 3,
+            (false, Some(_), _) => 0,
+            (false, None, false) => 1,
+            (false, None, true) => 2,
+        },
+    );
 
     Ok(pods)
+}
+
+fn pod_condition<'a>(pod: &'a serde_json::Value, kind: &str) -> Option<&'a serde_json::Value> {
+    pod.pointer("/status/conditions")?
+        .as_array()?
+        .iter()
+        .find(|condition| text(condition, "type") == kind)
 }
 
 fn waiting_reason(container: &serde_json::Value) -> Option<&str> {
@@ -212,6 +221,10 @@ fn parse_pod(pod: &serde_json::Value) -> Pod {
         .and_then(|container| waiting_reason(container))
         .map(str::to_string)
         .or_else(|| restarting.map(|_| "restarting".to_string()));
+    let unschedulable = pod_condition(pod, "PodScheduled").filter(|condition| {
+        text(condition, "status") == "False" && text(condition, "reason") == "Unschedulable"
+    });
+    let stuck = stuck.or_else(|| unschedulable.map(|_| "Unschedulable".to_string()));
     Pod {
         name: pod
             .pointer("/metadata/name")
@@ -223,15 +236,18 @@ fn parse_pod(pod: &serde_json::Value) -> Pod {
             .and_then(|v| v.as_str())
             .unwrap_or_default()
             .to_string(),
-        ready: pod
-            .pointer("/status/containerStatuses")
-            .and_then(|v| v.as_array())
-            .is_some_and(|all| {
-                !all.is_empty()
-                    && all
-                        .iter()
-                        .all(|c| c.get("ready").and_then(|v| v.as_bool()) == Some(true))
-            }),
+        ready: match pod_condition(pod, "Ready") {
+            Some(condition) => text(condition, "status") == "True",
+            None => pod
+                .pointer("/status/containerStatuses")
+                .and_then(|v| v.as_array())
+                .is_some_and(|all| {
+                    !all.is_empty()
+                        && all
+                            .iter()
+                            .all(|c| c.get("ready").and_then(|v| v.as_bool()) == Some(true))
+                }),
+        },
         restarts: containers
             .iter()
             .filter_map(|container| container.get("restartCount")?.as_u64())
@@ -244,13 +260,13 @@ fn parse_pod(pod: &serde_json::Value) -> Pod {
             .pointer("/spec/containers/0/image")
             .and_then(|v| v.as_str())
             .and_then(|image| sha_from_image(image).ok()),
-        waiting: culprit.and_then(|container| {
-            let waiting = container.pointer("/state/waiting")?;
-            Some(Waiting {
+        waiting: culprit
+            .and_then(|container| container.pointer("/state/waiting"))
+            .or(unschedulable)
+            .map(|waiting| Waiting {
                 reason: text(waiting, "reason"),
                 message: text(waiting, "message"),
-            })
-        }),
+            }),
         stuck,
         last_exit: culprit.and_then(|container| {
             let terminated = container.pointer("/lastState/terminated")?;
@@ -273,11 +289,14 @@ pub enum Health {
     Alert(String),
 }
 
-const STUCK: [&str; 4] = [
+const STUCK: [&str; 7] = [
     "CrashLoopBackOff",
     "ImagePullBackOff",
     "ErrImagePull",
     "CreateContainerConfigError",
+    "CreateContainerError",
+    "RunContainerError",
+    "InvalidImageName",
 ];
 
 pub fn health(rollout: &Rollout, pods: Option<&[Pod]>) -> Health {

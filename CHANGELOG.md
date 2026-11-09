@@ -1,7 +1,7 @@
 # Changelog
 
 ## v0.23.0 (2026-11-09)
-- A Deployed card shows a yellow `⚠` when a pod is stuck (CrashLoopBackOff, an image that cannot be pulled) or the rollout stalled while the app still serves, with the reason on the card.
+- A Deployed card shows a yellow `⚠` when a pod is stuck (CrashLoopBackOff, an image that cannot be pulled, no node to run on) or the rollout stalled while the app still serves, with the reason on the card.
 - A Deployed card shows a red `‼` when the deployment is not available.
 - A Deployed card shows a grey `?` when its pods could not be read, so a missing permission never looks like a healthy app.
 - `d` on a Deployed card lists the kube context, namespace and deployment, the replica counts, the failing conditions and every pod with its status, restarts, age, version and last exit reason.
