@@ -16,6 +16,10 @@ Decisions taken with the user:
 - **Warning (yellow):** Available, but a pod container waits in `CrashLoopBackOff`,
   `ImagePullBackOff`, `ErrImagePull` or `CreateContainerConfigError`, or `Progressing` is
   `False` with reason `ProgressDeadlineExceeded`.
+- **Pods not read (grey `?`):** the Deployment is Available but the pods call failed (RBAC, a
+  timeout), so a crashloop cannot be ruled out. The card gets a grey `?` in the health slot and
+  a dim `pods not read: <error>` line. Asked for by the user after approval: a card with no
+  icon must mean the pods were read and are fine.
 - **Details pane adds:** target, replicas and conditions, pod list, why a container crashed.
 
 ## Design
@@ -52,8 +56,9 @@ call is skipped when the Deployment call fails or `spec.selector.matchLabels` is
   with `Waiting { reason, message }` and `LastExit { reason, exit_code }`;
   `parse_pods(&str) -> Vec<Pod>`, lenient like the gh parsers, reading `containerStatuses` and
   `initContainerStatuses`, problems first.
-- `enum Health { Unknown, Healthy, Warning(String), Alert(String) }` (default `Unknown`) and the
-  pure `health(&Rollout, &[Pod]) -> Health`. Terminating pods never count. Reason strings:
+- `enum Health { Unknown, Healthy, Unread, Warning(String), Alert(String) }` (default `Unknown`)
+  and the pure `health(&Rollout, Option<&[Pod]>) -> Health`; `None` means the pods were not
+  read and gives `Unread` unless the Deployment alone is an `Alert`. Terminating pods never count. Reason strings:
   `0 of 2 available`, `1 of 3 pods CrashLoopBackOff`, `rollout stalled`.
 - `Deployment` gains `health: Health`, `rollout: Option<Rollout>`, `pods: Vec<Pod>`,
   `pods_error: Option<String>`, `target: String` (`context / namespace / deployment`).
@@ -62,7 +67,8 @@ call is skipped when the Deployment call fails or `spec.selector.matchLabels` is
 
 Deployment call → `parse_deployment` → image and sha exactly as today → pods call → `health`.
 A failed pods call is **not** a row error: it sets `pods_error`, and health is judged from the
-Deployment alone (the alert rule still works, the pod warning cannot).
+Deployment alone: `Alert` when it is not Available, else `Unread`. A Deployment without
+`matchLabels` is treated the same way (`pods_error` says the selector has no labels).
 
 `App::keep_last_known` (`src/app.rs:1636`) stays as is: a row whose kubectl call failed keeps
 its last sha and pull but not its last health or pods, which would be stale under a `✗`.
@@ -112,7 +118,7 @@ before ready.
 - **Fixtures are synthetic** (`acme/*`), like `queue.json`: the repo is public and the only
   clusters at hand are private. The JSON field paths get checked read-only against a live
   cluster before task 1, nothing is copied from it.
-- **RBAC:** `get pods` may be denied where `get deploy` is allowed. Handled by `pods_error`.
+- **RBAC:** `get pods` may be denied where `get deploy` is allowed. Handled by `pods_error` and the grey `?`.
 - **Selector:** only `matchLabels` is used; a `matchExpressions`-only Deployment gets no pod
   list. Pods of another workload sharing the labels would be listed too.
 - **`‼` width:** U+203C has an emoji presentation in some terminals and could draw 2 columns
