@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Gates, dev install, commit and push in one step. Any failure aborts before the commit.
 # Usage: scripts/ship.sh "type(scope): message"
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -11,7 +10,11 @@ if [ "$branch" = "main" ]; then
 fi
 cargo fmt
 scripts/gates.sh
-scripts/dev-install.sh
+if reason="$(scripts/dev-install-skippable.sh)"; then
+  echo "skipping dev-install: $reason"
+else
+  scripts/dev-install.sh
+fi
 git add -A
 git commit -q -m "$message"
 git push -q -u origin "$branch"
