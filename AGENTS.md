@@ -56,7 +56,8 @@ src/text.rs      truncate/pad_right with `…`, age(), duration() (coarse, cards
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
-scripts/ship.sh               gates + dev-install + commit + push, aborts on any failure
+scripts/ship.sh               gates + dev-install (unless skippable) + commit + push, aborts on any failure
+scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
 plans/                        one versioned plan file per phase (see Working agreements)
 scripts/homebrew-formula.sh   prints the tap formula for a released version
 scripts/screenshots.sh        renders docs/details.png from a gh shim + synthetic fixture (truecolor.py converts ANSI)
@@ -727,6 +728,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `SHIMS` mutex for its whole body. Any new test that writes an executable and runs it in the
   same test binary must do the same (or run it in a separate process such as tmux, as e2e
   does). Treat a green PR run as no proof against this class: it is timing-dependent.
+  `tests/scripts.rs` needs no mutex because it writes no executable: every shim is a symlink
+  to a tracked script, and the scripts under test are symlinked into the scratch directory.
 - A card's first line in a 40-column pane holds about 30 characters after the bar, glyph and
   the right-aligned figure; a build card's title gets a line of its own and about `width - 4`.
   Card tests read line groups, not one line per row: a build card is four lines, so row `n`
@@ -857,9 +860,11 @@ cargo test -- --include-ignored   # one pass; the ignored ones are e2e: real bin
 ```
 
 Without tmux the last gate is a plain `cargo test` and a notice that the e2e tests were skipped.
-`tests/scripts.rs` runs the scripts themselves in a scratch directory with shims first on PATH.
+`tests/scripts.rs` runs the scripts themselves in a scratch directory and a scratch git
+repository, with `cargo`, `gh` and the scripts they call replaced by symlinks to
+`tests/fixtures/record-call.sh`, which appends its name and argv to `$CALLS_LOG`.
 
-Ship with `scripts/ship.sh "<message>"`: `cargo fmt`, gates, `dev-install.sh`, commit, push, all under
+Ship with `scripts/ship.sh "<message>"`: `cargo fmt`, gates, `dev-install.sh` (unless skipped, see Install), commit, push, all under
 `set -e`, refusing to run on `main`, opening the draft PR on the first push of a branch. Do not hand-roll the chain: the interactive shell here is
 zsh, where `PIPESTATUS` is undefined and `test "" -eq 0` is true, so a `gates.sh | grep` guard
 silently passed a clippy failure into a commit on 2026-09-10.
@@ -871,7 +876,23 @@ and then `;` before `git commit` does the same (it happened on this repo's boots
 Install: `scripts/dev-install.sh` builds the release binary and symlinks it as
 `~/.local/bin/conveyor-dev`; `conveyor` on PATH is always the Homebrew release. Never
 `cargo install` the crate into a PATH dir. A milestone is done only after the gates pass
-**and** `dev-install.sh` has run, so `conveyor-dev` is the committed code.
+**and** `ship.sh` has either run `dev-install.sh` or said why it skipped it, so `conveyor-dev`
+is the committed code of every branch that changed what the binary is built from.
+
+`ship.sh` skips the install, printing `skipping dev-install: <reason>`, only when both hold
+(`scripts/dev-install-skippable.sh`): `conveyor-dev` resolves to another worktree's build, and
+nothing between the merge base with `origin/main` and the working tree, untracked files
+included, is outside `tests/`, `docs/`, `plans/`, `scripts/`, `.github/`, `AGENTS.md`,
+`PLAN.md`, `README.md`, `LICENSE` and `.gitignore`. Everything else counts as feeding the
+binary (`src/`, `Cargo.toml`, `Cargo.lock`, the bundled `CHANGELOG.md`, any path nobody
+listed), and a missing or dangling `conveyor-dev`, or no `origin/main`, installs too. So a
+branch of docs, tests, scripts or CI never takes `conveyor-dev` over, and `conveyor-dev` then
+stays the other worktree's build, not this branch's. Once `conveyor-dev` is this worktree's
+build every ship runs `dev-install.sh`: cargo's own freshness check makes it a no-op of about
+0.3 s when nothing changed (measured 2026-11-10; 17 s after a `src/` change, 23 s from a cold
+`target/`), and it rebuilds after a merge of `main` that no diff of the commit would show.
+Embedding a file from one of the listed directories into the binary means taking that
+directory off the list in the script.
 
 ## CI
 
