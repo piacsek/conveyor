@@ -37,7 +37,12 @@ src/model/builds.rs Build, BuildStatus, PullRef, Builds; `parse_runs`, `pr_numbe
 src/model/deployed.rs Deployment, Deployed, Rollout, Condition, Pod, Health; `sha_from_image` (40-hex tag or `-<sha>` suffix), `parse_deployment`, `parse_pods` (problems first), `health`
 src/model/jobs.rs Job, `parse_jobs` (failures first), `failed_step`
 src/model/log.rs  `tail`: the failed step's log as gh prints it, minus job/step/timestamp prefixes and ANSI
-src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Mode::{Normal, Filter, Help, Changelog, Confirm, Manage}, Menu/Offer/Choice (the `S` popup), Input::{Key, Fetching, Data, Jobs, Log, Merged, Rerun, BranchUpdated, StatusChanged, CheckedOut, Tick}, Request::{Refresh, Jobs, Log, Rerun, Merge, UpdateBranch, ChangeStatus, Checkout}, run()
+src/app/mod.rs   App (one Column per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Stage, Rows, Mode::{Normal, Filter, Help, Changelog, Confirm, Manage}, Input::{Key, Fetching, Data, Jobs, Log, Merged, Rerun, BranchUpdated, StatusChanged, CheckedOut, Tick}, Action, Request::{Refresh, Jobs, Log, Rerun, Merge, UpdateBranch, ChangeStatus, Checkout}; receive, the `focused_*` readers, `pull_target`, `build_url`, open, scroll and filter helpers, `keep_last_known`; re-exports everything below as `app::X`
+src/app/column.rs Column<T: Row> (state, error, list, filter), ColumnState, Row and its four impls, Order, `merge_keeping_order`, Navigable
+src/app/jobs.rs  JobsState, LogState, `age_jobs`, `jobs_needed` (selected, stale, then the first `EAGER_JOBS` failing builds), `selected_run`, `toggle_log`, `receive_jobs`, `receive_log`
+src/app/manage.rs Menu/Offer/Choice (the `S` popup), the `*Target` structs, Rerun, Pending, `menu`, `manage`, the confirm and `reconfirm` paths, the `send_*` and `receive_*` of each write, the footer wording (`offer`, `changed`, `progress`, `done`, `conflicts`)
+src/app/keys.rs  `handle_key` and the Filter and Normal mode key handlers, `escape`
+src/app/run.rs   run(): draw, read one Input, turn each Action into a Request
 src/ui/mod.rs    draw: 4 columns or tabs below `4 × ui.min_column_width`
 src/ui/style.rs  the shared vocabulary: BAR, INDENT, dim(), glyphs and status words, short_repo, sha8
 src/ui/card.rs   card() and meta(): one title line plus indented span lines
@@ -62,7 +67,8 @@ plans/                        one versioned plan file per phase (see Working agr
 scripts/homebrew-formula.sh   prints the tap formula for a released version
 scripts/screenshots.sh        renders docs/details.png from a gh shim + synthetic fixture (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
-                 `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`
+                 `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
+                 `tests/source_size.rs` fails while any Rust file under `src/` is longer than 700 lines, naming it
 ```
 
 ## Data sources (verified 2026-09-10, all through `gh`)
