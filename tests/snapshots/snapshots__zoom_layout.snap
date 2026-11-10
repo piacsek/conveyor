@@ -1,6 +1,6 @@
 ---
 source: tests/snapshots.rs
-expression: h.screen()
+expression: versionless(h.screen())
 ---
 ┌My PRs (3)────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │▌ ✗  #4821 Retry webhook delivery with backoff                                                                                                             2h│
@@ -13,4 +13,4 @@ expression: h.screen()
 │    webapp                                                                                                                                                    │
 │    checks: none                                                                                                                                              │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-refreshed just now                                                                                                                       ▪─▪─▪▸ conveyor v0.24.0
+refreshed just now                                                                                                                        ▪─▪─▪▸ conveyor vX.Y.Z

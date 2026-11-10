@@ -1,6 +1,6 @@
 ---
 source: tests/snapshots.rs
-expression: h.screen()
+expression: versionless(h.screen())
 ---
 ┌My PRs (0)────────────────────────────┐┌Merge queue───────────────────────────┐┌Main builds───────────────────────────┐┌Deployed──────────────────────────────┐
 │no open pull requests                 ││fetching…                             ││fetching…                             ││no [[repo.deploy]] configured         │
@@ -13,4 +13,4 @@ expression: h.screen()
 │                                      ││                                      ││                                      ││                                      │
 │                                      ││                                      ││                                      ││                                      │
 └──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘
-refreshed just now                                                                                                                       ▪─▪─▪▸ conveyor v0.24.0
+refreshed just now                                                                                                                        ▪─▪─▪▸ conveyor vX.Y.Z

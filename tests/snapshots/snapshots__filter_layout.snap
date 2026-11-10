@@ -1,6 +1,6 @@
 ---
 source: tests/snapshots.rs
-expression: h.screen()
+expression: versionless(h.screen())
 ---
 ┌My PRs (3/3)──────────────────────────┐┌Merge queue───────────────────────────┐┌Main builds───────────────────────────┐┌Deployed──────────────────────────────┐
 │▌ ✗  #4821 Retry webhook delivery… 2h││fetching…                             ││fetching…                             ││no [[repo.deploy]] configured         │
@@ -13,4 +13,4 @@ expression: h.screen()
 │    webapp                            ││                                      ││                                      ││                                      │
 │    checks: none                      ││                                      ││                                      ││                                      │
 └──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘
-/r▏  3/3                                                                                                                                 ▪─▪─▪▸ conveyor v0.24.0
+/r▏  3/3                                                                                                                                  ▪─▪─▪▸ conveyor vX.Y.Z

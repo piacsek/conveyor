@@ -61,7 +61,7 @@ fn list_layout() {
         key(KeyCode::Char('j')),
     ])
     .unwrap();
-    insta::assert_snapshot!(h.screen());
+    insta::assert_snapshot!(versionless(h.screen()));
 }
 
 #[test]
@@ -112,7 +112,7 @@ fn builds_layout() {
         ),
     ])
     .unwrap();
-    insta::assert_snapshot!(h.screen());
+    insta::assert_snapshot!(versionless(h.screen()));
 }
 
 #[test]
@@ -125,7 +125,7 @@ fn queue_details_layout() {
         key(KeyCode::Char('d')),
     ])
     .unwrap();
-    insta::assert_snapshot!(h.screen());
+    insta::assert_snapshot!(versionless(h.screen()));
 }
 
 #[test]
@@ -137,14 +137,14 @@ fn filter_layout() {
         key(KeyCode::Char('r')),
     ])
     .unwrap();
-    insta::assert_snapshot!(h.screen());
+    insta::assert_snapshot!(versionless(h.screen()));
 }
 
 #[test]
 fn details_layout() {
     let mut h = Harness::with_size(160, 20);
     h.run(vec![prs(sample()), key(KeyCode::Char('d'))]).unwrap();
-    insta::assert_snapshot!(h.screen());
+    insta::assert_snapshot!(versionless(h.screen()));
 }
 
 #[test]
@@ -155,42 +155,42 @@ fn error_layout() {
         failed(Stage::Prs, "gh: HTTP 401: Bad credentials"),
     ])
     .unwrap();
-    insta::assert_snapshot!(h.screen());
+    insta::assert_snapshot!(versionless(h.screen()));
 }
 
 #[test]
 fn empty_layout() {
     let mut h = Harness::new();
     h.run(vec![prs(vec![])]).unwrap();
-    insta::assert_snapshot!(h.screen());
+    insta::assert_snapshot!(versionless(h.screen()));
 }
 
 #[test]
 fn loading_layout() {
     let mut h = Harness::new();
     h.run(vec![]).unwrap();
-    insta::assert_snapshot!(h.screen());
+    insta::assert_snapshot!(versionless(h.screen()));
 }
 
 #[test]
 fn tabs_layout() {
     let mut h = Harness::with_size(80, 12);
     h.run(vec![prs(sample())]).unwrap();
-    insta::assert_snapshot!(h.screen());
+    insta::assert_snapshot!(versionless(h.screen()));
 }
 
 #[test]
 fn help_layout() {
     let mut h = Harness::with_size(160, 17);
     h.run(vec![prs(sample()), key(KeyCode::Char('?'))]).unwrap();
-    insta::assert_snapshot!(h.screen());
+    insta::assert_snapshot!(versionless(h.screen()));
 }
 
 #[test]
 fn zoom_layout() {
     let mut h = Harness::new();
     h.run(vec![prs(sample()), key(KeyCode::Char('z'))]).unwrap();
-    insta::assert_snapshot!(h.screen());
+    insta::assert_snapshot!(versionless(h.screen()));
 }
 
 #[test]
@@ -202,12 +202,46 @@ fn confirm_layout() {
         key(KeyCode::Char('m')),
     ])
     .unwrap();
-    insta::assert_snapshot!(h.screen());
+    insta::assert_snapshot!(versionless(h.screen()));
 }
 
 #[test]
 fn manage_layout() {
     let mut h = Harness::with_size(80, 16);
     h.run(vec![prs(sample()), key(KeyCode::Char('S'))]).unwrap();
-    insta::assert_snapshot!(h.screen());
+    insta::assert_snapshot!(versionless(h.screen()));
+}
+
+#[test]
+fn no_snapshot_carries_the_crate_version() {
+    let versioned = format!("conveyor v{}", env!("CARGO_PKG_VERSION"));
+    assert_eq!(snapshots_holding(&versioned), "");
+}
+
+fn versionless(screen: String) -> String {
+    let logo = conveyor::ui::logo();
+    let placeholder = logo.replace(env!("CARGO_PKG_VERSION"), "X.Y.Z");
+    screen
+        .lines()
+        .map(|line| match line.strip_suffix(&logo) {
+            Some(left) => {
+                let width = line.chars().count() - placeholder.chars().count();
+                format!("{:<width$}{placeholder}", left.trim_end())
+            }
+            None => line.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn snapshots_holding(text: &str) -> String {
+    let directory = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/snapshots");
+    let mut names: Vec<String> = std::fs::read_dir(directory)
+        .unwrap()
+        .map(|file| file.unwrap())
+        .filter(|file| std::fs::read_to_string(file.path()).unwrap().contains(text))
+        .map(|file| file.file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    names.join(" ")
 }

@@ -732,6 +732,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   Card tests read line groups, not one line per row: a build card is four lines, so row `n`
   starts at screen line `1 + 4n` and a test that wants a third card needs a terminal taller
   than the 12-row default. The helper that finds the selected card looks for `│▌`.
+- **Snapshots carry `vX.Y.Z`, not the crate version.** Every snapshot in `tests/snapshots.rs`
+  goes through `versionless(h.screen())`, which swaps the footer logo for a placeholder and
+  pads the line back to the terminal width, so a release bump touches no `.snap` file.
+  `no_snapshot_carries_the_crate_version` fails for a new snapshot taken from a bare
+  `h.screen()`. The real version on screen is asserted in `tests/prs.rs`.
 
 ## Documentation rule
 

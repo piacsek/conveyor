@@ -1,6 +1,6 @@
 ---
 source: tests/snapshots.rs
-expression: h.screen()
+expression: versionless(h.screen())
 ---
 ┌My PRs (3)────────────────────────────┐┌Queue webapp (2)──────────────────────┐┌Main builds───────────────────────────┐┌Deployed──────────────────────────────┐
 │  ✗  #4821 Retry webhook delivery… 2h││▌ ● #4821 Retry webhook delivery … 12m││fetching…                             ││no [[repo.deploy]] configured         │
@@ -21,4 +21,4 @@ expression: h.screen()
 │jobs: loading…                                                                                                                                                │
 │                                                                                                                                                              │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-refreshed just now                                                                                                                       ▪─▪─▪▸ conveyor v0.24.0
+refreshed just now                                                                                                                        ▪─▪─▪▸ conveyor vX.Y.Z
