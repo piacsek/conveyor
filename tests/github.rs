@@ -49,14 +49,14 @@ fn a_call_made_while_another_hangs_is_not_held_up_by_it() {
                 std::thread::spawn(move || {
                     start.wait();
                     let started = std::time::Instant::now();
-                    let _ = gh.rest("repos/acme/webapp");
-                    started.elapsed() > std::time::Duration::from_secs(1)
+                    let answer = gh.rest("repos/acme/webapp");
+                    answer.is_err() || started.elapsed() > std::time::Duration::from_secs(1)
                 })
             })
             .collect();
         held_up += healthy
             .into_iter()
-            .filter_map(|call| call.join().ok())
+            .map(|call| call.join().unwrap())
             .filter(|held_up| *held_up)
             .count();
     }

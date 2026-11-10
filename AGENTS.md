@@ -534,7 +534,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   another one hung, and a `gh` call started next to a hung one waited for it. The four fetcher
   threads all spawn at startup and on `R`, so `gh` had this race before the parallel read too.
   A new runner of an external program whose output is read must spawn under the same lock.
-  `open`/`pbcopy` and the `kill` behind the deadline do not: they exit in milliseconds.
+  `open`/`pbcopy` and the `kill` behind the deadline do not: they exit in milliseconds. Known
+  and left: `pbcopy` is fed through a pipe, so a `gh` or `kubectl` spawned in the same
+  microseconds as a `y`/`Y` press inherits its write end and the copy blocks the UI until that
+  child exits.
 - **`gh` never inherits the terminal.** `CliGh::run` gives it a null stdin, so a `gh` that
   wants to prompt (no auth, `HOME` pointing elsewhere) fails fast instead of hanging the
   fetch thread behind `fetching…`.

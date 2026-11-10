@@ -1258,14 +1258,15 @@ impl conveyor::sources::kube::Kube for OverlappingKube {
     fn deployment(&self, _env: &conveyor::config::DeployEnv) -> io::Result<String> {
         let mut running = self.running.lock().unwrap();
         *running += 1;
+        self.most_at_once.fetch_max(*running, Ordering::SeqCst);
         self.another_started.notify_all();
-        let (running, _) = self
+        let (mut running, _) = self
             .another_started
-            .wait_timeout_while(running, std::time::Duration::from_secs(2), |running| {
-                *running < 3
+            .wait_timeout_while(running, std::time::Duration::from_secs(2), |_| {
+                self.most_at_once.load(Ordering::SeqCst) < 3
             })
             .unwrap();
-        self.most_at_once.fetch_max(*running, Ordering::SeqCst);
+        *running -= 1;
         Err(io::Error::other("unreachable"))
     }
 

@@ -220,7 +220,7 @@ fn a_call_made_while_another_hangs_still_gets_its_answer() {
             .collect();
         lost += healthy
             .into_iter()
-            .filter_map(|call| call.join().ok())
+            .map(|call| call.join().unwrap())
             .filter(|lost| *lost)
             .count();
     }
