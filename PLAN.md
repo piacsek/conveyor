@@ -589,6 +589,14 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   lost its answer. Not done: fetching the environments in parallel (one dead environment still
   delays the others by about 15 s, 30 s when only its pods call hangs).
 
+- v0.23.2 (phase 32, `plans/phase-32-parallel-deploy-fetch.md`): the Deployed column reads its
+  environments at the same time. Left out of phase 31 as too large for that patch; the user
+  asked for it right after. `DeploySource::fetch` runs the two kubectl calls of each
+  environment on a scoped thread and resolves pull requests afterwards on the fetcher thread,
+  so the pull cache needed no lock. A dead environment no longer queues the healthy ones behind
+  its 15 s; the column takes as long as its slowest environment. Not done: rows landing one at
+  a time, which needs a column that accepts partial data.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
