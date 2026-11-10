@@ -29,7 +29,7 @@ src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR
 src/sources/     everything that reaches out to an external service, and nothing else
 src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`, `log_failed`, `rerun_failed`, `merge`, `update_branch`, `change_status`), CliGh spawns `gh api …` / `gh repo view` / `gh run view --log-failed` / `gh run rerun --failed` / `gh pr merge|update-branch|ready|close`, error mapping
 src/sources/kube.rs   Kube trait (`deployment(env)`, `pods(env, selector)`), CliKubectl (`kubectl --context … get deploy|pods … -o json`, a 10 s request timeout and a 15 s `DEADLINE` that kills the process)
-src/sources/fetch.rs  repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), fetch_jobs, fetch_log (LOG_TAIL lines), BuildsSource (caches workflow id and sha→PR), DeploySource (per-env kubectl + cached sha→PR)
+src/sources/fetch.rs  repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), fetch_jobs, fetch_log (LOG_TAIL lines), BuildsSource (caches workflow id and sha→PR), DeploySource (kubectl per env on parallel threads + cached sha→PR)
 src/sources/queries/  GraphQL documents, `include_str!`ed
 src/model/prs.rs PullRequest, CheckState, Check, ReviewDecision, MergeState; lenient `parse` of gh JSON
 src/model/queue.rs Queue, QueueEntry, QueueState, MergeGroupRun; `parse`, `parse_merge_group_runs`, `attach_runs`
@@ -299,8 +299,21 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   row's `error`, and the card shows the grey `?` with `pods not read: <error>`; under a louder `‼` or `⚠` the
   icon gives way but the line stays. The user asked
   for that: without it a crashlooping version looked healthy wherever `get pods` was denied.
-  A dead session costs about 15 s per env (`DEADLINE`, plus up to 500 ms to collect stderr; the pods call is skipped when the Deployment call
-  fails); about 30 s needs the Deployment call to answer and the pods call to hang. A row whose Deployment call
+  **The environments are read at the same time.** `DeploySource::fetch` gives each environment
+  a scoped thread (`std::thread::scope`) for its two kubectl calls, the Deployment then the
+  pods, and builds the rows on the fetcher thread once every thread is back, in config order.
+  The sha → pull request lookup runs there, after the threads, so `Pulls` and `gh` stay
+  single-threaded and the row order never depends on which cluster answered first; `Kube`
+  implementations must be `Sync`. They were read one after another until v0.23.2, so every
+  unreachable environment added its own wait in front of the healthy rows. The column now
+  takes as long as its slowest environment: about 15 s when a Deployment call hangs
+  (`DEADLINE`, plus up to 500 ms to collect stderr; the pods call is skipped when the
+  Deployment call fails), about 30 s when a Deployment call answers and its pods call hangs,
+  however many environments are down. The rows still land together: a healthy row waits for
+  the slowest one, because a column takes all its rows in one `Rows::Deployed`. A thread that
+  panics is that row's error (`reading this environment panicked`), not the column's. With an
+  expired session every environment's kubectl starts at once, so a login plugin may be started
+  once per environment at the same moment. A row whose Deployment call
   failed keeps its last sha and pull request (`keep_last_known`) but not its last health or
   pods, which would be stale under the `✗`. Only `matchLabels` is used, so pods of another
   workload sharing those labels are listed too. The details pane lists the target
