@@ -853,9 +853,11 @@ Gates, all required before a task is done, wrapped by `scripts/gates.sh`:
 ```
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
-cargo test
-cargo test -- --ignored        # e2e: real binary with a `gh` shim first on PATH
+cargo test -- --include-ignored   # one pass; the ignored ones are e2e: real binary, `gh` shim first on PATH
 ```
+
+Without tmux the last gate is a plain `cargo test` and a notice that the e2e tests were skipped.
+`tests/scripts.rs` runs the scripts themselves in a scratch directory with shims first on PATH.
 
 Ship with `scripts/ship.sh "<message>"`: `cargo fmt`, gates, `dev-install.sh`, commit, push, all under
 `set -e`, refusing to run on `main`, opening the draft PR on the first push of a branch. Do not hand-roll the chain: the interactive shell here is
