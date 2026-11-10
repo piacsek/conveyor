@@ -587,7 +587,7 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   measured one orphan helper, two threads and two pipes left per timed-out call, hence the
   process group; the second called an exited kubectl whose helper held the pipes a timeout and
   lost its answer. Not done: fetching the environments in parallel (one dead environment still
-  delays the others by about 30 s).
+  delays the others by about 15 s, 30 s when only its pods call hangs).
 
 ## Deferred / backlog (discuss at retros)
 
