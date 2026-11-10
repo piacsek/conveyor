@@ -1304,8 +1304,8 @@ impl App {
                 .config
                 .repo
                 .iter()
-                .find(|repo| repo.name.eq_ignore_ascii_case(&pr.repo))
-                .and_then(|repo| repo.path.clone()),
+                .filter(|repo| repo.name.eq_ignore_ascii_case(&pr.repo))
+                .find_map(|repo| repo.path.clone()),
         }
     }
 

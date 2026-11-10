@@ -1,9 +1,9 @@
 # Changelog
 
 ## v0.24.0 (2026-11-10)
-- `S` then `c` checks the selected pull request out locally with `gh pr checkout`, in the directory conveyor was started in. The footer says where it landed, or git's reason when it could not (uncommitted changes, a branch already open in another worktree).
-- A `[[repo]]` takes an optional `path` to its local clone, so the checkout works from wherever conveyor runs.
-- A checkout is refused when the directory is a clone of another repository, instead of fetching the pull request into it.
+- `S` then `c` checks the selected pull request out locally with `gh pr checkout`. The footer says where it landed, or git's reason when it could not (uncommitted changes, a branch already open in another worktree).
+- The checkout runs in the `path` set under the repository's `[[repo]]`, a new optional key, and otherwise in the directory conveyor was started in.
+- A checkout is refused when that directory is not a clone of the pull request's repository, instead of fetching the pull request into it.
 
 ## v0.23.2 (2026-11-09)
 - The Deployed column asks all its environments at the same time, so one that does not answer no longer makes the others wait their turn behind it.
