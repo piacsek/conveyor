@@ -39,8 +39,10 @@ when the server is unreachable.
    threads and two pipes behind on every timed-out call).
 2. **The pipes are bounded too.** A helper kubectl started (a login plugin) can outlive it and
    keep the pipes open, which is what `output()` waits for. Once kubectl has exited, the
-   output is awaited only until the deadline (at least `DRAIN`, 1 s); after that the call is a
-   timeout as well and the group is killed.
+   output gets `DRAIN` (500 ms) to arrive; then the group is killed, which closes the pipes,
+   and kubectl's own output and exit status are used. (Changed after review: the first cut
+   waited until the deadline and reported a timeout, losing kubectl's answer.) Only a helper
+   that escaped the group leaves the call a timeout.
 3. **The row says why.** klog lines (`E<mmdd> <time> <pid> <file>.go:<line>] …`) are dropped
    from the error a row shows when anything else is left, so the card reads
    `Unable to connect to the server: …`. The log keeps every line.

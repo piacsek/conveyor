@@ -245,11 +245,14 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   dependency or `unsafe`): the row reads `kubectl did not answer within 15s` and the log line
   ends in `timed out`, followed by `: <stderr lines>` when kubectl had said anything, so the
   log still shows why. The pipes are bounded as well: a helper that outlives kubectl (a login
-  plugin) keeps them open, which is what `Command::output()` waits for, so once kubectl has
-  exited its output is awaited only until the deadline (at least 1 s) and the call is a timeout
-  after that. Killing the group, not the process, is what ends that helper: left alive it kept
-  one process, two reader threads and two pipes per call for as long as it ran, every refresh.
-  A helper that moved itself to another session (`setsid`) escapes the kill. The flag stays: it is
+  plugin) keeps them open, which is what `Command::output()` waits for. Once kubectl has exited,
+  its output gets `DRAIN` (500 ms) to arrive; after that the group is killed, which closes the
+  pipes, and **kubectl's own answer is used**: its stdout and exit status when it succeeded,
+  its stderr as the row's error when it failed. The first cut called that case a timeout and
+  threw the answer away. Killing the group, not the process, is what ends a helper: left alive
+  it kept one process, two reader threads and two pipes per call for as long as it ran, every
+  refresh. A helper that moved itself to another session (`setsid`) escapes the kill; only
+  then is an exited kubectl reported as a timeout. The flag stays: it is
   what makes one slow request fail with kubectl's own message before anything is killed.
   **A row's error is what kubectl said, minus its klog lines.** kubectl prints its client-go
   log first on stderr (`E1109 20:36:29.585690   14272 memcache.go:265] "Unhandled Error" …`),
@@ -296,7 +299,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   row's `error`, and the card shows the grey `?` with `pods not read: <error>`; under a louder `‼` or `⚠` the
   icon gives way but the line stays. The user asked
   for that: without it a crashlooping version looked healthy wherever `get pods` was denied.
-  A dead session costs about 15 s per env (`DEADLINE`, plus up to 1 s to collect stderr; the pods call is skipped when the Deployment call
+  A dead session costs about 15 s per env (`DEADLINE`, plus up to 500 ms to collect stderr; the pods call is skipped when the Deployment call
   fails); about 30 s needs the Deployment call to answer and the pods call to hang. A row whose Deployment call
   failed keeps its last sha and pull request (`keep_last_known`) but not its last health or
   pods, which would be stale under the `✗`. Only `matchLabels` is used, so pods of another
