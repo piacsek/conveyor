@@ -89,6 +89,7 @@ impl Log {
                     .collect();
                 format!("exit {code}: {}", lines.join(" | "))
             }
+            Err(err) if err.kind() == io::ErrorKind::TimedOut => "timed out".to_string(),
             Err(err) => format!("did not start: {err}"),
         };
         self.line(&format!(

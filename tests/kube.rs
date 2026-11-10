@@ -1,6 +1,7 @@
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::sync::{Mutex, MutexGuard};
+use std::time::{Duration, Instant};
 
 use conveyor::config::DeployEnv;
 use conveyor::log::Log;
@@ -53,6 +54,37 @@ fn a_failing_kubectl_call_is_logged_with_its_argv_and_stderr() {
         text.ends_with("ms exit 1: error: You must be logged in\n"),
         "{text}"
     );
+}
+
+#[test]
+fn a_kubectl_that_hangs_is_killed_at_the_deadline() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("conveyor.log");
+    let kubectl = shim(&dir, "sleep 5")
+        .with_log(Log::open(&file))
+        .with_deadline(Duration::from_secs(1));
+    let started = Instant::now();
+
+    let err = kubectl.deployment(&env()).unwrap_err();
+
+    assert!(started.elapsed() < Duration::from_secs(3), "{err}");
+    assert_eq!(err.to_string(), "kubectl did not answer within 1s");
+    let text = fs::read_to_string(&file).unwrap();
+    assert!(text.ends_with("ms timed out\n"), "{text}");
+}
+
+#[test]
+fn a_helper_that_outlives_kubectl_and_holds_its_output_is_a_timeout_too() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let kubectl = shim(&dir, "sleep 5 &\necho '{}'").with_deadline(Duration::from_secs(1));
+    let started = Instant::now();
+
+    let err = kubectl.deployment(&env()).unwrap_err();
+
+    assert!(started.elapsed() < Duration::from_secs(3), "{err}");
+    assert_eq!(err.to_string(), "kubectl did not answer within 1s");
 }
 
 #[test]
