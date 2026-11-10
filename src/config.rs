@@ -72,6 +72,8 @@ impl Default for Ui {
 #[serde(default, deny_unknown_fields)]
 pub struct Repo {
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<PathBuf>,
     pub main_workflow: String,
     pub builds: usize,
     pub refresh_secs: u64,
@@ -82,6 +84,7 @@ impl Default for Repo {
     fn default() -> Self {
         Self {
             name: String::new(),
+            path: None,
             main_workflow: "CI/CD".to_string(),
             builds: 10,
             refresh_secs: 30,
@@ -173,4 +176,11 @@ pub fn path(
             .join("conveyor")
             .join("config.toml")
     })
+}
+
+pub fn expand_home(path: &Path, home: Option<&Path>) -> PathBuf {
+    match (path.strip_prefix("~"), home) {
+        (Ok(rest), Some(home)) => home.join(rest),
+        _ => path.to_path_buf(),
+    }
 }
