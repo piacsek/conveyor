@@ -238,12 +238,17 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   **The request timeout is not a limit on the call, so the process has one.**
   `--request-timeout=10s` bounds one HTTP request, and kubectl retries API discovery: against a
   proxy that stopped answering, each call took 40 s (three failed attempts 10 s apart, then the
-  error) and the column sat on `fetching…`. `CliKubectl::run` spawns kubectl, drains both pipes
-  on threads and kills it at `kube::DEADLINE` (15 s): the row reads `kubectl did not answer
-  within 15s` and the log line ends in `timed out`. The pipes are bounded as well: a helper that
-  outlives kubectl (a login plugin) keeps them open, which is what `Command::output()` waits
-  for, so once kubectl has exited its output is awaited only until the deadline (at least 1 s)
-  and the call is a timeout after that. The helper itself is not killed. The flag stays: it is
+  error) and the column sat on `fetching…`. `CliKubectl::run` spawns kubectl in its own process
+  group (`process_group(0)`), drains both pipes on threads and at `kube::DEADLINE` (15 s) kills
+  the **group** (`kill -KILL -- -<pid>`, the one way to signal a group without a new
+  dependency or `unsafe`): the row reads `kubectl did not answer within 15s` and the log line
+  ends in `timed out`, followed by `: <stderr lines>` when kubectl had said anything, so the
+  log still shows why. The pipes are bounded as well: a helper that outlives kubectl (a login
+  plugin) keeps them open, which is what `Command::output()` waits for, so once kubectl has
+  exited its output is awaited only until the deadline (at least 1 s) and the call is a timeout
+  after that. Killing the group, not the process, is what ends that helper: left alive it kept
+  one process, two reader threads and two pipes per call for as long as it ran, every refresh.
+  A helper that moved itself to another session (`setsid`) escapes the kill. The flag stays: it is
   what makes one slow request fail with kubectl's own message before anything is killed.
   **A row's error is what kubectl said, minus its klog lines.** kubectl prints its client-go
   log first on stderr (`E1109 20:36:29.585690   14272 memcache.go:265] "Unhandled Error" …`),
@@ -290,8 +295,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   row's `error`, and the card shows the grey `?` with `pods not read: <error>`; under a louder `‼` or `⚠` the
   icon gives way but the line stays. The user asked
   for that: without it a crashlooping version looked healthy wherever `get pods` was denied.
-  A dead session costs at most 15 s per env (`DEADLINE`; the pods call is skipped when the Deployment call
-  fails); 30 s needs the Deployment call to answer and the pods call to hang. A row whose Deployment call
+  A dead session costs about 15 s per env (`DEADLINE`, plus up to 1 s to collect stderr; the pods call is skipped when the Deployment call
+  fails); about 30 s needs the Deployment call to answer and the pods call to hang. A row whose Deployment call
   failed keeps its last sha and pull request (`keep_last_known`) but not its last health or
   pods, which would be stale under the `✗`. Only `matchLabels` is used, so pods of another
   workload sharing those labels are listed too. The details pane lists the target
@@ -489,7 +494,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 - **Every `gh` and `kubectl` call is logged, nothing else from them.** `CliGh::run` and
   `CliKubectl::run` time the spawn and hand the raw `Output` to `Log::call`: argv (a
   `query=` argument becomes `query=<N chars>`), milliseconds, then `ok`, `exit N: <stderr lines
-  joined by |>`, `timed out` (kubectl killed at its deadline) or `did not start: <err>`. Stdout is never written: it is megabytes of JSON and
+  joined by |>`, `timed out[: <stderr lines>]` (kubectl killed at its deadline) or `did not start: <err>`. Stdout is never written: it is megabytes of JSON and
   the job logs. A new runner of an external program takes a `Log` the same way. The file is
   `<program>.log` after `argv[0]`, so `conveyor` and `conveyor-dev` keep separate files; only
   the TUI opens it (and rotates the old one to `.1`), so `conveyor config` and `conveyor log`

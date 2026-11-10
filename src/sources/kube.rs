@@ -1,4 +1,5 @@
 use std::io::{self, Read};
+use std::os::unix::process::CommandExt;
 use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
 use std::sync::mpsc::{self, Receiver};
@@ -72,15 +73,22 @@ impl CliKubectl {
 
     fn run(&self, args: &[String]) -> io::Result<String> {
         let started = Instant::now();
-        let output = self
-            .output(Command::new(&self.program).args(args).stdin(Stdio::null()))
-            .map_err(|err| {
-                if err.kind() == io::ErrorKind::NotFound {
-                    io::Error::new(io::ErrorKind::NotFound, MISSING)
-                } else {
-                    err
-                }
-            });
+        let ran = self.output(Command::new(&self.program).args(args).stdin(Stdio::null()));
+        let output = match ran {
+            Ok(Ran::Finished(output)) => Ok(output),
+            Ok(Ran::TimedOut(stderr)) => {
+                self.log
+                    .timed_out("kubectl", args, started.elapsed(), &stderr);
+                return Err(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    format!("kubectl did not answer within {}s", self.deadline.as_secs()),
+                ));
+            }
+            Err(err) if err.kind() == io::ErrorKind::NotFound => {
+                Err(io::Error::new(io::ErrorKind::NotFound, MISSING))
+            }
+            Err(err) => Err(err),
+        };
         self.log.call("kubectl", args, started.elapsed(), &output);
         let output = output?;
         if !output.status.success() {
@@ -95,8 +103,9 @@ impl CliKubectl {
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
     }
 
-    fn output(&self, command: &mut Command) -> io::Result<Output> {
+    fn output(&self, command: &mut Command) -> io::Result<Ran> {
         let mut child = command
+            .process_group(0)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()?;
@@ -108,30 +117,42 @@ impl CliKubectl {
                 break status;
             }
             if started.elapsed() >= self.deadline {
-                let _ = child.kill();
+                kill_group(child.id());
                 let _ = child.wait();
-                return Err(self.timed_out());
+                return Ok(Ran::TimedOut(
+                    stderr.recv_timeout(DRAIN).unwrap_or_default(),
+                ));
             }
             thread::sleep(POLL);
         };
         let until = Instant::now() + self.deadline.saturating_sub(started.elapsed()).max(DRAIN);
         let left = || until.saturating_duration_since(Instant::now());
         match (stdout.recv_timeout(left()), stderr.recv_timeout(left())) {
-            (Ok(stdout), Ok(stderr)) => Ok(Output {
+            (Ok(stdout), Ok(stderr)) => Ok(Ran::Finished(Output {
                 status,
                 stdout,
                 stderr,
-            }),
-            _ => Err(self.timed_out()),
+            })),
+            (_, stderr) => {
+                kill_group(child.id());
+                Ok(Ran::TimedOut(stderr.unwrap_or_default()))
+            }
         }
     }
+}
 
-    fn timed_out(&self) -> io::Error {
-        io::Error::new(
-            io::ErrorKind::TimedOut,
-            format!("kubectl did not answer within {}s", self.deadline.as_secs()),
-        )
-    }
+enum Ran {
+    Finished(Output),
+    TimedOut(Vec<u8>),
+}
+
+fn kill_group(leader: u32) {
+    let _ = Command::new("kill")
+        .args(["-KILL", "--", &format!("-{leader}")])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
 }
 
 fn said(stderr: &str) -> String {

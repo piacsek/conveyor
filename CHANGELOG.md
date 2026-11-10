@@ -2,7 +2,7 @@
 
 ## v0.23.1 (2026-11-09)
 - The Deployed column no longer sits on `fetching…` for 40 seconds when a cluster stops answering: kubectl is cut off after 15 seconds and the row says `kubectl did not answer within 15s`.
-- A Deployed row that failed shows kubectl's reason (`Unable to connect to the server: …`) instead of an internal log line.
+- A Deployed row that failed shows kubectl's reason (for example `error: You must be logged in to the server`) instead of an internal log line.
 
 ## v0.23.0 (2026-11-09)
 - A Deployed card shows a yellow `⚠` when a pod is stuck (CrashLoopBackOff, an image that cannot be pulled, no node to run on) or the rollout stalled while the app still serves, with the reason on the card.

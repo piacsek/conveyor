@@ -1,5 +1,6 @@
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
+use std::process::Command;
 use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
@@ -125,6 +126,48 @@ exit 1"#,
 }
 
 #[test]
+fn a_helper_kubectl_started_is_killed_with_it_at_the_deadline() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let kubectl =
+        shim(&dir, "sleep 30 &\necho $! > \"$0.pid\"\nwait").with_deadline(Duration::from_secs(1));
+
+    let _ = kubectl.deployment(&env());
+
+    assert!(!alive_after(&dir, Duration::from_secs(2)));
+}
+
+#[test]
+fn a_helper_that_outlives_kubectl_is_killed_once_its_output_is_given_up_on() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let kubectl = shim(&dir, "sleep 30 &\necho $! > \"$0.pid\"\necho '{}'")
+        .with_deadline(Duration::from_secs(1));
+
+    let _ = kubectl.deployment(&env());
+
+    assert!(!alive_after(&dir, Duration::from_secs(2)));
+}
+
+#[test]
+fn a_timed_out_call_is_logged_with_what_kubectl_had_said() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("conveyor.log");
+    let kubectl = shim(&dir, "echo 'dial tcp: i/o timeout' >&2\nsleep 5")
+        .with_log(Log::open(&file))
+        .with_deadline(Duration::from_secs(1));
+
+    let _ = kubectl.deployment(&env());
+
+    let text = fs::read_to_string(&file).unwrap();
+    assert!(
+        text.ends_with("ms timed out: dial tcp: i/o timeout\n"),
+        "{text}"
+    );
+}
+
+#[test]
 fn deployment_and_pods_argv_ask_for_json_with_a_timeout() {
     assert_eq!(
         CliKubectl::deployment_args(&env()),
@@ -227,4 +270,23 @@ fn the_sha_is_the_40_hex_tag_or_a_40_hex_suffix() {
     );
     assert!(sha_from_image("ghcr.io/acme/api").is_err());
     assert!(sha_from_image("registry:5000/acme/api@sha256:abc").is_err());
+}
+
+fn alive_after(dir: &tempfile::TempDir, patience: Duration) -> bool {
+    let pid = fs::read_to_string(dir.path().join("bin/kubectl.pid")).unwrap();
+    let started = Instant::now();
+    while started.elapsed() < patience {
+        if !alive(pid.trim()) {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    alive(pid.trim())
+}
+
+fn alive(pid: &str) -> bool {
+    Command::new("kill")
+        .args(["-0", pid])
+        .output()
+        .is_ok_and(|output| output.status.success())
 }

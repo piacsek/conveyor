@@ -577,13 +577,15 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
 - v0.23.1 (phase 31, `plans/phase-31-kubectl-deadline.md`): a kubectl that hangs is cut off.
   Found in the session log: with one environment's proxy not answering, `get deploy` and
   `get pods` each took 40 s under `--request-timeout=10s`, because the flag bounds one request
-  and kubectl retries discovery. `CliKubectl::run` now kills the process at 15 s and stops
-  waiting for its pipes at the same deadline, the log says `timed out`, and a failed row shows
+  and kubectl retries discovery. `CliKubectl::run` now kills the process at 15 s with every
+  helper it started (its process group), stops waiting for its pipes at the same deadline, logs
+  `timed out` with what kubectl had printed, and a failed row shows
   kubectl's own reason instead of the klog line that came first on stderr. Retro: the phase 4
   note "the 10 s timeout returns the row to an error" was never tested against an unreachable
-  server; the call log added in phase 28 is what showed it. Not done: fetching the
-  environments in parallel (one dead environment still delays the others by up to 30 s), and
-  killing a helper process kubectl leaves behind.
+  server; the call log added in phase 28 is what showed it. The first cut killed only kubectl; review
+  measured one orphan helper, two threads and two pipes left per timed-out call, hence the
+  process group. Not done: fetching the environments in parallel (one dead environment still
+  delays the others by about 30 s).
 
 ## Deferred / backlog (discuss at retros)
 
