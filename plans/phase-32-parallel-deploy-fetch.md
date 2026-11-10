@@ -44,3 +44,4 @@ other environment that is down.
 
 1. The parallel read.
 2. `AGENTS.md`, `PLAN.md`, v0.23.2 and its changelog entry.
+3. The spawn lock for `gh` and `kubectl` (from review).
