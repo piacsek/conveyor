@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.24.0 (2026-11-10)
+- `S` then `c` checks the selected pull request out locally with `gh pr checkout`, in the directory conveyor was started in. The footer says where it landed, or git's reason when it could not (uncommitted changes, a branch already open in another worktree).
+- A `[[repo]]` takes an optional `path` to its local clone, so the checkout works from wherever conveyor runs.
+- A checkout is refused when the directory is a clone of another repository, instead of fetching the pull request into it.
+
 ## v0.23.2 (2026-11-09)
 - The Deployed column asks all its environments at the same time, so one that does not answer no longer makes the others wait their turn behind it.
 - A `gh` or `kubectl` call that hangs can no longer hold up another call that happened to start at the same moment (macOS).

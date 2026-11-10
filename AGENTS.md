@@ -25,9 +25,9 @@ check is skipped where the file is absent, so CI does not enforce it).
 ```
 src/main.rs      CLI dispatch, config load, wiring
 src/cli.rs       `conveyor` (TUI) | `config` | `log` | `--help` | `--version`; hand-rolled, no clap
-src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override
+src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override, `expand_home`
 src/sources/     everything that reaches out to an external service, and nothing else
-src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`, `log_failed`, `rerun_failed`, `merge`, `update_branch`, `change_status`), CliGh spawns `gh api …` / `gh repo view` / `gh run view --log-failed` / `gh run rerun --failed` / `gh pr merge|update-branch|ready|close`, error mapping
+src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`, `log_failed`, `rerun_failed`, `merge`, `update_branch`, `change_status`, `checkout`), CliGh spawns `gh api …` / `gh repo view` / `gh run view --log-failed` / `gh run rerun --failed` / `gh pr merge|update-branch|ready|close|checkout`, error mapping
 src/sources/kube.rs   Kube trait (`deployment(env)`, `pods(env, selector)`), CliKubectl (`kubectl --context … get deploy|pods … -o json`, a 10 s request timeout and a 15 s `DEADLINE` that kills the process)
 src/sources/fetch.rs  repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), fetch_jobs, fetch_log (LOG_TAIL lines), BuildsSource (caches workflow id and sha→PR), DeploySource (kubectl per env on parallel threads + cached sha→PR)
 src/sources/queries/  GraphQL documents, `include_str!`ed
@@ -37,7 +37,7 @@ src/model/builds.rs Build, BuildStatus, PullRef, Builds; `parse_runs`, `pr_numbe
 src/model/deployed.rs Deployment, Deployed, Rollout, Condition, Pod, Health; `sha_from_image` (40-hex tag or `-<sha>` suffix), `parse_deployment`, `parse_pods` (problems first), `health`
 src/model/jobs.rs Job, `parse_jobs` (failures first), `failed_step`
 src/model/log.rs  `tail`: the failed step's log as gh prints it, minus job/step/timestamp prefixes and ANSI
-src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Mode::{Normal, Filter, Help, Changelog, Confirm, Manage}, Menu/Offer/Choice (the `S` popup), Input::{Key, Fetching, Data, Jobs, Log, Merged, Rerun, BranchUpdated, StatusChanged, Tick}, Request::{Refresh, Jobs, Log, Rerun, Merge, UpdateBranch, ChangeStatus}, run()
+src/app.rs       Column<T: Row> (state, error, list, filter), App (one Column per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Mode::{Normal, Filter, Help, Changelog, Confirm, Manage}, Menu/Offer/Choice (the `S` popup), Input::{Key, Fetching, Data, Jobs, Log, Merged, Rerun, BranchUpdated, StatusChanged, CheckedOut, Tick}, Request::{Refresh, Jobs, Log, Rerun, Merge, UpdateBranch, ChangeStatus, Checkout}, run()
 src/ui/mod.rs    draw: 4 columns or tabs below `4 × ui.min_column_width`
 src/ui/style.rs  the shared vocabulary: BAR, INDENT, dim(), glyphs and status words, short_repo, sha8
 src/ui/card.rs   card() and meta(): one title line plus indented span lines
@@ -384,10 +384,13 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   reason after a `·` (`m  merge · #12 is a draft`), and its letter does nothing, so the popup
   explains itself instead of hiding actions. Any key that is not an offer closes it (`nothing
   changed`), `q` included; `q` never quits from the popup. Letters (`m u f t a e x`) avoid every
-  Normal-mode key, so a press from habit closes the popup instead of writing. `S` refuses with a
+  Normal-mode key, so a press from habit closes the popup instead of writing. `c` is the one
+  exception, and the user's choice: it is the changelog key in Normal mode, and in the popup it
+  checks the pull request out, which writes nothing to GitHub and is undone with `git switch -`.
+  Keep any new letter that writes to GitHub off the Normal-mode keys. `S` refuses with a
   footer notice while the focused column's last refresh failed (the rows it would judge by are
   older than they look), while any write is in flight (`merging`, `updating`, `rerunning`,
-  `changing`: one at a time across all actions) and in Merge queue and Deployed (`S manages My
+  `changing`, `checking out`: one at a time across all actions) and in Merge queue and Deployed (`S manages My
   PRs and Main builds`). `X`, `M` and `U` were removed in v0.21.0; `S` replaced them.
   A letter re-derives the menu: a different title (another row selected) or a different offer
   under the letter says `the pull request changed; press S again` (`the run changed` in Main
@@ -400,7 +403,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   already was the confirmation and each is cheap to undo. Offers per stage:
   - My PRs: `m` merge (`add to merge queue` on a merge-queue base), `u` update/rebase branch, `f` rerun failed jobs (`(k runs)` when more
     than one), `t` mark ready / convert to draft, `a` enable/disable auto-merge, `e` leave the
-    merge queue, `x` close. Main builds: `f` only.
+    merge queue, `c` check out locally, `x` close. Main builds: `f` only.
   - **`t`, `a`, `e`, `x` change the status.** `Request::ChangeStatus(StatusTarget)` carries a
     `StatusChange`; `CliGh::status_args` runs `gh pr ready <N> -R <repo> [--undo]` and `gh pr
     close <N> -R <repo>`, and GraphQL mutations by the pull request's node `id` for the rest:
@@ -419,6 +422,30 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
     `#N converted to draft` (etc.) or `#N: <gh error>` in the footer; a success refreshes My PRs
     (and the queue, except after `mark ready`) and sets `App::follow_up`. No reopen: the default `prs.query`
     is `is:open`, so a closed pull request leaves the column on the next refresh.
+- **`c` checks the pull request out locally.** It acts on the letter and sends
+  `Request::Checkout(CheckoutTarget)`: the number, the repo and `dir`, the `path` of the
+  `[[repo]]` whose name matches the pull request's repository (ASCII case ignored), else `None`
+  for the directory conveyor was started in. The worker expands a leading `~` from `HOME`
+  (`config::expand_home`) and calls `CliGh::checkout`, which runs two commands in that
+  directory: `gh repo view --json nameWithOwner`, then `gh pr checkout <N> -R <repo>`.
+  **The first call is the guard, not `-R`.** Checked on gh v2.103.3: inside a clone of another
+  repository `gh pr checkout 1 -R <other>` exits 0, fetches `refs/pull/1/head` from the other
+  repository into this clone and switches to it. So a clone whose `gh repo view` names another
+  repository is refused before anything is fetched (`<dir> is a clone of <found>, not <repo>`,
+  or `conveyor runs in a clone of <found>; set \`path\` under the [[repo]] of <repo>`), a
+  directory with no clone says so, and a configured path that is not a directory is named
+  (it would otherwise read as `gh not found`, the error a failed spawn maps to). **The offer is
+  never dim**: knowing whether the directory is the right clone costs a `gh` call, which the
+  popup must not wait for, so the refusal lands in the footer. A clone of a fork is refused
+  when `gh repo view` names the fork. A failed checkout shows git's own reason, the first
+  stderr line starting with `fatal: ` or `error: ` (`gits_reason`), not gh's trailing `failed
+  to run git: exit status N` nor the fetch progress above it: a dirty tree reads `error: Your
+  local changes to the following files would be overwritten by checkout:`, a branch open in
+  another worktree `fatal: '<branch>' is already checked out at '<dir>'`. Nothing more is done
+  about either; the user asked for the message only. `Input::CheckedOut` puts `#N checked out
+  in <path as configured>` (or `in the current directory`) or `#N: <reason>` in the footer and
+  refreshes nothing, since a checkout changes nothing on GitHub. `App::checking_out` holds
+  `S` back while it runs. The e2e shim logs `pr checkout …` argv with its working directory.
 - **`f` reruns failed jobs.** It reruns failed jobs with
   `gh run rerun <run> --failed -R <repo>`: in Main builds the selected run, only when it is the
   newest main build (highest `run_number`) and has settled as a failure or a cancellation.

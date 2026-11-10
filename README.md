@@ -41,7 +41,7 @@ conveyor log       # print the path of the log file
 | `y/Y` | copy pull request / build URL |
 | `d C-d/C-u` | details / scroll them |
 | `L` | log of the failed step |
-| `S` | manage: merge, update, rerun, status |
+| `S` | manage: merge, update, rerun, status, checkout |
 | `z` | zoom the column |
 | `Esc` | close details / zoom / filter |
 | `/` | filter (Enter keeps, Esc clears) |
@@ -68,6 +68,7 @@ details_percent = 40
 
 [[repo]]                      # optional; default is the repository of the current directory
 name = "owner/name"
+path = "~/projects/name"      # optional; the local clone `S` then `c` checks a pull request out in
 main_workflow = "CI/CD"       # workflow name or file, e.g. ci.yml
 builds = 10                   # runs shown in the Main builds column
 refresh_secs = 30

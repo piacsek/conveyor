@@ -601,6 +601,17 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   CI runs on Linux and cannot see it. Not done: rows landing one at
   a time, which needs a column that accepts partial data.
 
+- v0.24.0 (phase 33, `plans/phase-33-checkout.md`): `S` then `c` checks a pull request out
+  locally. The user chose `c` knowing it is also the changelog key in Normal mode, and chose
+  an optional `[[repo]] path` with the directory conveyor runs in as the fallback. Checked
+  against gh v2.103.3 before any code: `gh pr checkout <N> -R <repo>` inside a clone of
+  another repository exits 0 and fetches the pull request into it, so `CliGh::checkout` asks
+  `gh repo view` in the directory first and refuses a mismatch. That question needs the
+  network, so the offer is never dim: the refusal arrives in the footer. A branch already
+  open in another worktree, or a dirty tree, shows git's own `fatal:`/`error:` line; the user
+  asked for nothing more. Not done: cloning a repository that has no local clone, and a clone
+  of a fork whose `gh repo view` names the fork (refused, since the names differ).
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
