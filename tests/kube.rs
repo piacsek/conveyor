@@ -88,6 +88,43 @@ fn a_helper_that_outlives_kubectl_and_holds_its_output_is_a_timeout_too() {
 }
 
 #[test]
+fn a_failure_shows_what_kubectl_said_without_its_klog_lines() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let kubectl = shim(
+        &dir,
+        r#"echo 'E1109 20:36:29.585690   14272 memcache.go:265] "Unhandled Error" err="could not get current server API group list"' >&2
+echo 'Unable to connect to the server: context deadline exceeded' >&2
+exit 1"#,
+    );
+
+    let err = kubectl.deployment(&env()).unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "Unable to connect to the server: context deadline exceeded"
+    );
+}
+
+#[test]
+fn a_failure_that_is_only_klog_lines_still_shows_them() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let kubectl = shim(
+        &dir,
+        r#"echo 'E1109 20:36:29.585690   14272 memcache.go:265] "Unhandled Error" err="no answer"' >&2
+exit 1"#,
+    );
+
+    let err = kubectl.deployment(&env()).unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        r#"E1109 20:36:29.585690   14272 memcache.go:265] "Unhandled Error" err="no answer""#
+    );
+}
+
+#[test]
 fn deployment_and_pods_argv_ask_for_json_with_a_timeout() {
     assert_eq!(
         CliKubectl::deployment_args(&env()),
