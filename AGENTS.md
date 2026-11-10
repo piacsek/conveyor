@@ -28,7 +28,7 @@ src/cli.rs       `conveyor` (TUI) | `config` | `log` | `--help` | `--version`; h
 src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override
 src/sources/     everything that reaches out to an external service, and nothing else
 src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`, `log_failed`, `rerun_failed`, `merge`, `update_branch`, `change_status`), CliGh spawns `gh api …` / `gh repo view` / `gh run view --log-failed` / `gh run rerun --failed` / `gh pr merge|update-branch|ready|close`, error mapping
-src/sources/kube.rs   Kube trait (`deployment(env)`, `pods(env, selector)`), CliKubectl (`kubectl --context … get deploy|pods … -o json`, 10 s timeout each)
+src/sources/kube.rs   Kube trait (`deployment(env)`, `pods(env, selector)`), CliKubectl (`kubectl --context … get deploy|pods … -o json`, a 10 s request timeout and a 15 s `DEADLINE` that kills the process)
 src/sources/fetch.rs  repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), fetch_jobs, fetch_log (LOG_TAIL lines), BuildsSource (caches workflow id and sha→PR), DeploySource (per-env kubectl + cached sha→PR)
 src/sources/queries/  GraphQL documents, `include_str!`ed
 src/model/prs.rs PullRequest, CheckState, Check, ReviewDecision, MergeState; lenient `parse` of gh JSON
@@ -234,7 +234,22 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   builds list and `✗` on error. `behind_main` is the sha's index in the
   Main builds column (0 = `at main`), so it needs that column loaded and only sees the last
   `builds` runs. kubectl may itself start a teleport browser login when the session is
-  expired; the 10 s timeout returns the row to an error instead of hanging.
+  expired; the 10 s request timeout returns the row to an error instead of hanging.
+  **The request timeout is not a limit on the call, so the process has one.**
+  `--request-timeout=10s` bounds one HTTP request, and kubectl retries API discovery: against a
+  proxy that stopped answering, each call took 40 s (three failed attempts 10 s apart, then the
+  error) and the column sat on `fetching…`. `CliKubectl::run` spawns kubectl, drains both pipes
+  on threads and kills it at `kube::DEADLINE` (15 s): the row reads `kubectl did not answer
+  within 15s` and the log line ends in `timed out`. The pipes are bounded as well: a helper that
+  outlives kubectl (a login plugin) keeps them open, which is what `Command::output()` waits
+  for, so once kubectl has exited its output is awaited only until the deadline (at least 1 s)
+  and the call is a timeout after that. The helper itself is not killed. The flag stays: it is
+  what makes one slow request fail with kubectl's own message before anything is killed.
+  **A row's error is what kubectl said, minus its klog lines.** kubectl prints its client-go
+  log first on stderr (`E1109 20:36:29.585690   14272 memcache.go:265] "Unhandled Error" …`),
+  and a card truncated to its width showed only that. `kube::said` drops lines shaped like
+  klog (a severity letter, four digits, a space, and a `.go:` source) unless nothing else is
+  left; the log file keeps every line.
 - **Deploy health comes from a second call.** After the Deployment, `DeploySource` runs
   `kubectl … get pods -l <matchLabels as k=v,k=v> -o json --request-timeout=10s` and
   `deployed::health(&Rollout, Option<&[Pod]>)` judges the row, in this order: `Alert` when
@@ -275,8 +290,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   row's `error`, and the card shows the grey `?` with `pods not read: <error>`; under a louder `‼` or `⚠` the
   icon gives way but the line stays. The user asked
   for that: without it a crashlooping version looked healthy wherever `get pods` was denied.
-  A dead session still costs 10 s per env (the pods call is skipped when the Deployment call
-  fails); 20 s needs the Deployment call to answer and the pods call to hang. A row whose Deployment call
+  A dead session costs at most 15 s per env (`DEADLINE`; the pods call is skipped when the Deployment call
+  fails); 30 s needs the Deployment call to answer and the pods call to hang. A row whose Deployment call
   failed keeps its last sha and pull request (`keep_last_known`) but not its last health or
   pods, which would be stale under the `✗`. Only `matchLabels` is used, so pods of another
   workload sharing those labels are listed too. The details pane lists the target
@@ -474,7 +489,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 - **Every `gh` and `kubectl` call is logged, nothing else from them.** `CliGh::run` and
   `CliKubectl::run` time the spawn and hand the raw `Output` to `Log::call`: argv (a
   `query=` argument becomes `query=<N chars>`), milliseconds, then `ok`, `exit N: <stderr lines
-  joined by |>` or `did not start: <err>`. Stdout is never written: it is megabytes of JSON and
+  joined by |>`, `timed out` (kubectl killed at its deadline) or `did not start: <err>`. Stdout is never written: it is megabytes of JSON and
   the job logs. A new runner of an external program takes a `Log` the same way. The file is
   `<program>.log` after `argv[0]`, so `conveyor` and `conveyor-dev` keep separate files; only
   the TUI opens it (and rotates the old one to `.1`), so `conveyor config` and `conveyor log`
