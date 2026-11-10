@@ -32,12 +32,15 @@ when the server is unreachable.
    stderr, drains both on threads, polls `try_wait` and kills the child at `DEADLINE` (15 s:
    one full request timeout plus room for a slow but answering proxy). The error is
    `kubectl did not answer within 15s` (`io::ErrorKind::TimedOut`), and the log line ends in
-   `timed out` instead of `did not start`. `with_deadline` lets a test use a short one.
-   No new dependency.
+   `timed out` (plus the stderr kubectl had printed) instead of `did not start`.
+   `with_deadline` lets a test use a short one. No new dependency.
+   kubectl runs in its own process group and the kill goes to the group, so a helper it
+   started dies with it (added after review: killing kubectl alone left the helper, two reader
+   threads and two pipes behind on every timed-out call).
 2. **The pipes are bounded too.** A helper kubectl started (a login plugin) can outlive it and
    keep the pipes open, which is what `output()` waits for. Once kubectl has exited, the
    output is awaited only until the deadline (at least `DRAIN`, 1 s); after that the call is a
-   timeout as well.
+   timeout as well and the group is killed.
 3. **The row says why.** klog lines (`E<mmdd> <time> <pid> <file>.go:<line>] …`) are dropped
    from the error a row shows when anything else is left, so the card reads
    `Unable to connect to the server: …`. The log keeps every line.

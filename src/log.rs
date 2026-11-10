@@ -70,10 +70,6 @@ impl Log {
         took: Duration,
         output: &io::Result<Output>,
     ) {
-        if self.file.is_none() {
-            return;
-        }
-        let argv: Vec<String> = args.iter().map(|arg| shown(arg)).collect();
         let outcome = match output {
             Ok(output) if output.status.success() => "ok".to_string(),
             Ok(output) => {
@@ -81,23 +77,44 @@ impl Log {
                     .status
                     .code()
                     .map_or_else(|| "by signal".to_string(), |code| code.to_string());
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                let lines: Vec<&str> = stderr
-                    .lines()
-                    .map(str::trim)
-                    .filter(|l| !l.is_empty())
-                    .collect();
-                format!("exit {code}: {}", lines.join(" | "))
+                format!("exit {code}: {}", joined(&output.stderr))
             }
-            Err(err) if err.kind() == io::ErrorKind::TimedOut => "timed out".to_string(),
             Err(err) => format!("did not start: {err}"),
         };
+        self.outcome(program, args, took, &outcome);
+    }
+
+    pub fn timed_out(&self, program: &str, args: &[String], took: Duration, stderr: &[u8]) {
+        let said = joined(stderr);
+        let outcome = if said.is_empty() {
+            "timed out".to_string()
+        } else {
+            format!("timed out: {said}")
+        };
+        self.outcome(program, args, took, &outcome);
+    }
+
+    fn outcome(&self, program: &str, args: &[String], took: Duration, outcome: &str) {
+        if self.file.is_none() {
+            return;
+        }
+        let argv: Vec<String> = args.iter().map(|arg| shown(arg)).collect();
         self.line(&format!(
             "{program} {} {}ms {outcome}",
             argv.join(" "),
             took.as_millis()
         ));
     }
+}
+
+fn joined(stderr: &[u8]) -> String {
+    let stderr = String::from_utf8_lossy(stderr);
+    let lines: Vec<&str> = stderr
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect();
+    lines.join(" | ")
 }
 
 fn shown(arg: &str) -> String {
