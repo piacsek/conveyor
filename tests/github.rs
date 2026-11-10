@@ -516,3 +516,160 @@ fn an_accepted_status_change_is_ok() {
 
     assert!(result.is_ok());
 }
+
+#[test]
+fn checkout_argv_names_the_pull_request_and_its_repository() {
+    let _serialized = serialized();
+    assert_eq!(
+        CliGh::checkout_args("acme/webapp", 42),
+        vec!["pr", "checkout", "42", "-R", "acme/webapp"]
+    );
+}
+
+fn logging_shim(dir: &tempfile::TempDir, script: &str) -> (CliGh, std::path::PathBuf) {
+    let calls = dir.path().join("calls.log");
+    let gh = shim(
+        dir,
+        &format!("echo \"$PWD: $*\" >> '{}'\n{script}", calls.display()),
+    );
+    (gh, calls)
+}
+
+fn clone_dir(dir: &tempfile::TempDir) -> std::path::PathBuf {
+    let clone = dir.path().join("webapp");
+    fs::create_dir_all(&clone).unwrap();
+    clone.canonicalize().unwrap()
+}
+
+#[test]
+fn checkout_runs_in_the_clone_after_asking_which_repository_it_is() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let clone = clone_dir(&dir);
+    let (gh, calls) = logging_shim(
+        &dir,
+        r#"case "$*" in 'repo view'*) echo acme/webapp;; esac"#,
+    );
+
+    gh.checkout("acme/webapp", 42, Some(&clone)).unwrap();
+
+    let log = fs::read_to_string(calls).unwrap();
+    let lines: Vec<&str> = log.lines().collect();
+    let here = clone.display();
+    assert_eq!(lines.len(), 2);
+    assert_eq!(
+        lines[0],
+        format!("{here}: repo view --json nameWithOwner --jq .nameWithOwner")
+    );
+    assert_eq!(lines[1], format!("{here}: pr checkout 42 -R acme/webapp"));
+}
+
+#[test]
+fn checkout_refuses_a_clone_of_another_repository_without_touching_it() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let clone = clone_dir(&dir);
+    let (gh, calls) = logging_shim(
+        &dir,
+        r#"case "$*" in 'repo view'*) echo acme/billing;; esac"#,
+    );
+
+    let err = gh.checkout("acme/webapp", 42, Some(&clone)).unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        format!(
+            "{} is a clone of acme/billing, not acme/webapp",
+            clone.display()
+        )
+    );
+    assert_eq!(fs::read_to_string(calls).unwrap().lines().count(), 1);
+}
+
+#[test]
+fn checkout_from_the_working_directory_says_which_key_to_set_when_it_is_another_clone() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let (gh, calls) = logging_shim(
+        &dir,
+        r#"case "$*" in 'repo view'*) echo acme/billing;; esac"#,
+    );
+
+    let err = gh.checkout("acme/webapp", 42, None).unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "conveyor runs in a clone of acme/billing; set `path` under the [[repo]] of acme/webapp"
+    );
+    assert_eq!(fs::read_to_string(calls).unwrap().lines().count(), 1);
+}
+
+#[test]
+fn checkout_accepts_a_repository_name_in_another_case() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let clone = clone_dir(&dir);
+    let (gh, _calls) = logging_shim(
+        &dir,
+        r#"case "$*" in 'repo view'*) echo Acme/WebApp;; esac"#,
+    );
+
+    assert!(gh.checkout("acme/webapp", 42, Some(&clone)).is_ok());
+}
+
+#[test]
+fn checkout_where_there_is_no_clone_says_so() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let clone = clone_dir(&dir);
+    let (gh, calls) = logging_shim(
+        &dir,
+        "echo 'failed to run git: fatal: not a git repository (or any of the parent directories): .git' >&2; exit 1",
+    );
+
+    let configured = gh.checkout("acme/webapp", 42, Some(&clone)).unwrap_err();
+    let started_in = gh.checkout("acme/webapp", 42, None).unwrap_err();
+
+    assert_eq!(
+        configured.to_string(),
+        format!("{} is not a clone of acme/webapp", clone.display())
+    );
+    assert_eq!(
+        started_in.to_string(),
+        "conveyor does not run in a clone of acme/webapp; set `path` under its [[repo]]"
+    );
+    assert_eq!(fs::read_to_string(calls).unwrap().lines().count(), 2);
+}
+
+#[test]
+fn checkout_into_a_directory_that_is_missing_names_it() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let gh = shim(&dir, "echo acme/webapp");
+    let missing = dir.path().join("gone");
+
+    let err = gh.checkout("acme/webapp", 42, Some(&missing)).unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        format!("{} is not a directory", missing.display())
+    );
+}
+
+#[test]
+fn a_refused_checkout_reports_gits_reason_not_its_progress() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let clone = clone_dir(&dir);
+    let gh = shim(
+        &dir,
+        r#"case "$*" in 'repo view'*) echo acme/webapp;; *) printf '%s\n' 'From https://github.com/acme/webapp' ' * [new ref] refs/pull/42/head -> retry' "fatal: 'retry' is already checked out at '/work/trees/retry'" 'failed to run git: exit status 128' >&2; exit 1;; esac"#,
+    );
+
+    let err = gh.checkout("acme/webapp", 42, Some(&clone)).unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "fatal: 'retry' is already checked out at '/work/trees/retry'"
+    );
+}

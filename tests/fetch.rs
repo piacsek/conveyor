@@ -134,6 +134,13 @@ impl Github for FakeGithub {
             .push((format!("STATUS {repo} {number} {change:?}"), Vec::new()));
         Ok(())
     }
+
+    fn checkout(&self, repo: &str, number: u64, _dir: Option<&std::path::Path>) -> io::Result<()> {
+        self.calls
+            .borrow_mut()
+            .push((format!("CHECKOUT {repo} {number}"), Vec::new()));
+        Ok(())
+    }
 }
 
 #[test]

@@ -1,5 +1,5 @@
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
 
@@ -53,6 +53,7 @@ pub trait Github {
         method: UpdateMethod,
     ) -> io::Result<BranchUpdate>;
     fn change_status(&self, repo: &str, number: u64, change: &StatusChange) -> io::Result<()>;
+    fn checkout(&self, repo: &str, number: u64, dir: Option<&Path>) -> io::Result<()>;
 }
 
 const ENABLE_AUTO_MERGE: &str = "mutation($id: ID!, $method: PullRequestMergeMethod!, $head: GitObjectID) { enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head}) { clientMutationId } }";
@@ -199,6 +200,12 @@ impl CliGh {
         }
     }
 
+    pub fn checkout_args(repo: &str, number: u64) -> Vec<String> {
+        ["pr", "checkout", &number.to_string(), "-R", repo]
+            .map(str::to_string)
+            .to_vec()
+    }
+
     pub fn current_repo_args() -> Vec<String> {
         [
             "repo",
@@ -213,8 +220,12 @@ impl CliGh {
     }
 
     fn run(&self, args: &[String]) -> io::Result<String> {
+        self.run_in(None, args)
+    }
+
+    fn run_in(&self, dir: Option<&Path>, args: &[String]) -> io::Result<String> {
         let started = Instant::now();
-        let output = self.output(args).map_err(|err| {
+        let output = self.output(dir, args).map_err(|err| {
             if err.kind() == io::ErrorKind::NotFound {
                 io::Error::new(io::ErrorKind::NotFound, MISSING)
             } else {
@@ -236,10 +247,14 @@ impl CliGh {
             .map_err(|err| io::Error::other(format!("gh printed invalid UTF-8: {err}")))
     }
 
-    fn output(&self, args: &[String]) -> io::Result<std::process::Output> {
+    fn output(&self, dir: Option<&Path>, args: &[String]) -> io::Result<std::process::Output> {
+        let mut command = Command::new(&self.program);
+        if let Some(dir) = dir {
+            command.current_dir(dir);
+        }
         let child = {
             let _alone = super::spawning();
-            Command::new(&self.program)
+            command
                 .args(args)
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::piped())
@@ -311,6 +326,54 @@ impl Github for CliGh {
         self.run(&Self::status_args(repo, number, change))
             .map(|_| ())
             .map_err(without_warnings)
+    }
+
+    fn checkout(&self, repo: &str, number: u64, dir: Option<&Path>) -> io::Result<()> {
+        if let Some(dir) = dir.filter(|dir| !dir.is_dir()) {
+            return Err(io::Error::other(format!(
+                "{} is not a directory",
+                dir.display()
+            )));
+        }
+        let found = self
+            .run_in(dir, &Self::current_repo_args())
+            .map_err(|err| no_clone(err, repo, dir))?;
+        let found = found.trim();
+        if !found.eq_ignore_ascii_case(repo) {
+            return Err(io::Error::other(match dir {
+                Some(dir) => format!("{} is a clone of {found}, not {repo}", dir.display()),
+                None => format!(
+                    "conveyor runs in a clone of {found}; set `path` under the [[repo]] of {repo}"
+                ),
+            }));
+        }
+        self.run_in(dir, &Self::checkout_args(repo, number))
+            .map(|_| ())
+            .map_err(gits_reason)
+    }
+}
+
+fn no_clone(err: io::Error, repo: &str, dir: Option<&Path>) -> io::Error {
+    if !err.to_string().contains("not a git repository") {
+        return err;
+    }
+    io::Error::other(match dir {
+        Some(dir) => format!("{} is not a clone of {repo}", dir.display()),
+        None => {
+            format!("conveyor does not run in a clone of {repo}; set `path` under its [[repo]]")
+        }
+    })
+}
+
+fn gits_reason(err: io::Error) -> io::Error {
+    let message = err.to_string();
+    let reason = message
+        .lines()
+        .find(|line| line.starts_with("fatal: ") || line.starts_with("error: "))
+        .or_else(|| message.lines().rfind(|line| !line.trim().is_empty()));
+    match reason {
+        Some(line) => io::Error::other(line.to_string()),
+        None => err,
     }
 }
 
