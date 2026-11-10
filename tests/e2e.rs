@@ -488,10 +488,17 @@ fn s_then_c_runs_gh_pr_checkout_in_the_configured_clone() {
     let path = shim(
         home.path(),
         &format!(
-            "case \"$*\" in 'repo view'*) echo piacsek/conveyor;; 'pr checkout'*) echo \"$(pwd -P): $*\" >> '{}';; *) cat '{fixture}';; esac",
+            "case \"$*\" in 'pr checkout'*) echo \"$(pwd -P): $*\" >> '{}';; *) cat '{fixture}';; esac",
             argv.display()
         ),
     );
+    let git = home.path().join("bin/git");
+    fs::write(
+        &git,
+        "#!/bin/sh\nprintf 'origin\\tgit@github.com:piacsek/conveyor.git (fetch)\\n'\n",
+    )
+    .unwrap();
+    fs::set_permissions(&git, fs::Permissions::from_mode(0o755)).unwrap();
     let server = Server::start("checkout");
     server.respawn(
         &[

@@ -70,6 +70,7 @@ pub const MISSING: &str =
 
 pub struct CliGh {
     program: PathBuf,
+    git: PathBuf,
     log: Log,
 }
 
@@ -83,8 +84,13 @@ impl CliGh {
     pub fn with_program(program: PathBuf) -> Self {
         Self {
             program,
+            git: "git".into(),
             log: Log::default(),
         }
+    }
+
+    pub fn with_git(self, git: PathBuf) -> Self {
+        Self { git, ..self }
     }
 
     pub fn with_log(self, log: Log) -> Self {
@@ -206,6 +212,10 @@ impl CliGh {
             .to_vec()
     }
 
+    pub fn remotes_args() -> Vec<String> {
+        ["remote", "-v"].map(str::to_string).to_vec()
+    }
+
     pub fn current_repo_args() -> Vec<String> {
         [
             "repo",
@@ -220,35 +230,47 @@ impl CliGh {
     }
 
     fn run(&self, args: &[String]) -> io::Result<String> {
-        self.run_in(None, args)
+        self.exec(&Tool::gh(&self.program), None, args, &[])
     }
 
-    fn run_in(&self, dir: Option<&Path>, args: &[String]) -> io::Result<String> {
+    fn exec(
+        &self,
+        tool: &Tool,
+        dir: Option<&Path>,
+        args: &[String],
+        env: &[(&str, &str)],
+    ) -> io::Result<String> {
         let started = Instant::now();
-        let output = self.output(dir, args).map_err(|err| {
+        let output = self.output(tool.program, dir, args, env).map_err(|err| {
             if err.kind() == io::ErrorKind::NotFound {
-                io::Error::new(io::ErrorKind::NotFound, MISSING)
+                io::Error::new(io::ErrorKind::NotFound, tool.missing)
             } else {
                 err
             }
         });
-        self.log.call("gh", args, started.elapsed(), &output);
+        self.log.call(tool.name, args, started.elapsed(), &output);
         let output = output?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
             let message = if stderr.is_empty() {
-                format!("gh exited with {}", output.status)
+                format!("{} exited with {}", tool.name, output.status)
             } else {
                 stderr
             };
             return Err(io::Error::other(message));
         }
         String::from_utf8(output.stdout)
-            .map_err(|err| io::Error::other(format!("gh printed invalid UTF-8: {err}")))
+            .map_err(|err| io::Error::other(format!("{} printed invalid UTF-8: {err}", tool.name)))
     }
 
-    fn output(&self, dir: Option<&Path>, args: &[String]) -> io::Result<std::process::Output> {
-        let mut command = Command::new(&self.program);
+    fn output(
+        &self,
+        program: &Path,
+        dir: Option<&Path>,
+        args: &[String],
+        env: &[(&str, &str)],
+    ) -> io::Result<std::process::Output> {
+        let mut command = Command::new(program);
         if let Some(dir) = dir {
             command.current_dir(dir);
         }
@@ -256,12 +278,37 @@ impl CliGh {
             let _alone = super::spawning();
             command
                 .args(args)
+                .envs(env.iter().copied())
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())
                 .spawn()?
         };
         child.wait_with_output()
+    }
+}
+
+struct Tool<'a> {
+    program: &'a Path,
+    name: &'static str,
+    missing: &'static str,
+}
+
+impl<'a> Tool<'a> {
+    fn gh(program: &'a Path) -> Self {
+        Self {
+            program,
+            name: "gh",
+            missing: MISSING,
+        }
+    }
+
+    fn git(program: &'a Path) -> Self {
+        Self {
+            program,
+            name: "git",
+            missing: "git not found on PATH",
+        }
     }
 }
 
@@ -335,28 +382,44 @@ impl Github for CliGh {
                 dir.display()
             )));
         }
-        let found = self
-            .run_in(dir, &Self::current_repo_args())
-            .map_err(|err| no_clone(err, repo, dir))?;
-        let found = found.trim();
-        if !found.eq_ignore_ascii_case(repo) {
-            return Err(io::Error::other(match dir {
-                Some(dir) => format!("{} is a clone of {found}, not {repo}", dir.display()),
-                None => format!(
-                    "conveyor runs in a clone of {found}; set `path` under the [[repo]] of {repo}"
-                ),
-            }));
+        let remotes = self
+            .exec(&Tool::git(&self.git), dir, &Self::remotes_args(), &[])
+            .map_err(|err| not_a_repository(err, repo, dir))?;
+        if !remotes.lines().any(|remote| names(remote, repo)) {
+            return Err(no_clone(repo, dir));
         }
-        self.run_in(dir, &Self::checkout_args(repo, number))
-            .map(|_| ())
-            .map_err(gits_reason)
+        self.exec(
+            &Tool::gh(&self.program),
+            dir,
+            &Self::checkout_args(repo, number),
+            &[("GIT_TERMINAL_PROMPT", "0")],
+        )
+        .map(|_| ())
+        .map_err(gits_reason)
     }
 }
 
-fn no_clone(err: io::Error, repo: &str, dir: Option<&Path>) -> io::Error {
-    if !err.to_string().contains("not a git repository") {
-        return err;
+fn names(remote: &str, repo: &str) -> bool {
+    let Some(url) = remote.split_whitespace().nth(1) else {
+        return false;
+    };
+    let url = url.trim_end_matches('/');
+    let url = url.strip_suffix(".git").unwrap_or(url);
+    let mut segments = url.rsplit(['/', ':']);
+    let (Some(name), Some(owner)) = (segments.next(), segments.next()) else {
+        return false;
+    };
+    format!("{owner}/{name}").eq_ignore_ascii_case(repo)
+}
+
+fn not_a_repository(err: io::Error, repo: &str, dir: Option<&Path>) -> io::Error {
+    if err.kind() != io::ErrorKind::NotFound && err.to_string().contains("not a git repository") {
+        return no_clone(repo, dir);
     }
+    gits_reason(err)
+}
+
+fn no_clone(repo: &str, dir: Option<&Path>) -> io::Error {
     io::Error::other(match dir {
         Some(dir) => format!("{} is not a clone of {repo}", dir.display()),
         None => {

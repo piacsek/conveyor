@@ -32,11 +32,13 @@ typing `gh pr checkout <N>`. The `S` popup gets a `c` offer that does it.
 
 1. **Config.** `Repo::path: Option<PathBuf>`, left out of `conveyor config` when unset. A
    leading `~` is expanded from `HOME` by `config::expand_home` when the checkout runs.
-2. **The seam.** `Github::checkout(repo, number, dir)`: `CliGh` asks `gh repo view` in `dir`
-   (the working directory when `None`), refuses when the answer is not `repo`, then runs
-   `gh pr checkout <N> -R <repo>` there. The refusal names what to configure.
+2. **The seam.** `Github::checkout(repo, number, dir)`: `CliGh` reads `git remote -v` in `dir`
+   (the working directory when `None`), refuses unless a remote's URL ends in `repo`, then
+   runs `gh pr checkout <N> -R <repo>` there. The refusal names what to configure. (The first
+   cut asked `gh repo view`; review found it names the upstream of a fork cloned with
+   `gh repo clone`, so the fork's own pull requests were refused.)
 3. **The offer.** `c  check out locally` in My PRs, always live: whether the directory is a
-   clone of the repository is only known by asking `gh`, which the popup must not wait for.
+   clone of the repository is only known by running `git` there, which the popup does not do.
    It acts on the letter, like the other cheap actions. `Choice::Checkout(CheckoutTarget)`,
    `Action::Checkout`, `Request::Checkout`; `App::checking_out` joins the one-write-at-a-time
    rule. `Input::CheckedOut` puts `#N checked out in <dir>` or `#N: <error>` in the footer.

@@ -27,7 +27,7 @@ src/main.rs      CLI dispatch, config load, wiring
 src/cli.rs       `conveyor` (TUI) | `config` | `log` | `--help` | `--version`; hand-rolled, no clap
 src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override, `expand_home`
 src/sources/     everything that reaches out to an external service, and nothing else
-src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`, `log_failed`, `rerun_failed`, `merge`, `update_branch`, `change_status`, `checkout`), CliGh spawns `gh api …` / `gh repo view` / `gh run view --log-failed` / `gh run rerun --failed` / `gh pr merge|update-branch|ready|close|checkout`, error mapping
+src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`, `log_failed`, `rerun_failed`, `merge`, `update_branch`, `change_status`, `checkout`), CliGh spawns `gh api …` / `gh repo view` / `gh run view --log-failed` / `gh run rerun --failed` / `gh pr merge|update-branch|ready|close|checkout` and `git remote -v` (the checkout guard), error mapping
 src/sources/kube.rs   Kube trait (`deployment(env)`, `pods(env, selector)`), CliKubectl (`kubectl --context … get deploy|pods … -o json`, a 10 s request timeout and a 15 s `DEADLINE` that kills the process)
 src/sources/fetch.rs  repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), fetch_jobs, fetch_log (LOG_TAIL lines), BuildsSource (caches workflow id and sha→PR), DeploySource (kubectl per env on parallel threads + cached sha→PR)
 src/sources/queries/  GraphQL documents, `include_str!`ed
@@ -423,29 +423,41 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
     (and the queue, except after `mark ready`) and sets `App::follow_up`. No reopen: the default `prs.query`
     is `is:open`, so a closed pull request leaves the column on the next refresh.
 - **`c` checks the pull request out locally.** It acts on the letter and sends
-  `Request::Checkout(CheckoutTarget)`: the number, the repo and `dir`, the `path` of the
-  `[[repo]]` whose name matches the pull request's repository (ASCII case ignored), else `None`
-  for the directory conveyor was started in. The worker expands a leading `~` from `HOME`
-  (`config::expand_home`) and calls `CliGh::checkout`, which runs two commands in that
-  directory: `gh repo view --json nameWithOwner`, then `gh pr checkout <N> -R <repo>`.
-  **The first call is the guard, not `-R`.** Checked on gh v2.103.3: inside a clone of another
+  `Request::Checkout(CheckoutTarget)`: the number, the repo and `dir`, the first `path` among
+  the `[[repo]]` entries whose name matches the pull request's repository (ASCII case
+  ignored), else `None` for the directory conveyor was started in. The worker expands a leading
+  `~` from `HOME` (`config::expand_home`) and calls `CliGh::checkout`, which runs two commands
+  in that directory: `git remote -v`, then `gh pr checkout <N> -R <repo>`.
+  **The remotes are the guard, not `-R`.** Checked on gh v2.103.3: inside a clone of another
   repository `gh pr checkout 1 -R <other>` exits 0, fetches `refs/pull/1/head` from the other
-  repository into this clone and switches to it. So a clone whose `gh repo view` names another
-  repository is refused before anything is fetched (`<dir> is a clone of <found>, not <repo>`,
-  or `conveyor runs in a clone of <found>; set \`path\` under the [[repo]] of <repo>`), a
-  directory with no clone says so, and a configured path that is not a directory is named
-  (it would otherwise read as `gh not found`, the error a failed spawn maps to). **The offer is
-  never dim**: knowing whether the directory is the right clone costs a `gh` call, which the
-  popup must not wait for, so the refusal lands in the footer. A clone of a fork is refused
-  when `gh repo view` names the fork. A failed checkout shows git's own reason, the first
-  stderr line starting with `fatal: ` or `error: ` (`gits_reason`), not gh's trailing `failed
-  to run git: exit status N` nor the fetch progress above it: a dirty tree reads `error: Your
-  local changes to the following files would be overwritten by checkout:`, a branch open in
-  another worktree `fatal: '<branch>' is already checked out at '<dir>'`. Nothing more is done
-  about either; the user asked for the message only. `Input::CheckedOut` puts `#N checked out
-  in <path as configured>` (or `in the current directory`) or `#N: <reason>` in the footer and
-  refreshes nothing, since a checkout changes nothing on GitHub. `App::checking_out` holds
-  `S` back while it runs. The e2e shim logs `pr checkout …` argv with its working directory.
+  repository into this clone and switches to it. So the checkout only runs when some remote's
+  URL ends in `<owner>/<repo>` (with or without `.git`, ASCII case ignored, any host);
+  otherwise, and where there is no repository at all, nothing is fetched and the footer reads
+  `<dir> is not a clone of <repo>`, or `conveyor does not run in a clone of <repo>; set
+  \`path\` under its [[repo]]`. The first cut asked `gh repo view` instead; review found it
+  names the upstream of a fork cloned with `gh repo clone`, so a fork was refused for its own
+  pull requests, and it cost a network call. Any remote counts, so a fork with an `upstream`
+  remote works for both repositories. A configured path that is not a directory is named (a
+  failed spawn would otherwise read as `gh not found`). **The offer is never dim**: the popup
+  is built from the rows on screen and runs nothing, so the refusal lands in the footer.
+  `git` is the one program besides `gh` that `CliGh` spawns: under the same spawn lock, with a
+  null stdin, logged as `git`. The checkout runs with `GIT_TERMINAL_PROMPT=0`, so an https
+  remote without credentials fails instead of prompting under the TUI. Known and left: an ssh
+  remote whose key needs a passphrase and has no agent prompts on `/dev/tty`, and a fetch
+  that stalls has no deadline, so `S` stays refused (`checking out #N…`) until it ends;
+  `GIT_SSH_COMMAND` is not set because it would override the user's own ssh command. A failed
+  checkout shows git's own reason, the first stderr line starting with `fatal: ` or `error: `
+  (`gits_reason`), else gh's last line, not gh's trailing `failed to run git: exit status N`
+  nor the fetch progress above it: a dirty tree reads `error: Your local changes to the
+  following files would be overwritten by checkout:`, a branch open in another worktree
+  `fatal: '<branch>' is already checked out at '<dir>'`. Nothing more is done about either; the
+  user asked for the message only. The message can understate what happened: gh switches to
+  an existing local branch before `git merge --ff-only`, so `fatal: Not possible to
+  fast-forward` means HEAD did move (read in gh's source, not reproduced). `Input::CheckedOut`
+  puts `#N checked out in <path as configured>` (or `in the current directory`) or `#N:
+  <reason>` in the footer and refreshes nothing, since a checkout changes nothing on GitHub.
+  `App::checking_out` holds `S` back while it runs. The e2e test puts a `git` shim next to the
+  `gh` one and logs `pr checkout …` argv with its working directory.
 - **`f` reruns failed jobs.** It reruns failed jobs with
   `gh run rerun <run> --failed -R <repo>`: in Main builds the selected run, only when it is the
   newest main build (highest `run_number`) and has settled as a failure or a cancellation.

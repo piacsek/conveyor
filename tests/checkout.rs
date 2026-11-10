@@ -60,6 +60,28 @@ fn a_path_configured_for_another_repository_is_not_used() {
 }
 
 #[test]
+fn a_repository_listed_twice_uses_the_entry_that_has_a_path() {
+    let mut config = with_path("acme/webapp", "~/projects/webapp");
+    config.repo.insert(
+        0,
+        Repo {
+            name: "acme/webapp".to_string(),
+            ..Repo::default()
+        },
+    );
+    let mut h = tall(config);
+
+    h.run(vec![
+        prs(vec![pr(1, "a")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('c')),
+    ])
+    .unwrap();
+
+    assert_eq!(h.requests, vec![checkout(1, Some("~/projects/webapp"))]);
+}
+
+#[test]
 fn s_waits_while_a_checkout_is_on_its_way() {
     let mut h = tall(Config::default());
 
