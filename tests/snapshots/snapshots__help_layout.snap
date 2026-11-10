@@ -1,6 +1,6 @@
 ---
 source: tests/snapshots.rs
-expression: h.screen()
+expression: versionless(h.screen())
 ---
 ┌Keys — My PRs─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │q            quit                                                                                                                                             │
