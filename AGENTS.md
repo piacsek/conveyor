@@ -438,7 +438,14 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   names the upstream of a fork cloned with `gh repo clone`, so a fork was refused for its own
   pull requests, and it cost a network call. Any remote counts, so a fork with an `upstream`
   remote works for both repositories. A configured path that is not a directory is named (a
-  failed spawn would otherwise read as `gh not found`). **The offer is never dim**: the popup
+  failed spawn would otherwise read as `git not found on PATH`). **The host is not compared,
+  on purpose**: only the last two segments of the URL are, so a remote on another host with
+  the same `<owner>/<repo>` passes. Comparing hosts would refuse every clone reached through
+  an ssh alias (`github-work:<owner>/<repo>`), which is common, to stop a clone of one
+  repository that also carries a same-named remote from another host, which is not. For the
+  same reason a fork cloned with plain `git clone` (no `upstream` remote) is refused for a
+  pull request opened against the upstream: add the remote. The refusal matches git's English
+  `not a git repository`; under a localised git it still refuses, with git's own line. **The offer is never dim**: the popup
   is built from the rows on screen and runs nothing, so the refusal lands in the footer.
   `git` is the one program besides `gh` that `CliGh` spawns: under the same spawn lock, with a
   null stdin, logged as `git`. The checkout runs with `GIT_TERMINAL_PROMPT=0`, so an https
