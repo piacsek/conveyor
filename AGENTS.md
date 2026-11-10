@@ -234,7 +234,8 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   builds list and `✗` on error. `behind_main` is the sha's index in the
   Main builds column (0 = `at main`), so it needs that column loaded and only sees the last
   `builds` runs. kubectl may itself start a teleport browser login when the session is
-  expired; the 10 s request timeout returns the row to an error instead of hanging.
+  expired; `DEADLINE` (below) returns the row to an error instead of hanging, and it kills that
+  login with kubectl, so a login cannot be finished through conveyor: log in from a shell.
   **The request timeout is not a limit on the call, so the process has one.**
   `--request-timeout=10s` bounds one HTTP request, and kubectl retries API discovery: against a
   proxy that stopped answering, each call took 40 s (three failed attempts 10 s apart, then the

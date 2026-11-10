@@ -76,16 +76,16 @@ fn a_kubectl_that_hangs_is_killed_at_the_deadline() {
 }
 
 #[test]
-fn a_helper_that_outlives_kubectl_and_holds_its_output_is_a_timeout_too() {
+fn a_helper_that_outlives_kubectl_does_not_cost_its_answer() {
     let _serialized = serialized();
     let dir = tempfile::tempdir().unwrap();
-    let kubectl = shim(&dir, "sleep 5 &\necho '{}'").with_deadline(Duration::from_secs(1));
+    let kubectl = shim(&dir, "sleep 30 &\necho '{}'").with_deadline(Duration::from_secs(10));
     let started = Instant::now();
 
-    let err = kubectl.deployment(&env()).unwrap_err();
+    let answer = kubectl.deployment(&env()).unwrap();
 
-    assert!(started.elapsed() < Duration::from_secs(3), "{err}");
-    assert_eq!(err.to_string(), "kubectl did not answer within 1s");
+    assert!(started.elapsed() < Duration::from_secs(3), "{answer}");
+    assert_eq!(answer, "{}");
 }
 
 #[test]
@@ -129,8 +129,8 @@ exit 1"#,
 fn a_helper_kubectl_started_is_killed_with_it_at_the_deadline() {
     let _serialized = serialized();
     let dir = tempfile::tempdir().unwrap();
-    let kubectl =
-        shim(&dir, "sleep 30 &\necho $! > \"$0.pid\"\nwait").with_deadline(Duration::from_secs(1));
+    let kubectl = shim(&dir, "sleep 30 &\necho $! > \"$0.pid\"\nwait")
+        .with_deadline(Duration::from_millis(300));
 
     let _ = kubectl.deployment(&env());
 
@@ -142,7 +142,7 @@ fn a_helper_that_outlives_kubectl_is_killed_once_its_output_is_given_up_on() {
     let _serialized = serialized();
     let dir = tempfile::tempdir().unwrap();
     let kubectl = shim(&dir, "sleep 30 &\necho $! > \"$0.pid\"\necho '{}'")
-        .with_deadline(Duration::from_secs(1));
+        .with_deadline(Duration::from_millis(300));
 
     let _ = kubectl.deployment(&env());
 
@@ -156,7 +156,7 @@ fn a_timed_out_call_is_logged_with_what_kubectl_had_said() {
     let file = dir.path().join("conveyor.log");
     let kubectl = shim(&dir, "echo 'dial tcp: i/o timeout' >&2\nsleep 5")
         .with_log(Log::open(&file))
-        .with_deadline(Duration::from_secs(1));
+        .with_deadline(Duration::from_millis(300));
 
     let _ = kubectl.deployment(&env());
 
@@ -165,6 +165,23 @@ fn a_timed_out_call_is_logged_with_what_kubectl_had_said() {
         text.ends_with("ms timed out: dial tcp: i/o timeout\n"),
         "{text}"
     );
+}
+
+#[test]
+fn a_helper_that_outlives_a_failed_kubectl_does_not_hide_its_reason() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let kubectl = shim(
+        &dir,
+        "echo 'error: You must be logged in' >&2\nsleep 30 &\nexit 1",
+    )
+    .with_deadline(Duration::from_secs(10));
+    let started = Instant::now();
+
+    let err = kubectl.deployment(&env()).unwrap_err();
+
+    assert!(started.elapsed() < Duration::from_secs(3), "{err}");
+    assert_eq!(err.to_string(), "error: You must be logged in");
 }
 
 #[test]

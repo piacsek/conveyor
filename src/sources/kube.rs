@@ -2,7 +2,7 @@ use std::io::{self, Read};
 use std::os::unix::process::CommandExt;
 use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
-use std::sync::mpsc::{self, Receiver};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -11,7 +11,7 @@ use crate::log::Log;
 
 pub const DEADLINE: Duration = Duration::from_secs(15);
 const POLL: Duration = Duration::from_millis(10);
-const DRAIN: Duration = Duration::from_secs(1);
+const DRAIN: Duration = Duration::from_millis(500);
 pub const MISSING: &str = "kubectl not found on PATH; install kubectl and log in to the cluster";
 
 pub trait Kube {
@@ -125,18 +125,19 @@ impl CliKubectl {
             }
             thread::sleep(POLL);
         };
-        let until = Instant::now() + self.deadline.saturating_sub(started.elapsed()).max(DRAIN);
-        let left = || until.saturating_duration_since(Instant::now());
-        match (stdout.recv_timeout(left()), stderr.recv_timeout(left())) {
+        let mut answer = within(DRAIN, &stdout, &stderr);
+        if answer.0.is_err() || answer.1.is_err() {
+            kill_group(child.id());
+            let after = within(DRAIN, &stdout, &stderr);
+            answer = (answer.0.or(after.0), answer.1.or(after.1));
+        }
+        match answer {
             (Ok(stdout), Ok(stderr)) => Ok(Ran::Finished(Output {
                 status,
                 stdout,
                 stderr,
             })),
-            (_, stderr) => {
-                kill_group(child.id());
-                Ok(Ran::TimedOut(stderr.unwrap_or_default()))
-            }
+            (_, stderr) => Ok(Ran::TimedOut(stderr.unwrap_or_default())),
         }
     }
 }
@@ -144,6 +145,18 @@ impl CliKubectl {
 enum Ran {
     Finished(Output),
     TimedOut(Vec<u8>),
+}
+
+type Bytes = Result<Vec<u8>, RecvTimeoutError>;
+
+fn within(
+    patience: Duration,
+    stdout: &Receiver<Vec<u8>>,
+    stderr: &Receiver<Vec<u8>>,
+) -> (Bytes, Bytes) {
+    let until = Instant::now() + patience;
+    let left = || until.saturating_duration_since(Instant::now());
+    (stdout.recv_timeout(left()), stderr.recv_timeout(left()))
 }
 
 fn kill_group(leader: u32) {
