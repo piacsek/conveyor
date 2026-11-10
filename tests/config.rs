@@ -198,3 +198,54 @@ fn squash_is_not_an_update_method() {
     assert!(err.to_string().contains("config.toml"), "{err}");
     assert!(err.to_string().contains("squash"), "{err}");
 }
+
+#[test]
+fn a_repo_takes_an_optional_path_that_stays_out_of_the_printed_defaults() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write(
+        &dir,
+        "[[repo]]\nname = \"acme/webapp\"\npath = \"~/projects/webapp\"\n",
+    );
+
+    let config = load(&path).unwrap();
+
+    assert_eq!(
+        config.repo[0].path,
+        Some(std::path::PathBuf::from("~/projects/webapp"))
+    );
+    assert_eq!(conveyor::config::Repo::default().path, None);
+    let unset = Config {
+        repo: vec![conveyor::config::Repo::default()],
+        ..Config::default()
+    };
+    assert!(!unset.to_toml().contains("path"));
+    assert!(config.to_toml().contains("path = \"~/projects/webapp\""));
+}
+
+#[test]
+fn a_leading_tilde_in_a_path_is_the_home_directory() {
+    use conveyor::config::expand_home;
+    use std::path::{Path, PathBuf};
+    let home = Path::new("/home/dev");
+
+    assert_eq!(
+        expand_home(Path::new("~/projects/webapp"), Some(home)),
+        PathBuf::from("/home/dev/projects/webapp")
+    );
+    assert_eq!(
+        expand_home(Path::new("~"), Some(home)),
+        PathBuf::from("/home/dev")
+    );
+    assert_eq!(
+        expand_home(Path::new("/srv/webapp"), Some(home)),
+        PathBuf::from("/srv/webapp")
+    );
+    assert_eq!(
+        expand_home(Path::new("~other/webapp"), Some(home)),
+        PathBuf::from("~other/webapp")
+    );
+    assert_eq!(
+        expand_home(Path::new("~/webapp"), None),
+        PathBuf::from("~/webapp")
+    );
+}
