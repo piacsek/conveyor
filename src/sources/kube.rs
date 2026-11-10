@@ -84,7 +84,7 @@ impl CliKubectl {
         self.log.call("kubectl", args, started.elapsed(), &output);
         let output = output?;
         if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            let stderr = said(&String::from_utf8_lossy(&output.stderr));
             let message = if stderr.is_empty() {
                 format!("kubectl exited with {}", output.status)
             } else {
@@ -132,6 +132,24 @@ impl CliKubectl {
             format!("kubectl did not answer within {}s", self.deadline.as_secs()),
         )
     }
+}
+
+fn said(stderr: &str) -> String {
+    let lines: Vec<&str> = stderr.lines().filter(|line| !is_klog(line)).collect();
+    let said = lines.join("\n").trim().to_string();
+    if said.is_empty() {
+        stderr.trim().to_string()
+    } else {
+        said
+    }
+}
+
+fn is_klog(line: &str) -> bool {
+    let mut chars = line.chars();
+    matches!(chars.next(), Some('E' | 'W' | 'I' | 'F'))
+        && chars.by_ref().take(4).filter(char::is_ascii_digit).count() == 4
+        && chars.next() == Some(' ')
+        && line.contains(".go:")
 }
 
 fn drain<R: Read + Send + 'static>(pipe: Option<R>) -> Receiver<Vec<u8>> {
