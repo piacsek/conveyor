@@ -352,15 +352,24 @@ impl DeploySource {
     pub fn fetch(
         &mut self,
         gh: &impl Github,
-        kube: &impl crate::sources::kube::Kube,
+        kube: &(impl crate::sources::kube::Kube + Sync),
         now: std::time::SystemTime,
     ) -> crate::model::deployed::Deployed {
-        let rows = self
-            .deploy
-            .env
-            .clone()
+        let envs = self.deploy.env.clone();
+        let read: Vec<Read> = std::thread::scope(|scope| {
+            let reading: Vec<_> = envs
+                .iter()
+                .map(|env| scope.spawn(move || read(kube, env)))
+                .collect();
+            reading
+                .into_iter()
+                .map(|thread| thread.join().unwrap_or_else(|_| Read::panicked()))
+                .collect()
+        });
+        let rows = envs
             .iter()
-            .map(|env| self.fetch_env(gh, kube, env, now))
+            .zip(read)
+            .map(|(env, read)| self.row(gh, env, read, now))
             .collect();
         crate::model::deployed::Deployed {
             system: self.deploy.system.clone(),
@@ -368,11 +377,11 @@ impl DeploySource {
         }
     }
 
-    fn fetch_env(
+    fn row(
         &mut self,
         gh: &impl Github,
-        kube: &impl crate::sources::kube::Kube,
         env: &crate::config::DeployEnv,
+        read: Read,
         now: std::time::SystemTime,
     ) -> crate::model::deployed::Deployment {
         let mut row = crate::model::deployed::Deployment {
@@ -380,11 +389,7 @@ impl DeploySource {
             target: format!("{} / {} / {}", env.context, env.namespace, env.deployment),
             ..Default::default()
         };
-        let rollout = match kube
-            .deployment(env)
-            .map_err(|err| err.to_string())
-            .and_then(|json| crate::model::deployed::parse_deployment(&json))
-        {
+        let rollout = match read.rollout {
             Ok(rollout) => rollout,
             Err(err) => {
                 row.error = Some(err);
@@ -400,7 +405,7 @@ impl DeploySource {
             }
             Err(err) => row.error = Some(err),
         }
-        match pods(kube, env, &rollout.selector) {
+        match read.pods {
             Ok(pods) => row.pods = pods,
             Err(err) => row.pods_error = Some(err),
         }
@@ -411,6 +416,32 @@ impl DeploySource {
         row.rollout = Some(rollout);
         row
     }
+}
+
+struct Read {
+    rollout: Result<crate::model::deployed::Rollout, String>,
+    pods: Result<Vec<crate::model::deployed::Pod>, String>,
+}
+
+impl Read {
+    fn panicked() -> Self {
+        Self {
+            rollout: Err("reading this environment panicked".to_string()),
+            pods: Ok(Vec::new()),
+        }
+    }
+}
+
+fn read(kube: &impl crate::sources::kube::Kube, env: &crate::config::DeployEnv) -> Read {
+    let rollout = kube
+        .deployment(env)
+        .map_err(|err| err.to_string())
+        .and_then(|json| crate::model::deployed::parse_deployment(&json));
+    let pods = match &rollout {
+        Ok(rollout) => pods(kube, env, &rollout.selector),
+        Err(_) => Ok(Vec::new()),
+    };
+    Read { rollout, pods }
 }
 
 fn pods(

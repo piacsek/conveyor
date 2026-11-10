@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::io;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use conveyor::config::{Config, MergeMethod, UpdateMethod};
 use conveyor::model::prs::{BranchUpdate, StatusChange};
@@ -459,7 +460,7 @@ fn the_default_workflow_name_falls_back_to_common_ci_workflows() {
 struct FakeKube {
     deployments: Vec<(String, io::Result<String>)>,
     pods: Result<String, String>,
-    selectors: std::cell::RefCell<Vec<String>>,
+    selectors: std::sync::Mutex<Vec<String>>,
 }
 
 impl FakeKube {
@@ -471,7 +472,7 @@ impl FakeKube {
         Self {
             deployments,
             pods: Ok(r#"{"items":[]}"#.to_string()),
-            selectors: std::cell::RefCell::new(Vec::new()),
+            selectors: std::sync::Mutex::new(Vec::new()),
         }
     }
 }
@@ -486,9 +487,35 @@ impl conveyor::sources::kube::Kube for FakeKube {
     }
 
     fn pods(&self, _env: &conveyor::config::DeployEnv, selector: &str) -> io::Result<String> {
-        self.selectors.borrow_mut().push(selector.to_string());
+        self.selectors.lock().unwrap().push(selector.to_string());
         self.pods.clone().map_err(io::Error::other)
     }
+}
+
+#[test]
+fn deploy_source_reads_its_environments_at_the_same_time() {
+    use conveyor::config::{Deploy, DeployEnv};
+    use conveyor::sources::fetch::DeploySource;
+    let gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    let kube = OverlappingKube::default();
+    let deploy = Deploy {
+        env: ["dev", "staging", "prod"]
+            .iter()
+            .map(|name| DeployEnv {
+                name: name.to_string(),
+                ..DeployEnv::default()
+            })
+            .collect(),
+        ..Deploy::default()
+    };
+    let mut source = DeploySource::new("acme/webapp".to_string(), deploy);
+
+    let deployed = source.fetch(&gh, &kube, std::time::SystemTime::UNIX_EPOCH);
+
+    assert_eq!(kube.most_at_once.load(Ordering::SeqCst), 3);
+    assert_eq!(deployed.rows[0].env, "dev");
+    assert_eq!(deployed.rows[1].env, "staging");
+    assert_eq!(deployed.rows[2].env, "prod");
 }
 
 #[test]
@@ -811,7 +838,7 @@ fn deploy_source_reads_the_pods_behind_the_deployment_and_judges_its_health() {
     assert_eq!(row.rollout.as_ref().map(|rollout| rollout.desired), Some(2));
     assert_eq!(row.target, "ctx-prod / web / api");
     assert_eq!(
-        *kube.selectors.borrow(),
+        *kube.selectors.lock().unwrap(),
         vec!["app.kubernetes.io/instance=api,app.kubernetes.io/name=api"]
     );
 }
@@ -855,7 +882,7 @@ fn a_deployment_without_match_labels_is_unread_and_asks_for_no_pods() {
         row.pods_error.as_deref(),
         Some("the deployment's selector has no matchLabels")
     );
-    assert_eq!(kube.selectors.borrow().len(), 0);
+    assert_eq!(kube.selectors.lock().unwrap().len(), 0);
 }
 
 fn deploy_source_for(
@@ -1218,4 +1245,24 @@ fn deployment_json(image: &str) -> String {
         }
     })
     .to_string()
+}
+
+#[derive(Default)]
+struct OverlappingKube {
+    running: AtomicUsize,
+    most_at_once: AtomicUsize,
+}
+
+impl conveyor::sources::kube::Kube for OverlappingKube {
+    fn deployment(&self, _env: &conveyor::config::DeployEnv) -> io::Result<String> {
+        let running = self.running.fetch_add(1, Ordering::SeqCst) + 1;
+        self.most_at_once.fetch_max(running, Ordering::SeqCst);
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        self.running.fetch_sub(1, Ordering::SeqCst);
+        Err(io::Error::other("unreachable"))
+    }
+
+    fn pods(&self, _env: &conveyor::config::DeployEnv, _selector: &str) -> io::Result<String> {
+        Ok(r#"{"items":[]}"#.to_string())
+    }
 }
