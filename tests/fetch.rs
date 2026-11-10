@@ -1249,16 +1249,23 @@ fn deployment_json(image: &str) -> String {
 
 #[derive(Default)]
 struct OverlappingKube {
-    running: AtomicUsize,
+    running: std::sync::Mutex<usize>,
+    another_started: std::sync::Condvar,
     most_at_once: AtomicUsize,
 }
 
 impl conveyor::sources::kube::Kube for OverlappingKube {
     fn deployment(&self, _env: &conveyor::config::DeployEnv) -> io::Result<String> {
-        let running = self.running.fetch_add(1, Ordering::SeqCst) + 1;
-        self.most_at_once.fetch_max(running, Ordering::SeqCst);
-        std::thread::sleep(std::time::Duration::from_millis(200));
-        self.running.fetch_sub(1, Ordering::SeqCst);
+        let mut running = self.running.lock().unwrap();
+        *running += 1;
+        self.another_started.notify_all();
+        let (running, _) = self
+            .another_started
+            .wait_timeout_while(running, std::time::Duration::from_secs(2), |running| {
+                *running < 3
+            })
+            .unwrap();
+        self.most_at_once.fetch_max(*running, Ordering::SeqCst);
         Err(io::Error::other("unreachable"))
     }
 

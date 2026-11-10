@@ -363,7 +363,11 @@ impl DeploySource {
                 .collect();
             reading
                 .into_iter()
-                .map(|thread| thread.join().unwrap_or_else(|_| Read::panicked()))
+                .map(|thread| {
+                    thread
+                        .join()
+                        .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+                })
                 .collect()
         });
         let rows = envs
@@ -421,15 +425,6 @@ impl DeploySource {
 struct Read {
     rollout: Result<crate::model::deployed::Rollout, String>,
     pods: Result<Vec<crate::model::deployed::Pod>, String>,
-}
-
-impl Read {
-    fn panicked() -> Self {
-        Self {
-            rollout: Err("reading this environment panicked".to_string()),
-            pods: Ok(Vec::new()),
-        }
-    }
 }
 
 fn read(kube: &impl crate::sources::kube::Kube, env: &crate::config::DeployEnv) -> Read {

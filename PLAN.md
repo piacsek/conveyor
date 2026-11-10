@@ -594,7 +594,11 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   asked for it right after. `DeploySource::fetch` runs the two kubectl calls of each
   environment on a scoped thread and resolves pull requests afterwards on the fetcher thread,
   so the pull cache needed no lock. A dead environment no longer queues the healthy ones behind
-  its 15 s; the column takes as long as its slowest environment. Not done: rows landing one at
+  its 15 s; the column takes as long as its slowest environment. Review measured what the parallel spawns exposed on
+  macOS: a child inherits the pipes of one spawned at the same instant, so a healthy
+  environment read as timed out in about 9 of 100 fetches while another hung. One lock around
+  `spawn()` fixes it, for `gh` as well, which had the race since the fetchers became threads.
+  CI runs on Linux and cannot see it. Not done: rows landing one at
   a time, which needs a column that accepts partial data.
 
 ## Deferred / backlog (discuss at retros)

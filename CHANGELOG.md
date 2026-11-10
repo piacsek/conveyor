@@ -2,6 +2,7 @@
 
 ## v0.23.2 (2026-11-09)
 - The Deployed column asks all its environments at the same time, so one that does not answer no longer makes the others wait their turn behind it.
+- A `gh` or `kubectl` call that hangs can no longer hold up another call that happened to start at the same moment (macOS).
 
 ## v0.23.1 (2026-11-09)
 - The Deployed column no longer sits on `fetching…` for 40 seconds when a cluster stops answering: kubectl is cut off after 15 seconds and the row says `kubectl did not answer within 15s`.

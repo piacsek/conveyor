@@ -25,6 +25,46 @@ fn shim(dir: &tempfile::TempDir, script: &str) -> CliGh {
 }
 
 #[test]
+fn a_call_made_while_another_hangs_is_not_held_up_by_it() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let gh = std::sync::Arc::new(shim(
+        &dir,
+        r#"case "$*" in *hung*) sleep 2;; *) echo '{}';; esac"#,
+    ));
+    let mut held_up = 0;
+
+    for _ in 0..150 {
+        let start = std::sync::Arc::new(std::sync::Barrier::new(4));
+        std::thread::spawn({
+            let (gh, start) = (gh.clone(), start.clone());
+            move || {
+                start.wait();
+                let _ = gh.rest("hung");
+            }
+        });
+        let healthy: Vec<_> = (0..3)
+            .map(|_| {
+                let (gh, start) = (gh.clone(), start.clone());
+                std::thread::spawn(move || {
+                    start.wait();
+                    let started = std::time::Instant::now();
+                    let _ = gh.rest("repos/acme/webapp");
+                    started.elapsed() > std::time::Duration::from_secs(1)
+                })
+            })
+            .collect();
+        held_up += healthy
+            .into_iter()
+            .filter_map(|call| call.join().ok())
+            .filter(|held_up| *held_up)
+            .count();
+    }
+
+    assert_eq!(held_up, 0);
+}
+
+#[test]
 fn a_failing_call_is_logged_with_its_argv_duration_and_stderr() {
     let _serialized = serialized();
     let dir = tempfile::tempdir().unwrap();
