@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::io;
+use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
 pub const OPEN_DEBOUNCE: Duration = Duration::from_secs(1);
@@ -68,6 +69,7 @@ pub enum Input {
     Rerun(Vec<(u64, Result<(), String>)>),
     BranchUpdated(u64, Result<BranchUpdate, String>),
     StatusChanged(u64, StatusChange, Result<(), String>),
+    CheckedOut(CheckoutTarget, Result<(), String>),
     Tick(SystemTime),
 }
 
@@ -111,6 +113,14 @@ pub enum Action {
     Merge(MergeTarget),
     UpdateBranch(UpdateTarget),
     ChangeStatus(StatusTarget),
+    Checkout(CheckoutTarget),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CheckoutTarget {
+    pub number: u64,
+    pub repo: String,
+    pub dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -128,6 +138,7 @@ pub enum Choice {
     Update(UpdateTarget),
     Rerun(Rerun),
     Status(StatusTarget),
+    Checkout(CheckoutTarget),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -169,6 +180,7 @@ pub enum Request {
     Merge(MergeTarget),
     UpdateBranch(UpdateTarget),
     ChangeStatus(StatusTarget),
+    Checkout(CheckoutTarget),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -477,6 +489,7 @@ pub struct App {
     pub query: Option<String>,
     rerunning: Option<(Stage, String)>,
     changing: Option<(u64, StatusChange)>,
+    checking_out: Option<u64>,
     pending_g: bool,
     last_open: Option<(String, SystemTime)>,
 }
@@ -520,6 +533,7 @@ impl App {
             query: None,
             rerunning: None,
             changing: None,
+            checking_out: None,
             pending_g: false,
             last_open: None,
         }
@@ -1045,6 +1059,9 @@ impl App {
         if let Some((number, change)) = &self.changing {
             return Some(progress(*number, change));
         }
+        if let Some(number) = self.checking_out {
+            return Some(format!("checking out #{number}…"));
+        }
         self.rerunning
             .as_ref()
             .map(|(_, label)| format!("rerunning {label}…"))
@@ -1169,6 +1186,11 @@ impl App {
             draft,
             auto,
             offer('e', "leave the merge queue", dequeue),
+            offer(
+                'c',
+                "check out locally",
+                Ok(Choice::Checkout(self.checkout_target(pr))),
+            ),
             offer('x', "close", status(StatusChange::Close)),
         ]
     }
@@ -1234,6 +1256,7 @@ impl App {
                 self.mode = Mode::Confirm(Pending::Status(target));
             }
             Choice::Status(target) => return self.send_status(target),
+            Choice::Checkout(target) => return self.send_checkout(target),
         }
         Action::Continue
     }
@@ -1271,6 +1294,35 @@ impl App {
             }) => Err(reason),
             _ => Err(changed(Stage::Prs)),
         }
+    }
+
+    fn checkout_target(&self, pr: &PullRequest) -> CheckoutTarget {
+        CheckoutTarget {
+            number: pr.number,
+            repo: pr.repo.clone(),
+            dir: self
+                .config
+                .repo
+                .iter()
+                .find(|repo| repo.name.eq_ignore_ascii_case(&pr.repo))
+                .and_then(|repo| repo.path.clone()),
+        }
+    }
+
+    pub fn receive_checkout(&mut self, target: &CheckoutTarget, result: &Result<(), String>) {
+        self.checking_out = None;
+        let number = target.number;
+        self.notice = Some(match (result, &target.dir) {
+            (Ok(()), Some(dir)) => format!("#{number} checked out in {}", dir.display()),
+            (Ok(()), None) => format!("#{number} checked out in the current directory"),
+            (Err(message), _) => format!("#{number}: {message}"),
+        });
+    }
+
+    fn send_checkout(&mut self, target: CheckoutTarget) -> Action {
+        self.checking_out = Some(target.number);
+        self.notice = Some(format!("checking out #{}…", target.number));
+        Action::Checkout(target)
     }
 
     fn send_status(&mut self, target: StatusTarget) -> Action {
@@ -1710,6 +1762,7 @@ where
                     app.follow_up_prs();
                 }
             }
+            Input::CheckedOut(target, result) => app.receive_checkout(&target, &result),
             Input::Rerun(result) => {
                 if let Some(stage) = app.receive_rerun(result) {
                     request(Request::Refresh(stage));
@@ -1733,6 +1786,7 @@ where
                 Action::UpdateBranch(target) => request(Request::UpdateBranch(target)),
                 Action::Rerun { repo, run_ids } => request(Request::Rerun { repo, run_ids }),
                 Action::ChangeStatus(target) => request(Request::ChangeStatus(target)),
+                Action::Checkout(target) => request(Request::Checkout(target)),
                 Action::Continue => {}
             },
         }

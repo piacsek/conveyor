@@ -472,6 +472,50 @@ fn s_m_then_y_runs_gh_pr_merge_pinned_to_the_head_commit() {
 
 #[test]
 #[ignore]
+fn s_then_c_runs_gh_pr_checkout_in_the_configured_clone() {
+    let home = tempfile::tempdir().unwrap();
+    let fixture = fixture_path(home.path());
+    let argv = home.path().join("checkout-argv");
+    let clone = home.path().join("clone");
+    fs::create_dir_all(&clone).unwrap();
+    let config = home.path().join(".config/conveyor");
+    fs::create_dir_all(&config).unwrap();
+    fs::write(
+        config.join("config.toml"),
+        "[[repo]]\nname = \"piacsek/conveyor\"\npath = \"~/clone\"\n",
+    )
+    .unwrap();
+    let path = shim(
+        home.path(),
+        &format!(
+            "case \"$*\" in 'repo view'*) echo piacsek/conveyor;; 'pr checkout'*) echo \"$(pwd -P): $*\" >> '{}';; *) cat '{fixture}';; esac",
+            argv.display()
+        ),
+    );
+    let server = Server::start("checkout");
+    server.respawn(
+        &[
+            ("HOME", &home.path().display().to_string()),
+            ("PATH", &path),
+        ],
+        env!("CARGO_BIN_EXE_conveyor"),
+    );
+    server.wait_for_screen("#1 Phase 0: setup");
+
+    server.send_keys(&["S", "c"]);
+    server.wait_for_screen("#1 checked out in ~/clone");
+
+    assert_eq!(
+        fs::read_to_string(&argv).unwrap(),
+        format!(
+            "{}: pr checkout 1 -R piacsek/conveyor\n",
+            clone.canonicalize().unwrap().display()
+        )
+    );
+}
+
+#[test]
+#[ignore]
 fn s_then_u_runs_gh_pr_update_branch_and_n_runs_nothing() {
     let home = tempfile::tempdir().unwrap();
     let fixture = fixture_path(home.path());

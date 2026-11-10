@@ -4,15 +4,15 @@ expression: h.screen()
 ---
 My PRs (3) │ Merge queue │ Main builds │ Deployed                               
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│▌ ✗  #4821 Retry webhook delivery with backoff                             2h│
-│▌   webapp┌Manage #4821─────────────────────────────────────────────┐         │
-│▌   ✗ api │ m  merge                                                │         │
-│  ●  #483│ u  update branch                                        │       2h│
-│    auth  │ f  rerun failed jobs · no finished failing run to rerun │         │
-│    checks│ t  convert to draft                                     │         │
-│  ○  #479│ a  enable auto-merge · GitHub does not allow it for     │       2h│
-│    webapp│    #4821                                                │         │
-│    checks│ e  leave the merge queue · #4821 is not queued          │         │
+│▌ ✗  #482┌Manage #4821─────────────────────────────────────────────┐       2h│
+│▌   webapp│ m  merge                                                │         │
+│▌   ✗ api │ u  update branch                                        │         │
+│  ●  #483│ f  rerun failed jobs · no finished failing run to rerun │       2h│
+│    auth  │ t  convert to draft                                     │         │
+│    checks│ a  enable auto-merge · GitHub does not allow it for     │         │
+│  ○  #479│    #4821                                                │       2h│
+│    webapp│ e  leave the merge queue · #4821 is not queued          │         │
+│    checks│ c  check out locally                                    │         │
 │          │ x  close                                                │         │
 │          └─────────────────────────────────────────────────────────┘         │
 │                                                                              │

@@ -8,10 +8,10 @@ use std::thread;
 use std::time::{Duration, SystemTime};
 
 use conveyor::app::{
-    App, Input, MergeTarget, Request, Rows, Stage, StatusTarget, UpdateTarget, run,
+    App, CheckoutTarget, Input, MergeTarget, Request, Rows, Stage, StatusTarget, UpdateTarget, run,
 };
 use conveyor::cli::{self, Command};
-use conveyor::config::{self, Config};
+use conveyor::config::{self, Config, expand_home};
 use conveyor::log::{self, Log};
 use conveyor::open::SystemOpener;
 use conveyor::refresh;
@@ -123,6 +123,7 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
     let merges = spawn_merger(&log, config.clone(), tx.clone());
     let updates = spawn_branch_updater(&log, tx.clone());
     let statuses = spawn_status_changer(&log, tx.clone());
+    let checkouts = spawn_checkout_worker(&log, tx.clone());
     spawn_terminal_events(tx);
     let mut app = App::new(config);
     app.notice = config_error;
@@ -153,6 +154,9 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
             }
             Request::ChangeStatus(target) => {
                 let _ = statuses.send(target);
+            }
+            Request::Checkout(target) => {
+                let _ = checkouts.send(target);
             }
             Request::Rerun { repo, run_ids } => {
                 let _ = reruns.send((repo, run_ids));
@@ -260,6 +264,27 @@ fn spawn_status_changer(log: &Log, tx: Inputs) -> mpsc::Sender<StatusTarget> {
         }
     });
     status_tx
+}
+
+fn spawn_checkout_worker(log: &Log, tx: Inputs) -> mpsc::Sender<CheckoutTarget> {
+    let (checkout_tx, checkout_rx) = mpsc::channel::<CheckoutTarget>();
+    let gh = CliGh::default().with_log(log.clone());
+    let home = env::var_os("HOME").map(PathBuf::from);
+    thread::spawn(move || {
+        while let Ok(target) = checkout_rx.recv() {
+            let dir = target
+                .dir
+                .as_deref()
+                .map(|dir| expand_home(dir, home.as_deref()));
+            let result = gh
+                .checkout(&target.repo, target.number, dir.as_deref())
+                .map_err(|err| err.to_string());
+            if tx.send(Ok(Input::CheckedOut(target, result))).is_err() {
+                return;
+            }
+        }
+    });
+    checkout_tx
 }
 
 fn spawn_merger(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<MergeTarget> {
