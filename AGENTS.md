@@ -305,13 +305,16 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   The sha → pull request lookup runs there, after the threads, so `Pulls` and `gh` stay
   single-threaded and the row order never depends on which cluster answered first; `Kube`
   implementations must be `Sync`. They were read one after another until v0.23.2, so every
-  unreachable environment added its own wait in front of the healthy rows. The column now
-  takes as long as its slowest environment: about 15 s when a Deployment call hangs
+  unreachable environment added its own wait in front of the healthy rows. The kubectl part
+  of a fetch now takes as long as its slowest environment (the pull request lookups follow,
+  one environment after another: up to three `gh` calls for a sha not seen before, none for a
+  cached one): about 15 s when a Deployment call hangs
   (`DEADLINE`, plus up to 500 ms to collect stderr; the pods call is skipped when the
   Deployment call fails), about 30 s when a Deployment call answers and its pods call hangs,
   however many environments are down. The rows still land together: a healthy row waits for
-  the slowest one, because a column takes all its rows in one `Rows::Deployed`. A thread that
-  panics is that row's error (`reading this environment panicked`), not the column's. With an
+  the slowest one, because a column takes all its rows in one `Rows::Deployed`. A panic in a
+  reader thread is passed on to the fetcher thread (`resume_unwind`), as it was when the read
+  ran there. With an
   expired session every environment's kubectl starts at once, so a login plugin may be started
   once per environment at the same moment. A row whose Deployment call
   failed keeps its last sha and pull request (`keep_last_known`) but not its last health or
@@ -521,6 +524,17 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
   `CONVEYOR_LOG` counts as unset, a relative `XDG_STATE_HOME` is ignored (the XDG spec says so) and
   a non-absolute `HOME` gives up. A relative `CONVEYOR_LOG` is an explicit choice and is used as
   given.
+- **Every `gh` and `kubectl` is spawned under one lock.** `sources::spawning()` is held across
+  the `spawn()` call and nothing else, in `CliGh::output` and `CliKubectl::output`. On macOS
+  Rust creates a child's pipes with `pipe()` and marks them close-on-exec afterwards, so a
+  thread that spawns at that instant hands its child the other child's pipe ends (Linux has
+  `pipe2(O_CLOEXEC)` and is immune, so CI cannot see it). The pipe then stays open for as long
+  as the child that inherited it runs. Measured after the environments went parallel in
+  v0.23.2: a healthy environment read `kubectl did not answer` in about 9 of 100 fetches while
+  another one hung, and a `gh` call started next to a hung one waited for it. The four fetcher
+  threads all spawn at startup and on `R`, so `gh` had this race before the parallel read too.
+  A new runner of an external program whose output is read must spawn under the same lock.
+  `open`/`pbcopy` and the `kill` behind the deadline do not: they exit in milliseconds.
 - **`gh` never inherits the terminal.** `CliGh::run` gives it a null stdin, so a `gh` that
   wants to prompt (no auth, `HOME` pointing elsewhere) fails fast instead of hanging the
   fetch thread behind `fetching…`.
@@ -641,6 +655,11 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
 - tmux is a test harness, not a dependency: only the `#[ignore]` e2e tests use it, they panic
   with an install hint when it is missing, and `gates.sh` skips them without tmux (CI has it).
 - `tests/kube.rs` shim tests take the same kind of mutex as `tests/github.rs` (fork race).
+- **The spawn-race tests are red only some of the time, and only on macOS.**
+  `a_call_made_while_another_hangs_…` in `tests/kube.rs` and `tests/github.rs` start 150 rounds
+  of four calls at once. Without the spawn lock the kubectl one failed in about half its runs
+  at 60 rounds and the `gh` one in every run; on Linux both always pass. One green run of
+  either is no proof the lock is still in place.
 - `tests/e2e.rs` runs the real binary in a scratch tmux server (`-L`, `-f /dev/null`) with
   `HOME` in a tempdir and a `gh` shell shim that prints `tests/fixtures/prs.json`. The pane
   command must be `env HOME=… PATH=… <binary>`: `respawn-pane -e PATH=…` looked right but

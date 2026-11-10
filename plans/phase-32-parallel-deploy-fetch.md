@@ -26,9 +26,14 @@ other environment that is down.
    is back, the rows are built on the fetcher thread in config order, which is where
    `Pulls::for_sha` runs: the pull cache and `gh` stay single-threaded, and the row order
    cannot depend on which cluster answered first.
-2. **A thread that panics is one row's error**, not the column's.
-3. The column now takes as long as its slowest environment: about 1 s when all are healthy,
-   about 15 s (30 s when only a pods call hangs) however many are down.
+2. A panic in a reader thread is passed on to the fetcher thread, as before. (The first cut
+   turned it into a row error; review found no reachable panic and no test for it.)
+3. The kubectl part now takes as long as its slowest environment: about 1 s when all are
+   healthy, about 15 s (30 s when only a pods call hangs) however many are down. The pull
+   request lookups follow, in order.
+4. **Spawns are serialised** (added after review). Parallel spawns exposed a macOS race: a
+   child's pipes are created without close-on-exec, so a child spawned at that instant
+   inherits them and holds them open. One lock around `spawn()` in both runners closes it.
 
 ## Out of scope
 

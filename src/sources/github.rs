@@ -214,17 +214,13 @@ impl CliGh {
 
     fn run(&self, args: &[String]) -> io::Result<String> {
         let started = Instant::now();
-        let output = Command::new(&self.program)
-            .args(args)
-            .stdin(std::process::Stdio::null())
-            .output()
-            .map_err(|err| {
-                if err.kind() == io::ErrorKind::NotFound {
-                    io::Error::new(io::ErrorKind::NotFound, MISSING)
-                } else {
-                    err
-                }
-            });
+        let output = self.output(args).map_err(|err| {
+            if err.kind() == io::ErrorKind::NotFound {
+                io::Error::new(io::ErrorKind::NotFound, MISSING)
+            } else {
+                err
+            }
+        });
         self.log.call("gh", args, started.elapsed(), &output);
         let output = output?;
         if !output.status.success() {
@@ -238,6 +234,19 @@ impl CliGh {
         }
         String::from_utf8(output.stdout)
             .map_err(|err| io::Error::other(format!("gh printed invalid UTF-8: {err}")))
+    }
+
+    fn output(&self, args: &[String]) -> io::Result<std::process::Output> {
+        let child = {
+            let _alone = super::spawning();
+            Command::new(&self.program)
+                .args(args)
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .spawn()?
+        };
+        child.wait_with_output()
     }
 }
 

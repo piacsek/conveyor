@@ -104,11 +104,14 @@ impl CliKubectl {
     }
 
     fn output(&self, command: &mut Command) -> io::Result<Ran> {
-        let mut child = command
-            .process_group(0)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()?;
+        let mut child = {
+            let _alone = super::spawning();
+            command
+                .process_group(0)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()?
+        };
         let stdout = drain(child.stdout.take());
         let stderr = drain(child.stderr.take());
         let started = Instant::now();

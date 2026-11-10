@@ -1,7 +1,7 @@
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Arc, Barrier, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use conveyor::config::DeployEnv;
@@ -182,6 +182,50 @@ fn a_helper_that_outlives_a_failed_kubectl_does_not_hide_its_reason() {
 
     assert!(started.elapsed() < Duration::from_secs(3), "{err}");
     assert_eq!(err.to_string(), "error: You must be logged in");
+}
+
+#[test]
+fn a_call_made_while_another_hangs_still_gets_its_answer() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let kubectl = Arc::new(
+        shim(
+            &dir,
+            r#"case "$*" in *hung*) sleep 2;; *) echo '{}';; esac"#,
+        )
+        .with_deadline(Duration::from_secs(3)),
+    );
+    let mut lost = 0;
+
+    for _ in 0..150 {
+        let start = Arc::new(Barrier::new(4));
+        std::thread::spawn({
+            let (kubectl, start) = (kubectl.clone(), start.clone());
+            move || {
+                start.wait();
+                let _ = kubectl.deployment(&DeployEnv {
+                    context: "hung".to_string(),
+                    ..env()
+                });
+            }
+        });
+        let healthy: Vec<_> = (0..3)
+            .map(|_| {
+                let (kubectl, start) = (kubectl.clone(), start.clone());
+                std::thread::spawn(move || {
+                    start.wait();
+                    kubectl.deployment(&env()).is_err()
+                })
+            })
+            .collect();
+        lost += healthy
+            .into_iter()
+            .filter_map(|call| call.join().ok())
+            .filter(|lost| *lost)
+            .count();
+    }
+
+    assert_eq!(lost, 0);
 }
 
 #[test]
