@@ -76,7 +76,7 @@ src/text.rs      truncate/pad_right with `…`, age(), duration() (coarse, cards
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
-scripts/ship.sh               gates + dev-install (unless skippable) + commit + push, aborts on any failure
+scripts/ship.sh               gates + dev-install (unless skippable) + commit + push, aborts on any failure; the first push of a branch opens the draft PR (commit subject as title, the template as body)
 scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
 plans/                        one versioned plan file per phase (see Working agreements)
 scripts/homebrew-formula.sh   prints the tap formula for a released version
@@ -88,6 +88,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
                  a test file that outgrows the limit becomes a folder (`tests/<name>/main.rs` plus one file per topic), so it stays one binary
 tests/AGENTS.md  the testing traps hit so far, the e2e `gh` shim dispatch note
 .github/AGENTS.md CI: what the workflows run and why, the `main` ruleset, branch cleanup
+.github/pull_request_template.md  `## Summary` and `## Changes`: the body `ship.sh` opens a draft PR with
 ```
 
 ## Where the rest lives
@@ -182,11 +183,20 @@ nearest the code the guideline is about.
   refactor. This holds for one-line fixes, security patches, patch releases and "obvious"
   changes alike. Writing the test and the fix in the same edit is not TDD, even when the test
   is then backed out to prove it fails. Show the red run in the update.
-- **Draft PR first.** The first ship on a branch opens the draft PR assigned to the user;
-  every later commit lands on that PR. Before merging, re-read the PR title and body and fix
+- **Draft PR first.** The first ship on a branch opens the draft PR assigned to the user,
+  with the commit subject as its title and `.github/pull_request_template.md` as its body;
+  every later commit lands on that PR. The subject is a starting point: before review, rewrite
+  the title in plain language that says what the change does for whoever uses it, and fill the
+  body. `## Summary` holds at most 3 sentences, split across 2 lines with a blank line between
+  them; `## Changes` holds the rest. Before merging, re-read the PR title and body and fix
   what went stale without rewording the user's edits.
 - **Screenshots in PRs.** A PR with a visible change embeds `docs/details.png` in its body as
   a commit-pinned `raw.githubusercontent.com` URL.
+- **Diagrams in PRs.** A PR that reorganizes the codebase or introduces a new flow carries a
+  Mermaid diagram in its body, in a fenced `mermaid` block that GitHub renders. Show the
+  shape of the change: the modules and what moved between them, or the steps of the flow and
+  who calls whom. For a reorganization, a before and an after. Keep each diagram small enough
+  to read without scrolling, and leave it out when the change has no structure to draw.
 - **Review before ready.** Marking a PR ready for review means running the
   [`/pr-review`](https://github.com/piacsek/dotfiles/blob/main/.claude/skills/pr-review/SKILL.md)
   skill on the PR first, and acting on what it finds. It runs a Claude and a Codex reviewer
@@ -236,13 +246,13 @@ cargo test -- --include-ignored   # one pass; the ignored ones are e2e: real bin
 Without tmux the last gate is a plain `cargo test` and a notice that the e2e tests were skipped.
 `tests/scripts/` runs the scripts themselves in a scratch directory and a scratch git
 repository, with `cargo`, `gh` and the scripts they call replaced by symlinks to
-`tests/fixtures/record-call.sh`, which appends its name and argv to `$CALLS_LOG`. Where a
+`tests/fixtures/record-call.sh`, which appends its name and argv to `$CALLS_LOG` and exits 1 for a call whose argv starts with `$FAILING_CALL` (how a ship test says the branch has no pull request yet). Where a
 script reads what `gh` prints (`release.sh`), `gh` is a symlink to `tests/fixtures/reply-call.sh`
 instead: it records the same line, then prints every file in `$REPLIES` whose name is part of
 its argv.
 
 Ship with `scripts/ship.sh "<message>"`: `cargo fmt`, gates, `dev-install.sh` (unless skipped, see Install), commit, push, all under
-`set -e`, refusing to run on `main`, opening the draft PR on the first push of a branch. Do not hand-roll the chain: the interactive shell here is
+`set -e`, refusing to run on `main`, opening the draft PR on the first push of a branch (title: the first line of `<message>`; body: `.github/pull_request_template.md`, or empty when that file is missing). Do not hand-roll the chain: the interactive shell here is
 zsh, where `PIPESTATUS` is undefined and `test "" -eq 0` is true, so a `gates.sh | grep` guard
 silently passed a clippy failure into a commit on 2026-09-10.
 
