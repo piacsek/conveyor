@@ -2,14 +2,17 @@
 
 use std::cell::RefCell;
 use std::io;
+use std::path::PathBuf;
 use std::time::{Duration, UNIX_EPOCH};
 
-use conveyor::app::{App, Input, Request, Rows, Stage, run};
-use conveyor::config::Config;
+use conveyor::app::{
+    App, CheckoutTarget, Input, MergeTarget, Request, Rows, Stage, StatusTarget, UpdateTarget, run,
+};
+use conveyor::config::{Config, UpdateMethod};
 use conveyor::model::builds::{Build, BuildStatus, Builds, PullRef};
-use conveyor::model::deployed::{Deployed, Deployment};
+use conveyor::model::deployed::{Condition, Deployed, Deployment, Waiting};
 use conveyor::model::jobs::Job;
-use conveyor::model::prs::{CheckState, PullRequest};
+use conveyor::model::prs::{CheckState, PullRequest, StatusChange};
 use conveyor::model::queue::{Queue, QueueEntry, QueueState};
 use conveyor::open::Opener;
 use ratatui::Terminal;
@@ -115,12 +118,7 @@ pub fn build(run_number: u64, status: BuildStatus, pr: Option<(u64, &str, &str)>
         started_at: Some(started),
         finished_at: Some(started + Duration::from_secs(228)),
         pr_number: pr.map(|(number, _, _)| number),
-        pull: pr.map(|(number, author, title)| PullRef {
-            number,
-            title: title.to_string(),
-            author: author.to_string(),
-            url: format!("https://github.com/acme/webapp/pull/{number}"),
-        }),
+        pull: pr.map(pull_ref),
     }
 }
 
@@ -177,15 +175,26 @@ pub fn deployment(env: &str, sha_seed: u64, pr: Option<(u64, &str, &str)>) -> De
         env: env.to_string(),
         image: Some(format!("ghcr.io/acme/api:{sha_seed:040x}")),
         sha: Some(format!("{sha_seed:040x}")),
-        pull: pr.map(|(number, author, title)| PullRef {
-            number,
-            title: title.to_string(),
-            author: author.to_string(),
-            url: format!("https://github.com/acme/webapp/pull/{number}"),
-        }),
+        pull: pr.map(pull_ref),
         error: None,
         fetched_at: Some(UNIX_EPOCH + Duration::from_secs(NOW - 6 * 86_400)),
         ..Deployment::default()
+    }
+}
+
+pub fn condition(kind: &str, status: &str, reason: &str, message: &str) -> Condition {
+    Condition {
+        kind: kind.to_string(),
+        status: status.to_string(),
+        reason: reason.to_string(),
+        message: message.to_string(),
+    }
+}
+
+pub fn waiting(reason: &str) -> Waiting {
+    Waiting {
+        reason: reason.to_string(),
+        message: String::new(),
     }
 }
 
@@ -288,5 +297,51 @@ pub fn pr(number: u64, title: &str) -> PullRequest {
         checks: CheckState::Success,
         updated_at: Some(UNIX_EPOCH + Duration::from_secs(NOW - 2 * 3600)),
         ..PullRequest::default()
+    }
+}
+
+pub fn merge_target(number: u64, title: &str) -> MergeTarget {
+    MergeTarget {
+        number,
+        repo: "acme/webapp".to_string(),
+        title: title.to_string(),
+        head_oid: format!("8c1f2a7d{number}"),
+    }
+}
+
+pub fn update_target(number: u64, title: &str, method: UpdateMethod) -> UpdateTarget {
+    UpdateTarget {
+        number,
+        repo: "acme/webapp".to_string(),
+        title: title.to_string(),
+        head_oid: format!("8c1f2a7d{number}"),
+        method,
+    }
+}
+
+pub fn status_target(number: u64, title: &str, change: StatusChange) -> StatusTarget {
+    StatusTarget {
+        number,
+        repo: "acme/webapp".to_string(),
+        title: title.to_string(),
+        head_oid: format!("8c1f2a7d{number}"),
+        change,
+    }
+}
+
+pub fn checkout_target(number: u64, dir: Option<&str>) -> CheckoutTarget {
+    CheckoutTarget {
+        number,
+        repo: "acme/webapp".to_string(),
+        dir: dir.map(PathBuf::from),
+    }
+}
+
+fn pull_ref((number, author, title): (u64, &str, &str)) -> PullRef {
+    PullRef {
+        number,
+        title: title.to_string(),
+        author: author.to_string(),
+        url: format!("https://github.com/acme/webapp/pull/{number}"),
     }
 }

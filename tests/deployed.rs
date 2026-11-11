@@ -4,10 +4,10 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use conveyor::app::Stage;
 use conveyor::model::builds::BuildStatus;
-use conveyor::model::deployed::{Condition, Health, Pod, Waiting, parse_deployment, parse_pods};
+use conveyor::model::deployed::{Health, Pod, parse_deployment, parse_pods};
 use ratatui::crossterm::event::KeyCode;
 use ratatui::style::Color;
-use support::{Harness, build, builds, deployed, deployment, failed, key};
+use support::{Harness, build, builds, condition, deployed, deployment, failed, key, waiting};
 
 fn column(screen: &str, index: usize) -> Vec<String> {
     screen
@@ -303,10 +303,7 @@ fn d_marks_a_pod_that_is_only_starting_as_pending_not_failed() {
     staging.pods = vec![Pod {
         name: "api-1".to_string(),
         phase: "Pending".to_string(),
-        waiting: Some(Waiting {
-            reason: "ContainerCreating".to_string(),
-            message: String::new(),
-        }),
+        waiting: Some(waiting("ContainerCreating")),
         ..Pod::default()
     }];
 
@@ -329,12 +326,12 @@ fn d_lists_a_replica_failure_although_its_status_is_true() {
     let mut h = Harness::with_size(160, 30);
     let mut rollout = parse_deployment(include_str!("fixtures/deployment.json")).unwrap();
     rollout.conditions[1].status = "True".to_string();
-    rollout.conditions.push(Condition {
-        kind: "ReplicaFailure".to_string(),
-        status: "True".to_string(),
-        reason: "FailedCreate".to_string(),
-        message: "exceeded quota".to_string(),
-    });
+    rollout.conditions.push(condition(
+        "ReplicaFailure",
+        "True",
+        "FailedCreate",
+        "exceeded quota",
+    ));
     let mut staging = deployment("staging", 26, Some((4840, "bob", "Speed up CI")));
     staging.rollout = Some(rollout);
 
