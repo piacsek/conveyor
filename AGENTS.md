@@ -949,13 +949,22 @@ pipeline went from ~3 min 20 s to 37 s:
   fix, and enable it again.
 - **A pull request's branch is deleted when it merges or closes.** Merged: the repository
   setting `delete_branch_on_merge`. Closed without merging: GitHub has no setting, so
-  `.github/workflows/delete-closed-branch.yml` runs on `pull_request: closed` and deletes the
-  head ref through the API with the job's own token (`contents: write` on that job only, no
-  checkout, so no action to pin). It leaves the branch alone when the pull request merged,
-  comes from a fork, has the default branch as its head, still has another open pull request,
-  or moved after the close (its tip is no longer the pull request's head sha). A closed pull
-  request is reopened with GitHub's "Restore branch" button first. The job is skipped, not
-  red, for everything it leaves alone, and neither required check depends on it.
+  `.github/workflows/delete-closed-branch.yml` runs on `pull_request_target: closed` and
+  deletes the head branch with the job's own token (`contents: write` on that job only).
+  `pull_request_target`, not `pull_request`: GitHub starts no `pull_request` workflow for a
+  pull request that conflicts with its base, which is what an abandoned branch usually does.
+  That event runs the workflow as it is on `main` with a write token, so a change to it is
+  only exercised after it merges, and it must never check out or run the pull request's code
+  (there is no checkout, so no action to pin). It leaves the branch alone when the pull
+  request merged, comes from a fork, has the default branch as its head, still has another
+  open pull request, or moved after the close (its tip is no longer the pull request's head
+  sha). The delete is a `git push --force-with-lease=<ref>:<head sha>`, so a push landing
+  between the read and the delete is refused by GitHub instead of lost; the REST delete takes
+  no expected sha, and `gh api` does not escape a branch name in a path (`fix#1` read `fix`).
+  A closed pull request is reopened with GitHub's "Restore branch" button first. The job is
+  skipped or green for everything it leaves alone; red means a call failed. Neither required
+  check depends on it. Known and left: an open pull request whose **base** is the deleted
+  branch is closed by GitHub (branches here are cut from `origin/main`, never stacked).
 
 ## Releasing
 
