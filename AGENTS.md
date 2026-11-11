@@ -947,6 +947,15 @@ pipeline went from ~3 min 20 s to 37 s:
   own PR included; an advisory with no fixed version does the same through `audit`. Disable the
   ruleset to get out (`gh api -X PUT repos/<owner>/<repo>/rulesets/<id> -f enforcement=disabled`),
   fix, and enable it again.
+- **A pull request's branch is deleted when it merges or closes.** Merged: the repository
+  setting `delete_branch_on_merge`. Closed without merging: GitHub has no setting, so
+  `.github/workflows/delete-closed-branch.yml` runs on `pull_request: closed` and deletes the
+  head ref through the API with the job's own token (`contents: write` on that job only, no
+  checkout, so no action to pin). It leaves the branch alone when the pull request merged,
+  comes from a fork, has the default branch as its head, still has another open pull request,
+  or moved after the close (its tip is no longer the pull request's head sha). A closed pull
+  request is reopened with GitHub's "Restore branch" button first. The job is skipped, not
+  red, for everything it leaves alone, and neither required check depends on it.
 
 ## Releasing
 

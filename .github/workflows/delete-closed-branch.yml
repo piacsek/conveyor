@@ -1,0 +1,42 @@
+name: delete-closed-branch
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  delete:
+    if: >-
+      !github.event.pull_request.merged &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref != github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          open="$(gh api --method GET "repos/$REPO/pulls" -f state=open -f head="${REPO%%/*}:$BRANCH" --jq length)"
+          if [ "$open" -ne 0 ]; then
+            echo "$BRANCH still has an open pull request; left in place"
+            exit 0
+          fi
+          if ! tip="$(gh api "repos/$REPO/git/ref/heads/$BRANCH" --jq .object.sha 2>/dev/null)"; then
+            echo "$BRANCH is already gone"
+            exit 0
+          fi
+          if [ "$tip" != "$HEAD_SHA" ]; then
+            echo "$BRANCH moved to $tip after the pull request closed at $HEAD_SHA; left in place"
+            exit 0
+          fi
+          gh api --method DELETE "repos/$REPO/git/refs/heads/$BRANCH"
+          echo "deleted $BRANCH"
