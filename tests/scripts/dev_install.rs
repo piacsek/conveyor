@@ -43,6 +43,23 @@ fn an_agents_file_next_to_the_sources_can_skip_the_dev_install() {
 }
 
 #[test]
+fn a_fragment_under_changes_can_skip_the_dev_install() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = repository(dir.path());
+    link_conveyor_dev(dir.path(), &another_build(dir.path()));
+    fs::create_dir_all(work.join("changes")).unwrap();
+    fs::write(work.join("changes/topic.md"), "kind: fix\n\n- Fixed.\n").unwrap();
+
+    let output = skippable(dir.path());
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(
+        stdout(&output),
+        "nothing on this branch feeds the binary, and conveyor-dev is another worktree's build\n"
+    );
+}
+
+#[test]
 fn an_untracked_source_file_needs_the_dev_install() {
     let dir = tempfile::tempdir().unwrap();
     let work = repository(dir.path());

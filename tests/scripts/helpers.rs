@@ -45,6 +45,7 @@ pub fn repository(root: &Path) -> PathBuf {
     fs::write(work.join("README.md"), "readme\n").unwrap();
     fs::write(work.join("AGENTS.md"), "agents\n").unwrap();
     link_script(&work, "dev-install-skippable.sh");
+    link_script(&work, "feeds-binary.sh");
     git(&work, &["add", "-A"]);
     git(&work, &["commit", "-qm", "initial"]);
     git(&work, &["update-ref", "refs/remotes/origin/main", "HEAD"]);
