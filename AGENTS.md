@@ -40,7 +40,7 @@ src/model/log.rs  `tail`: the failed step's log as gh prints it, minus job/step/
 src/app/mod.rs   App (one Column per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Stage, Rows, Mode::{Normal, Filter, Help, Changelog, Confirm, Manage}, Input::{Key, Fetching, Data, Jobs, Log, Merged, Rerun, BranchUpdated, StatusChanged, CheckedOut, Tick}, Action, Request::{Refresh, Jobs, Log, Rerun, Merge, UpdateBranch, ChangeStatus, Checkout}; receive, the `focused_*` readers, `pull_target`, `build_url`, open, scroll and filter helpers, `keep_last_known`; re-exports everything below as `app::X`
 src/app/column.rs Column<T: Row> (state, error, list, filter), ColumnState, Row and its four impls, Order, `merge_keeping_order`, Navigable
 src/app/jobs.rs  JobsState, LogState, `age_jobs`, `jobs_needed` (selected, stale, then the first `EAGER_JOBS` failing builds), `selected_run`, `toggle_log`, `receive_jobs`, `receive_log`
-src/app/manage.rs Menu/Offer/Choice (the `S` popup), the `*Target` structs, Rerun, Pending, `menu`, `manage`, the confirm and `reconfirm` paths, the `send_*` and `receive_*` of each write, the footer wording (`offer`, `changed`, `progress`, `done`, `conflicts`)
+src/app/actions.rs Menu/Offer/Choice (the `S` popup), the `*Target` structs, Rerun, Pending, `menu`, `manage`, the confirm and `reconfirm` paths, the `send_*` and `receive_*` of each write, the footer wording (`offer`, `changed`, `progress`, `done`, `conflicts`)
 src/app/keys.rs  `handle_key` and the Filter and Normal mode key handlers, `escape`
 src/app/run.rs   run(): draw, read one Input, turn each Action into a Request
 src/ui/mod.rs    draw: 4 columns or tabs below `4 × ui.min_column_width`

@@ -13,17 +13,17 @@ use crate::model::jobs::Job;
 use crate::model::prs::{BranchUpdate, PullRequest, StatusChange};
 use crate::model::queue::{Queue, QueueEntry};
 
+mod actions;
 mod column;
 mod jobs;
 mod keys;
-mod manage;
 mod run;
 
-pub use column::{Column, ColumnState, Navigable, Order, Row};
-pub use jobs::{JobsState, LogState};
-pub use manage::{
+pub use actions::{
     CheckoutTarget, Choice, Menu, MergeTarget, Offer, Pending, Rerun, StatusTarget, UpdateTarget,
 };
+pub use column::{Column, ColumnState, Navigable, Order, Row};
+pub use jobs::{JobsState, LogState};
 pub use run::run;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
