@@ -636,6 +636,19 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   five failing builds are still fetched one after another (about 10 s for the failed-job
   line on those cards), and a `builds` above 100 is still cut to 100 by GitHub.
 
+- No release (phase 36, `plans/phase-36-release-ghost-run.md`): `scripts/release.sh` goes on
+  past a release run GitHub never started. `release.sh 0.24.2` refused because a second run
+  for `v0.24.1` sat in the list as `queued` with no job, and GitHub refused to cancel or
+  delete it (`gh run cancel`, the force-cancel API, `gh run delete` and the web UI all fail),
+  so every later release would have been refused too. The guard now lists the runs that are
+  not completed as id, status and `createdAt`, and skips one only when it is `queued`, was
+  created more than an hour ago and `gh run view <id> --json jobs` counts no job; it prints
+  which run it skipped. Everything else still refuses, a job count that cannot be read
+  included. The age is judged in the script, not in `--jq`, because the test `gh` does not
+  run `--jq`: `createdAt` is compared as a string with the time one hour ago, read from
+  `date -v-1H` (BSD) or `date -d '1 hour ago'` (GNU). Not done: a ghost that is not `queued`
+  (`pending`, `waiting`) would still block, none has been seen.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.

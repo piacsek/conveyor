@@ -322,7 +322,10 @@ tag a docs-only or CI-only `main`.
 
    It refuses a dirty tree, another branch, a `main` that differs from `origin/main`, a version
    `Cargo.toml` does not carry, a tag that already exists here or on `origin`, and a `release`
-   run still queued or in progress. Then it tags `vX.Y.Z`, pushes that one tag, watches the
+   run still queued or in progress. One kind of run is skipped, with a line that names it: a
+   run `queued` for more than an hour that `gh run view <id> --json jobs` shows without a job.
+   GitHub never started it and refuses to cancel or delete it, so it stays in the list for
+   good (first seen 2026-11-11, a second run for `v0.24.1`). Then it tags `vX.Y.Z`, pushes that one tag, watches the
    `release` run to its end and checks that the release holds the three tarballs and their
    `.sha256` and nothing else. The last line it prints is the release URL.
 4. The script also reads `Formula/conveyor.rb` from GitHub and fails when it does not name
