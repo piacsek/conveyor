@@ -62,7 +62,7 @@ fn a_kubectl_that_hangs_is_killed_at_the_deadline() {
     let _serialized = serialized();
     let dir = tempfile::tempdir().unwrap();
     let file = dir.path().join("conveyor.log");
-    let kubectl = shim(&dir, "sleep 5")
+    let kubectl = shim(&dir, "exec sleep 5")
         .with_log(Log::open(&file))
         .with_deadline(Duration::from_secs(1));
     let started = Instant::now();
@@ -129,10 +129,12 @@ exit 1"#,
 fn a_helper_kubectl_started_is_killed_with_it_at_the_deadline() {
     let _serialized = serialized();
     let dir = tempfile::tempdir().unwrap();
-    let kubectl = shim(&dir, "sleep 30 &\necho $! > \"$0.pid\"\nwait")
-        .with_deadline(Duration::from_millis(300));
+    let kubectl = shim(
+        &dir,
+        "sleep 30 &\necho $! > \"$0.pid\"\n: > \"$0.ready\"\nwait",
+    );
 
-    let _ = kubectl.deployment(&env());
+    time_out_once_ready(&dir, kubectl);
 
     assert!(!alive_after(&dir, Duration::from_secs(2)));
 }
@@ -142,7 +144,7 @@ fn a_helper_that_outlives_kubectl_is_killed_once_its_output_is_given_up_on() {
     let _serialized = serialized();
     let dir = tempfile::tempdir().unwrap();
     let kubectl = shim(&dir, "sleep 30 &\necho $! > \"$0.pid\"\necho '{}'")
-        .with_deadline(Duration::from_millis(300));
+        .with_deadline(Duration::from_secs(10));
 
     let _ = kubectl.deployment(&env());
 
@@ -154,11 +156,13 @@ fn a_timed_out_call_is_logged_with_what_kubectl_had_said() {
     let _serialized = serialized();
     let dir = tempfile::tempdir().unwrap();
     let file = dir.path().join("conveyor.log");
-    let kubectl = shim(&dir, "echo 'dial tcp: i/o timeout' >&2\nsleep 5")
-        .with_log(Log::open(&file))
-        .with_deadline(Duration::from_millis(300));
+    let kubectl = shim(
+        &dir,
+        "echo 'dial tcp: i/o timeout' >&2\n: > \"$0.ready\"\nexec sleep 5",
+    )
+    .with_log(Log::open(&file));
 
-    let _ = kubectl.deployment(&env());
+    time_out_once_ready(&dir, kubectl);
 
     let text = fs::read_to_string(&file).unwrap();
     assert!(
@@ -331,6 +335,19 @@ fn the_sha_is_the_40_hex_tag_or_a_40_hex_suffix() {
     );
     assert!(sha_from_image("ghcr.io/acme/api").is_err());
     assert!(sha_from_image("registry:5000/acme/api@sha256:abc").is_err());
+}
+
+fn time_out_once_ready(dir: &tempfile::TempDir, mut kubectl: CliKubectl) {
+    let ready = dir.path().join("bin/kubectl.ready");
+    let mut deadline = Duration::from_millis(300);
+    loop {
+        kubectl = kubectl.with_deadline(deadline);
+        let _ = kubectl.deployment(&env());
+        if ready.exists() || deadline > Duration::from_secs(30) {
+            return;
+        }
+        deadline *= 2;
+    }
 }
 
 fn alive_after(dir: &tempfile::TempDir, patience: Duration) -> bool {

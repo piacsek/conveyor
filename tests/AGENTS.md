@@ -12,6 +12,17 @@ What has gone wrong in the tests before, and how the suites are set up to avoid 
   of four calls at once. Without the spawn lock the kubectl one failed in about half its runs
   at 60 rounds and the `gh` one in every run; on Linux both always pass. One green run of
   either is no proof the lock is still in place.
+- **A shim's first run is slow, and a killed shell talks.** Measured on macOS 2026-11-11: the
+  first exec of a freshly written script took 160 to 220 ms at the median on a busy machine
+  (p99 285 to 603 ms, one of 2.4 s) against 7 ms for a file that had run before, and every
+  shim test writes a new file. A 300 ms deadline was therefore often over before the shim's
+  first line, and `tests/kube.rs` failed in 14 of 266 runs under load. A test that needs the
+  deadline to cut a running shim goes through `time_out_once_ready`: the shim writes
+  `$0.ready` before it hangs, and the call is repeated with a doubled deadline until that file
+  is there. A test whose shim exits on its own takes a long deadline instead. A shim that
+  hangs ends in `exec sleep`: killing the group kills `sleep` and `sh` together, and a `sh`
+  that outlived its child by a moment wrote `Killed: 9 sleep 5` to stderr, which then showed
+  up in the logged line.
 - `tests/e2e.rs` runs the real binary in a scratch tmux server (`-L`, `-f /dev/null`) with
   `HOME` in a tempdir and a `gh` shell shim that prints `tests/fixtures/prs.json`. The pane
   command must be `env HOME=… PATH=… <binary>`: `respawn-pane -e PATH=…` looked right but
