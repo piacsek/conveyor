@@ -145,16 +145,23 @@ pub fn parse_commit_pulls(value: &serde_json::Value) -> Vec<(String, PullRef)> {
             let pull = PullRef {
                 number: pr.get("number")?.as_u64()?,
                 title: text(pr, "title"),
-                author: pr
-                    .pointer("/author/login")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or_default()
-                    .to_string(),
+                author: graphql_author(pr),
                 url: text(pr, "url"),
             };
             Some((sha.to_string(), pull))
         })
         .collect()
+}
+
+fn graphql_author(pr: &serde_json::Value) -> String {
+    let login = pr
+        .pointer("/author/login")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default();
+    match pr.pointer("/author/__typename").and_then(|v| v.as_str()) {
+        Some("Bot") => format!("{login}[bot]"),
+        _ => login.to_string(),
+    }
 }
 
 pub fn parse_pull(pr: &serde_json::Value) -> Option<PullRef> {
