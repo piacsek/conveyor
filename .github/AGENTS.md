@@ -38,6 +38,12 @@ pipeline went from ~3 min 20 s to 37 s:
   own PR included; an advisory with no fixed version does the same through `audit`. Disable the
   ruleset to get out (`gh api -X PUT repos/<owner>/<repo>/rulesets/<id> -f enforcement=disabled`),
   fix, and enable it again.
+- **The `tap` job of `release.yml` runs one at a time** (`concurrency: tap`,
+  `cancel-in-progress: false`), so two releases never write the formula at the same moment.
+  It does not order them: GitHub keeps one pending job per group, starts it whatever its
+  version, and cancels a pending one when a third arrives, so an older tag's `tap` job can
+  still run last. The main guard is `scripts/release.sh`, which refuses to tag while a
+  `release` run is queued or in progress.
 - **A pull request's branch is deleted when it merges or closes.** Merged: the repository
   setting `delete_branch_on_merge`. Closed without merging: GitHub has no setting, so
   `.github/workflows/delete-closed-branch.yml` runs on `pull_request_target: closed` and
