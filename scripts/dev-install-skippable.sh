@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 link="$HOME/.local/bin/conveyor-dev"
-outside_the_binary='^(tests|docs|plans|scripts|\.github)/|^(AGENTS|PLAN|README)\.md$|^(LICENSE|\.gitignore)$'
+outside_the_binary='^(tests|docs|plans|scripts|\.github)/|(^|/)AGENTS\.md$|^(PLAN|README)\.md$|^(LICENSE|\.gitignore)$'
 
 install() {
   echo "$*"
