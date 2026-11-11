@@ -13,7 +13,7 @@ My PRs (3) │ Merge queue │ Main builds │ Deployed
 │  ○  #479│    #4821                                                │       2h│
 │    webapp│ e  leave the merge queue · #4821 is not queued          │         │
 │    checks│ c  check out locally                                    │         │
-│          │ x  close                                                │         │
+│          │ x  close PR                                             │         │
 │          └─────────────────────────────────────────────────────────┘         │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘

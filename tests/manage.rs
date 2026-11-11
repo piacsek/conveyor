@@ -22,7 +22,7 @@ fn shift_s_opens_a_manage_popup_listing_every_action_for_the_pull_request() {
     assert!(screen.contains("m  merge"), "{screen}");
     assert!(screen.contains("u  update branch"), "{screen}");
     assert!(screen.contains("t  convert to draft"), "{screen}");
-    assert!(screen.contains("x  close"), "{screen}");
+    assert!(screen.contains("x  close PR"), "{screen}");
     assert!(h.requests.is_empty());
 }
 
@@ -557,7 +557,7 @@ fn the_popup_lists_only_the_actions_without_a_hint_line() {
     h.run(vec![prs(vec![open(1, "a")]), key(KeyCode::Char('S'))])
         .unwrap();
 
-    assert!(h.screen().contains("x  close"), "{}", h.screen());
+    assert!(h.screen().contains("x  close PR"), "{}", h.screen());
     assert!(!h.screen().contains("a letter acts"), "{}", h.screen());
 }
 

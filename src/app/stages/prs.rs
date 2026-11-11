@@ -152,7 +152,7 @@ impl PrsStage {
                 "check out locally",
                 Ok(Choice::Checkout(checkout_target(pr, context))),
             ),
-            offer('x', "close", status(StatusChange::Close)),
+            offer('x', "close PR", status(StatusChange::Close)),
         ]
     }
 
