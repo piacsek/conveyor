@@ -1,9 +1,9 @@
 mod support;
 
-use conveyor::app::{Input, MergeTarget, Request, Stage};
+use conveyor::app::{Input, Request, Stage};
 use conveyor::model::prs::PullRequest;
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, ctrl, entry, key, pr, prs, queue};
+use support::{Harness, ctrl, entry, key, merge_target, pr, prs, queue};
 
 fn mergeable(number: u64, title: &str) -> PullRequest {
     let mut pull = pr(number, title);
@@ -12,12 +12,7 @@ fn mergeable(number: u64, title: &str) -> PullRequest {
 }
 
 fn target(number: u64, title: &str) -> Request {
-    Request::Merge(MergeTarget {
-        number,
-        repo: "acme/webapp".to_string(),
-        title: title.to_string(),
-        head_oid: format!("8c1f2a7d{number}"),
-    })
+    Request::Merge(merge_target(number, title))
 }
 
 #[test]

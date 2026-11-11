@@ -1,11 +1,11 @@
 mod support;
 
-use conveyor::app::{Input, Request, Stage, StatusTarget};
+use conveyor::app::{Input, Request, Stage};
 use conveyor::config::MergeMethod;
 use conveyor::model::builds::BuildStatus;
 use conveyor::model::prs::{PullRequest, StatusChange};
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, build, builds, failed, key, pr, prs};
+use support::{Harness, build, builds, failed, key, pr, prs, status_target};
 
 #[test]
 fn shift_s_opens_a_manage_popup_listing_every_action_for_the_pull_request() {
@@ -665,13 +665,7 @@ fn open(number: u64, title: &str) -> PullRequest {
 }
 
 fn status(number: u64, title: &str, change: StatusChange) -> Request {
-    Request::ChangeStatus(StatusTarget {
-        number,
-        repo: "acme/webapp".to_string(),
-        title: title.to_string(),
-        head_oid: format!("8c1f2a7d{number}"),
-        change,
-    })
+    Request::ChangeStatus(status_target(number, title, change))
 }
 
 fn status_changed(

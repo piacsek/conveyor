@@ -1,5 +1,8 @@
-use conveyor::model::deployed::{Condition, Health, Pod, health, parse_deployment, parse_pods};
+mod support;
+
+use conveyor::model::deployed::{Health, Pod, health, parse_deployment, parse_pods};
 use conveyor::model::prs::parse_timestamp;
+use support::condition;
 
 const DEPLOYMENT: &str = include_str!("fixtures/deployment.json");
 const PODS: &str = include_str!("fixtures/pods.json");
@@ -267,12 +270,12 @@ fn the_last_exit_comes_from_the_restarting_container_not_one_that_merely_waits()
 fn a_replica_failure_is_a_warning_while_the_deployment_is_still_available() {
     let mut rollout = parse_deployment(DEPLOYMENT).unwrap();
     rollout.conditions[1].status = "True".to_string();
-    rollout.conditions.push(Condition {
-        kind: "ReplicaFailure".to_string(),
-        status: "True".to_string(),
-        reason: "FailedCreate".to_string(),
-        message: "exceeded quota".to_string(),
-    });
+    rollout.conditions.push(condition(
+        "ReplicaFailure",
+        "True",
+        "FailedCreate",
+        "exceeded quota",
+    ));
 
     assert_eq!(
         health(&rollout, Some(&[])),

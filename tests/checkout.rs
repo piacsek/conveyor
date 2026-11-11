@@ -2,10 +2,10 @@ mod support;
 
 use std::path::PathBuf;
 
-use conveyor::app::{CheckoutTarget, Input, Request};
+use conveyor::app::{Input, Request};
 use conveyor::config::{Config, Repo};
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, key, pr, prs};
+use support::{Harness, checkout_target, key, pr, prs};
 
 #[test]
 fn s_then_c_checks_the_pull_request_out_where_conveyor_runs_at_once() {
@@ -172,15 +172,7 @@ fn tall(config: Config) -> Harness {
 }
 
 fn checkout(number: u64, dir: Option<&str>) -> Request {
-    Request::Checkout(target(number, dir))
-}
-
-fn target(number: u64, dir: Option<&str>) -> CheckoutTarget {
-    CheckoutTarget {
-        number,
-        repo: "acme/webapp".to_string(),
-        dir: dir.map(PathBuf::from),
-    }
+    Request::Checkout(checkout_target(number, dir))
 }
 
 fn with_path(name: &str, path: &str) -> Config {
@@ -196,7 +188,7 @@ fn with_path(name: &str, path: &str) -> Config {
 
 fn checked_out(number: u64, dir: Option<&str>, result: Result<(), &str>) -> std::io::Result<Input> {
     Ok(Input::CheckedOut(
-        target(number, dir),
+        checkout_target(number, dir),
         result.map_err(str::to_string),
     ))
 }
