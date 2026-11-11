@@ -22,8 +22,15 @@ on_origin="$(git ls-remote --tags origin "refs/tags/$tag")"
 [ -z "$on_origin" ] || refuse "$tag already exists on origin; a released tag never moves, bump the version instead"
 local_tag="$(git tag --list "$tag")"
 [ -z "$local_tag" ] || refuse "$tag already exists locally; if it was never pushed, delete it with git tag -d $tag"
-in_flight="$(gh run list --workflow release.yml --json status,databaseId --jq '.[] | select(.status != "completed") | .databaseId')"
-[ -z "$in_flight" ] || refuse "a release run is queued or in progress; wait for it (gh run list --workflow release.yml), then run this again"
+in_flight="$(gh run list --workflow release.yml --json status,databaseId,createdAt --jq '.[] | select(.status != "completed") | "\(.databaseId) \(.status) \(.createdAt)"')"
+while read -r id status created; do
+  [ -n "$id" ] || continue
+  if [ "$status" = "queued" ]; then
+    echo "ignoring release run $id: queued since $created without a job, GitHub never started it"
+    continue
+  fi
+  refuse "a release run is queued or in progress; wait for it (gh run list --workflow release.yml), then run this again"
+done <<<"$in_flight"
 
 git tag "$tag"
 git push -q origin "refs/tags/$tag"

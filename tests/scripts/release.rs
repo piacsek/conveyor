@@ -18,7 +18,7 @@ fn release_tags_main_pushes_only_that_tag_and_checks_what_the_run_published() {
     assert_eq!(
         calls(dir.path()),
         [
-            "gh run list --workflow release.yml --json status,databaseId --jq .[] | select(.status != \"completed\") | .databaseId",
+            "gh run list --workflow release.yml --json status,databaseId,createdAt --jq .[] | select(.status != \"completed\") | \"\\(.databaseId) \\(.status) \\(.createdAt)\"",
             "gh run list --workflow release.yml --branch v0.24.0 --limit 1 --json databaseId --jq .[].databaseId",
             "gh run watch 77 --exit-status",
             "gh release view v0.24.0 --json assets --jq .assets[].name",
@@ -164,7 +164,11 @@ fn release_refuses_while_another_release_run_is_in_flight() {
     let dir = tempfile::tempdir().unwrap();
     release_sandbox(dir.path());
     published(dir.path(), "0.24.0");
-    answer(dir.path(), "--json status", "76\n");
+    answer(
+        dir.path(),
+        "--json status",
+        "76 in_progress 2026-11-11T20:46:25Z\n",
+    );
 
     let output = release(dir.path(), "0.24.0");
 
@@ -175,6 +179,30 @@ fn release_refuses_while_another_release_run_is_in_flight() {
     );
     assert_eq!(calls(dir.path()).len(), 1);
     assert_eq!(origin_tags(dir.path()), "");
+}
+
+#[test]
+fn release_goes_on_past_a_queued_run_github_never_started() {
+    let dir = tempfile::tempdir().unwrap();
+    release_sandbox(dir.path());
+    published(dir.path(), "0.24.0");
+    answer(
+        dir.path(),
+        "--json status",
+        "76 queued 2026-11-11T20:46:25Z\n",
+    );
+    answer(dir.path(), "--json jobs", "0\n");
+
+    let output = release(dir.path(), "0.24.0");
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(
+        stdout(&output).lines().next(),
+        Some(
+            "ignoring release run 76: queued since 2026-11-11T20:46:25Z without a job, GitHub never started it"
+        )
+    );
+    assert_eq!(origin_tags(dir.path()), "v0.24.0");
 }
 
 #[test]
