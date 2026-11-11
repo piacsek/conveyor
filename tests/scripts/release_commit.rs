@@ -220,6 +220,25 @@ fn a_file_in_a_folder_under_changes_is_refused_by_name_before_anything_is_writte
 }
 
 #[test]
+fn a_released_fragment_edited_since_is_refused_by_name_before_anything_is_written() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+    git(&work, &["tag", "v0.3.2"]);
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue again.\n");
+    fragment(&work, "other", "kind: fix\n\n- Fixed the builds.\n");
+
+    let output = release_commit(&work, &["0.3.3"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "changes/topic.md was released in v0.3.2 and has changed since; a released fragment never changes, so put the change in a new file\n"
+    );
+    assert_eq!(git_stdout(&work, &["status", "--porcelain"]), "");
+}
+
+#[test]
 fn a_release_with_nothing_pending_is_refused() {
     let dir = tempfile::tempdir().unwrap();
     let work = sandbox(dir.path());

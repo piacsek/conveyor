@@ -26,8 +26,19 @@ refuse_strays() {
   fi
 }
 
+refuse_edits() {
+  local edited
+  edited="$(git -c core.quotePath=false diff-tree -r --name-only --no-renames --diff-filter=M "$1" HEAD -- changes/)" || return 1
+  edited="${edited%%$'\n'*}"
+  if [ -n "$edited" ]; then
+    echo "$edited was released in $1 and has changed since; a released fragment never changes, so put the change in a new file" >&2
+    return 1
+  fi
+}
+
 pending_fragments() {
   refuse_strays || return 1
+  refuse_edits "$1" || return 1
   LC_ALL=C comm -23 <(fragments_at HEAD) <(fragments_at "$1")
 }
 
