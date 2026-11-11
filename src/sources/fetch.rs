@@ -201,7 +201,7 @@ impl Pulls {
         let unknown: Vec<&str> = commits
             .iter()
             .map(|(sha, _)| *sha)
-            .filter(|sha| !self.known(sha, now))
+            .filter(|sha| is_commit_sha(sha) && !self.known(sha, now))
             .collect();
         if unknown.is_empty() {
             return;
@@ -305,6 +305,10 @@ impl Pulls {
         }
         crate::model::builds::parse_pull(&value)
     }
+}
+
+fn is_commit_sha(sha: &str) -> bool {
+    sha.len() == 40 && sha.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
 fn commit_pulls_query(shas: &[&str]) -> String {
