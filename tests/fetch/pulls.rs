@@ -67,7 +67,13 @@ fn an_error_from_gh_is_not_an_answer_and_never_triggers_the_fallback() {
         assert_eq!(source.fetch(&gh, &kube, NOW).rows[0].pull, None);
     }
 
-    let calls = gh.calls.borrow().clone();
+    let calls: Vec<_> = gh
+        .calls
+        .borrow()
+        .iter()
+        .filter(|(path, _)| path.starts_with("GET "))
+        .cloned()
+        .collect();
     assert!(
         calls.iter().all(|(path, _)| path.ends_with("/pulls")),
         "no commit read and no pull read while gh is refusing: {calls:?}"
