@@ -1,7 +1,7 @@
 name: delete-closed-branch
 
 on:
-  pull_request:
+  pull_request_target:
     types: [closed]
 
 permissions:
@@ -30,7 +30,10 @@ jobs:
             echo "$BRANCH still has an open pull request; left in place"
             exit 0
           fi
-          if ! tip="$(gh api "repos/$REPO/git/ref/heads/$BRANCH" --jq .object.sha 2>/dev/null)"; then
+          remote="https://x-access-token:$GH_TOKEN@github.com/$REPO.git"
+          ref="refs/heads/$BRANCH"
+          tip="$(git ls-remote "$remote" "$ref" | awk -v r="$ref" '$2 == r { print $1 }')"
+          if [ -z "$tip" ]; then
             echo "$BRANCH is already gone"
             exit 0
           fi
@@ -38,5 +41,7 @@ jobs:
             echo "$BRANCH moved to $tip after the pull request closed at $HEAD_SHA; left in place"
             exit 0
           fi
-          gh api --method DELETE "repos/$REPO/git/refs/heads/$BRANCH"
+          cd "$(mktemp -d)"
+          git init -q .
+          git push -q "$remote" --force-with-lease="$ref:$HEAD_SHA" ":$ref"
           echo "deleted $BRANCH"
