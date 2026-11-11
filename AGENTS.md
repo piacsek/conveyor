@@ -80,6 +80,7 @@ scripts/ship.sh               gates + dev-install (unless skippable) + commit + 
 scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
 plans/                        one versioned plan file per phase (see Working agreements)
 scripts/homebrew-formula.sh   prints the tap formula for a released version
+scripts/release.sh            tags a merged version from `main`, pushes the tag, watches `release` and checks the tarballs and the tap formula
 scripts/screenshots.sh        renders docs/details.png from a gh shim + synthetic fixture (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
@@ -233,9 +234,12 @@ cargo test -- --include-ignored   # one pass; the ignored ones are e2e: real bin
 ```
 
 Without tmux the last gate is a plain `cargo test` and a notice that the e2e tests were skipped.
-`tests/scripts.rs` runs the scripts themselves in a scratch directory and a scratch git
+`tests/scripts/` runs the scripts themselves in a scratch directory and a scratch git
 repository, with `cargo`, `gh` and the scripts they call replaced by symlinks to
-`tests/fixtures/record-call.sh`, which appends its name and argv to `$CALLS_LOG`.
+`tests/fixtures/record-call.sh`, which appends its name and argv to `$CALLS_LOG`. Where a
+script reads what `gh` prints (`release.sh`), `gh` is a symlink to `tests/fixtures/reply-call.sh`
+instead: it records the same line, then prints every file in `$REPLIES` whose name is part of
+its argv.
 
 Ship with `scripts/ship.sh "<message>"`: `cargo fmt`, gates, `dev-install.sh` (unless skipped, see Install), commit, push, all under
 `set -e`, refusing to run on `main`, opening the draft PR on the first push of a branch. Do not hand-roll the chain: the interactive shell here is
@@ -296,9 +300,19 @@ tag a docs-only or CI-only `main`.
 1. Bump `version` in `Cargo.toml` (`Cargo.lock` follows on the next build) and add its
    `## vX.Y.Z (YYYY-MM-DD)` entry at the top of `CHANGELOG.md`: what a user sees, one bullet each.
 2. Run the gates, commit `Release vX.Y.Z`, merge to `main`.
-3. `git tag vX.Y.Z && git push origin vX.Y.Z`, then `gh run watch` until `release` is green
-   and `gh release view vX.Y.Z` lists three tarballs.
-4. The `tap` job regenerates `Formula/conveyor.rb` in `github.com/piacsek/homebrew-tap`
+3. From a clean `main` that is exactly `origin/main`:
+
+   ```bash
+   scripts/release.sh X.Y.Z
+   ```
+
+   It refuses a dirty tree, another branch, a `main` that differs from `origin/main`, a version
+   `Cargo.toml` does not carry, a tag that already exists here or on `origin`, and a `release`
+   run still queued or in progress. Then it tags `vX.Y.Z`, pushes that one tag, watches the
+   `release` run to its end and checks that the release holds the three tarballs and their
+   `.sha256` and nothing else. The last line it prints is the release URL.
+4. The script also reads `Formula/conveyor.rb` from GitHub and fails when it does not name
+   the version. The `tap` job regenerates `Formula/conveyor.rb` in `github.com/piacsek/homebrew-tap`
    (local clone `~/projects/homebrew-tap`) with `scripts/homebrew-formula.sh <version>` and
    pushes with the `TAP_TOKEN` repo secret (fine-grained PAT, contents:write on
    homebrew-tap; set per repo with `gh secret set TAP_TOKEN --repo piacsek/conveyor`). If

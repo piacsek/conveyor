@@ -30,7 +30,7 @@ What has gone wrong in the tests before, and how the suites are set up to avoid 
   `SHIMS` mutex for its whole body. Any new test that writes an executable and runs it in the
   same test binary must do the same (or run it in a separate process such as tmux, as e2e
   does). Treat a green PR run as no proof against this class: it is timing-dependent.
-  `tests/scripts.rs` needs no mutex because it writes no executable: every shim is a symlink
+  `tests/scripts/` needs no mutex because it writes no executable: every shim is a symlink
   to a tracked script, and the scripts under test are symlinked into the scratch directory.
 - A card's first line in a 40-column pane holds about 30 characters after the bar, glyph and
   the right-aligned figure; a build card's title gets a line of its own and about `width - 4`.
