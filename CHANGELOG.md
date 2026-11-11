@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.24.1 (2026-11-11)
+- In the `S` popup of My PRs the close action reads `x  close PR` instead of `x  close`.
+
 ## v0.24.0 (2026-11-10)
 - `S` then `c` checks the selected pull request out locally with `gh pr checkout`. The footer says where it landed, or git's reason when it could not (uncommitted changes, a branch already open in another worktree).
 - The checkout runs in the `path` set under the repository's `[[repo]]`, a new optional key, and otherwise in the directory conveyor was started in.
