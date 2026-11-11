@@ -198,11 +198,13 @@ impl Pulls {
         let Some((owner, name)) = self.repo.split_once('/') else {
             return;
         };
-        let unknown: Vec<&str> = commits
+        let mut unknown: Vec<&str> = commits
             .iter()
             .map(|(sha, _)| *sha)
             .filter(|sha| is_commit_sha(sha) && !self.known(sha, now))
             .collect();
+        unknown.sort_unstable();
+        unknown.dedup();
         if unknown.is_empty() {
             return;
         }
@@ -458,6 +460,14 @@ impl DeploySource {
                 })
                 .collect()
         });
+        let shas: Vec<String> = read
+            .iter()
+            .filter_map(|read| read.rollout.as_ref().ok())
+            .filter_map(|rollout| crate::model::deployed::sha_from_image(&rollout.image).ok())
+            .collect();
+        let commits: Vec<(&str, Option<u64>)> =
+            shas.iter().map(|sha| (sha.as_str(), None)).collect();
+        self.pulls.prefetch(gh, &commits, now);
         let rows = envs
             .iter()
             .zip(read)

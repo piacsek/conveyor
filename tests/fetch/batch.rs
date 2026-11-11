@@ -222,6 +222,54 @@ fn a_commit_the_batch_does_not_answer_for_is_asked_on_its_own() {
     );
 }
 
+#[test]
+fn deployed_asks_for_its_environments_pull_requests_in_one_call() {
+    use crate::fakes::{FakeKube, deployment_json};
+    use conveyor::config::{Deploy, DeployEnv};
+    use conveyor::sources::fetch::DeploySource;
+    let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    gh.graphql_routes = vec![(
+        "associatedPullRequests".to_string(),
+        serde_json::json!({"data": {"repository": {
+            "c0": commit(FIRST, serde_json::json!([pull(4821, "Retry hooks", "alice", "User")])),
+            "c1": commit(SECOND, serde_json::json!([pull(4822, "Add headers", "bob", "User")])),
+        }}}),
+    )];
+    let image = |sha: &str| Ok(deployment_json(&format!("ghcr.io/acme/api:{sha}")));
+    let kube = FakeKube::with(vec![
+        ("dev".to_string(), image(FIRST)),
+        ("staging".to_string(), image(FIRST)),
+        ("prod".to_string(), image(SECOND)),
+    ]);
+    let env = |name: &str| DeployEnv {
+        name: name.to_string(),
+        ..DeployEnv::default()
+    };
+    let deploy = Deploy {
+        env: vec![env("dev"), env("staging"), env("prod")],
+        ..Deploy::default()
+    };
+    let mut source = DeploySource::new("acme/webapp".to_string(), deploy);
+
+    let deployed = source.fetch(&gh, &kube, NOW);
+
+    assert_eq!(
+        deployed.rows[0].pull.as_ref().map(|pull| pull.number),
+        Some(4821)
+    );
+    assert_eq!(
+        deployed.rows[1].pull.as_ref().map(|pull| pull.number),
+        Some(4821)
+    );
+    assert_eq!(
+        deployed.rows[2].pull.as_ref().map(|pull| pull.number),
+        Some(4822)
+    );
+    assert_eq!(batches(&gh).len(), 1);
+    assert_eq!(batches(&gh)[0].matches(FIRST).count(), 1);
+    assert_eq!(lookups(&gh), Vec::<String>::new());
+}
+
 fn source() -> BuildsSource {
     BuildsSource::new(Repo {
         name: "acme/webapp".to_string(),
