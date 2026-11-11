@@ -614,6 +614,13 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   asked for nothing more. Not done: cloning a repository that has no local clone, and a
   deadline for a fetch that stalls (an ssh remote waiting for a passphrase).
 
+- v0.24.1 (phase 34, `plans/phase-34-close-pr-label.md`): the close offer in the `S` popup
+  reads `close PR`. The user asked for the wording and for a release of its own, although
+  copy-only wording normally rides the next behaviour release. The label is one literal in
+  `PrsStage::offers` and only `draw_manage` reads it, so the key, the confirm question and the
+  footer notices are untouched. The existing `contains("x  close")` assertions also matched
+  the new label, so they were moved to `x  close PR` to see them red first.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.

@@ -194,7 +194,7 @@ dependencies = [
 
 [[package]]
 name = "conveyor"
-version = "0.24.0"
+version = "0.24.1"
 dependencies = [
  "chrono",
  "insta",
