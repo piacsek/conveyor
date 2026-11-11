@@ -50,7 +50,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   already was the confirmation and each is cheap to undo. Offers per stage:
   - My PRs: `m` merge (`add to merge queue` on a merge-queue base), `u` update/rebase branch, `f` rerun failed jobs (`(k runs)` when more
     than one), `t` mark ready / convert to draft, `a` enable/disable auto-merge, `e` leave the
-    merge queue, `c` check out locally, `x` close. Main builds: `f` only.
+    merge queue, `c` check out locally, `x` close PR. Main builds: `f` only.
   - **`t`, `a`, `e`, `x` change the status.** `Request::ChangeStatus(StatusTarget)` carries a
     `StatusChange`; `CliGh::status_args` runs `gh pr ready <N> -R <repo> [--undo]` and `gh pr
     close <N> -R <repo>`, and GraphQL mutations by the pull request's node `id` for the rest:
