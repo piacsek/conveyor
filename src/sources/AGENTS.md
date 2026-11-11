@@ -38,8 +38,8 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   matched on `name` or the file basename) or a `.yml` file used directly. The default `CI/CD`
   also tries `cicd.yml`, `CI`, `ci`, `ci.yml`, `build`, `build.yml`, `main.yml` in that order
   (`fetch::DEFAULT_WORKFLOWS`) so an unconfigured repo usually finds its build workflow. Each run's PR comes
-  from the squash suffix `(#N)` in `display_title`, else `repos/{r}/commits/{sha}/pulls`
-  (first PR; see the `Pulls` note below; rebase merges have no suffix, which is
+  from one batched GraphQL query for all the runs, and from REST for whatever that did not
+  answer (see the `Pulls` note below; rebase merges have no `(#N)` suffix, which is
   why this repo's own runs exercise the fallback). `updated_at` stands in for the finish time;
   running and queued runs show elapsed time instead. `tests/fixtures/runs.json` and
   `commit-pulls.json` are real captures from this repo.
@@ -92,9 +92,8 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   single-threaded and the row order never depends on which cluster answered first; `Kube`
   implementations must be `Sync`. They were read one after another until v0.23.2, so every
   unreachable environment added its own wait in front of the healthy rows. The kubectl part
-  of a fetch now takes as long as its slowest environment (the pull request lookups follow,
-  one environment after another: up to three `gh` calls for a sha not seen before, none for a
-  cached one): about 15 s when a Deployment call hangs
+  of a fetch now takes as long as its slowest environment (the pull request lookup follows:
+  one batched call for the shas not seen before, none when all are cached): about 15 s when a Deployment call hangs
   (`DEADLINE`, plus up to 500 ms to collect stderr; the pods call is skipped when the
   Deployment call fails), about 30 s when a Deployment call answers and its pods call hangs,
   however many environments are down. The rows still land together: a healthy row waits for
@@ -114,8 +113,28 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   message>` under a stuck one. `tests/fixtures/deployment.json` and `pods.json` are
   **synthetic**: the only clusters at hand are private.
 - **sha → pull request** goes through `fetch::Pulls`; `BuildsSource` and `DeploySource` each
-  own one, so the same sha costs one association call per column and each keeps its own retry
-  window. The order is: `repos/{r}/commits/{sha}/pulls`; then, only when that did not parse to
+  own one, so the same sha is asked for once per column and each keeps its own retry
+  window.
+  **All the shas of a fetch are asked for in one GraphQL call first** (`Pulls::prefetch`, since
+  v0.24.2): `repository { c0: object(oid: "<sha>") { ... on Commit { oid
+  associatedPullRequests(first: 1) … } } c1: … }`, built in `commit_pulls_query` and read by
+  `model::builds::parse_commit_pulls`, which matches answers by `oid`, not by alias. One `gh`
+  call per commit cost about 0.5 s of process start and connection each: 30 builds took 24 s
+  on the first load, the batch 2.3 s and one rate-limit point (100 commits, the `per_page`
+  cap: about 2 s). Only shas not answered by the cache go in (unknown, or a miss older than
+  `MISS_RETRY`), once each, and only 40-hex ones: a malformed oid fails the whole query. Per
+  commit: a pull request is cached as a hit, with `[bot]` appended to a `Bot` author because
+  GraphQL gives `dependabot` where REST gives `dependabot[bot]`; `nodes: []` goes straight to
+  the `(#N)` fallback below without the REST association call, and the outcome is cached as
+  for REST; a commit the batch did not answer for (`null` for one GitHub does not know, `{}`
+  for an oid that is not a commit, a sha kept out of the query) is left to `for_sha`, which
+  asks REST as before. **A batch `gh` refuses is not an answer**: nothing is cached and
+  `for_sha` makes no REST call for those shas in that fetch (`Pulls::refused`), so a rate
+  limit cannot turn one call into one per commit; the next fetch asks again. The query reads
+  `repository(name: $name, owner: $owner)` on purpose: the e2e and screenshot shims route
+  `repository(owner` to the queue fixture, and this way the batch falls to their default
+  route, answers nothing, and every sha takes the REST path there.
+  The REST order, for a sha the batch left alone, is: `repos/{r}/commits/{sha}/pulls`; then, only when that did not parse to
   a pull request (an empty array, but also a non-array or a first entry with no numeric
   `number`), the `(#N)` the caller already knows (`Build.pr_number`, off
   the run's squash title) or else a read of `repos/{r}/commits/{sha}` to take `(#N)` from the

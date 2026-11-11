@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.24.2 (2026-11-11)
+- Main builds appears much sooner on the first load: the pull requests of all its runs are asked for in one request instead of one request per run (about 4 s instead of 27 s for 30 builds).
+- The Deployed column asks for the pull requests of all its environments in one request as well.
+
 ## v0.24.1 (2026-11-11)
 - In the `S` popup of My PRs the close action reads `x  close PR` instead of `x  close`.
 

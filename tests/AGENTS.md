@@ -55,6 +55,9 @@ What has gone wrong in the tests before, and how the suites are set up to avoid 
   `h.screen()`. The real version on screen is asserted in `tests/prs/footer.rs`.
 - **The `gh` shim in e2e and screenshots dispatches on the query text.** Match the queue query
   on `repository(owner`, not `mergeQueue`: the PR query also contains `mergeQueueEntry`.
+  The batched pull request lookup is written `repository(name:` so it misses that route and
+  falls to the default one, which answers no commit: the shims keep serving pull requests
+  through the REST routes.
 - **Tests build model structs through `tests/support/`, never with a full literal.** A struct
   from `src/model/`, `src/config.rs` or `src/app/` comes from a `support` builder (then mutated
   field by field) or from a literal ending in `..Default::default()`, so a new field costs one
