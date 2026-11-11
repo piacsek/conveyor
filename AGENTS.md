@@ -192,6 +192,11 @@ nearest the code the guideline is about.
   what went stale without rewording the user's edits.
 - **Screenshots in PRs.** A PR with a visible change embeds `docs/details.png` in its body as
   a commit-pinned `raw.githubusercontent.com` URL.
+- **Diagrams in PRs.** A PR that reorganizes the codebase or introduces a new flow carries a
+  Mermaid diagram in its body, in a fenced `mermaid` block that GitHub renders. Show the
+  shape of the change: the modules and what moved between them, or the steps of the flow and
+  who calls whom. For a reorganization, a before and an after. Keep each diagram small enough
+  to read without scrolling, and leave it out when the change has no structure to draw.
 - **Review before ready.** Marking a PR ready for review means running the
   [`/pr-review`](https://github.com/piacsek/dotfiles/blob/main/.claude/skills/pr-review/SKILL.md)
   skill on the PR first, and acting on what it finds. It runs a Claude and a Codex reviewer
