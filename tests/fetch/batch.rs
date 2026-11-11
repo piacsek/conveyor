@@ -159,6 +159,69 @@ fn a_batch_gh_refuses_makes_no_lookup_per_commit_and_is_asked_again_on_the_next_
     assert_eq!(lookups(&gh), Vec::<String>::new());
 }
 
+#[test]
+fn a_sha_that_is_not_forty_hex_characters_stays_out_of_the_batch_and_is_asked_on_its_own() {
+    let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    gh.rest_routes = vec![
+        runs_route(&[("not\"hex", "Odd run"), (FIRST, "Retry hooks")]),
+        (
+            "repos/acme/webapp/commits/".to_string(),
+            serde_json::json!([{
+                "number": 4820, "title": "Odd run", "user": {"login": "carol"},
+                "html_url": "https://github.com/acme/webapp/pull/4820"
+            }]),
+        ),
+    ];
+    gh.graphql_routes = vec![(
+        "associatedPullRequests".to_string(),
+        serde_json::json!({"data": {"repository": {
+            "c0": commit(FIRST, serde_json::json!([pull(4821, "Retry hooks", "alice", "User")])),
+        }}}),
+    )];
+
+    let builds = source().fetch(&gh, NOW).unwrap();
+
+    assert_eq!(builds[0].pull.as_ref().map(|pull| pull.number), Some(4820));
+    assert_eq!(builds[1].pull.as_ref().map(|pull| pull.number), Some(4821));
+    assert_eq!(batches(&gh).len(), 1);
+    assert!(!batches(&gh)[0].contains("not"));
+    assert_eq!(
+        lookups(&gh),
+        vec!["GET repos/acme/webapp/commits/not\"hex/pulls"]
+    );
+}
+
+#[test]
+fn a_commit_the_batch_does_not_answer_for_is_asked_on_its_own() {
+    let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    gh.rest_routes = vec![
+        runs_route(&[(FIRST, "Unknown to GitHub"), (SECOND, "Not a commit")]),
+        (
+            "repos/acme/webapp/commits/".to_string(),
+            serde_json::json!([{
+                "number": 4820, "title": "Asked on its own", "user": {"login": "carol"},
+                "html_url": "https://github.com/acme/webapp/pull/4820"
+            }]),
+        ),
+    ];
+    gh.graphql_routes = vec![(
+        "associatedPullRequests".to_string(),
+        serde_json::json!({"data": {"repository": {"c0": null, "c1": {}}}}),
+    )];
+
+    let builds = source().fetch(&gh, NOW).unwrap();
+
+    assert_eq!(builds[0].pull.as_ref().map(|pull| pull.number), Some(4820));
+    assert_eq!(builds[1].pull.as_ref().map(|pull| pull.number), Some(4820));
+    assert_eq!(
+        lookups(&gh),
+        vec![
+            format!("GET repos/acme/webapp/commits/{FIRST}/pulls"),
+            format!("GET repos/acme/webapp/commits/{SECOND}/pulls")
+        ]
+    );
+}
+
 fn source() -> BuildsSource {
     BuildsSource::new(Repo {
         name: "acme/webapp".to_string(),
