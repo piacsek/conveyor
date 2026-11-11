@@ -1,3 +1,4 @@
+mod batch;
 mod builds;
 mod deployed;
 mod fakes;

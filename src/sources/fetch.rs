@@ -186,6 +186,29 @@ impl Pulls {
         }
     }
 
+    pub fn prefetch(&mut self, gh: &impl Github, shas: &[&str]) {
+        let Some((owner, name)) = self.repo.split_once('/') else {
+            return;
+        };
+        let unknown: Vec<&str> = shas
+            .iter()
+            .copied()
+            .filter(|sha| !self.cache.contains_key(*sha))
+            .collect();
+        if unknown.is_empty() {
+            return;
+        }
+        let Ok(answer) = gh.graphql(
+            &commit_pulls_query(&unknown),
+            &[("owner", owner.into()), ("name", name.into())],
+        ) else {
+            return;
+        };
+        for (sha, pull) in crate::model::builds::parse_commit_pulls(&answer) {
+            self.cache.insert(sha, Known::Pull(pull));
+        }
+    }
+
     pub fn for_sha(
         &mut self,
         gh: &impl Github,
@@ -243,6 +266,21 @@ impl Pulls {
     }
 }
 
+fn commit_pulls_query(shas: &[&str]) -> String {
+    let commits: String = shas
+        .iter()
+        .enumerate()
+        .map(|(index, sha)| {
+            format!(
+                "c{index}: object(oid: \"{sha}\") {{ ... on Commit {{ oid associatedPullRequests(first: 1) {{ nodes {{ number title url author {{ login __typename }} }} }} }} }} "
+            )
+        })
+        .collect();
+    format!(
+        "query($owner: String!, $name: String!) {{ repository(name: $name, owner: $owner) {{ {commits}}} }}"
+    )
+}
+
 fn fresh(at: std::time::SystemTime, now: std::time::SystemTime) -> bool {
     now.duration_since(at)
         .is_ok_and(|elapsed| elapsed < MISS_RETRY)
@@ -276,6 +314,8 @@ impl BuildsSource {
             ))
             .map_err(|err| err.to_string())?;
         let mut builds = crate::model::builds::parse_runs(&runs);
+        let shas: Vec<&str> = builds.iter().map(|build| build.sha.as_str()).collect();
+        self.pulls.prefetch(gh, &shas);
         for build in &mut builds {
             let sha = build.sha.clone();
             build.pull = self.pulls.for_sha(gh, &sha, build.pr_number, now);
