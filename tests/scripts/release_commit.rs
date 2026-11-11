@@ -95,7 +95,7 @@ fn a_release_without_a_bullet_says_internal_changes_only() {
     assert_eq!(
         fs::read_to_string(work.join("CHANGELOG.md")).unwrap(),
         format!(
-            "# Changelog\n\n## v0.3.2 ({})\n- Internal changes only.\n\n## v0.3.1 (2026-11-02)\n- Fixed the builds.\n\n## v0.3.0 (2026-11-01)\n- A first key.\n",
+            "# Changelog\n\n## v0.3.2 ({})\n- v0.3.2: internal changes only.\n\n## v0.3.1 (2026-11-02)\n- Fixed the builds.\n\n## v0.3.0 (2026-11-01)\n- A first key.\n",
             today()
         )
     );
@@ -137,6 +137,29 @@ fn an_internal_only_changelog_passes_the_rules_of_the_bundled_one() {
         check(
             &fs::read_to_string(work.join("CHANGELOG.md")).unwrap(),
             "0.3.2"
+        ),
+        Ok(())
+    );
+}
+
+#[test]
+fn two_internal_only_releases_in_a_row_pass_the_rules_of_the_bundled_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    fragment(&work, "a-topic", "kind: internal\n");
+    let first = release_commit(&work, &["0.3.2"]);
+    assert_eq!(first.status.code(), Some(0), "{}", stderr(&first));
+    git(&work, &["commit", "-qam", "Release v0.3.2"]);
+    git(&work, &["tag", "v0.3.2"]);
+    fragment(&work, "b-topic", "kind: internal\n");
+
+    let output = release_commit(&work, &["0.3.3"]);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(
+        check(
+            &fs::read_to_string(work.join("CHANGELOG.md")).unwrap(),
+            "0.3.3"
         ),
         Ok(())
     );

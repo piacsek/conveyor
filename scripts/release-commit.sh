@@ -31,4 +31,4 @@ lock="$(awk -v version="$version" '
 ' Cargo.lock)"
 printf '%s\n' "$manifest" >Cargo.toml
 printf '%s\n' "$lock" >Cargo.lock
-printf '# Changelog\n\n## v%s (%s)\n%s\n\n%s\n' "$version" "$(date -u +%Y-%m-%d)" "${bullets:-- Internal changes only.}" "$released" >CHANGELOG.md
+printf '# Changelog\n\n## v%s (%s)\n%s\n\n%s\n' "$version" "$(date -u +%Y-%m-%d)" "${bullets:-- v$version: internal changes only.}" "$released" >CHANGELOG.md
