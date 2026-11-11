@@ -621,6 +621,21 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   footer notices are untouched. The existing `contains("x  close")` assertions also matched
   the new label, so they were moved to `x  close PR` to see them red first.
 
+- v0.24.2 (phase 35, `plans/phase-35-batched-pull-lookup.md`): Main builds and Deployed ask
+  for the pull requests of all their commits in one GraphQL call. The user set `builds = 30`
+  and asked why Main builds was the slowest column: the log showed 30 `commits/<sha>/pulls`
+  calls in a row, 24 s of a 27 s first load, each paying about 0.5 s of `gh` start-up.
+  Measured before any code: six REST lookups in parallel took 4.5 s, one batched query 2.3 s
+  at one rate-limit point, with the same number, title, author and URL for 30 of 30 commits,
+  so neither parallel lookups nor sending the rows before their pull requests was built.
+  After: the column was up about 4 s after start with 30 builds. `Pulls::prefetch` fills the
+  cache before the per-row `for_sha`, which stays as the path for whatever the batch did not
+  answer. Found on the way: GraphQL drops the `[bot]` REST puts on a bot's login, a malformed
+  oid fails the whole query, and the batch is written `repository(name:` because the test
+  shims route `repository(owner` to the queue fixture. Not done: the job lists of the first
+  five failing builds are still fetched one after another (about 10 s for the failed-job
+  line on those cards), and a `builds` above 100 is still cut to 100 by GitHub.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
