@@ -64,13 +64,13 @@ fn a_bot_s_pull_request_keeps_the_bot_suffix_rest_gave_it() {
 fn a_commit_the_batch_finds_no_pull_request_for_goes_straight_to_the_number_on_its_title() {
     let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
     gh.rest_routes = vec![
-        runs_route(&[(FIRST, "Fix the handbook share (#6882)")]),
+        runs_route(&[(FIRST, "Fix the export button (#4825)")]),
         (
-            "repos/acme/webapp/pulls/6882".to_string(),
+            "repos/acme/webapp/pulls/4825".to_string(),
             serde_json::json!({
-                "number": 6882, "title": "Fix the handbook share",
-                "user": {"login": "ailin"},
-                "html_url": "https://github.com/acme/webapp/pull/6882",
+                "number": 4825, "title": "Fix the export button",
+                "user": {"login": "dana"},
+                "html_url": "https://github.com/acme/webapp/pull/4825",
                 "merge_commit_sha": FIRST
             }),
         ),
@@ -86,8 +86,9 @@ fn a_commit_the_batch_finds_no_pull_request_for_goes_straight_to_the_number_on_i
         .pull
         .as_ref()
         .expect("the pull request on the title");
-    assert_eq!(pull.number, 6882);
-    assert_eq!(lookups(&gh), vec!["GET repos/acme/webapp/pulls/6882"]);
+    assert_eq!(pull.number, 4825);
+    assert_eq!(lookups(&gh).len(), 1);
+    assert_eq!(lookups(&gh)[0], "GET repos/acme/webapp/pulls/4825");
 }
 
 #[test]
@@ -112,9 +113,10 @@ fn a_commit_without_a_pull_request_is_asked_again_in_a_batch_once_the_retry_wind
     assert_eq!(first[0].pull, None);
     assert_eq!(second[0].pull, None);
     assert_eq!(batches(&gh).len(), 1);
+    assert_eq!(lookups(&gh).len(), 1);
     assert_eq!(
-        lookups(&gh),
-        vec![format!("GET repos/acme/webapp/commits/{FIRST}")]
+        lookups(&gh)[0],
+        format!("GET repos/acme/webapp/commits/{FIRST}")
     );
 
     source
@@ -122,12 +124,10 @@ fn a_commit_without_a_pull_request_is_asked_again_in_a_batch_once_the_retry_wind
         .unwrap();
 
     assert_eq!(batches(&gh).len(), 2);
+    assert_eq!(lookups(&gh).len(), 2);
     assert_eq!(
-        lookups(&gh),
-        vec![
-            format!("GET repos/acme/webapp/commits/{FIRST}"),
-            format!("GET repos/acme/webapp/commits/{FIRST}")
-        ]
+        lookups(&gh)[1],
+        format!("GET repos/acme/webapp/commits/{FIRST}")
     );
 }
 
@@ -185,9 +185,10 @@ fn a_sha_that_is_not_forty_hex_characters_stays_out_of_the_batch_and_is_asked_on
     assert_eq!(builds[1].pull.as_ref().map(|pull| pull.number), Some(4821));
     assert_eq!(batches(&gh).len(), 1);
     assert!(!batches(&gh)[0].contains("not"));
+    assert_eq!(lookups(&gh).len(), 1);
     assert_eq!(
-        lookups(&gh),
-        vec!["GET repos/acme/webapp/commits/not\"hex/pulls"]
+        lookups(&gh)[0],
+        "GET repos/acme/webapp/commits/not\"hex/pulls"
     );
 }
 
@@ -213,12 +214,14 @@ fn a_commit_the_batch_does_not_answer_for_is_asked_on_its_own() {
 
     assert_eq!(builds[0].pull.as_ref().map(|pull| pull.number), Some(4820));
     assert_eq!(builds[1].pull.as_ref().map(|pull| pull.number), Some(4820));
+    assert_eq!(lookups(&gh).len(), 2);
     assert_eq!(
-        lookups(&gh),
-        vec![
-            format!("GET repos/acme/webapp/commits/{FIRST}/pulls"),
-            format!("GET repos/acme/webapp/commits/{SECOND}/pulls")
-        ]
+        lookups(&gh)[0],
+        format!("GET repos/acme/webapp/commits/{FIRST}/pulls")
+    );
+    assert_eq!(
+        lookups(&gh)[1],
+        format!("GET repos/acme/webapp/commits/{SECOND}/pulls")
     );
 }
 

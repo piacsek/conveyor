@@ -130,7 +130,13 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   for an oid that is not a commit, a sha kept out of the query) is left to `for_sha`, which
   asks REST as before. **A batch `gh` refuses is not an answer**: nothing is cached and
   `for_sha` makes no REST call for those shas in that fetch (`Pulls::refused`), so a rate
-  limit cannot turn one call into one per commit; the next fetch asks again. The query reads
+  limit cannot turn one call into one per commit; the next fetch asks again. The price,
+  accepted: while GraphQL is refused and REST is not (they have separate budgets), a commit
+  not seen before shows no pull request until a batch gets through; cached hits stay.
+  Known and left: a commit the batch answers `null` for, whose REST call answers 422, is
+  cached by neither and costs one batch plus one REST call per refresh (a Deployed image
+  built from a commit the repository does not have); and an upper-case sha misses the
+  lower-case `oid` of its answer and is asked through REST. The query reads
   `repository(name: $name, owner: $owner)` on purpose: the e2e and screenshot shims route
   `repository(owner` to the queue fixture, and this way the batch falls to their default
   route, answers nothing, and every sha takes the REST path there.

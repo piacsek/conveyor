@@ -140,15 +140,15 @@ fn a_commit_with_no_associated_pull_falls_back_to_the_squash_suffix() {
         (
             format!("repos/acme/webapp/commits/{sha}"),
             serde_json::json!({
-                "commit": {"message": "Fix the handbook share (#6882)\n\nlong body"}
+                "commit": {"message": "Fix the export button (#4825)\n\nlong body"}
             }),
         ),
         (
-            "repos/acme/webapp/pulls/6882".to_string(),
+            "repos/acme/webapp/pulls/4825".to_string(),
             serde_json::json!({
-                "number": 6882, "title": "Fix the handbook share",
-                "user": {"login": "ailin"},
-                "html_url": "https://github.com/acme/webapp/pull/6882",
+                "number": 4825, "title": "Fix the export button",
+                "user": {"login": "dana"},
+                "html_url": "https://github.com/acme/webapp/pull/4825",
                 "merge_commit_sha": sha
             }),
         ),
@@ -166,10 +166,10 @@ fn a_commit_with_no_associated_pull_falls_back_to_the_squash_suffix() {
     let deployed = source.fetch(&gh, &kube, std::time::SystemTime::UNIX_EPOCH);
 
     let pull = deployed.rows[0].pull.as_ref().expect("the squash suffix");
-    assert_eq!(pull.number, 6882);
-    assert_eq!(pull.title, "Fix the handbook share");
-    assert_eq!(pull.author, "ailin");
-    assert_eq!(pull.url, "https://github.com/acme/webapp/pull/6882");
+    assert_eq!(pull.number, 4825);
+    assert_eq!(pull.title, "Fix the export button");
+    assert_eq!(pull.author, "dana");
+    assert_eq!(pull.url, "https://github.com/acme/webapp/pull/4825");
 }
 
 #[test]
@@ -310,7 +310,7 @@ fn a_run_that_carries_its_own_number_skips_the_commit_read() {
             "repos/acme/webapp/actions/workflows/ci.yml/runs".to_string(),
             serde_json::json!({"workflow_runs": [{
                 "id": 1, "run_number": 42, "status": "completed", "conclusion": "success",
-                "head_sha": sha, "display_title": "Fix the handbook share (#6882)",
+                "head_sha": sha, "display_title": "Fix the export button (#4825)",
                 "html_url": "https://github.com/acme/webapp/actions/runs/1",
                 "actor": {"login": "merge-bot"},
                 "run_started_at": "2026-09-10T17:35:22Z", "updated_at": "2026-09-10T17:35:41Z"
@@ -321,11 +321,11 @@ fn a_run_that_carries_its_own_number_skips_the_commit_read() {
             serde_json::json!([]),
         ),
         (
-            "repos/acme/webapp/pulls/6882".to_string(),
+            "repos/acme/webapp/pulls/4825".to_string(),
             serde_json::json!({
-                "number": 6882, "title": "Fix the handbook share",
-                "user": {"login": "ailin"},
-                "html_url": "https://github.com/acme/webapp/pull/6882",
+                "number": 4825, "title": "Fix the export button",
+                "user": {"login": "dana"},
+                "html_url": "https://github.com/acme/webapp/pull/4825",
                 "merge_commit_sha": sha
             }),
         ),
@@ -340,7 +340,7 @@ fn a_run_that_carries_its_own_number_skips_the_commit_read() {
 
     assert_eq!(
         builds[0].pull.as_ref().map(|pull| pull.author.as_str()),
-        Some("ailin"),
+        Some("dana"),
         "the author comes from the pull request, not the run actor"
     );
     let calls = gh.calls.borrow().clone();
