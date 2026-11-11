@@ -2,7 +2,7 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::{Action, App};
 use crate::config::UpdateMethod;
-use crate::model::prs::{BranchUpdate, MergeState};
+use crate::model::prs::BranchUpdate;
 
 use super::Choice;
 
@@ -34,32 +34,6 @@ impl App {
         Action::UpdateBranch(target)
     }
 
-    pub(super) fn update_target(&self) -> Result<UpdateTarget, String> {
-        if self.focused_error().is_some() {
-            return Err("the last refresh failed; press r and try again".to_string());
-        }
-        let pr = self.prs.selected().ok_or("nothing selected")?;
-        if let Some((number, _)) = self.merge_landing {
-            return Err(format!("waiting for My PRs to catch up with #{number}"));
-        }
-        if pr.queue_position.is_some() {
-            return Err(format!(
-                "#{} is in the merge queue; updating it would drop it",
-                pr.number
-            ));
-        }
-        if pr.merge_state == MergeState::Dirty {
-            return Err(conflicts(pr.number));
-        }
-        Ok(UpdateTarget {
-            number: pr.number,
-            repo: pr.repo.clone(),
-            title: pr.title.clone(),
-            head_oid: pr.head_oid.clone(),
-            method: self.config.prs.update_method,
-        })
-    }
-
     pub fn receive_branch_update(
         &mut self,
         number: u64,
@@ -76,6 +50,6 @@ impl App {
     }
 }
 
-fn conflicts(number: u64) -> String {
+pub(in crate::app) fn conflicts(number: u64) -> String {
     format!("#{number} has conflicts with its base; resolve them locally")
 }

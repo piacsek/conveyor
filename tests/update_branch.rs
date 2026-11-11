@@ -1,10 +1,10 @@
 mod support;
 
-use conveyor::app::{Input, Request, Stage, UpdateTarget};
+use conveyor::app::{Input, Request, Stage};
 use conveyor::config::{Config, UpdateMethod};
 use conveyor::model::prs::{BranchUpdate, MergeState, PullRequest};
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, NOW, entry, failed, fetching, key, pr, prs, queue, tick_at};
+use support::{Harness, NOW, entry, failed, fetching, key, pr, prs, queue, tick_at, update_target};
 
 fn behind(number: u64, title: &str) -> PullRequest {
     let mut pull = pr(number, title);
@@ -14,13 +14,7 @@ fn behind(number: u64, title: &str) -> PullRequest {
 }
 
 fn target(number: u64, title: &str, method: UpdateMethod) -> Request {
-    Request::UpdateBranch(UpdateTarget {
-        number,
-        repo: "acme/webapp".to_string(),
-        title: title.to_string(),
-        head_oid: format!("8c1f2a7d{number}"),
-        method,
-    })
+    Request::UpdateBranch(update_target(number, title, method))
 }
 
 #[test]

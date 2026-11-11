@@ -25,18 +25,18 @@ fn titled<T: Row>(base: &str, column: &Column<T>) -> String {
 
 pub(crate) fn column_title(app: &App, stage: Stage) -> String {
     match stage {
-        Stage::Prs => titled("My PRs", &app.prs),
-        Stage::Queue => match &app.queue_repo {
-            Some(repo) => titled(&format!("Queue {}", short_repo(repo)), &app.queue),
-            None => titled("Merge queue", &app.queue),
+        Stage::Prs => titled("My PRs", &app.prs.column),
+        Stage::Queue => match &app.queue.repo {
+            Some(repo) => titled(&format!("Queue {}", short_repo(repo)), &app.queue.column),
+            None => titled("Merge queue", &app.queue.column),
         },
-        Stage::Builds => match &app.builds_repo {
-            Some(repo) => titled(&format!("Main {}", short_repo(repo)), &app.builds),
-            None => titled("Main builds", &app.builds),
+        Stage::Builds => match &app.builds.repo {
+            Some(repo) => titled(&format!("Main {}", short_repo(repo)), &app.builds.column),
+            None => titled("Main builds", &app.builds.column),
         },
-        Stage::Deployed => match &app.deployed_system {
-            Some(system) => titled(&format!("Deployed {system}"), &app.deployed),
-            None => titled("Deployed", &app.deployed),
+        Stage::Deployed => match &app.deployed.system {
+            Some(system) => titled(&format!("Deployed {system}"), &app.deployed.column),
+            None => titled("Deployed", &app.deployed.column),
         },
     }
 }
@@ -67,7 +67,7 @@ pub(crate) fn draw_column(
     match stage {
         Stage::Prs => draw_list(
             frame,
-            &mut app.prs,
+            &mut app.prs.column,
             area,
             block,
             focused,
@@ -76,7 +76,7 @@ pub(crate) fn draw_column(
         ),
         Stage::Queue => draw_list(
             frame,
-            &mut app.queue,
+            &mut app.queue.column,
             area,
             block,
             focused,
@@ -88,7 +88,7 @@ pub(crate) fn draw_column(
         ),
         Stage::Builds => draw_list(
             frame,
-            &mut app.builds,
+            &mut app.builds.column,
             area,
             block,
             focused,
@@ -96,8 +96,8 @@ pub(crate) fn draw_column(
             |_, build, on, w| build_row(build, jobs.get(&build.id), now, on, w),
         ),
         Stage::Deployed
-            if app.deployed.is_loading()
-                && app.deployed.error.is_none()
+            if app.deployed.column.is_loading()
+                && app.deployed.column.error.is_none()
                 && !app.deploy_configured() =>
         {
             frame.render_widget(
@@ -108,13 +108,14 @@ pub(crate) fn draw_column(
         Stage::Deployed => {
             let behind: Vec<Option<usize>> = app
                 .deployed
+                .column
                 .visible()
                 .iter()
                 .map(|row| app.behind_main(row))
                 .collect();
             draw_list(
                 frame,
-                &mut app.deployed,
+                &mut app.deployed.column,
                 area,
                 block,
                 focused,

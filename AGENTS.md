@@ -39,21 +39,24 @@ src/model/deployed.rs Deployment, Deployed, Rollout, Condition, Pod, Health; `sh
 src/model/jobs.rs Job, `parse_jobs` (failures first), `failed_step`
 src/model/log.rs  `tail`: the failed step's log as gh prints it, minus job/step/timestamp prefixes and ANSI
 src/model/AGENTS.md check dedup, merge-group run attach rules, deploy health rules, jobs parsing, lenient parsing
-src/app/mod.rs   App (one Column per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Mode::{Normal, Filter, Help, Changelog, Confirm, Manage}, Input::{Key, Fetching, Data, Jobs, Log, Merged, Rerun, BranchUpdated, StatusChanged, CheckedOut, Tick}, Action, Request::{Refresh, Jobs, Log, Rerun, Merge, UpdateBranch, ChangeStatus, Checkout}; `behind_main`, `deploy_configured`, `follow_up_*`; re-exports everything below as `app::X`
-src/app/stages.rs the four stages and what arrives for each: Stage, Rows, `receive`, `fetching`, `any_refreshing`, `spinner`, `keep_last_known`
-src/app/browser.rs where a row leads: `pull_target`, `build_url`, `deploy_repo`, `open` and its `OPEN_DEBOUNCE`
+src/app/mod.rs   App (one stage type per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Mode::{Normal, Filter, Help, Changelog, Confirm, Manage}, Input::{Key, Fetching, Data, Jobs, Log, Merged, Rerun, BranchUpdated, StatusChanged, CheckedOut, Tick}, Action, Request::{Refresh, Jobs, Log, Rerun, Merge, UpdateBranch, ChangeStatus, Checkout}; `behind_main`, `deploy_configured`, `follow_up_*`; re-exports everything below as `app::X`
+src/app/stages/  one type per stage behind the StageView trait: `mod.rs` is the trait and the dispatch, one file per stage for everything that stage does
+src/app/stages/mod.rs Stage, Rows, StageView (`listing`, `receive`, `error`, `pull_target`, `build_url`, `selected_run`, `runs`, `menu`, `changed`), Context (what a stage may read from the rest of App: config, Main builds, `merge_landing`; `behind_main`, `deploy_repo`), `App::stage`/`stage_mut` (the one match from a Stage to its field), `receive`, `fetching`, `any_refreshing`, `spinner`
+src/app/stages/prs.rs PrsStage: what My PRs offers (`menu`, `offers`, `merge_target`, `update_target`, `rerun_target`, `checkout_target`) and where its rows lead
+src/app/stages/queue.rs QueueStage (column, `repo`): its merge-group runs and where its rows lead
+src/app/stages/builds.rs BuildsStage (column, `repo`): its runs, what Main builds offers (`menu`, `rerun_target`) and where its rows lead
+src/app/stages/deployed.rs DeployedStage (column, `system`): a row's own error, where its rows lead, `keep_last_known`
+src/app/browser.rs where a row leads: `pull_target` and `build_url` of the focused stage, `open` and its `OPEN_DEBOUNCE`
 src/app/navigation.rs moving around: the `focused_*` readers, `refocus`, `with_focused`, the filter (`filter`, `sync_filter`) and the scroll helpers
-src/app/column.rs Column<T: Row> (state, error, list, filter), ColumnState, Row and its four impls, Order, `merge_keeping_order`, Navigable
+src/app/column.rs Column<T: Row> (state, error, list, filter), ColumnState, Row and its four impls, Order, `merge_keeping_order`, Navigable, Listing (what every column answers whatever its row type)
 src/app/jobs.rs  JobsState, LogState, `age_jobs`, `jobs_needed` (selected, stale, then the first `EAGER_JOBS` failing builds), `selected_run`, `toggle_log`, `receive_jobs`, `receive_log`
-src/app/actions/ the `S` popup: `mod.rs` is the machinery, one file per column for what it offers, one file per action for how it runs
-src/app/actions/mod.rs Menu/Offer/Choice, Pending, `ask_to_manage`, `menu` (the one match from the focused column to its offers), `manage`, `confirm`, `reconfirm`, `write_in_flight`, `offer`, `changed`
-src/app/actions/prs.rs what My PRs offers: `prs_menu`, `pr_offers`
-src/app/actions/builds.rs what Main builds offers: `builds_menu`
-src/app/actions/merge.rs MergeTarget, `merge_target`, `confirm_merge`, `receive_merged`
-src/app/actions/update.rs UpdateTarget, `update_target`, `confirm_update`, `send_update`, `receive_branch_update`, `conflicts`
+src/app/actions/ the `S` popup: `mod.rs` is the machinery, one file per action for how it runs; what a column offers is its stage's `menu`
+src/app/actions/mod.rs Menu/Offer/Choice, Pending, `ask_to_manage`, `menu` (the focused stage's), `manage`, `confirm`, `reconfirm`, `write_in_flight`, `offer`
+src/app/actions/merge.rs MergeTarget, `confirm_merge`, `receive_merged`
+src/app/actions/update.rs UpdateTarget, `confirm_update`, `send_update`, `receive_branch_update`, `conflicts`
 src/app/actions/status.rs StatusTarget, `confirm_status`, `send_status`, `receive_status`, the `progress` and `done` wording
-src/app/actions/checkout.rs CheckoutTarget, `checkout_target`, `send_checkout`, `receive_checkout`
-src/app/actions/rerun.rs Rerun, `rerun_offer` and `rerun_target` (My PRs and Main builds), `send_rerun`, `receive_rerun`
+src/app/actions/checkout.rs CheckoutTarget, `send_checkout`, `receive_checkout`
+src/app/actions/rerun.rs Rerun, `rerun_offer`, `send_rerun`, `receive_rerun`
 src/app/keymap.rs `handle_key` and the Filter and Normal mode key handlers, `escape`
 src/app/run.rs   run(): draw, read one Input, turn each Action into a Request
 src/app/AGENTS.md keys, `Esc`, the filter, the `S` popup and each action, jobs state, refresh and follow-up, row order, open debounce, zoom, scroll
@@ -76,17 +79,20 @@ src/text.rs      truncate/pad_right with `…`, age(), duration() (coarse, cards
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
-scripts/ship.sh               gates + dev-install (unless skippable) + commit + push, aborts on any failure
+scripts/ship.sh               gates + dev-install (unless skippable) + commit + push, aborts on any failure; the first push of a branch opens the draft PR (commit subject as title, the template as body)
 scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
 plans/                        one versioned plan file per phase (see Working agreements)
 scripts/homebrew-formula.sh   prints the tap formula for a released version
+scripts/release.sh            tags a merged version from `main`, pushes the tag, watches `release` and checks the tarballs and the tap formula
 scripts/screenshots.sh        renders docs/details.png from a gh shim + synthetic fixture (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
                  `tests/source_size.rs` fails while any Rust file under `src/` or `tests/` is longer than 700 lines, naming it;
+                 `tests/stage_dispatch.rs` fails while a match arm on a `Stage` variant sits in `src/app/` outside `stages/mod.rs`, naming the line;
                  a test file that outgrows the limit becomes a folder (`tests/<name>/main.rs` plus one file per topic), so it stays one binary
 tests/AGENTS.md  the testing traps hit so far, the e2e `gh` shim dispatch note
 .github/AGENTS.md CI: what the workflows run and why, the `main` ruleset, branch cleanup
+.github/pull_request_template.md  `## Summary` and `## Changes`: the body `ship.sh` opens a draft PR with
 ```
 
 ## Where the rest lives
@@ -181,11 +187,20 @@ nearest the code the guideline is about.
   refactor. This holds for one-line fixes, security patches, patch releases and "obvious"
   changes alike. Writing the test and the fix in the same edit is not TDD, even when the test
   is then backed out to prove it fails. Show the red run in the update.
-- **Draft PR first.** The first ship on a branch opens the draft PR assigned to the user;
-  every later commit lands on that PR. Before merging, re-read the PR title and body and fix
+- **Draft PR first.** The first ship on a branch opens the draft PR assigned to the user,
+  with the commit subject as its title and `.github/pull_request_template.md` as its body;
+  every later commit lands on that PR. The subject is a starting point: before review, rewrite
+  the title in plain language that says what the change does for whoever uses it, and fill the
+  body. `## Summary` holds at most 3 sentences, split across 2 lines with a blank line between
+  them; `## Changes` holds the rest. Before merging, re-read the PR title and body and fix
   what went stale without rewording the user's edits.
 - **Screenshots in PRs.** A PR with a visible change embeds `docs/details.png` in its body as
   a commit-pinned `raw.githubusercontent.com` URL.
+- **Diagrams in PRs.** A PR that reorganizes the codebase or introduces a new flow carries a
+  Mermaid diagram in its body, in a fenced `mermaid` block that GitHub renders. Show the
+  shape of the change: the modules and what moved between them, or the steps of the flow and
+  who calls whom. For a reorganization, a before and an after. Keep each diagram small enough
+  to read without scrolling, and leave it out when the change has no structure to draw.
 - **Review before ready.** Marking a PR ready for review means running the
   [`/pr-review`](https://github.com/piacsek/dotfiles/blob/main/.claude/skills/pr-review/SKILL.md)
   skill on the PR first, and acting on what it finds. It runs a Claude and a Codex reviewer
@@ -233,12 +248,15 @@ cargo test -- --include-ignored   # one pass; the ignored ones are e2e: real bin
 ```
 
 Without tmux the last gate is a plain `cargo test` and a notice that the e2e tests were skipped.
-`tests/scripts.rs` runs the scripts themselves in a scratch directory and a scratch git
+`tests/scripts/` runs the scripts themselves in a scratch directory and a scratch git
 repository, with `cargo`, `gh` and the scripts they call replaced by symlinks to
-`tests/fixtures/record-call.sh`, which appends its name and argv to `$CALLS_LOG`.
+`tests/fixtures/record-call.sh`, which appends its name and argv to `$CALLS_LOG` and exits 1 for a call whose argv starts with `$FAILING_CALL` (how a ship test says the branch has no pull request yet). Where a
+script reads what `gh` prints (`release.sh`), `gh` is a symlink to `tests/fixtures/reply-call.sh`
+instead: it records the same line, then prints every file in `$REPLIES` whose name is part of
+its argv.
 
 Ship with `scripts/ship.sh "<message>"`: `cargo fmt`, gates, `dev-install.sh` (unless skipped, see Install), commit, push, all under
-`set -e`, refusing to run on `main`, opening the draft PR on the first push of a branch. Do not hand-roll the chain: the interactive shell here is
+`set -e`, refusing to run on `main`, opening the draft PR on the first push of a branch (title: the first line of `<message>`; body: `.github/pull_request_template.md`, or empty when that file is missing). Do not hand-roll the chain: the interactive shell here is
 zsh, where `PIPESTATUS` is undefined and `test "" -eq 0` is true, so a `gates.sh | grep` guard
 silently passed a clippy failure into a commit on 2026-09-10.
 
@@ -296,9 +314,19 @@ tag a docs-only or CI-only `main`.
 1. Bump `version` in `Cargo.toml` (`Cargo.lock` follows on the next build) and add its
    `## vX.Y.Z (YYYY-MM-DD)` entry at the top of `CHANGELOG.md`: what a user sees, one bullet each.
 2. Run the gates, commit `Release vX.Y.Z`, merge to `main`.
-3. `git tag vX.Y.Z && git push origin vX.Y.Z`, then `gh run watch` until `release` is green
-   and `gh release view vX.Y.Z` lists three tarballs.
-4. The `tap` job regenerates `Formula/conveyor.rb` in `github.com/piacsek/homebrew-tap`
+3. From a clean `main` that is exactly `origin/main`:
+
+   ```bash
+   scripts/release.sh X.Y.Z
+   ```
+
+   It refuses a dirty tree, another branch, a `main` that differs from `origin/main`, a version
+   `Cargo.toml` does not carry, a tag that already exists here or on `origin`, and a `release`
+   run still queued or in progress. Then it tags `vX.Y.Z`, pushes that one tag, watches the
+   `release` run to its end and checks that the release holds the three tarballs and their
+   `.sha256` and nothing else. The last line it prints is the release URL.
+4. The script also reads `Formula/conveyor.rb` from GitHub and fails when it does not name
+   the version. The `tap` job regenerates `Formula/conveyor.rb` in `github.com/piacsek/homebrew-tap`
    (local clone `~/projects/homebrew-tap`) with `scripts/homebrew-formula.sh <version>` and
    pushes with the `TAP_TOKEN` repo secret (fine-grained PAT, contents:write on
    homebrew-tap; set per repo with `gh secret set TAP_TOKEN --repo piacsek/conveyor`). If

@@ -285,3 +285,48 @@ impl<T: Row> Navigable for Column<T> {
         }
     }
 }
+
+pub trait Listing: Navigable {
+    fn error(&self) -> Option<&str>;
+    fn fetched_at(&self) -> Option<SystemTime>;
+    fn counts(&self) -> (usize, usize);
+    fn selected_key(&self) -> Option<u64>;
+    fn is_refreshing(&self) -> bool;
+    fn set_refreshing(&mut self, refreshing: bool);
+    fn set_filter(&mut self, filter: Option<String>);
+    fn fail(&mut self, message: String);
+}
+
+impl<T: Row> Listing for Column<T> {
+    fn error(&self) -> Option<&str> {
+        self.error.as_deref()
+    }
+
+    fn fetched_at(&self) -> Option<SystemTime> {
+        Column::fetched_at(self)
+    }
+
+    fn counts(&self) -> (usize, usize) {
+        (self.visible().len(), self.all().len())
+    }
+
+    fn selected_key(&self) -> Option<u64> {
+        self.selected().map(Row::key)
+    }
+
+    fn is_refreshing(&self) -> bool {
+        self.refreshing
+    }
+
+    fn set_refreshing(&mut self, refreshing: bool) {
+        self.refreshing = refreshing;
+    }
+
+    fn set_filter(&mut self, filter: Option<String>) {
+        self.filter = filter;
+    }
+
+    fn fail(&mut self, message: String) {
+        Column::fail(self, message);
+    }
+}

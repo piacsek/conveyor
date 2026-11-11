@@ -187,7 +187,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   `UpToDate`, `Conflicts`, errors and a Main builds rerun schedule nothing. `app.now` only
   moves on a tick, which only comes while no key is pressed, so a held key delays it.
 - **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
-  the deploy repo (`App::deploy_repo`: the `[[repo]]` with a deploy, else `builds_repo`).
+  the deploy repo (`Context::deploy_repo`: the `[[repo]]` with a deploy, else `BuildsStage::repo`).
 - **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by
   whatever GitHub App or CI posted the check, not by GitHub, and `open`/`xdg-open` would launch
   `file://` paths, app bundles or any custom URL scheme handler. `open::web_url` is the one
@@ -223,17 +223,21 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   the first draw through every incremental refresh and never depends on what order the API
   happened to return.
 - **Keys act on the focused column.** `App::with_focused` dispatches navigation to the
-  `Column` of `app.focus`; `p`/`y` use `pull_target` (the pull request of the row — the
+  column of `app.focus`; `p`/`y` use `pull_target` (the pull request of the row — the
   associated one, else the `(#N)` the run's squash title already showed on the card, built
-  from `builds_repo`; an `Err` message when neither exists, never the run itself),
+  from `BuildsStage::repo`; an `Err` message when neither exists, never the run itself),
   `b`/`Y` use `build_url`. `Enter` and `o` do nothing: opening a browser on `Enter` surprised
   the user, and the open UX is to be revisited.
   `run()` reports work back through `FnMut(Request)`; `r` sends one `Request::Refresh`, `R`
   one per `Stage::ALL`, and `main` looks each stage up in `refreshers` (a stage without a
-  thread is skipped). Adding a stage means a new
-  `Column<T>` field, a `Row` impl, a `Rows` variant, and arms in `receive`, `focused_*`,
-  `pull_target`, `build_url`, `selected_key`, `with_focused`, `column_title`, `draw_column` and
-  `draw_details`; a stage that owns a run also needs an arm in `selected_run`.
+  thread is skipped). Adding a stage means one new
+  type in `src/app/stages/` that implements `StageView` (a stage that owns a run overrides
+  `selected_run` and `runs`, one that offers actions overrides `menu`), a `Row` impl for its
+  rows, a `Stage` and a `Rows` variant, a field on `App` and an arm in each of `App::stage`,
+  `App::stage_mut` and `Rows::stage`. Nothing else in `src/app/` matches on the stage, and
+  `tests/stage_dispatch.rs` fails when an arm appears outside `stages/mod.rs`. A stage reads the
+  rest of `App` only through the `Context` it is handed. The UI still draws by stage: arms in
+  `column_title`, `draw_column`, `draw_details`, and in `column_name` and `keys_for` of the help.
 - **Opens are debounced.** `p`/`b` on the same URL within `OPEN_DEBOUNCE` (1 s of
   `app.now`) is ignored: terminals send a key-repeat stream for a held key, which opened a tab
   per repeat.
