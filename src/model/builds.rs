@@ -130,6 +130,33 @@ pub fn parse_pull_numbers(value: &serde_json::Value) -> Option<PullRef> {
     parse_pull(value.as_array()?.first()?)
 }
 
+pub fn parse_commit_pulls(value: &serde_json::Value) -> Vec<(String, PullRef)> {
+    let Some(commits) = value
+        .pointer("/data/repository")
+        .and_then(|v| v.as_object())
+    else {
+        return Vec::new();
+    };
+    commits
+        .values()
+        .filter_map(|commit| {
+            let sha = commit.get("oid")?.as_str()?;
+            let pr = commit.pointer("/associatedPullRequests/nodes/0")?;
+            let pull = PullRef {
+                number: pr.get("number")?.as_u64()?,
+                title: text(pr, "title"),
+                author: pr
+                    .pointer("/author/login")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string(),
+                url: text(pr, "url"),
+            };
+            Some((sha.to_string(), pull))
+        })
+        .collect()
+}
+
 pub fn parse_pull(pr: &serde_json::Value) -> Option<PullRef> {
     Some(PullRef {
         number: pr.get("number")?.as_u64()?,
