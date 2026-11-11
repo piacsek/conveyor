@@ -5,6 +5,16 @@ use crate::model::queue::Queue;
 
 use super::{App, Row};
 
+mod builds;
+mod deployed;
+mod prs;
+mod queue;
+
+pub use builds::BuildsStage;
+pub use deployed::DeployedStage;
+pub use prs::PrsStage;
+pub use queue::QueueStage;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Stage {
     Prs,
@@ -55,35 +65,35 @@ impl App {
 
     fn selected_key(&self) -> Option<u64> {
         match self.focus {
-            Stage::Prs => self.prs.selected().map(Row::key),
-            Stage::Queue => self.queue.selected().map(Row::key),
-            Stage::Builds => self.builds.selected().map(Row::key),
-            Stage::Deployed => self.deployed.selected().map(Row::key),
+            Stage::Prs => self.prs.column.selected().map(Row::key),
+            Stage::Queue => self.queue.column.selected().map(Row::key),
+            Stage::Builds => self.builds.column.selected().map(Row::key),
+            Stage::Deployed => self.deployed.column.selected().map(Row::key),
         }
     }
 
     fn receive_rows(&mut self, stage: Stage, data: Result<Rows, String>) {
         match (stage, data) {
-            (Stage::Prs, Ok(Rows::Prs(prs))) => self.prs.receive(prs, self.now),
+            (Stage::Prs, Ok(Rows::Prs(prs))) => self.prs.column.receive(prs, self.now),
             (Stage::Queue, Ok(Rows::Queue(queue))) => {
-                self.queue_repo = Some(queue.repo);
-                self.queue.receive(queue.entries, self.now);
+                self.queue.repo = Some(queue.repo);
+                self.queue.column.receive(queue.entries, self.now);
                 self.age_jobs(Stage::Queue);
             }
             (Stage::Builds, Ok(Rows::Builds(builds))) => {
-                self.builds_repo = Some(builds.repo);
-                self.builds.receive(builds.builds, self.now);
+                self.builds.repo = Some(builds.repo);
+                self.builds.column.receive(builds.builds, self.now);
                 self.age_jobs(Stage::Builds);
             }
             (Stage::Deployed, Ok(Rows::Deployed(deployed))) => {
-                self.deployed_system = Some(deployed.system);
-                let rows = keep_last_known(self.deployed.all(), deployed.rows);
-                self.deployed.receive(rows, self.now);
+                self.deployed.system = Some(deployed.system);
+                let rows = keep_last_known(self.deployed.column.all(), deployed.rows);
+                self.deployed.column.receive(rows, self.now);
             }
-            (Stage::Prs, Err(message)) => self.prs.fail(message),
-            (Stage::Queue, Err(message)) => self.queue.fail(message),
-            (Stage::Builds, Err(message)) => self.builds.fail(message),
-            (Stage::Deployed, Err(message)) => self.deployed.fail(message),
+            (Stage::Prs, Err(message)) => self.prs.column.fail(message),
+            (Stage::Queue, Err(message)) => self.queue.column.fail(message),
+            (Stage::Builds, Err(message)) => self.builds.column.fail(message),
+            (Stage::Deployed, Err(message)) => self.deployed.column.fail(message),
             _ => {}
         }
     }
@@ -93,18 +103,18 @@ impl App {
             *started = true;
         }
         match stage {
-            Stage::Prs => self.prs.refreshing = true,
-            Stage::Queue => self.queue.refreshing = true,
-            Stage::Builds => self.builds.refreshing = true,
-            Stage::Deployed => self.deployed.refreshing = true,
+            Stage::Prs => self.prs.column.refreshing = true,
+            Stage::Queue => self.queue.column.refreshing = true,
+            Stage::Builds => self.builds.column.refreshing = true,
+            Stage::Deployed => self.deployed.column.refreshing = true,
         }
     }
 
     pub fn any_refreshing(&self) -> bool {
-        self.prs.refreshing
-            || self.queue.refreshing
-            || self.builds.refreshing
-            || self.deployed.refreshing
+        self.prs.column.refreshing
+            || self.queue.column.refreshing
+            || self.builds.column.refreshing
+            || self.deployed.column.refreshing
     }
 
     pub fn spinner(&self) -> char {

@@ -37,6 +37,7 @@ impl App {
         let runs: Vec<(u64, bool, u64)> = match stage {
             Stage::Queue => self
                 .queue
+                .column
                 .all()
                 .iter()
                 .filter_map(|entry| entry.run.as_ref())
@@ -44,6 +45,7 @@ impl App {
                 .collect(),
             Stage::Builds => self
                 .builds
+                .column
                 .all()
                 .iter()
                 .map(|build| (build.id, build.is_settled(), build.attempt))
@@ -74,8 +76,8 @@ impl App {
 
     pub fn selected_run(&self) -> Option<&Build> {
         match self.focus {
-            Stage::Builds => self.builds.selected(),
-            Stage::Queue => self.queue.selected()?.run.as_ref(),
+            Stage::Builds => self.builds.column.selected(),
+            Stage::Queue => self.queue.column.selected()?.run.as_ref(),
             _ => None,
         }
     }
@@ -96,10 +98,12 @@ impl App {
 
     fn run_is_settled(&self, run_id: u64) -> bool {
         self.builds
+            .column
             .all()
             .iter()
             .chain(
                 self.queue
+                    .column
                     .all()
                     .iter()
                     .filter_map(|entry| entry.run.as_ref()),
@@ -117,6 +121,7 @@ impl App {
 
     fn failing_run_without_jobs(&self) -> Option<u64> {
         self.builds
+            .column
             .all()
             .iter()
             .filter(|build| build.status == BuildStatus::Failure)

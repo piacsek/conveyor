@@ -18,14 +18,14 @@ use crate::ui::style::{build_glyph, check_word, conclusion_glyph, dim, sha8, sta
 
 pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
     let (title, lines) = match app.focus {
-        Stage::Prs => match app.prs.selected() {
+        Stage::Prs => match app.prs.column.selected() {
             Some(pr) => (
                 format!("#{} {}", pr.number, pr.title),
                 pr_details(pr, app.now),
             ),
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
         },
-        Stage::Queue => match app.queue.selected() {
+        Stage::Queue => match app.queue.column.selected() {
             Some(entry) => {
                 let mut lines = queue_details(entry, app.now);
                 match &entry.run {
@@ -39,7 +39,7 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
             }
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
         },
-        Stage::Builds => match app.builds.selected() {
+        Stage::Builds => match app.builds.column.selected() {
             Some(build) => {
                 let (label, _) = build_label(build);
                 let mut lines = build_details(build, app.now, app.utc_offset_secs);
@@ -48,12 +48,12 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
             }
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
         },
-        Stage::Deployed => match app.deployed.selected() {
+        Stage::Deployed => match app.deployed.column.selected() {
             Some(row) => (
                 format!(
                     "{} ({})",
                     row.env,
-                    app.deployed_system.clone().unwrap_or_default()
+                    app.deployed.system.clone().unwrap_or_default()
                 ),
                 deployed_details(row, app.now),
             ),

@@ -38,7 +38,7 @@ impl App {
         if self.focused_error().is_some() {
             return Err("the last refresh failed; press r and try again".to_string());
         }
-        let pr = self.prs.selected().ok_or("nothing selected")?;
+        let pr = self.prs.column.selected().ok_or("nothing selected")?;
         if let Some((number, _)) = self.merge_landing {
             return Err(format!("waiting for My PRs to catch up with #{number}"));
         }

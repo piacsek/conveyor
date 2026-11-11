@@ -6,7 +6,7 @@ use super::{Choice, Menu, Offer, StatusTarget, offer};
 
 impl App {
     pub(super) fn prs_menu(&self) -> Result<Menu, String> {
-        let pr = self.prs.selected().ok_or("nothing selected")?;
+        let pr = self.prs.column.selected().ok_or("nothing selected")?;
         Ok(Menu {
             title: format!("Manage #{}", pr.number),
             offers: self.pr_offers(pr),

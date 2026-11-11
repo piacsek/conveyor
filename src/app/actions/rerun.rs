@@ -61,9 +61,9 @@ impl App {
         }
         match self.focus {
             Stage::Builds => {
-                let build = self.builds.selected().ok_or("nothing selected")?;
+                let build = self.builds.column.selected().ok_or("nothing selected")?;
                 let label = format!("run {}", build.run_number);
-                let newest = self.builds.all().iter().map(|b| b.run_number).max();
+                let newest = self.builds.column.all().iter().map(|b| b.run_number).max();
                 if newest != Some(build.run_number) {
                     return Err("only the newest main build can be rerun".to_string());
                 }
@@ -73,7 +73,7 @@ impl App {
                 if !matches!(build.status, BuildStatus::Failure | BuildStatus::Cancelled) {
                     return Err("nothing failed to rerun".to_string());
                 }
-                let repo = self.builds_repo.clone().ok_or("no repository known")?;
+                let repo = self.builds.repo.clone().ok_or("no repository known")?;
                 Ok(Rerun {
                     repo,
                     run_ids: vec![build.id],
@@ -81,7 +81,7 @@ impl App {
                 })
             }
             Stage::Prs => {
-                let pr = self.prs.selected().ok_or("nothing selected")?;
+                let pr = self.prs.column.selected().ok_or("nothing selected")?;
                 let run_ids = pr.rerunnable_runs();
                 let label = match run_ids.len() {
                     0 => return Err("no finished failing run to rerun".to_string()),

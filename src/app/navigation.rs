@@ -13,11 +13,12 @@ impl App {
 
     pub fn focused_error(&self) -> Option<&str> {
         match self.focus {
-            Stage::Prs => self.prs.error.as_deref(),
-            Stage::Queue => self.queue.error.as_deref(),
-            Stage::Builds => self.builds.error.as_deref(),
-            Stage::Deployed => self.deployed.error.as_deref().or_else(|| {
+            Stage::Prs => self.prs.column.error.as_deref(),
+            Stage::Queue => self.queue.column.error.as_deref(),
+            Stage::Builds => self.builds.column.error.as_deref(),
+            Stage::Deployed => self.deployed.column.error.as_deref().or_else(|| {
                 self.deployed
+                    .column
                     .selected()
                     .and_then(|row| row.error.as_deref())
             }),
@@ -26,19 +27,28 @@ impl App {
 
     pub fn focused_fetched_at(&self) -> Option<SystemTime> {
         match self.focus {
-            Stage::Prs => self.prs.fetched_at(),
-            Stage::Queue => self.queue.fetched_at(),
-            Stage::Builds => self.builds.fetched_at(),
-            Stage::Deployed => self.deployed.fetched_at(),
+            Stage::Prs => self.prs.column.fetched_at(),
+            Stage::Queue => self.queue.column.fetched_at(),
+            Stage::Builds => self.builds.column.fetched_at(),
+            Stage::Deployed => self.deployed.column.fetched_at(),
         }
     }
 
     pub fn focused_counts(&self) -> (usize, usize) {
         match self.focus {
-            Stage::Prs => (self.prs.visible().len(), self.prs.all().len()),
-            Stage::Queue => (self.queue.visible().len(), self.queue.all().len()),
-            Stage::Builds => (self.builds.visible().len(), self.builds.all().len()),
-            Stage::Deployed => (self.deployed.visible().len(), self.deployed.all().len()),
+            Stage::Prs => (self.prs.column.visible().len(), self.prs.column.all().len()),
+            Stage::Queue => (
+                self.queue.column.visible().len(),
+                self.queue.column.all().len(),
+            ),
+            Stage::Builds => (
+                self.builds.column.visible().len(),
+                self.builds.column.all().len(),
+            ),
+            Stage::Deployed => (
+                self.deployed.column.visible().len(),
+                self.deployed.column.all().len(),
+            ),
         }
     }
 
@@ -77,19 +87,19 @@ impl App {
     pub(super) fn with_focused(&mut self, act: impl Fn(&mut dyn Navigable)) {
         self.reset_scroll();
         match self.focus {
-            Stage::Prs => act(&mut self.prs),
-            Stage::Queue => act(&mut self.queue),
-            Stage::Builds => act(&mut self.builds),
-            Stage::Deployed => act(&mut self.deployed),
+            Stage::Prs => act(&mut self.prs.column),
+            Stage::Queue => act(&mut self.queue.column),
+            Stage::Builds => act(&mut self.builds.column),
+            Stage::Deployed => act(&mut self.deployed.column),
         }
     }
 
     pub(super) fn sync_filter(&mut self) {
         let filter = self.filter().map(str::to_string);
-        self.prs.filter = filter.clone();
-        self.queue.filter = filter.clone();
-        self.builds.filter = filter.clone();
-        self.deployed.filter = filter;
+        self.prs.column.filter = filter.clone();
+        self.queue.column.filter = filter.clone();
+        self.builds.column.filter = filter.clone();
+        self.deployed.column.filter = filter;
         self.with_focused(|column| column.select_index_clamped(0));
     }
 }

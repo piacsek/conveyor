@@ -28,7 +28,7 @@ impl App {
     }
 
     pub(super) fn merge_target(&self) -> Result<MergeTarget, String> {
-        let pr = self.prs.selected().ok_or("nothing selected")?;
+        let pr = self.prs.column.selected().ok_or("nothing selected")?;
         if pr.is_draft {
             return Err(format!("#{} is a draft", pr.number));
         }
