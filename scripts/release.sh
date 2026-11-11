@@ -25,7 +25,7 @@ local_tag="$(git tag --list "$tag")"
 in_flight="$(gh run list --workflow release.yml --json status,databaseId,createdAt --jq '.[] | select(.status != "completed") | "\(.databaseId) \(.status) \(.createdAt)"')"
 while read -r id status created; do
   [ -n "$id" ] || continue
-  if [ "$status" = "queued" ]; then
+  if [ "$status" = "queued" ] && [ "$(gh run view "$id" --json jobs --jq '.jobs | length')" = "0" ]; then
     echo "ignoring release run $id: queued since $created without a job, GitHub never started it"
     continue
   fi

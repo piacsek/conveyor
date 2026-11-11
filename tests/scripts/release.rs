@@ -173,10 +173,7 @@ fn release_refuses_while_another_release_run_is_in_flight() {
     let output = release(dir.path(), "0.24.0");
 
     assert_eq!(output.status.code(), Some(1));
-    assert_eq!(
-        stderr(&output),
-        "a release run is queued or in progress; wait for it (gh run list --workflow release.yml), then run this again\n"
-    );
+    assert_eq!(stderr(&output), IN_FLIGHT);
     assert_eq!(calls(dir.path()).len(), 1);
     assert_eq!(origin_tags(dir.path()), "");
 }
@@ -203,6 +200,30 @@ fn release_goes_on_past_a_queued_run_github_never_started() {
         )
     );
     assert_eq!(origin_tags(dir.path()), "v0.24.0");
+}
+
+#[test]
+fn release_refuses_while_a_queued_run_has_a_job() {
+    let dir = tempfile::tempdir().unwrap();
+    release_sandbox(dir.path());
+    published(dir.path(), "0.24.0");
+    answer(
+        dir.path(),
+        "--json status",
+        "76 queued 2026-11-11T20:46:25Z\n",
+    );
+    answer(dir.path(), "--json jobs", "1\n");
+
+    let output = release(dir.path(), "0.24.0");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stderr(&output), IN_FLIGHT);
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        calls(dir.path()).last().map(String::as_str),
+        Some("gh run view 76 --json jobs --jq .jobs | length")
+    );
+    assert_eq!(origin_tags(dir.path()), "");
 }
 
 #[test]
@@ -271,6 +292,8 @@ fn release_says_so_when_the_tap_formula_names_another_version() {
         "the tap formula does not name v0.24.0; run scripts/homebrew-formula.sh 0.24.0 > ~/projects/homebrew-tap/Formula/conveyor.rb and push the tap\n"
     );
 }
+
+const IN_FLIGHT: &str = "a release run is queued or in progress; wait for it (gh run list --workflow release.yml), then run this again\n";
 
 const NOT_ORIGIN_MAIN: &str = "local main is not origin/main; run git pull --ff-only, and land local commits through a pull request\n";
 
