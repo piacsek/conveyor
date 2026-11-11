@@ -79,7 +79,8 @@ scripts/homebrew-formula.sh   prints the tap formula for a released version
 scripts/screenshots.sh        renders docs/details.png from a gh shim + synthetic fixture (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
-                 `tests/source_size.rs` fails while any Rust file under `src/` is longer than 700 lines, naming it
+                 `tests/source_size.rs` fails while any Rust file under `src/` or `tests/` is longer than 700 lines, naming it;
+                 a test file that outgrows the limit becomes a folder (`tests/<name>/main.rs` plus one file per topic), so it stays one binary
 ```
 
 ## Data sources (verified 2026-09-10, all through `gh`)

@@ -4,13 +4,18 @@ const LIMIT: usize = 700;
 
 #[test]
 fn no_source_file_is_longer_than_the_limit() {
-    assert_eq!(sources_longer_than(LIMIT), "");
+    assert_eq!(files_longer_than("src", LIMIT), "");
 }
 
-fn sources_longer_than(limit: usize) -> String {
+#[test]
+fn no_test_file_is_longer_than_the_limit() {
+    assert_eq!(files_longer_than("tests", LIMIT), "");
+}
+
+fn files_longer_than(directory: &str, limit: usize) -> String {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut found = Vec::new();
-    collect(&root.join("src"), root, limit, &mut found);
+    collect(&root.join(directory), root, limit, &mut found);
     found.sort();
     found.join(" ")
 }
