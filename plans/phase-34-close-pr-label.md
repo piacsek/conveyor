@@ -7,7 +7,7 @@ In the `S` popup of My PRs the last offer reads `x  close`. The user wants it to
 - The label is the literal in `offer('x', "close", …)` in `PrsStage::offers` (`src/app/stages/prs.rs`). `Offer::label` is read in one place, `ui::dialog::draw_manage`, which draws `key  label` or `key  label · reason`.
 - The confirm question is built on its own in `ui::dialog::question` (`close #N <title>`), the footer wording in `app/actions/status.rs` and the `gh` argv in `sources/github.rs`: none of them reads the label.
 - `tests/manage.rs` pins `x  close` twice (the popup listing and the no-hint test), and the snapshot `manage_layout` (80 by 16) shows the popup. A `contains("x  close")` also matches the new label, so both assertions move to `x  close PR` to go red.
-- The popup's inner width is the longest line, at most 56 columns and 8 less than the body. `close PR` is 8 characters, shorter than every other label, so it never sets the width and wraps only on a body under 19 columns, where every other offer already wraps.
+- The popup's inner width is the longest line, at most 56 columns and 8 less than the body. `close PR` is 8 characters and `leave the merge queue` and `check out locally` are always longer, so it never sets the width. It wraps only on a body under 19 columns; there `merge` (5 characters) still fits on one line.
 - `README.md` and the help view do not list the popup's offers. `src/app/AGENTS.md` lists them (`x` close). `docs/details.png` shows the details pane, not the popup.
 
 ## Tasks (each starts red)
