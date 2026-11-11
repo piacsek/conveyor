@@ -176,6 +176,7 @@ enum Known {
 pub struct Pulls {
     repo: String,
     cache: std::collections::HashMap<String, Known>,
+    refused: std::collections::HashSet<String>,
 }
 
 impl Pulls {
@@ -183,6 +184,7 @@ impl Pulls {
         Self {
             repo,
             cache: std::collections::HashMap::new(),
+            refused: std::collections::HashSet::new(),
         }
     }
 
@@ -192,6 +194,7 @@ impl Pulls {
         commits: &[(&str, Option<u64>)],
         now: std::time::SystemTime,
     ) {
+        self.refused.clear();
         let Some((owner, name)) = self.repo.split_once('/') else {
             return;
         };
@@ -207,6 +210,7 @@ impl Pulls {
             &commit_pulls_query(&unknown),
             &[("owner", owner.into()), ("name", name.into())],
         ) else {
+            self.refused = unknown.into_iter().map(str::to_string).collect();
             return;
         };
         for (sha, associated) in crate::model::builds::parse_commit_pulls(&answer) {
@@ -228,6 +232,7 @@ impl Pulls {
         match self.cache.get(sha) {
             Some(Known::Pull(pull)) => return Some(pull.clone()),
             Some(Known::Missing(at)) if fresh(*at, now) => return None,
+            _ if self.refused.contains(sha) => return None,
             _ => {}
         }
         let associated = gh
