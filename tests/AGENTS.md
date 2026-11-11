@@ -6,9 +6,9 @@ What has gone wrong in the tests before, and how the suites are set up to avoid 
 
 - tmux is a test harness, not a dependency: only the `#[ignore]` e2e tests use it, they panic
   with an install hint when it is missing, and `gates.sh` skips them without tmux (CI has it).
-- `tests/kube.rs` shim tests take the same kind of mutex as `tests/github.rs` (fork race).
+- `tests/kube.rs` shim tests take the same kind of mutex as `tests/github/` (fork race).
 - **The spawn-race tests are red only some of the time, and only on macOS.**
-  `a_call_made_while_another_hangs_…` in `tests/kube.rs` and `tests/github.rs` start 150 rounds
+  `a_call_made_while_another_hangs_…` in `tests/kube.rs` and `tests/github/` start 150 rounds
   of four calls at once. Without the spawn lock the kubectl one failed in about half its runs
   at 60 rounds and the `gh` one in every run; on Linux both always pass. One green run of
   either is no proof the lock is still in place.
@@ -22,7 +22,7 @@ What has gone wrong in the tests before, and how the suites are set up to avoid 
   `CONVEYOR_CONFIG`, `XDG_STATE_HOME` and `CONVEYOR_LOG` outrank `HOME`, and a shell that exports one made the e2e panes and `screenshots.sh` read the
   real config (real repo names on screen, three e2e failures that CI never saw). Both launch the
   binary with `env -u XDG_CONFIG_HOME -u CONVEYOR_CONFIG -u XDG_STATE_HOME -u CONVEYOR_LOG …`; any new launcher must do the same.
-- **`gh` shim tests share one process, so they race on fork.** `tests/github.rs` writes a
+- **`gh` shim tests share one process, so they race on fork.** `tests/github/` writes a
   shell script per test and spawns it; on Linux CI one test's `fs::write` was still open when
   another test's `Command` forked, the child inherited the fd and `exec` failed with
   `ExecutableFileBusy` ("Text file busy"). It never showed on macOS and passed on the PR run,
@@ -41,6 +41,6 @@ What has gone wrong in the tests before, and how the suites are set up to avoid 
   goes through `versionless(h.screen())`, which swaps the footer logo for a placeholder and
   pads the line back to the terminal width, so a release bump touches no `.snap` file.
   `no_snapshot_carries_the_crate_version` fails for a new snapshot taken from a bare
-  `h.screen()`. The real version on screen is asserted in `tests/prs.rs`.
+  `h.screen()`. The real version on screen is asserted in `tests/prs/footer.rs`.
 - **The `gh` shim in e2e and screenshots dispatches on the query text.** Match the queue query
   on `repository(owner`, not `mergeQueue`: the PR query also contains `mergeQueueEntry`.
