@@ -2,7 +2,6 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 link="$HOME/.local/bin/conveyor-dev"
-outside_the_binary='^(tests|docs|plans|scripts|\.github)/|(^|/)AGENTS\.md$|^(PLAN|README)\.md$|^(LICENSE|\.gitignore)$'
 
 install() {
   echo "$*"
@@ -14,6 +13,6 @@ install() {
 base="$(git merge-base HEAD origin/main 2>/dev/null)" || install "no merge base with origin/main"
 changed="$(git diff --name-only --no-renames "$base")"
 untracked="$(git ls-files --others --exclude-standard)"
-input="$(printf '%s\n%s\n' "$changed" "$untracked" | grep -vE "$outside_the_binary" | grep -m1 . || true)"
+input="$(printf '%s\n%s\n' "$changed" "$untracked" | scripts/feeds-binary.sh | sed -n 1p)"
 [ -z "$input" ] || install "$input feeds the binary"
 echo "nothing on this branch feeds the binary, and conveyor-dev is another worktree's build"

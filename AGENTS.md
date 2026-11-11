@@ -81,6 +81,7 @@ scripts/scrub-check.sh        denylist grep over tracked files (see "This reposi
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
 scripts/ship.sh               gates + dev-install (unless skippable) + commit + push, aborts on any failure; the first push of a branch opens the draft PR (commit subject as title, the template as body)
 scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
+scripts/feeds-binary.sh       reads paths on stdin, prints the ones that feed the binary; the one list of what does not (`tests/`, `docs/`, `changes/`, …)
 plans/                        one versioned plan file per phase (see Working agreements)
 scripts/homebrew-formula.sh   prints the tap formula for a released version
 scripts/release.sh            tags a merged version from `main`, pushes the tag, watches `release` and checks the tarballs and the tap formula
@@ -273,8 +274,9 @@ is the committed code of every branch that changed what the binary is built from
 `ship.sh` skips the install, printing `skipping dev-install: <reason>`, only when both hold
 (`scripts/dev-install-skippable.sh`): `conveyor-dev` resolves to another worktree's build, and
 nothing between the merge base with `origin/main` and the working tree, untracked files
-included, is outside `tests/`, `docs/`, `plans/`, `scripts/`, `.github/`, an `AGENTS.md` at any depth (`src/` included),
-`PLAN.md`, `README.md`, `LICENSE` and `.gitignore`. Everything else counts as feeding the
+included, is outside `tests/`, `docs/`, `plans/`, `scripts/`, `changes/`, `.github/`, an `AGENTS.md` at any depth (`src/` included),
+`PLAN.md`, `README.md`, `LICENSE` and `.gitignore`. That list lives in `scripts/feeds-binary.sh`, the one
+definition of "feeds the binary", which `dev-install-skippable.sh` calls. Everything else counts as feeding the
 binary (`src/`, `Cargo.toml`, `Cargo.lock`, the bundled `CHANGELOG.md`, any path nobody
 listed), and a missing or dangling `conveyor-dev`, or no `origin/main`, installs too. So a
 branch of docs, tests, scripts or CI never takes `conveyor-dev` over, and `conveyor-dev` then
