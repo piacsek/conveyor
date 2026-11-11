@@ -131,6 +131,34 @@ fn a_commit_without_a_pull_request_is_asked_again_in_a_batch_once_the_retry_wind
     );
 }
 
+#[test]
+fn a_batch_gh_refuses_makes_no_lookup_per_commit_and_is_asked_again_on_the_next_fetch() {
+    let mut gh =
+        FakeGithub::with_response(Err(std::io::Error::other("gh: API rate limit exceeded")));
+    gh.rest_routes = vec![
+        runs_route(&[(FIRST, "Retry hooks"), (SECOND, "Add headers (#4822)")]),
+        (
+            "repos/acme/webapp/commits/".to_string(),
+            serde_json::json!([{
+                "number": 4821, "title": "Retry hooks", "user": {"login": "alice"},
+                "html_url": "https://github.com/acme/webapp/pull/4821"
+            }]),
+        ),
+    ];
+    let mut source = source();
+
+    let first = source.fetch(&gh, NOW).unwrap();
+
+    assert_eq!(first[0].pull, None);
+    assert_eq!(first[1].pull, None);
+    assert_eq!(lookups(&gh), Vec::<String>::new());
+
+    source.fetch(&gh, NOW).unwrap();
+
+    assert_eq!(batches(&gh).len(), 2);
+    assert_eq!(lookups(&gh), Vec::<String>::new());
+}
+
 fn source() -> BuildsSource {
     BuildsSource::new(Repo {
         name: "acme/webapp".to_string(),
