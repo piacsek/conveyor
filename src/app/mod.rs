@@ -6,11 +6,9 @@ pub const FOLLOW_UP: Duration = Duration::from_secs(10);
 use ratatui::crossterm::event::KeyEvent;
 
 use crate::config::Config;
-use crate::model::builds::Build;
 use crate::model::deployed::Deployment;
 use crate::model::jobs::Job;
-use crate::model::prs::{BranchUpdate, PullRequest, StatusChange};
-use crate::model::queue::QueueEntry;
+use crate::model::prs::{BranchUpdate, StatusChange};
 
 mod actions;
 mod browser;
@@ -25,10 +23,12 @@ pub use actions::{
     CheckoutTarget, Choice, Menu, MergeTarget, Offer, Pending, Rerun, StatusTarget, UpdateTarget,
 };
 pub use browser::OPEN_DEBOUNCE;
-pub use column::{Column, ColumnState, Navigable, Order, Row};
+pub use column::{Column, ColumnState, Listing, Navigable, Order, Row};
 pub use jobs::{JobsState, LogState};
 pub use run::run;
-pub use stages::{Rows, Stage};
+pub use stages::{
+    BuildsStage, Context, DeployedStage, PrsStage, QueueStage, Rows, Stage, StageView,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Input {
@@ -86,13 +86,10 @@ pub enum Mode {
 }
 
 pub struct App {
-    pub prs: Column<PullRequest>,
-    pub queue: Column<QueueEntry>,
-    pub queue_repo: Option<String>,
-    pub builds: Column<Build>,
-    pub builds_repo: Option<String>,
-    pub deployed: Column<Deployment>,
-    pub deployed_system: Option<String>,
+    pub prs: PrsStage,
+    pub queue: QueueStage,
+    pub builds: BuildsStage,
+    pub deployed: DeployedStage,
     pub focus: Stage,
     pub mode: Mode,
     pub config: Config,
@@ -133,13 +130,10 @@ impl App {
 
     pub fn at(now: SystemTime, config: Config) -> Self {
         Self {
-            prs: Column::default(),
-            queue: Column::default(),
-            queue_repo: None,
-            builds: Column::default(),
-            builds_repo: None,
-            deployed: Column::default(),
-            deployed_system: None,
+            prs: PrsStage::default(),
+            queue: QueueStage::default(),
+            builds: BuildsStage::default(),
+            deployed: DeployedStage::default(),
             focus: Stage::Prs,
             mode: Mode::Normal,
             config,
@@ -172,8 +166,7 @@ impl App {
     }
 
     pub fn behind_main(&self, row: &Deployment) -> Option<usize> {
-        let sha = row.sha.as_ref()?;
-        self.builds.all().iter().position(|build| &build.sha == sha)
+        self.context().behind_main(row)
     }
 
     pub fn deploy_configured(&self) -> bool {

@@ -27,22 +27,6 @@ impl App {
         Action::Merge(target)
     }
 
-    pub(super) fn merge_target(&self) -> Result<MergeTarget, String> {
-        let pr = self.prs.selected().ok_or("nothing selected")?;
-        if pr.is_draft {
-            return Err(format!("#{} is a draft", pr.number));
-        }
-        if pr.queue_position.is_some() {
-            return Err(format!("#{} is already queued", pr.number));
-        }
-        Ok(MergeTarget {
-            number: pr.number,
-            repo: pr.repo.clone(),
-            title: pr.title.clone(),
-            head_oid: pr.head_oid.clone(),
-        })
-    }
-
     pub fn receive_merged(&mut self, number: u64, result: &Result<(), String>) {
         self.merging = None;
         self.merge_landing = result.is_ok().then_some((number, false));

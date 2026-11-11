@@ -1,5 +1,4 @@
 use crate::app::{Action, App, Stage};
-use crate::model::builds::BuildStatus;
 
 use super::{Choice, Offer, offer};
 
@@ -10,18 +9,17 @@ pub struct Rerun {
     pub label: String,
 }
 
-impl App {
-    pub(super) fn rerun_offer(&self) -> Offer {
-        let target = self.rerun_target();
-        let label = match &target {
-            Ok(rerun) if rerun.run_ids.len() > 1 => {
-                format!("rerun failed jobs ({} runs)", rerun.run_ids.len())
-            }
-            _ => "rerun failed jobs".to_string(),
-        };
-        offer('f', &label, target.map(Choice::Rerun))
-    }
+pub(in crate::app) fn rerun_offer(target: Result<Rerun, String>) -> Offer {
+    let label = match &target {
+        Ok(rerun) if rerun.run_ids.len() > 1 => {
+            format!("rerun failed jobs ({} runs)", rerun.run_ids.len())
+        }
+        _ => "rerun failed jobs".to_string(),
+    };
+    offer('f', &label, target.map(Choice::Rerun))
+}
 
+impl App {
     pub(super) fn send_rerun(&mut self, rerun: Rerun) -> Action {
         self.notice = Some(format!("rerunning {}…", rerun.label));
         self.rerunning = Some((self.focus, rerun.label));
@@ -53,49 +51,5 @@ impl App {
             ),
         });
         (reran > 0).then_some(stage)
-    }
-
-    fn rerun_target(&self) -> Result<Rerun, String> {
-        if matches!(self.focus, Stage::Builds | Stage::Prs) && self.focused_error().is_some() {
-            return Err("the last refresh failed; press r and try again".to_string());
-        }
-        match self.focus {
-            Stage::Builds => {
-                let build = self.builds.selected().ok_or("nothing selected")?;
-                let label = format!("run {}", build.run_number);
-                let newest = self.builds.all().iter().map(|b| b.run_number).max();
-                if newest != Some(build.run_number) {
-                    return Err("only the newest main build can be rerun".to_string());
-                }
-                if !build.is_settled() {
-                    return Err(format!("{label} is still running"));
-                }
-                if !matches!(build.status, BuildStatus::Failure | BuildStatus::Cancelled) {
-                    return Err("nothing failed to rerun".to_string());
-                }
-                let repo = self.builds_repo.clone().ok_or("no repository known")?;
-                Ok(Rerun {
-                    repo,
-                    run_ids: vec![build.id],
-                    label,
-                })
-            }
-            Stage::Prs => {
-                let pr = self.prs.selected().ok_or("nothing selected")?;
-                let run_ids = pr.rerunnable_runs();
-                let label = match run_ids.len() {
-                    0 => return Err("no finished failing run to rerun".to_string()),
-                    1 => format!("#{}", pr.number),
-                    runs => format!("#{} ({runs} runs)", pr.number),
-                };
-                Ok(Rerun {
-                    repo: pr.repo.clone(),
-                    run_ids,
-                    label,
-                })
-            }
-            Stage::Queue => Err("nothing to rerun in the merge queue".to_string()),
-            Stage::Deployed => Err("nothing to rerun here".to_string()),
-        }
     }
 }

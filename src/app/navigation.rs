@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use super::{App, Mode, Navigable, Stage};
+use super::{App, Listing, Mode, Stage};
 
 impl App {
     pub fn filter(&self) -> Option<&str> {
@@ -12,34 +12,15 @@ impl App {
     }
 
     pub fn focused_error(&self) -> Option<&str> {
-        match self.focus {
-            Stage::Prs => self.prs.error.as_deref(),
-            Stage::Queue => self.queue.error.as_deref(),
-            Stage::Builds => self.builds.error.as_deref(),
-            Stage::Deployed => self.deployed.error.as_deref().or_else(|| {
-                self.deployed
-                    .selected()
-                    .and_then(|row| row.error.as_deref())
-            }),
-        }
+        self.stage(self.focus).error()
     }
 
     pub fn focused_fetched_at(&self) -> Option<SystemTime> {
-        match self.focus {
-            Stage::Prs => self.prs.fetched_at(),
-            Stage::Queue => self.queue.fetched_at(),
-            Stage::Builds => self.builds.fetched_at(),
-            Stage::Deployed => self.deployed.fetched_at(),
-        }
+        self.stage(self.focus).listing().fetched_at()
     }
 
     pub fn focused_counts(&self) -> (usize, usize) {
-        match self.focus {
-            Stage::Prs => (self.prs.visible().len(), self.prs.all().len()),
-            Stage::Queue => (self.queue.visible().len(), self.queue.all().len()),
-            Stage::Builds => (self.builds.visible().len(), self.builds.all().len()),
-            Stage::Deployed => (self.deployed.visible().len(), self.deployed.all().len()),
-        }
+        self.stage(self.focus).listing().counts()
     }
 
     pub(super) fn refocus(&mut self, step: impl Fn(Stage) -> Stage) {
@@ -74,22 +55,18 @@ impl App {
         self.changelog_scroll = next.clamp(0, i32::from(u16::MAX)) as u16;
     }
 
-    pub(super) fn with_focused(&mut self, act: impl Fn(&mut dyn Navigable)) {
+    pub(super) fn with_focused(&mut self, act: impl Fn(&mut dyn Listing)) {
         self.reset_scroll();
-        match self.focus {
-            Stage::Prs => act(&mut self.prs),
-            Stage::Queue => act(&mut self.queue),
-            Stage::Builds => act(&mut self.builds),
-            Stage::Deployed => act(&mut self.deployed),
-        }
+        act(self.stage_mut(self.focus).listing_mut());
     }
 
     pub(super) fn sync_filter(&mut self) {
         let filter = self.filter().map(str::to_string);
-        self.prs.filter = filter.clone();
-        self.queue.filter = filter.clone();
-        self.builds.filter = filter.clone();
-        self.deployed.filter = filter;
+        for stage in Stage::ALL {
+            self.stage_mut(stage)
+                .listing_mut()
+                .set_filter(filter.clone());
+        }
         self.with_focused(|column| column.select_index_clamped(0));
     }
 }

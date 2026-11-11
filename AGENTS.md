@@ -39,21 +39,24 @@ src/model/deployed.rs Deployment, Deployed, Rollout, Condition, Pod, Health; `sh
 src/model/jobs.rs Job, `parse_jobs` (failures first), `failed_step`
 src/model/log.rs  `tail`: the failed step's log as gh prints it, minus job/step/timestamp prefixes and ANSI
 src/model/AGENTS.md check dedup, merge-group run attach rules, deploy health rules, jobs parsing, lenient parsing
-src/app/mod.rs   App (one Column per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Mode::{Normal, Filter, Help, Changelog, Confirm, Manage}, Input::{Key, Fetching, Data, Jobs, Log, Merged, Rerun, BranchUpdated, StatusChanged, CheckedOut, Tick}, Action, Request::{Refresh, Jobs, Log, Rerun, Merge, UpdateBranch, ChangeStatus, Checkout}; `behind_main`, `deploy_configured`, `follow_up_*`; re-exports everything below as `app::X`
-src/app/stages.rs the four stages and what arrives for each: Stage, Rows, `receive`, `fetching`, `any_refreshing`, `spinner`, `keep_last_known`
-src/app/browser.rs where a row leads: `pull_target`, `build_url`, `deploy_repo`, `open` and its `OPEN_DEBOUNCE`
+src/app/mod.rs   App (one stage type per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Mode::{Normal, Filter, Help, Changelog, Confirm, Manage}, Input::{Key, Fetching, Data, Jobs, Log, Merged, Rerun, BranchUpdated, StatusChanged, CheckedOut, Tick}, Action, Request::{Refresh, Jobs, Log, Rerun, Merge, UpdateBranch, ChangeStatus, Checkout}; `behind_main`, `deploy_configured`, `follow_up_*`; re-exports everything below as `app::X`
+src/app/stages/  one type per stage behind the StageView trait: `mod.rs` is the trait and the dispatch, one file per stage for everything that stage does
+src/app/stages/mod.rs Stage, Rows, StageView (`listing`, `receive`, `error`, `pull_target`, `build_url`, `selected_run`, `runs`, `menu`, `changed`), Context (what a stage may read from the rest of App: config, Main builds, `merge_landing`; `behind_main`, `deploy_repo`), `App::stage`/`stage_mut` (the one match from a Stage to its field), `receive`, `fetching`, `any_refreshing`, `spinner`
+src/app/stages/prs.rs PrsStage: what My PRs offers (`menu`, `offers`, `merge_target`, `update_target`, `rerun_target`, `checkout_target`) and where its rows lead
+src/app/stages/queue.rs QueueStage (column, `repo`): its merge-group runs and where its rows lead
+src/app/stages/builds.rs BuildsStage (column, `repo`): its runs, what Main builds offers (`menu`, `rerun_target`) and where its rows lead
+src/app/stages/deployed.rs DeployedStage (column, `system`): a row's own error, where its rows lead, `keep_last_known`
+src/app/browser.rs where a row leads: `pull_target` and `build_url` of the focused stage, `open` and its `OPEN_DEBOUNCE`
 src/app/navigation.rs moving around: the `focused_*` readers, `refocus`, `with_focused`, the filter (`filter`, `sync_filter`) and the scroll helpers
-src/app/column.rs Column<T: Row> (state, error, list, filter), ColumnState, Row and its four impls, Order, `merge_keeping_order`, Navigable
+src/app/column.rs Column<T: Row> (state, error, list, filter), ColumnState, Row and its four impls, Order, `merge_keeping_order`, Navigable, Listing (what every column answers whatever its row type)
 src/app/jobs.rs  JobsState, LogState, `age_jobs`, `jobs_needed` (selected, stale, then the first `EAGER_JOBS` failing builds), `selected_run`, `toggle_log`, `receive_jobs`, `receive_log`
-src/app/actions/ the `S` popup: `mod.rs` is the machinery, one file per column for what it offers, one file per action for how it runs
-src/app/actions/mod.rs Menu/Offer/Choice, Pending, `ask_to_manage`, `menu` (the one match from the focused column to its offers), `manage`, `confirm`, `reconfirm`, `write_in_flight`, `offer`, `changed`
-src/app/actions/prs.rs what My PRs offers: `prs_menu`, `pr_offers`
-src/app/actions/builds.rs what Main builds offers: `builds_menu`
-src/app/actions/merge.rs MergeTarget, `merge_target`, `confirm_merge`, `receive_merged`
-src/app/actions/update.rs UpdateTarget, `update_target`, `confirm_update`, `send_update`, `receive_branch_update`, `conflicts`
+src/app/actions/ the `S` popup: `mod.rs` is the machinery, one file per action for how it runs; what a column offers is its stage's `menu`
+src/app/actions/mod.rs Menu/Offer/Choice, Pending, `ask_to_manage`, `menu` (the focused stage's), `manage`, `confirm`, `reconfirm`, `write_in_flight`, `offer`
+src/app/actions/merge.rs MergeTarget, `confirm_merge`, `receive_merged`
+src/app/actions/update.rs UpdateTarget, `confirm_update`, `send_update`, `receive_branch_update`, `conflicts`
 src/app/actions/status.rs StatusTarget, `confirm_status`, `send_status`, `receive_status`, the `progress` and `done` wording
-src/app/actions/checkout.rs CheckoutTarget, `checkout_target`, `send_checkout`, `receive_checkout`
-src/app/actions/rerun.rs Rerun, `rerun_offer` and `rerun_target` (My PRs and Main builds), `send_rerun`, `receive_rerun`
+src/app/actions/checkout.rs CheckoutTarget, `send_checkout`, `receive_checkout`
+src/app/actions/rerun.rs Rerun, `rerun_offer`, `send_rerun`, `receive_rerun`
 src/app/keymap.rs `handle_key` and the Filter and Normal mode key handlers, `escape`
 src/app/run.rs   run(): draw, read one Input, turn each Action into a Request
 src/app/AGENTS.md keys, `Esc`, the filter, the `S` popup and each action, jobs state, refresh and follow-up, row order, open debounce, zoom, scroll
@@ -85,6 +88,7 @@ scripts/screenshots.sh        renders docs/details.png from a gh shim + syntheti
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
                  `tests/source_size.rs` fails while any Rust file under `src/` or `tests/` is longer than 700 lines, naming it;
+                 `tests/stage_dispatch.rs` fails while a match arm on a `Stage` variant sits in `src/app/` outside `stages/mod.rs`, naming the line;
                  a test file that outgrows the limit becomes a folder (`tests/<name>/main.rs` plus one file per topic), so it stays one binary
 tests/AGENTS.md  the testing traps hit so far, the e2e `gh` shim dispatch note
 .github/AGENTS.md CI: what the workflows run and why, the `main` ruleset, branch cleanup
