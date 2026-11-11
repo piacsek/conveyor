@@ -233,9 +233,12 @@ cargo test -- --include-ignored   # one pass; the ignored ones are e2e: real bin
 ```
 
 Without tmux the last gate is a plain `cargo test` and a notice that the e2e tests were skipped.
-`tests/scripts.rs` runs the scripts themselves in a scratch directory and a scratch git
+`tests/scripts/` runs the scripts themselves in a scratch directory and a scratch git
 repository, with `cargo`, `gh` and the scripts they call replaced by symlinks to
-`tests/fixtures/record-call.sh`, which appends its name and argv to `$CALLS_LOG`.
+`tests/fixtures/record-call.sh`, which appends its name and argv to `$CALLS_LOG`. Where a
+script reads what `gh` prints (`release.sh`), `gh` is a symlink to `tests/fixtures/reply-call.sh`
+instead: it records the same line, then prints every file in `$REPLIES` whose name is part of
+its argv.
 
 Ship with `scripts/ship.sh "<message>"`: `cargo fmt`, gates, `dev-install.sh` (unless skipped, see Install), commit, push, all under
 `set -e`, refusing to run on `main`, opening the draft PR on the first push of a branch. Do not hand-roll the chain: the interactive shell here is
