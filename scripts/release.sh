@@ -23,9 +23,10 @@ on_origin="$(git ls-remote --tags origin "refs/tags/$tag")"
 local_tag="$(git tag --list "$tag")"
 [ -z "$local_tag" ] || refuse "$tag already exists locally; if it was never pushed, delete it with git tag -d $tag"
 in_flight="$(gh run list --workflow release.yml --json status,databaseId,createdAt --jq '.[] | select(.status != "completed") | "\(.databaseId) \(.status) \(.createdAt)"')"
+stale_before="$(date -u -v-1H +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"
 while read -r id status created; do
   [ -n "$id" ] || continue
-  if [ "$status" = "queued" ] && [ "$(gh run view "$id" --json jobs --jq '.jobs | length')" = "0" ]; then
+  if [ "$status" = "queued" ] && [[ "$created" < "$stale_before" ]] && [ "$(gh run view "$id" --json jobs --jq '.jobs | length')" = "0" ]; then
     echo "ignoring release run $id: queued since $created without a job, GitHub never started it"
     continue
   fi

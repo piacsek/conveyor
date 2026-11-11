@@ -2,6 +2,7 @@ use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::helpers::{calls, git, isolated, link_script, repository, stderr, stdout};
 
@@ -227,6 +228,39 @@ fn release_refuses_while_a_queued_run_has_a_job() {
 }
 
 #[test]
+fn release_refuses_while_a_run_without_a_job_was_queued_within_the_hour() {
+    let dir = tempfile::tempdir().unwrap();
+    release_sandbox(dir.path());
+    published(dir.path(), "0.24.0");
+    let listed = format!("76 queued {}\n", minutes_ago(59));
+    answer(dir.path(), "--json status", &listed);
+    answer(dir.path(), "--json jobs", "0\n");
+
+    let output = release(dir.path(), "0.24.0");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stderr(&output), IN_FLIGHT);
+    assert_eq!(stdout(&output), "");
+    assert_eq!(calls(dir.path()).len(), 1);
+    assert_eq!(origin_tags(dir.path()), "");
+}
+
+#[test]
+fn release_goes_on_past_a_run_without_a_job_queued_over_an_hour_ago() {
+    let dir = tempfile::tempdir().unwrap();
+    release_sandbox(dir.path());
+    published(dir.path(), "0.24.0");
+    let listed = format!("76 queued {}\n", minutes_ago(61));
+    answer(dir.path(), "--json status", &listed);
+    answer(dir.path(), "--json jobs", "0\n");
+
+    let output = release(dir.path(), "0.24.0");
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(origin_tags(dir.path()), "v0.24.0");
+}
+
+#[test]
 fn release_says_so_when_the_pushed_tag_starts_no_run() {
     let dir = tempfile::tempdir().unwrap();
     release_sandbox(dir.path());
@@ -341,6 +375,32 @@ fn published(root: &Path, version: &str) {
 fn formula(version: &str) -> String {
     format!(
         "class Conveyor < Formula\n  url \"https://github.com/acme/conveyor/releases/download/v{version}/conveyor-aarch64-apple-darwin.tar.gz\"\nend\n"
+    )
+}
+
+fn minutes_ago(minutes: u64) -> String {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    let seconds = now.as_secs() - minutes * 60;
+    let (days, rest) = (seconds / 86_400, seconds % 86_400);
+    let shifted = days + 719_468;
+    let era = shifted / 146_097;
+    let day_of_era = shifted % 146_097;
+    let year_of_era =
+        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let shifted_month = (5 * day_of_year + 2) / 153;
+    let day = day_of_year - (153 * shifted_month + 2) / 5 + 1;
+    let month = if shifted_month < 10 {
+        shifted_month + 3
+    } else {
+        shifted_month - 9
+    };
+    let year = year_of_era + era * 400 + u64::from(month <= 2);
+    format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z",
+        rest / 3_600,
+        rest % 3_600 / 60,
+        rest % 60
     )
 }
 
