@@ -16,7 +16,18 @@ fragments_at() {
     LC_ALL=C sort
 }
 
+refuse_strays() {
+  local listing stray
+  listing="$(git -c core.quotePath=false ls-tree -r --name-only HEAD -- changes/)" || return 1
+  stray="$(printf '%s\n' "$listing" | awk '$0 != "" && !/^changes\/[^\/]+\.md$/ { print; exit }')"
+  if [ -n "$stray" ]; then
+    echo "$stray is not a fragment: a fragment is a file changes/<name>.md" >&2
+    return 1
+  fi
+}
+
 pending_fragments() {
+  refuse_strays || return 1
   LC_ALL=C comm -23 <(fragments_at HEAD) <(fragments_at "$1")
 }
 

@@ -64,10 +64,15 @@ pub fn released(root: &Path, tag: &str) -> PathBuf {
 }
 
 pub fn fragment(work: &Path, name: &str, text: &str) {
-    fs::create_dir_all(work.join("changes")).unwrap();
-    fs::write(work.join("changes").join(format!("{name}.md")), text).unwrap();
+    committed(work, &format!("changes/{name}.md"), text);
+}
+
+pub fn committed(work: &Path, path: &str, text: &str) {
+    let file = work.join(path);
+    fs::create_dir_all(file.parent().unwrap()).unwrap();
+    fs::write(file, text).unwrap();
     git(work, &["add", "-A"]);
-    git(work, &["commit", "-qm", name]);
+    git(work, &["commit", "-qm", path]);
 }
 
 pub fn git(dir: &Path, args: &[&str]) {

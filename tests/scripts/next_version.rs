@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::process::{Command, Output};
 
-use crate::helpers::{fragment, git, isolated, released, stderr, stdout, which};
+use crate::helpers::{committed, fragment, git, isolated, released, stderr, stdout, which};
 
 #[test]
 fn a_fix_bumps_the_patch() {
@@ -211,6 +211,55 @@ fn an_internal_fragment_without_a_bullet_bumps_the_patch() {
 
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert_eq!(stdout(&output), "0.3.2\n");
+}
+
+#[test]
+fn a_file_in_a_folder_under_changes_is_refused_by_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+    committed(&work, "changes/fix/sub.md", "kind: feat\n\n- A new key.\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "changes/fix/sub.md is not a fragment: a fragment is a file changes/<name>.md\n"
+    );
+}
+
+#[test]
+fn a_file_under_changes_without_the_md_extension_is_refused_by_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    committed(&work, "changes/UPPER.MD", "kind: feat\n\n- A new key.\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "changes/UPPER.MD is not a fragment: a fragment is a file changes/<name>.md\n"
+    );
+}
+
+#[test]
+fn a_fragment_name_git_quotes_is_refused_as_git_prints_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    committed(&work, "changes/a\"b.md", "kind: feat\n\n- A new key.\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "\"changes/a\\\"b.md\" is not a fragment: a fragment is a file changes/<name>.md\n"
+    );
 }
 
 fn next_version(work: &Path) -> Output {
