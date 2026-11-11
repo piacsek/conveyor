@@ -1,9 +1,12 @@
-use crate::model::builds::Builds;
+use std::time::SystemTime;
+
+use crate::config::Config;
+use crate::model::builds::{Build, Builds};
 use crate::model::deployed::{Deployed, Deployment};
 use crate::model::prs::PullRequest;
 use crate::model::queue::Queue;
 
-use super::{App, Row};
+use super::{App, Listing};
 
 mod builds;
 mod deployed;
@@ -51,7 +54,102 @@ pub enum Rows {
     Deployed(Deployed),
 }
 
+impl Rows {
+    pub fn stage(&self) -> Stage {
+        match self {
+            Rows::Prs(_) => Stage::Prs,
+            Rows::Queue(_) => Stage::Queue,
+            Rows::Builds(_) => Stage::Builds,
+            Rows::Deployed(_) => Stage::Deployed,
+        }
+    }
+}
+
+pub struct Context<'a> {
+    pub config: &'a Config,
+    pub builds: &'a BuildsStage,
+}
+
+impl Context<'_> {
+    pub fn main_build(&self, sha: &str) -> Option<&Build> {
+        self.builds
+            .column
+            .all()
+            .iter()
+            .find(|build| build.sha == sha)
+    }
+
+    pub fn behind_main(&self, row: &Deployment) -> Option<usize> {
+        let sha = row.sha.as_ref()?;
+        self.builds
+            .column
+            .all()
+            .iter()
+            .position(|build| &build.sha == sha)
+    }
+
+    /// The repository the Deployed column watches: the configured one with a `[[repo.deploy]]`,
+    /// else the one the main builds came from.
+    pub fn deploy_repo(&self) -> Option<String> {
+        self.config
+            .repo
+            .iter()
+            .find(|repo| !repo.deploy.is_empty())
+            .map(|repo| repo.name.clone())
+            .or_else(|| self.builds.repo.clone())
+    }
+}
+
+pub trait StageView {
+    fn listing(&self) -> &dyn Listing;
+
+    fn listing_mut(&mut self) -> &mut dyn Listing;
+
+    fn receive(&mut self, rows: Rows, now: SystemTime);
+
+    fn error(&self) -> Option<&str> {
+        self.listing().error()
+    }
+
+    fn pull_target(&self) -> Result<(u64, String), String>;
+
+    fn build_url(&self, context: &Context) -> Result<String, String>;
+
+    fn selected_run(&self) -> Option<&Build> {
+        None
+    }
+
+    fn runs(&self) -> Vec<&Build> {
+        Vec::new()
+    }
+}
+
 impl App {
+    pub fn stage(&self, stage: Stage) -> &dyn StageView {
+        match stage {
+            Stage::Prs => &self.prs,
+            Stage::Queue => &self.queue,
+            Stage::Builds => &self.builds,
+            Stage::Deployed => &self.deployed,
+        }
+    }
+
+    pub fn stage_mut(&mut self, stage: Stage) -> &mut dyn StageView {
+        match stage {
+            Stage::Prs => &mut self.prs,
+            Stage::Queue => &mut self.queue,
+            Stage::Builds => &mut self.builds,
+            Stage::Deployed => &mut self.deployed,
+        }
+    }
+
+    pub fn context(&self) -> Context<'_> {
+        Context {
+            config: &self.config,
+            builds: &self.builds,
+        }
+    }
+
     pub fn receive(&mut self, stage: Stage, data: Result<Rows, String>) {
         if stage == Stage::Prs && matches!(self.merge_landing, Some((_, true))) {
             self.merge_landing = None;
@@ -64,37 +162,18 @@ impl App {
     }
 
     fn selected_key(&self) -> Option<u64> {
-        match self.focus {
-            Stage::Prs => self.prs.column.selected().map(Row::key),
-            Stage::Queue => self.queue.column.selected().map(Row::key),
-            Stage::Builds => self.builds.column.selected().map(Row::key),
-            Stage::Deployed => self.deployed.column.selected().map(Row::key),
-        }
+        self.stage(self.focus).listing().selected_key()
     }
 
     fn receive_rows(&mut self, stage: Stage, data: Result<Rows, String>) {
-        match (stage, data) {
-            (Stage::Prs, Ok(Rows::Prs(prs))) => self.prs.column.receive(prs, self.now),
-            (Stage::Queue, Ok(Rows::Queue(queue))) => {
-                self.queue.repo = Some(queue.repo);
-                self.queue.column.receive(queue.entries, self.now);
-                self.age_jobs(Stage::Queue);
+        match data {
+            Ok(rows) if rows.stage() == stage => {
+                let now = self.now;
+                self.stage_mut(stage).receive(rows, now);
+                self.age_jobs(stage);
             }
-            (Stage::Builds, Ok(Rows::Builds(builds))) => {
-                self.builds.repo = Some(builds.repo);
-                self.builds.column.receive(builds.builds, self.now);
-                self.age_jobs(Stage::Builds);
-            }
-            (Stage::Deployed, Ok(Rows::Deployed(deployed))) => {
-                self.deployed.system = Some(deployed.system);
-                let rows = keep_last_known(self.deployed.column.all(), deployed.rows);
-                self.deployed.column.receive(rows, self.now);
-            }
-            (Stage::Prs, Err(message)) => self.prs.column.fail(message),
-            (Stage::Queue, Err(message)) => self.queue.column.fail(message),
-            (Stage::Builds, Err(message)) => self.builds.column.fail(message),
-            (Stage::Deployed, Err(message)) => self.deployed.column.fail(message),
-            _ => {}
+            Ok(_) => {}
+            Err(message) => self.stage_mut(stage).listing_mut().fail(message),
         }
     }
 
@@ -102,19 +181,13 @@ impl App {
         if let (Stage::Prs, Some((_, started))) = (stage, self.merge_landing.as_mut()) {
             *started = true;
         }
-        match stage {
-            Stage::Prs => self.prs.column.refreshing = true,
-            Stage::Queue => self.queue.column.refreshing = true,
-            Stage::Builds => self.builds.column.refreshing = true,
-            Stage::Deployed => self.deployed.column.refreshing = true,
-        }
+        self.stage_mut(stage).listing_mut().set_refreshing(true);
     }
 
     pub fn any_refreshing(&self) -> bool {
-        self.prs.column.refreshing
-            || self.queue.column.refreshing
-            || self.builds.column.refreshing
-            || self.deployed.column.refreshing
+        Stage::ALL
+            .into_iter()
+            .any(|stage| self.stage(stage).listing().is_refreshing())
     }
 
     pub fn spinner(&self) -> char {
@@ -126,21 +199,4 @@ impl App {
             .unwrap_or(0);
         FRAMES[(millis / 100 % FRAMES.len() as u128) as usize]
     }
-}
-
-fn keep_last_known(current: &[Deployment], fresh: Vec<Deployment>) -> Vec<Deployment> {
-    fresh
-        .into_iter()
-        .map(|mut row| {
-            if row.sha.is_none()
-                && let Some(known) = current.iter().find(|old| old.env == row.env)
-            {
-                row.sha = known.sha.clone();
-                row.image = known.image.clone();
-                row.pull = known.pull.clone();
-                row.fetched_at = known.fetched_at;
-            }
-            row
-        })
-        .collect()
 }

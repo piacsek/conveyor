@@ -23,10 +23,12 @@ pub use actions::{
     CheckoutTarget, Choice, Menu, MergeTarget, Offer, Pending, Rerun, StatusTarget, UpdateTarget,
 };
 pub use browser::OPEN_DEBOUNCE;
-pub use column::{Column, ColumnState, Navigable, Order, Row};
+pub use column::{Column, ColumnState, Listing, Navigable, Order, Row};
 pub use jobs::{JobsState, LogState};
 pub use run::run;
-pub use stages::{BuildsStage, DeployedStage, PrsStage, QueueStage, Rows, Stage};
+pub use stages::{
+    BuildsStage, Context, DeployedStage, PrsStage, QueueStage, Rows, Stage, StageView,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Input {
@@ -164,12 +166,7 @@ impl App {
     }
 
     pub fn behind_main(&self, row: &Deployment) -> Option<usize> {
-        let sha = row.sha.as_ref()?;
-        self.builds
-            .column
-            .all()
-            .iter()
-            .position(|build| &build.sha == sha)
+        self.context().behind_main(row)
     }
 
     pub fn deploy_configured(&self) -> bool {

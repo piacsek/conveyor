@@ -34,24 +34,12 @@ pub enum LogState {
 
 impl App {
     pub(super) fn age_jobs(&mut self, stage: Stage) {
-        let runs: Vec<(u64, bool, u64)> = match stage {
-            Stage::Queue => self
-                .queue
-                .column
-                .all()
-                .iter()
-                .filter_map(|entry| entry.run.as_ref())
-                .map(|run| (run.id, run.is_settled(), run.attempt))
-                .collect(),
-            Stage::Builds => self
-                .builds
-                .column
-                .all()
-                .iter()
-                .map(|build| (build.id, build.is_settled(), build.attempt))
-                .collect(),
-            Stage::Prs | Stage::Deployed => Vec::new(),
-        };
+        let runs: Vec<(u64, bool, u64)> = self
+            .stage(stage)
+            .runs()
+            .into_iter()
+            .map(|run| (run.id, run.is_settled(), run.attempt))
+            .collect();
         for (run_id, settled, attempt) in runs {
             let aged = match (self.jobs.remove(&run_id), settled) {
                 (Some(JobsState::Ready(jobs)), false) => Some(JobsState::Stale(jobs)),
@@ -75,11 +63,7 @@ impl App {
     }
 
     pub fn selected_run(&self) -> Option<&Build> {
-        match self.focus {
-            Stage::Builds => self.builds.column.selected(),
-            Stage::Queue => self.queue.column.selected()?.run.as_ref(),
-            _ => None,
-        }
+        self.stage(self.focus).selected_run()
     }
 
     pub fn jobs_needed(&mut self) -> Option<u64> {
@@ -97,17 +81,9 @@ impl App {
     }
 
     fn run_is_settled(&self, run_id: u64) -> bool {
-        self.builds
-            .column
-            .all()
-            .iter()
-            .chain(
-                self.queue
-                    .column
-                    .all()
-                    .iter()
-                    .filter_map(|entry| entry.run.as_ref()),
-            )
+        Stage::ALL
+            .into_iter()
+            .flat_map(|stage| self.stage(stage).runs())
             .any(|run| run.id == run_id && run.is_settled())
     }
 

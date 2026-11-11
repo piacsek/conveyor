@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use super::{App, Mode, Navigable, Stage};
+use super::{App, Listing, Mode, Stage};
 
 impl App {
     pub fn filter(&self) -> Option<&str> {
@@ -12,44 +12,15 @@ impl App {
     }
 
     pub fn focused_error(&self) -> Option<&str> {
-        match self.focus {
-            Stage::Prs => self.prs.column.error.as_deref(),
-            Stage::Queue => self.queue.column.error.as_deref(),
-            Stage::Builds => self.builds.column.error.as_deref(),
-            Stage::Deployed => self.deployed.column.error.as_deref().or_else(|| {
-                self.deployed
-                    .column
-                    .selected()
-                    .and_then(|row| row.error.as_deref())
-            }),
-        }
+        self.stage(self.focus).error()
     }
 
     pub fn focused_fetched_at(&self) -> Option<SystemTime> {
-        match self.focus {
-            Stage::Prs => self.prs.column.fetched_at(),
-            Stage::Queue => self.queue.column.fetched_at(),
-            Stage::Builds => self.builds.column.fetched_at(),
-            Stage::Deployed => self.deployed.column.fetched_at(),
-        }
+        self.stage(self.focus).listing().fetched_at()
     }
 
     pub fn focused_counts(&self) -> (usize, usize) {
-        match self.focus {
-            Stage::Prs => (self.prs.column.visible().len(), self.prs.column.all().len()),
-            Stage::Queue => (
-                self.queue.column.visible().len(),
-                self.queue.column.all().len(),
-            ),
-            Stage::Builds => (
-                self.builds.column.visible().len(),
-                self.builds.column.all().len(),
-            ),
-            Stage::Deployed => (
-                self.deployed.column.visible().len(),
-                self.deployed.column.all().len(),
-            ),
-        }
+        self.stage(self.focus).listing().counts()
     }
 
     pub(super) fn refocus(&mut self, step: impl Fn(Stage) -> Stage) {
@@ -84,22 +55,18 @@ impl App {
         self.changelog_scroll = next.clamp(0, i32::from(u16::MAX)) as u16;
     }
 
-    pub(super) fn with_focused(&mut self, act: impl Fn(&mut dyn Navigable)) {
+    pub(super) fn with_focused(&mut self, act: impl Fn(&mut dyn Listing)) {
         self.reset_scroll();
-        match self.focus {
-            Stage::Prs => act(&mut self.prs.column),
-            Stage::Queue => act(&mut self.queue.column),
-            Stage::Builds => act(&mut self.builds.column),
-            Stage::Deployed => act(&mut self.deployed.column),
-        }
+        act(self.stage_mut(self.focus).listing_mut());
     }
 
     pub(super) fn sync_filter(&mut self) {
         let filter = self.filter().map(str::to_string);
-        self.prs.column.filter = filter.clone();
-        self.queue.column.filter = filter.clone();
-        self.builds.column.filter = filter.clone();
-        self.deployed.column.filter = filter;
+        for stage in Stage::ALL {
+            self.stage_mut(stage)
+                .listing_mut()
+                .set_filter(filter.clone());
+        }
         self.with_focused(|column| column.select_index_clamped(0));
     }
 }
