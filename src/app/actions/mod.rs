@@ -3,12 +3,10 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use crate::config::UpdateMethod;
 use crate::model::prs::StatusChange;
 
-use super::{Action, App, Mode, Stage};
+use super::{Action, App, Mode, StageView};
 
-mod builds;
 mod checkout;
 mod merge;
-mod prs;
 mod rerun;
 mod status;
 mod update;
@@ -16,8 +14,10 @@ mod update;
 pub use checkout::CheckoutTarget;
 pub use merge::MergeTarget;
 pub use rerun::Rerun;
+pub(super) use rerun::rerun_offer;
 pub use status::StatusTarget;
 pub use update::UpdateTarget;
+pub(super) use update::conflicts;
 
 use status::progress;
 
@@ -92,14 +92,7 @@ impl App {
     }
 
     fn menu(&self) -> Result<Menu, String> {
-        if matches!(self.focus, Stage::Prs | Stage::Builds) && self.focused_error().is_some() {
-            return Err("the last refresh failed; press r and try again".to_string());
-        }
-        match self.focus {
-            Stage::Prs => self.prs_menu(),
-            Stage::Builds => self.builds_menu(),
-            Stage::Queue | Stage::Deployed => Err("S manages My PRs and Main builds".to_string()),
-        }
+        self.stage(self.focus).menu(&self.context())
     }
 
     pub(super) fn manage(&mut self, key: KeyEvent) -> Action {
@@ -128,7 +121,7 @@ impl App {
                 return Action::Continue;
             }
             Ok(fresh) if fresh.title != menu.title => {
-                self.notice = Some(changed(self.focus));
+                self.notice = Some(self.stage(self.focus).changed());
                 return Action::Continue;
             }
             Ok(fresh) => match fresh
@@ -145,7 +138,7 @@ impl App {
                     return Action::Continue;
                 }
                 _ => {
-                    self.notice = Some(changed(self.focus));
+                    self.notice = Some(self.stage(self.focus).changed());
                     return Action::Continue;
                 }
             },
@@ -171,7 +164,7 @@ impl App {
     fn reconfirm(&self, key: char, number: u64, expected: Choice) -> Result<(), String> {
         let menu = self.menu()?;
         if menu.title != format!("Manage #{number}") {
-            return Err(changed(Stage::Prs));
+            return Err(self.prs.changed());
         }
         match menu.offers.into_iter().find(|offer| offer.key == key) {
             Some(Offer {
@@ -181,22 +174,15 @@ impl App {
                 choice: Err(reason),
                 ..
             }) => Err(reason),
-            _ => Err(changed(Stage::Prs)),
+            _ => Err(self.prs.changed()),
         }
     }
 }
 
-fn offer(key: char, label: &str, choice: Result<Choice, String>) -> Offer {
+pub(super) fn offer(key: char, label: &str, choice: Result<Choice, String>) -> Offer {
     Offer {
         key,
         label: label.to_string(),
         choice,
-    }
-}
-
-fn changed(stage: Stage) -> String {
-    match stage {
-        Stage::Builds => "the run changed; press S again".to_string(),
-        _ => "the pull request changed; press S again".to_string(),
     }
 }

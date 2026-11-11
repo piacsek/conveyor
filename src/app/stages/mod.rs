@@ -6,7 +6,7 @@ use crate::model::deployed::{Deployed, Deployment};
 use crate::model::prs::PullRequest;
 use crate::model::queue::Queue;
 
-use super::{App, Listing};
+use super::{App, Listing, Menu};
 
 mod builds;
 mod deployed;
@@ -68,6 +68,7 @@ impl Rows {
 pub struct Context<'a> {
     pub config: &'a Config,
     pub builds: &'a BuildsStage,
+    pub merge_landing: Option<(u64, bool)>,
 }
 
 impl Context<'_> {
@@ -122,6 +123,14 @@ pub trait StageView {
     fn runs(&self) -> Vec<&Build> {
         Vec::new()
     }
+
+    fn menu(&self, _: &Context) -> Result<Menu, String> {
+        Err("S manages My PRs and Main builds".to_string())
+    }
+
+    fn changed(&self) -> String {
+        "the pull request changed; press S again".to_string()
+    }
 }
 
 impl App {
@@ -147,6 +156,7 @@ impl App {
         Context {
             config: &self.config,
             builds: &self.builds,
+            merge_landing: self.merge_landing,
         }
     }
 
