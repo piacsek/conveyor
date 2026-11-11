@@ -962,8 +962,11 @@ pipeline went from ~3 min 20 s to 37 s:
   between the read and the delete is refused by GitHub instead of lost; the REST delete takes
   no expected sha, and `gh api` does not escape a branch name in a path (`fix#1` read `fix`).
   A closed pull request is reopened with GitHub's "Restore branch" button first. The job is
-  skipped or green for everything it leaves alone; red means a call failed. Neither required
-  check depends on it. Known and left: an open pull request whose **base** is the deleted
+  skipped or green for everything it leaves alone; red means a call failed or the branch
+  moved or vanished in the second between the read and the delete, and nothing is lost
+  either way. The open pull request check is a snapshot: closing and reopening one to
+  retrigger CI loses the branch when the reopen comes after the job has looked (seconds),
+  so push an empty commit or rerun the checks instead. Neither required check depends on it. Known and left: an open pull request whose **base** is the deleted
   branch is closed by GitHub (branches here are cut from `origin/main`, never stacked).
 
 ## Releasing
