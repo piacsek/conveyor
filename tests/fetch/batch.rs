@@ -43,6 +43,23 @@ fn main_builds_asks_for_every_run_s_pull_request_in_one_call() {
     assert_eq!(lookups(&gh), Vec::<String>::new());
 }
 
+#[test]
+fn a_bot_s_pull_request_keeps_the_bot_suffix_rest_gave_it() {
+    let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    gh.rest_routes = vec![runs_route(&[(FIRST, "Bump serde")])];
+    gh.graphql_routes = vec![(
+        "associatedPullRequests".to_string(),
+        serde_json::json!({"data": {"repository": {
+            "c0": commit(FIRST, serde_json::json!([pull(4823, "Bump serde", "dependabot", "Bot")])),
+        }}}),
+    )];
+
+    let builds = source().fetch(&gh, NOW).unwrap();
+
+    let pull = builds[0].pull.as_ref().expect("the bot's pull request");
+    assert_eq!(pull.author, "dependabot[bot]");
+}
+
 fn source() -> BuildsSource {
     BuildsSource::new(Repo {
         name: "acme/webapp".to_string(),
