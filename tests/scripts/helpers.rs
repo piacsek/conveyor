@@ -53,6 +53,23 @@ pub fn repository(root: &Path) -> PathBuf {
     work
 }
 
+pub fn released(root: &Path, tag: &str) -> PathBuf {
+    let work = repository(root);
+    link_script(&work, "fragments.sh");
+    link_script(&work, "next-version.sh");
+    git(&work, &["add", "-A"]);
+    git(&work, &["commit", "-qm", "release scripts"]);
+    git(&work, &["tag", tag]);
+    work
+}
+
+pub fn fragment(work: &Path, name: &str, text: &str) {
+    fs::create_dir_all(work.join("changes")).unwrap();
+    fs::write(work.join("changes").join(format!("{name}.md")), text).unwrap();
+    git(work, &["add", "-A"]);
+    git(work, &["commit", "-qm", name]);
+}
+
 pub fn git(dir: &Path, args: &[&str]) {
     let status = isolated(Command::new("git").current_dir(dir).args(args))
         .status()

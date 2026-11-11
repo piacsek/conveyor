@@ -1,0 +1,220 @@
+use std::fs;
+use std::path::Path;
+use std::process::{Command, Output};
+
+use crate::helpers::{fragment, git, isolated, released, stderr, stdout, which};
+
+#[test]
+fn a_fix_bumps_the_patch() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "0.3.2\n");
+}
+
+#[test]
+fn a_feat_bumps_the_minor_and_resets_the_patch() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    fragment(&work, "topic", "kind: feat\n\n- A new key.\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "0.4.0\n");
+}
+
+#[test]
+fn the_highest_kind_among_the_pending_fragments_wins() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    fragment(&work, "a-fix", "kind: fix\n\n- Fixed the queue.\n");
+    fragment(&work, "b-feat", "kind: feat\n\n- A new key.\n");
+    fragment(&work, "c-internal", "kind: internal\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "0.4.0\n");
+}
+
+#[test]
+fn nothing_pending_prints_nothing_and_succeeds() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "");
+}
+
+#[test]
+fn a_fragment_the_last_tag_already_holds_is_not_pending() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    fragment(&work, "released", "kind: feat\n\n- A new key.\n");
+    git(&work, &["tag", "v0.4.0"]);
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "");
+}
+
+#[test]
+fn only_the_fragments_added_since_the_last_tag_pick_the_bump() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    fragment(&work, "released", "kind: feat\n\n- A new key.\n");
+    git(&work, &["tag", "v0.4.0"]);
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "0.4.1\n");
+}
+
+#[test]
+fn a_repository_without_a_version_tag_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    git(&work, &["tag", "-d", "v0.3.1"]);
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "no vX.Y.Z tag to count from; fetch the tags (git fetch --tags)\n"
+    );
+}
+
+#[test]
+fn a_tag_that_is_not_a_version_is_not_the_last_release() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    git(&work, &["tag", "v9-draft"]);
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "0.3.2\n");
+}
+
+#[test]
+fn the_last_release_is_the_highest_tag_by_version_not_by_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.9.0");
+    git(&work, &["tag", "v0.10.0"]);
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "0.10.1\n");
+}
+
+#[test]
+fn a_fragment_that_is_not_committed_is_not_pending() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    fs::create_dir_all(work.join("changes")).unwrap();
+    fs::write(work.join("changes/topic.md"), "kind: fix\n\n- Fixed.\n").unwrap();
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "");
+}
+
+#[test]
+fn a_fragment_with_an_unknown_kind_is_refused_by_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    fragment(&work, "topic", "kind: major\n\n- A new config format.\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "changes/topic.md must start with `kind: fix`, `kind: feat` or `kind: internal`\n"
+    );
+}
+
+#[test]
+fn a_fragment_without_a_kind_is_refused_by_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    fragment(&work, "a-fix", "kind: fix\n\n- Fixed the queue.\n");
+    fragment(&work, "b-bare", "- Fixed the builds.\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "changes/b-bare.md must start with `kind: fix`, `kind: feat` or `kind: internal`\n"
+    );
+}
+
+#[test]
+fn a_fix_without_a_bullet_is_refused_by_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    fragment(&work, "topic", "kind: fix\n\nFixed the queue.\n- \n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "changes/topic.md is a `fix` without a `- ` bullet\n"
+    );
+}
+
+#[test]
+fn a_feat_without_a_bullet_is_refused_by_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    fragment(&work, "topic", "kind: feat\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "changes/topic.md is a `feat` without a `- ` bullet\n"
+    );
+}
+
+#[test]
+fn an_internal_fragment_without_a_bullet_bumps_the_patch() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    fragment(&work, "topic", "kind: internal\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "0.3.2\n");
+}
+
+fn next_version(work: &Path) -> Output {
+    isolated(Command::new(which("bash")).arg(work.join("scripts/next-version.sh")))
+        .output()
+        .unwrap()
+}
