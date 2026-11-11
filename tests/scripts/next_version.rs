@@ -262,6 +262,40 @@ fn a_fragment_name_git_quotes_is_refused_as_git_prints_it() {
     );
 }
 
+#[test]
+fn a_released_fragment_edited_since_is_refused_by_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+    git(&work, &["tag", "v0.3.2"]);
+    fragment(&work, "topic", "kind: feat\n\n- A new key.\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "changes/topic.md was released in v0.3.2 and has changed since; a released fragment never changes, so put the change in a new file\n"
+    );
+}
+
+#[test]
+fn a_released_fragment_deleted_since_is_fine() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    fragment(&work, "released", "kind: fix\n\n- Fixed the queue.\n");
+    git(&work, &["tag", "v0.3.2"]);
+    git(&work, &["rm", "-q", "changes/released.md"]);
+    git(&work, &["commit", "-qm", "drop released fragments"]);
+    fragment(&work, "topic", "kind: feat\n\n- A new key.\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "0.4.0\n");
+}
+
 fn next_version(work: &Path) -> Output {
     isolated(Command::new(which("bash")).arg(work.join("scripts/next-version.sh")))
         .output()
