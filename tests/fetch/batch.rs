@@ -60,6 +60,77 @@ fn a_bot_s_pull_request_keeps_the_bot_suffix_rest_gave_it() {
     assert_eq!(pull.author, "dependabot[bot]");
 }
 
+#[test]
+fn a_commit_the_batch_finds_no_pull_request_for_goes_straight_to_the_number_on_its_title() {
+    let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    gh.rest_routes = vec![
+        runs_route(&[(FIRST, "Fix the handbook share (#6882)")]),
+        (
+            "repos/acme/webapp/pulls/6882".to_string(),
+            serde_json::json!({
+                "number": 6882, "title": "Fix the handbook share",
+                "user": {"login": "ailin"},
+                "html_url": "https://github.com/acme/webapp/pull/6882",
+                "merge_commit_sha": FIRST
+            }),
+        ),
+    ];
+    gh.graphql_routes = vec![(
+        "associatedPullRequests".to_string(),
+        serde_json::json!({"data": {"repository": {"c0": commit(FIRST, serde_json::json!([]))}}}),
+    )];
+
+    let builds = source().fetch(&gh, NOW).unwrap();
+
+    let pull = builds[0]
+        .pull
+        .as_ref()
+        .expect("the pull request on the title");
+    assert_eq!(pull.number, 6882);
+    assert_eq!(lookups(&gh), vec!["GET repos/acme/webapp/pulls/6882"]);
+}
+
+#[test]
+fn a_commit_without_a_pull_request_is_asked_again_in_a_batch_once_the_retry_window_passes() {
+    let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    gh.rest_routes = vec![
+        runs_route(&[(FIRST, "Pushed straight to main")]),
+        (
+            format!("repos/acme/webapp/commits/{FIRST}"),
+            serde_json::json!({"commit": {"message": "Pushed straight to main"}}),
+        ),
+    ];
+    gh.graphql_routes = vec![(
+        "associatedPullRequests".to_string(),
+        serde_json::json!({"data": {"repository": {"c0": commit(FIRST, serde_json::json!([]))}}}),
+    )];
+    let mut source = source();
+
+    let first = source.fetch(&gh, NOW).unwrap();
+    let second = source.fetch(&gh, NOW).unwrap();
+
+    assert_eq!(first[0].pull, None);
+    assert_eq!(second[0].pull, None);
+    assert_eq!(batches(&gh).len(), 1);
+    assert_eq!(
+        lookups(&gh),
+        vec![format!("GET repos/acme/webapp/commits/{FIRST}")]
+    );
+
+    source
+        .fetch(&gh, NOW + std::time::Duration::from_secs(121))
+        .unwrap();
+
+    assert_eq!(batches(&gh).len(), 2);
+    assert_eq!(
+        lookups(&gh),
+        vec![
+            format!("GET repos/acme/webapp/commits/{FIRST}"),
+            format!("GET repos/acme/webapp/commits/{FIRST}")
+        ]
+    );
+}
+
 fn source() -> BuildsSource {
     BuildsSource::new(Repo {
         name: "acme/webapp".to_string(),

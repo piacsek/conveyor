@@ -130,7 +130,7 @@ pub fn parse_pull_numbers(value: &serde_json::Value) -> Option<PullRef> {
     parse_pull(value.as_array()?.first()?)
 }
 
-pub fn parse_commit_pulls(value: &serde_json::Value) -> Vec<(String, PullRef)> {
+pub fn parse_commit_pulls(value: &serde_json::Value) -> Vec<(String, Option<PullRef>)> {
     let Some(commits) = value
         .pointer("/data/repository")
         .and_then(|v| v.as_object())
@@ -141,16 +141,21 @@ pub fn parse_commit_pulls(value: &serde_json::Value) -> Vec<(String, PullRef)> {
         .values()
         .filter_map(|commit| {
             let sha = commit.get("oid")?.as_str()?;
-            let pr = commit.pointer("/associatedPullRequests/nodes/0")?;
-            let pull = PullRef {
-                number: pr.get("number")?.as_u64()?,
-                title: text(pr, "title"),
-                author: graphql_author(pr),
-                url: text(pr, "url"),
-            };
-            Some((sha.to_string(), pull))
+            let pulls = commit
+                .pointer("/associatedPullRequests/nodes")?
+                .as_array()?;
+            Some((sha.to_string(), pulls.first().and_then(graphql_pull)))
         })
         .collect()
+}
+
+fn graphql_pull(pr: &serde_json::Value) -> Option<PullRef> {
+    Some(PullRef {
+        number: pr.get("number")?.as_u64()?,
+        title: text(pr, "title"),
+        author: graphql_author(pr),
+        url: text(pr, "url"),
+    })
 }
 
 fn graphql_author(pr: &serde_json::Value) -> String {

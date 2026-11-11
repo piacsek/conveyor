@@ -186,14 +186,19 @@ impl Pulls {
         }
     }
 
-    pub fn prefetch(&mut self, gh: &impl Github, shas: &[&str]) {
+    pub fn prefetch(
+        &mut self,
+        gh: &impl Github,
+        commits: &[(&str, Option<u64>)],
+        now: std::time::SystemTime,
+    ) {
         let Some((owner, name)) = self.repo.split_once('/') else {
             return;
         };
-        let unknown: Vec<&str> = shas
+        let unknown: Vec<&str> = commits
             .iter()
-            .copied()
-            .filter(|sha| !self.cache.contains_key(*sha))
+            .map(|(sha, _)| *sha)
+            .filter(|sha| !self.known(sha, now))
             .collect();
         if unknown.is_empty() {
             return;
@@ -204,8 +209,12 @@ impl Pulls {
         ) else {
             return;
         };
-        for (sha, pull) in crate::model::builds::parse_commit_pulls(&answer) {
-            self.cache.insert(sha, Known::Pull(pull));
+        for (sha, associated) in crate::model::builds::parse_commit_pulls(&answer) {
+            let Some((_, number)) = commits.iter().find(|(wanted, _)| *wanted == sha) else {
+                continue;
+            };
+            let pull = associated.or_else(|| self.fallback(gh, &sha, *number));
+            self.remember(&sha, pull, now);
         }
     }
 
@@ -224,10 +233,37 @@ impl Pulls {
         let associated = gh
             .rest(&format!("repos/{}/commits/{sha}/pulls", self.repo))
             .ok()?;
-        let pull = crate::model::builds::parse_pull_numbers(&associated).or_else(|| match number {
+        let pull = crate::model::builds::parse_pull_numbers(&associated)
+            .or_else(|| self.fallback(gh, sha, number));
+        self.remember(sha, pull, now)
+    }
+
+    fn known(&self, sha: &str, now: std::time::SystemTime) -> bool {
+        match self.cache.get(sha) {
+            Some(Known::Pull(_)) => true,
+            Some(Known::Missing(at)) => fresh(*at, now),
+            None => false,
+        }
+    }
+
+    fn fallback(
+        &self,
+        gh: &impl Github,
+        sha: &str,
+        number: Option<u64>,
+    ) -> Option<crate::model::builds::PullRef> {
+        match number {
             Some(number) => self.landed(gh, sha, number),
             None => self.by_squash_suffix(gh, sha),
-        });
+        }
+    }
+
+    fn remember(
+        &mut self,
+        sha: &str,
+        pull: Option<crate::model::builds::PullRef>,
+        now: std::time::SystemTime,
+    ) -> Option<crate::model::builds::PullRef> {
         let known = match &pull {
             Some(pull) => Known::Pull(pull.clone()),
             None => Known::Missing(now),
@@ -314,8 +350,11 @@ impl BuildsSource {
             ))
             .map_err(|err| err.to_string())?;
         let mut builds = crate::model::builds::parse_runs(&runs);
-        let shas: Vec<&str> = builds.iter().map(|build| build.sha.as_str()).collect();
-        self.pulls.prefetch(gh, &shas);
+        let commits: Vec<(&str, Option<u64>)> = builds
+            .iter()
+            .map(|build| (build.sha.as_str(), build.pr_number))
+            .collect();
+        self.pulls.prefetch(gh, &commits, now);
         for build in &mut builds {
             let sha = build.sha.clone();
             build.pull = self.pulls.for_sha(gh, &sha, build.pr_number, now);
