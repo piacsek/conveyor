@@ -55,6 +55,9 @@ impl App {
         let Some(write) = write else {
             return;
         };
+        if !self.stage(write.stage).listing().holds(write.subject) {
+            return;
+        }
         self.failures.push(Failure {
             stage: write.stage,
             subject: write.subject,

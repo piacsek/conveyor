@@ -269,6 +269,22 @@ fn a_refresh_that_still_holds_the_marked_row_keeps_the_mark() {
     assert!(h.screen().contains("┌My PRs (2) !1─"), "{}", h.screen());
 }
 
+#[test]
+fn a_failure_for_a_row_that_already_left_its_column_leaves_no_mark() {
+    let mut h = tall();
+
+    h.run(vec![
+        prs(vec![draft(12, "Retry webhooks"), draft(14, "Bump serde")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        prs(vec![draft(14, "Bump serde")]),
+        status_changed(12, StatusChange::Ready, Err("HTTP 422")),
+    ])
+    .unwrap();
+
+    assert!(h.screen().contains("┌My PRs (1)─"), "{}", h.screen());
+}
+
 fn marked_next_to_another() -> Harness {
     let mut h = tall();
     h.run(vec![
