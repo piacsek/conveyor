@@ -78,6 +78,47 @@ fn a_last_tag_without_a_release_is_resumed_before_anything_new_is_tagged() {
 }
 
 #[test]
+fn a_resumed_tag_warns_that_the_pending_fragments_wait_for_the_next_run() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    merged(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+    merged(&work, "other", "kind: feat\n\n- Added a column.\n");
+
+    let output = release_tag_where(dir.path(), "release view v0.3.1", "release not found");
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(
+        stderr(&output),
+        "::warning::this run finishes v0.3.1, so 2 pending fragments wait for the next release run (gh workflow run release.yml)\n"
+    );
+}
+
+#[test]
+fn a_resumed_tag_names_a_single_waiting_fragment_in_the_singular() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    merged(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+
+    let output = release_tag_where(dir.path(), "release view v0.3.1", "release not found");
+
+    assert_eq!(
+        stderr(&output),
+        "::warning::this run finishes v0.3.1, so 1 pending fragment waits for the next release run (gh workflow run release.yml)\n"
+    );
+}
+
+#[test]
+fn a_resumed_tag_with_nothing_pending_warns_about_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    sandbox(dir.path());
+
+    let output = release_tag_where(dir.path(), "release view v0.3.1", "release not found");
+
+    assert_eq!(stdout(&output), "version=0.3.1\ntag=v0.3.1\n");
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
 fn a_release_that_cannot_be_read_stops_the_run_before_anything_is_tagged() {
     let dir = tempfile::tempdir().unwrap();
     let work = sandbox(dir.path());

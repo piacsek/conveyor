@@ -86,7 +86,7 @@ scripts/fragments.sh          sourced, not run: `last_tag`, `pending_fragments <
 scripts/next-version.sh       prints the version the pending fragments ask for (`feat` minor, `fix`/`internal` patch, never a major), nothing when none is pending
 scripts/release-commit.sh     `<version>`: writes it into `Cargo.toml` and the `conveyor` entry of `Cargo.lock`, and a `CHANGELOG.md` of the pending bullets above the last tag's; commits nothing
 scripts/releases.sh           sourced, not run: `release_state <tag>` prints `missing`, `draft`, `short` or `complete` (published with exactly the six assets); refuses an unreadable release or an unexpected asset
-scripts/release-tag.sh        the `tag` job of `release.yml` (refuses outside GitHub Actions): prints `version=`/`tag=` of the newest tag when its release is unfinished, else commits and pushes the next release tag, else nothing
+scripts/release-tag.sh        the `tag` job of `release.yml` (refuses outside GitHub Actions): prints `version=`/`tag=` of the newest tag when its release is not `complete` (a `::warning::` on stderr counts the fragments that wait for the next run), else commits and pushes the next release tag, else nothing
 changes/                      one fragment per pull request that feeds the binary (`kind:` and the changelog bullets); add-only, see Releasing
 plans/                        one versioned plan file per phase (see Working agreements)
 scripts/homebrew-formula.sh   prints the tap formula for a released version
