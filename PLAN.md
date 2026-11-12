@@ -679,13 +679,29 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   number in two repositories shares a key; `docs/details.png` was not regenerated, since its
   fixture has no busy card.
 
+- Phase 39 (`plans/phase-39-failed-write-marks.md`, #70, #72): a failed write leaves a red
+  `! <action> failed: <reason>` line under the title of the card it was started from, My PRs
+  cards and, for a rerun started there, Main builds cards. An error, an update that hit
+  conflicts and a rerun where any run failed mark; successes leave nothing new. `d` on a marked
+  card starts with the whole reason and the time it landed, and the column title counts marks
+  (`My PRs (5) !1`, in the tabs of the narrow layout too). A mark clears when a new write starts
+  on that row, on `Esc` with the marked card selected (after the details pane and zoom, before
+  the live filter), or when the row leaves its column on a successful refresh. `App::failures`
+  is filled from the `Write` the result removes, and `Listing::holds` lets `App::receive` prune
+  without a `Stage` match. The help and README now read `Esc  close details / zoom / mark /
+  filter`. Deviation: the partial rerun wording (`1 of 2 runs failed: …`) is tested from My
+  PRs, since a Main builds rerun is always one run. Not done: the footer still shows only the
+  latest notice, and a success that lands under a prompt is still hidden by it;
+  `docs/details.png` was not regenerated, since its fixture has no failed write.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
 - More `S` actions: `gh pr review --approve`; reopen if the query ever lists closed pull requests.
 - Merge follow-ups from the phase 20 review: `merge_method` per `[[repo]]` (one global value cannot
   serve a squash-only and a merge-commit-only repo at once); a write result that lands while the other prompt is open is
-  hidden by that prompt; the footer cuts titles by characters, not display width.
+  hidden by that prompt (the failure half is done in phase 39: a failure stays on its card; a
+  success is still hidden); the footer cuts titles by characters, not display width.
 - Follow one PR across columns: `f` on a PR highlights its sha/number in queue, builds, deployed.
 - Desktop/tmux notification on queue state change or main build failure (tmux-agents `watch` pattern).
 - Multiple `[[repo]]` entries → repeated column groups or a repo switcher.

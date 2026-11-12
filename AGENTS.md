@@ -48,19 +48,20 @@ src/app/stages/builds.rs BuildsStage (column, `repo`): its runs, what Main build
 src/app/stages/deployed.rs DeployedStage (column, `system`): a row's own error, where its rows lead, `keep_last_known`
 src/app/browser.rs where a row leads: `pull_target` and `build_url` of the focused stage, `open` and its `OPEN_DEBOUNCE`
 src/app/navigation.rs moving around: the `focused_*` readers, `refocus`, `with_focused`, the filter (`filter`, `sync_filter`) and the scroll helpers
-src/app/column.rs Column<T: Row> (state, error, list, filter), ColumnState, Row and its four impls, Order, `merge_keeping_order`, Navigable, Listing (what every column answers whatever its row type)
+src/app/column.rs Column<T: Row> (state, error, list, filter), ColumnState, Row and its four impls, Order, `merge_keeping_order`, Navigable, Listing (what every column answers whatever its row type, `holds(key)` included)
 src/app/jobs.rs  JobsState, LogState, `age_jobs`, `jobs_needed` (selected, stale, then the first `EAGER_JOBS` failing builds), `selected_run`, `toggle_log`, `receive_jobs`, `receive_log`
 src/app/actions/ the `S` popup: `mod.rs` is the machinery, one file per action for how it runs; what a column offers is its stage's `menu`
 src/app/actions/mod.rs Menu/Offer/Choice, Pending, `ask_to_manage`, `menu` (the focused stage's), `manage`, `confirm`, `reconfirm`, `write_in_flight`, `offer`
-src/app/actions/writes.rs Write, WriteKind (the writes in flight, one per row), `progress` (footer), `word` (card), `write_on`, `start_write`, `finish_write`
+src/app/actions/writes.rs Write, WriteKind (the writes in flight, one per row), `progress` (footer), `word` (card), `action` (the mark), `write_on`, `start_write`, `finish_write`
 src/app/actions/merge.rs MergeTarget, `confirm_merge`, `receive_merged`, `land` (adds to `merge_landing`)
 src/app/actions/update.rs UpdateTarget, `confirm_update`, `send_update`, `receive_branch_update`, `conflicts`
 src/app/actions/status.rs StatusTarget, `confirm_status`, `send_status`, `receive_status`, the `progress` and `done` wording
 src/app/actions/checkout.rs CheckoutTarget, `send_checkout`, `receive_checkout`
+src/app/actions/failures.rs Failure (the mark a failed write leaves), `failure_on`, `failure_count`, `selected_failure`, `fail`, `prune_failures`, `clear_failure`
 src/app/actions/rerun.rs Rerun, `rerun_offer`, `send_rerun`, `receive_rerun`
 src/app/keymap.rs `handle_key` and the Filter and Normal mode key handlers, `escape`
 src/app/run.rs   run(): draw, read one Input, turn each Action into a Request
-src/app/AGENTS.md keys, `Esc`, the filter, the `S` popup and each action, jobs state, refresh and follow-up, row order, open debounce, zoom, scroll
+src/app/AGENTS.md keys, `Esc`, the filter, the `S` popup and each action, failed write marks, jobs state, refresh and follow-up, row order, open debounce, zoom, scroll
 src/ui/mod.rs    draw: 4 columns or tabs below `4 × ui.min_column_width`
 src/ui/style.rs  the shared vocabulary: BAR, INDENT, dim(), glyphs and status words, short_repo, sha8
 src/ui/card.rs   card() and meta(): one title line plus indented span lines
@@ -114,7 +115,7 @@ This file holds the rules and agreements. The facts about each directory live in
 | --- | --- | --- |
 | `src/sources/AGENTS.md` | GitHub and kubectl: API shapes and queries, the sha → pull request lookup (`Pulls`), the spawn lock, call logging, `gh` never inheriting the terminal, the kubectl deadline | before touching `src/sources/` or anything that spawns a program |
 | `src/model/AGENTS.md` | check dedup (`newest_checks`, superseded runs, `overall`), merge-group run attach rules, deploy health rules, jobs parsing, lenient parsing | before touching `src/model/` or a fixture it parses |
-| `src/app/AGENTS.md` | keys, `Esc`, the filter, the `S` popup and each action (`m`, `u`, `f`, `t`/`a`/`e`/`x`, `c`), jobs state (`age_jobs`, `jobs_needed`), refresh and follow-up, row order, open debounce, zoom, scroll | before touching `src/app/`, `src/refresh.rs` or `src/open.rs`, or adding a key or an action |
+| `src/app/AGENTS.md` | keys, `Esc`, the filter, the `S` popup and each action (`m`, `u`, `f`, `t`/`a`/`e`/`x`, `c`), failed write marks, jobs state (`age_jobs`, `jobs_needed`), refresh and follow-up, row order, open debounce, zoom, scroll | before touching `src/app/`, `src/refresh.rs` or `src/open.rs`, or adding a key or an action |
 | `src/ui/AGENTS.md` | cards, glyphs and icons, dialogs, the details, help and changelog panes, the footer, colours | before touching `src/ui/` or `src/changelog.rs`, or changing anything visible |
 | `tests/AGENTS.md` | the testing traps hit so far, the e2e `gh` shim dispatch note | before writing or debugging a test, a shim or a launcher of the binary |
 | `.github/AGENTS.md` | CI: what the workflows run and why (`check`, `audit`, the `version` check, the release queue, the tap), the `main` ruleset and its required checks, the unguarded `v*` tags, branch cleanup | before touching `.github/`, a required check or a release script |
