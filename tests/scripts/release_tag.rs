@@ -100,7 +100,21 @@ fn a_last_release_short_of_an_asset_is_resumed() {
     let work = sandbox(dir.path());
     merged(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
     let short = ASSETS.replace("conveyor-x86_64-apple-darwin.tar.gz.sha256\n", "");
-    fs::write(dir.path().join("replies/v0.3.1"), short).unwrap();
+    fs::write(dir.path().join("replies/v0.3.1"), format!("false\n{short}")).unwrap();
+
+    let output = release_tag(dir.path());
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "version=0.3.1\ntag=v0.3.1\n");
+    assert_eq!(origin_tags(dir.path()), "v0.3.1");
+}
+
+#[test]
+fn a_last_release_still_a_draft_with_every_asset_is_resumed() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    merged(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+    fs::write(dir.path().join("replies/v0.3.1"), format!("true\n{ASSETS}")).unwrap();
 
     let output = release_tag(dir.path());
 
@@ -114,7 +128,7 @@ fn a_last_release_holding_an_asset_nobody_expects_stops_the_run() {
     let dir = tempfile::tempdir().unwrap();
     let work = sandbox(dir.path());
     merged(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
-    let extra = format!("{ASSETS}notes.txt\n");
+    let extra = format!("false\n{ASSETS}notes.txt\n");
     fs::write(dir.path().join("replies/v0.3.1"), extra).unwrap();
 
     let output = release_tag(dir.path());
@@ -179,7 +193,7 @@ fn merged(work: &Path, name: &str, text: &str) {
 }
 
 fn finished(root: &Path, tag: &str) {
-    fs::write(root.join("replies").join(tag), ASSETS).unwrap();
+    fs::write(root.join("replies").join(tag), format!("false\n{ASSETS}")).unwrap();
 }
 
 fn origin_tags(root: &Path) -> String {
@@ -206,6 +220,7 @@ fn sandbox(root: &Path) -> PathBuf {
     link_script(&work, "next-version.sh");
     link_script(&work, "release-commit.sh");
     link_script(&work, "release-tag.sh");
+    link_script(&work, "releases.sh");
     fs::write(work.join("Cargo.toml"), CARGO_TOML).unwrap();
     fs::write(work.join("Cargo.lock"), CARGO_LOCK).unwrap();
     fs::write(work.join("CHANGELOG.md"), CHANGELOG).unwrap();
