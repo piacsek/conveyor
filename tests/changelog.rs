@@ -263,8 +263,12 @@ fn a_released_version_without_its_entry_is_refused() {
 
 #[test]
 fn every_released_tag_keeps_its_entry() {
+    let mut args = vec!["tag", "--list", "v*"];
+    if env!("CARGO_PKG_VERSION") == "0.0.0" {
+        args.extend(["--merged", "HEAD"]);
+    }
     let output = std::process::Command::new("git")
-        .args(["tag", "--list", "v*", "--merged", "HEAD"])
+        .args(args)
         .current_dir(env!("CARGO_MANIFEST_DIR"))
         .output()
         .unwrap();
