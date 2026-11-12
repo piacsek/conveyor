@@ -49,6 +49,14 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   `draft`. They are Nerd Font octicons, the only Nerd Font glyphs in the UI: a terminal
   without a Nerd Font draws a box there. `card()` takes the icon as an
   `Option<(char, Color)>`; every other stage passes `None`.
+- **A busy PR card spins.** While a write started on a pull request is in flight
+  (`App::write_on`), its card draws the footer's braille frame (`App::spinner`) in yellow in
+  place of the check glyph, and its meta line starts with the action word (`Write::word`:
+  `marking ready…`, `converting to draft…`, `merging…`, `updating…`, `rerunning…`,
+  `checking out…`, `closing…`, and the auto-merge and merge queue ones), first so a narrow card
+  keeps it. `draw_column` looks the word up per visible row before `draw_list` borrows the
+  column. The card goes back to its check glyph when the result lands. Main builds cards do
+  not spin; a rerun there shows in the footer only.
 - **No URLs in the details pane.** Every line there is text a person reads: the checks, the
   jobs, the sha, the pull request. A URL is 60 columns of noise nobody retypes, and both keys
   that need one (`b`, `p`) already hand it to the browser. `y`/`Y` copy them.

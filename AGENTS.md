@@ -41,7 +41,7 @@ src/model/log.rs  `tail`: the failed step's log as gh prints it, minus job/step/
 src/model/AGENTS.md check dedup, merge-group run attach rules, deploy health rules, jobs parsing, lenient parsing
 src/app/mod.rs   App (one stage type per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Mode::{Normal, Filter, Help, Changelog, Confirm, Manage}, Input::{Key, Fetching, Data, Jobs, Log, Merged, Rerun, BranchUpdated, StatusChanged, CheckedOut, Tick}, Action, Request::{Refresh, Jobs, Log, Rerun, Merge, UpdateBranch, ChangeStatus, Checkout}; `behind_main`, `deploy_configured`, `follow_up_*`; re-exports everything below as `app::X`
 src/app/stages/  one type per stage behind the StageView trait: `mod.rs` is the trait and the dispatch, one file per stage for everything that stage does
-src/app/stages/mod.rs Stage, Rows, StageView (`listing`, `receive`, `error`, `pull_target`, `build_url`, `selected_run`, `runs`, `menu`, `changed`), Context (what a stage may read from the rest of App: config, Main builds, `merge_landing`; `behind_main`, `deploy_repo`), `App::stage`/`stage_mut` (the one match from a Stage to its field), `receive`, `fetching`, `any_refreshing`, `spinner`
+src/app/stages/mod.rs Stage, Rows, StageView (`listing`, `receive`, `error`, `pull_target`, `build_url`, `selected_run`, `runs`, `menu`, `changed`), Context (what a stage may read from the rest of App: config, Main builds, `merge_landing`; `landing`, `behind_main`, `deploy_repo`), `App::stage`/`stage_mut` (the one match from a Stage to its field), `receive`, `fetching`, `any_refreshing`, `spinner`
 src/app/stages/prs.rs PrsStage: what My PRs offers (`menu`, `offers`, `merge_target`, `update_target`, `rerun_target`, `checkout_target`) and where its rows lead
 src/app/stages/queue.rs QueueStage (column, `repo`): its merge-group runs and where its rows lead
 src/app/stages/builds.rs BuildsStage (column, `repo`): its runs, what Main builds offers (`menu`, `rerun_target`) and where its rows lead
@@ -52,7 +52,8 @@ src/app/column.rs Column<T: Row> (state, error, list, filter), ColumnState, Row 
 src/app/jobs.rs  JobsState, LogState, `age_jobs`, `jobs_needed` (selected, stale, then the first `EAGER_JOBS` failing builds), `selected_run`, `toggle_log`, `receive_jobs`, `receive_log`
 src/app/actions/ the `S` popup: `mod.rs` is the machinery, one file per action for how it runs; what a column offers is its stage's `menu`
 src/app/actions/mod.rs Menu/Offer/Choice, Pending, `ask_to_manage`, `menu` (the focused stage's), `manage`, `confirm`, `reconfirm`, `write_in_flight`, `offer`
-src/app/actions/merge.rs MergeTarget, `confirm_merge`, `receive_merged`
+src/app/actions/writes.rs Write, WriteKind (the writes in flight, one per row), `progress` (footer), `word` (card), `write_on`, `start_write`, `finish_write`
+src/app/actions/merge.rs MergeTarget, `confirm_merge`, `receive_merged`, `land` (adds to `merge_landing`)
 src/app/actions/update.rs UpdateTarget, `confirm_update`, `send_update`, `receive_branch_update`, `conflicts`
 src/app/actions/status.rs StatusTarget, `confirm_status`, `send_status`, `receive_status`, the `progress` and `done` wording
 src/app/actions/checkout.rs CheckoutTarget, `send_checkout`, `receive_checkout`

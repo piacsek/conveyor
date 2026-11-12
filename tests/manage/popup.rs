@@ -1,11 +1,11 @@
-mod support;
-
 use conveyor::app::{Input, Request, Stage};
 use conveyor::config::MergeMethod;
 use conveyor::model::builds::BuildStatus;
-use conveyor::model::prs::{PullRequest, StatusChange};
+use conveyor::model::prs::StatusChange;
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, build, builds, failed, key, pr, prs, status_target};
+
+use crate::helpers::{open, queueable, status, status_changed, tall};
+use crate::support::{build, builds, failed, key, prs};
 
 #[test]
 fn shift_s_opens_a_manage_popup_listing_every_action_for_the_pull_request() {
@@ -651,37 +651,4 @@ fn a_draft_on_a_merge_queue_repository_is_not_offered_to_the_queue() {
         "{}",
         h.screen()
     );
-}
-
-fn tall() -> Harness {
-    Harness::with_size(160, 20)
-}
-
-fn open(number: u64, title: &str) -> PullRequest {
-    let mut pull = pr(number, title);
-    pull.head_oid = format!("8c1f2a7d{number}");
-    pull.node_id = format!("PR_node{number}");
-    pull
-}
-
-fn status(number: u64, title: &str, change: StatusChange) -> Request {
-    Request::ChangeStatus(status_target(number, title, change))
-}
-
-fn status_changed(
-    number: u64,
-    change: StatusChange,
-    result: Result<(), &str>,
-) -> std::io::Result<Input> {
-    Ok(Input::StatusChanged(
-        number,
-        change,
-        result.map_err(str::to_string),
-    ))
-}
-
-fn queueable(number: u64, title: &str) -> PullRequest {
-    let mut pull = open(number, title);
-    pull.merge_queue_enabled = true;
-    pull
 }

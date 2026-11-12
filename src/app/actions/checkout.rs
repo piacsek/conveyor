@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use crate::app::{Action, App};
 
+use super::WriteKind;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CheckoutTarget {
     pub number: u64,
@@ -11,8 +13,8 @@ pub struct CheckoutTarget {
 
 impl App {
     pub fn receive_checkout(&mut self, target: &CheckoutTarget, result: &Result<(), String>) {
-        self.checking_out = None;
         let number = target.number;
+        self.finish_write(number, &WriteKind::Checkout);
         self.notice = Some(match (result, &target.dir) {
             (Ok(()), Some(dir)) => format!("#{number} checked out in {}", dir.display()),
             (Ok(()), None) => format!("#{number} checked out in the current directory"),
@@ -21,8 +23,7 @@ impl App {
     }
 
     pub(super) fn send_checkout(&mut self, target: CheckoutTarget) -> Action {
-        self.checking_out = Some(target.number);
-        self.notice = Some(format!("checking out #{}…", target.number));
+        self.start_write(target.number, WriteKind::Checkout);
         Action::Checkout(target)
     }
 }

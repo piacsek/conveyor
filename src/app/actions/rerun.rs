@@ -1,6 +1,6 @@
 use crate::app::{Action, App, Stage};
 
-use super::{Choice, Offer, offer};
+use super::{Choice, Offer, Write, WriteKind, offer};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rerun {
@@ -21,8 +21,14 @@ pub(in crate::app) fn rerun_offer(target: Result<Rerun, String>) -> Offer {
 
 impl App {
     pub(super) fn send_rerun(&mut self, rerun: Rerun) -> Action {
-        self.notice = Some(format!("rerunning {}…", rerun.label));
-        self.rerunning = Some((self.focus, rerun.label));
+        let subject = self.selected_key().unwrap_or_default();
+        self.start_write(
+            subject,
+            WriteKind::Rerun {
+                run_ids: rerun.run_ids.clone(),
+                label: rerun.label,
+            },
+        );
         Action::Rerun {
             repo: rerun.repo,
             run_ids: rerun.run_ids,
@@ -30,7 +36,18 @@ impl App {
     }
 
     pub fn receive_rerun(&mut self, results: Vec<(u64, Result<(), String>)>) -> Option<Stage> {
-        let (stage, label) = self.rerunning.take()?;
+        let index = self.writes.iter().position(|write| {
+            matches!(&write.kind, WriteKind::Rerun { run_ids, .. }
+                if results.iter().any(|(run_id, _)| run_ids.contains(run_id)))
+        })?;
+        let Write {
+            stage,
+            kind: WriteKind::Rerun { label, .. },
+            ..
+        } = self.writes.remove(index)
+        else {
+            return None;
+        };
         let errors: Vec<String> = results
             .iter()
             .filter_map(|(run_id, result)| {
