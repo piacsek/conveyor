@@ -10,4 +10,5 @@ mod release_unfinished;
 mod ship;
 mod version_check;
 mod version_check_cargo;
+mod version_check_head;
 mod version_workflow;

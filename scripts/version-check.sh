@@ -9,6 +9,10 @@ if [ "$#" -ne 2 ]; then
   say "usage: scripts/version-check.sh <base> <head>"
   exit 1
 fi
+if ! command -v cargo >/dev/null 2>&1; then
+  say "cargo is not on PATH: the check asks cargo for the version in Cargo.toml, so install Rust and run it again"
+  exit 1
+fi
 if ! head="$(git rev-parse --quiet --verify "$2^{commit}")"; then
   say "$2 is not a commit here: fetch the pull request first (git fetch origin pull/<number>/head)"
   exit 1
@@ -18,9 +22,12 @@ if ! fork="$(git merge-base "$1" "$head")"; then
   exit 1
 fi
 export LC_ALL=C
-listing="$(mktemp)"
-errors="$(mktemp)"
-trap 'rm -f "$listing" "$errors"' EXIT
+scratch="$(mktemp -d "${TMPDIR:-/tmp}/version-check.XXXXXX")"
+trap 'rm -rf "$scratch"' EXIT
+scratch="$(cd "$scratch" && pwd -P)"
+listing="$scratch/listing"
+errors="$scratch/errors"
+tree="$scratch/head"
 git diff --name-status -z -M "$fork" "$head" >"$listing"
 hostile=0
 while IFS= read -r -d '' field; do
@@ -56,30 +63,108 @@ under_changes() {
   esac
 }
 
-manifest="$(git show "$head:Cargo.toml" 2>/dev/null)" || true
-versions="$(printf '%s\n' "$manifest" | awk '
-  /^[ \t]*\[/ { package = ($0 == "[package]") }
-  package && /^[ \t]*["'\'']?version["'\'']?[ \t]*[=.]/ { count++ }
-  END { print count + 0 }
-')"
-package="$(printf '%s\n' "$manifest" | awk '
-  /^[ \t]*\[/ { package = ($0 == "[package]") }
-  package && /^version = / { sub(/^version = "/, ""); sub(/".*$/, ""); print; exit }
-')"
-case "$manifest" in
-  *'"""'* | *"'''"*)
-    refuse "Cargo.toml holds a multi-line string (\"\"\" or '''): the check reads the version line by line, so write every string in Cargo.toml on one line"
-    ;;
-  *)
-    if [ "$versions" -gt 1 ]; then
-      refuse "Cargo.toml holds more than one \`version\` line in [package]: the check reads the version line by line, so keep the one \`version = \"0.0.0\"\`"
-    elif [ -z "$package" ]; then
-      refuse "Cargo.toml has no \`version = \"...\"\` line under a plain \`[package]\` header: the check reads the version line by line, so write the header as \`[package]\` alone on its line and the version as \`version = \"0.0.0\"\`"
-    elif [ "$package" != 0.0.0 ]; then
-      refuse "Cargo.toml sets the package version to $package: put back \`version = \"0.0.0\"\`, only the release workflow picks a version (from the kinds in changes/)"
-    fi
-    ;;
-esac
+materialise() {
+  local entry meta path made=""
+  while IFS= read -r -d '' entry; do
+    meta="${entry%%$'\t'*}"
+    path="${entry#*$'\t'}"
+    case "$meta" in
+      "100644 blob "* | "100755 blob "*) ;;
+      *) continue ;;
+    esac
+    case "/$path/" in
+      */../* | */./* | *//* | */[.][cC][aA][rR][gG][oO]/* | */[rR][uU][sS][tT]-[tT][oO][oO][lL][cC][hH][aA][iI][nN]/* | */[rR][uU][sS][tT]-[tT][oO][oO][lL][cC][hH][aA][iI][nN].[tT][oO][mM][lL]/*) continue ;;
+    esac
+    case "$path" in
+      */*)
+        if [ "${path%/*}" != "$made" ]; then
+          mkdir -p "$tree/${path%/*}" 2>/dev/null || continue
+          made="${path%/*}"
+        fi
+        ;;
+    esac
+    case "/$path" in
+      */Cargo.toml) git cat-file blob "${meta##* }" >"$tree/$path" 2>/dev/null || continue ;;
+      *) [ -e "$tree/$path" ] || : >"$tree/$path" 2>/dev/null || continue ;;
+    esac
+  done < <(git ls-tree -r -z "$head")
+}
+
+root_package() {
+  awk -v root="path+file://$1#" '
+    NR > 1 { bad = 1; exit }
+    {
+      text = $0
+      if (substr(text, 1, 13) != "{\"packages\":[") { bad = 1; exit }
+      size = length(text)
+      depth = 2
+      for (i = 14; i <= size; i++) {
+        c = substr(text, i, 1)
+        if (quoted) {
+          if (escaped) escaped = 0
+          else if (c == "\\") escaped = 1
+          else if (c == "\"") quoted = 0
+          continue
+        }
+        if (c == "\"") { quoted = 1; continue }
+        if (c == "]" || c == "}") {
+          depth--
+          if (depth == 1) break
+          continue
+        }
+        if (c != "[" && c != "{") continue
+        depth++
+        if (depth != 3) continue
+        if (c != "{" || !match(substr(text, i, 4096), /^\{"name":"[^"\\]+","version":"[^"\\]+","id":"[^"\\]*"/)) { bad = 1; exit }
+        split(substr(text, i, RLENGTH), field, "\"")
+        if (index(field[12], root) == 1) { found = found field[4] " " field[8]; roots++ }
+      }
+      if (depth != 1 || roots > 1 || substr(text, i, 23) != "],\"workspace_members\":[") { bad = 1; exit }
+      read = 1
+    }
+    END {
+      if (bad || !read) print "unreadable"
+      else print found
+    }
+  '
+}
+
+mkdir "$tree" "$scratch/home" "$scratch/cwd"
+materialise
+if (
+  cd "$scratch/cwd"
+  env -i PATH="$PATH" HOME="$scratch/home" CARGO_HOME="$scratch/home" RUSTUP_HOME="${RUSTUP_HOME:-${HOME:-}/.rustup}" RUSTUP_TOOLCHAIN="${RUSTUP_TOOLCHAIN:-stable}" \
+    cargo metadata --no-deps --offline --format-version 1 --manifest-path "$tree/Cargo.toml" >"$scratch/metadata" 2>"$errors"
+); then
+  package="$(root_package "$tree" <"$scratch/metadata")"
+  case "$package" in
+    unreadable)
+      refuse "cargo metadata answered in a shape the check does not know: the check reads its output only when it starts the way cargo writes it, so run it again with the cargo this check was written for"
+      ;;
+    "")
+      refuse "Cargo.toml has no package of its own (cargo reads a virtual manifest): the package conveyor belongs at the root, where the release workflow writes its version"
+      ;;
+    "conveyor 0.0.0") ;;
+    "conveyor "*)
+      refuse "Cargo.toml sets the package version to ${package#conveyor }: put back \`version = \"0.0.0\"\`, only the release workflow picks a version (from the kinds in changes/)"
+      ;;
+    *)
+      refuse "Cargo.toml names its package ${package%% *}: the package at the root must be conveyor, the one the release workflow versions"
+      ;;
+  esac
+else
+  answer="$(awk -v tree="$tree/" '
+    /^error/ {
+      while ((at = index($0, tree)) > 0) $0 = substr($0, 1, at - 1) substr($0, at + length(tree))
+      print
+      found = 1
+      exit
+    }
+    END { if (!found) print "nothing" }
+  ' "$errors" | tr '[:cntrl:]' ' ')"
+  answer="${answer% }"
+  refuse "Cargo.toml does not load with cargo, which answers \`$answer\`: the manifest must load with cargo (cargo metadata), fix it there"
+fi
 
 lockfile="$(git show "$head:Cargo.lock" 2>/dev/null)" || true
 entries="$(printf '%s\n' "$lockfile" | awk '/^[ \t]*name[ \t]*=[ \t]*"conveyor"[ \t]*$/ { count++ } END { print count + 0 }')"

@@ -48,44 +48,15 @@ fn a_lock_entry_other_than_0_0_0_is_refused_by_file() {
 }
 
 #[test]
-fn a_manifest_with_a_multi_line_string_is_refused_since_it_could_hide_the_version() {
-    let dir = tempfile::tempdir().unwrap();
-    let work = main_with_a_release(dir.path());
-    committed(
-        &work,
-        "Cargo.toml",
+fn a_decoy_version_in_a_multi_line_string_does_not_hide_the_version_cargo_reads() {
+    let output = checked_manifest(
         "[workspace]\nmetadata = '''\n[package]\nversion = \"0.0.0\"\n'''\n\n[package]\nname = \"conveyor\"\nversion = \"9.9.9\"\n",
     );
-    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
-
-    let output = version_check(&work);
 
     assert_eq!(output.status.code(), Some(1));
-    assert_eq!(stdout(&output), "");
     assert_eq!(
         stderr(&output),
-        "version check: Cargo.toml holds a multi-line string (\"\"\" or '''): the check reads the version line by line, so write every string in Cargo.toml on one line\n"
-    );
-}
-
-#[test]
-fn a_package_table_with_two_version_lines_is_refused() {
-    let dir = tempfile::tempdir().unwrap();
-    let work = main_with_a_release(dir.path());
-    committed(
-        &work,
-        "Cargo.toml",
-        "[package]\nname = \"conveyor\"\nversion = \"0.0.0\"\n version=\"9.9.9\"\n",
-    );
-    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
-
-    let output = version_check(&work);
-
-    assert_eq!(output.status.code(), Some(1));
-    assert_eq!(stdout(&output), "");
-    assert_eq!(
-        stderr(&output),
-        "version check: Cargo.toml holds more than one `version` line in [package]: the check reads the version line by line, so keep the one `version = \"0.0.0\"`\n"
+        "version check: Cargo.toml sets the package version to 9.9.9: put back `version = \"0.0.0\"`, only the release workflow picks a version (from the kinds in changes/)\n"
     );
 }
 
@@ -236,37 +207,28 @@ fn a_lock_cargo_wrote_after_a_dependency_bump_passes() {
 }
 
 #[test]
-fn a_package_version_written_without_spaces_is_refused_as_unread() {
+fn a_package_version_written_without_spaces_passes_since_cargo_reads_it() {
     let output = checked_manifest("[package]\nname = \"conveyor\"\nversion=\"0.0.0\"\n");
 
-    assert_eq!(output.status.code(), Some(1));
-    assert_eq!(
-        stderr(&output),
-        "version check: Cargo.toml has no `version = \"...\"` line under a plain `[package]` header: the check reads the version line by line, so write the header as `[package]` alone on its line and the version as `version = \"0.0.0\"`\n"
-    );
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stderr(&output), "");
 }
 
 #[test]
-fn a_package_header_with_a_comment_is_refused_as_unread() {
+fn a_package_header_with_a_comment_passes_since_cargo_reads_it() {
     let output =
         checked_manifest("[package] # the crate\nname = \"conveyor\"\nversion = \"0.0.0\"\n");
 
-    assert_eq!(output.status.code(), Some(1));
-    assert_eq!(
-        stderr(&output),
-        "version check: Cargo.toml has no `version = \"...\"` line under a plain `[package]` header: the check reads the version line by line, so write the header as `[package]` alone on its line and the version as `version = \"0.0.0\"`\n"
-    );
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stderr(&output), "");
 }
 
 #[test]
-fn a_manifest_with_crlf_line_endings_is_refused_as_unread() {
+fn a_manifest_with_crlf_line_endings_passes_since_cargo_reads_it() {
     let output = checked_manifest("[package]\r\nname = \"conveyor\"\r\nversion = \"0.0.0\"\r\n");
 
-    assert_eq!(output.status.code(), Some(1));
-    assert_eq!(
-        stderr(&output),
-        "version check: Cargo.toml has no `version = \"...\"` line under a plain `[package]` header: the check reads the version line by line, so write the header as `[package]` alone on its line and the version as `version = \"0.0.0\"`\n"
-    );
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stderr(&output), "");
 }
 
 #[test]

@@ -373,6 +373,9 @@ fn a_change_main_made_to_the_binary_after_the_branch_was_cut_needs_no_fragment_h
 fn a_source_file_renamed_out_of_the_binary_still_needs_a_fragment() {
     let dir = tempfile::tempdir().unwrap();
     let work = main_with_a_release(dir.path());
+    git(&work, &["checkout", "-q", "main"]);
+    committed(&work, "src/lib.rs", "\n");
+    git(&work, &["checkout", "-qB", "pull"]);
     fs::create_dir_all(work.join("docs")).unwrap();
     git(&work, &["mv", "src/main.rs", "docs/main.rs"]);
     git(&work, &["commit", "-qm", "move the source out"]);
