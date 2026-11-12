@@ -365,8 +365,13 @@ kind: fix
 Past the control character check it reports every refusal, not only the first. Every line it
 writes to stderr starts with `version check: `, the lines of the `scripts/fragments.sh`
 functions included (with a carriage return turned into a space), so a path or a fragment line
-starting with `::` never reaches the start of a line, where GitHub Actions would read it as a
-workflow command; the release scripts calling those functions print them as before. The check
+starting with `::` is never the first thing on a line; the release scripts calling those
+functions print them as before. The prefix alone does not keep a pull request from issuing a
+workflow command: the runner also reads the legacy `##[warning]...` form anywhere in a line.
+What does is the workflow: it stops command processing with `::stop-commands::<token>` before
+the script runs, a token made in that step from `/dev/urandom` that the pull request cannot
+know, folds the script's stderr into stdout so nothing overtakes that line, and turns
+processing back on with `::<token>::` afterwards, keeping the script's exit code. The check
 becomes required when `version` is added to the `main` ruleset, which is done by hand after
 the workflow is on `main`.
 

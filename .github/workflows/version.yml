@@ -35,4 +35,10 @@ jobs:
       - name: Only the release workflow may set the version
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: scripts/version-check.sh HEAD "$HEAD_SHA"
+        run: |
+          stop="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+          echo "::stop-commands::$stop"
+          status=0
+          scripts/version-check.sh HEAD "$HEAD_SHA" 2>&1 || status=$?
+          echo "::$stop::"
+          exit "$status"

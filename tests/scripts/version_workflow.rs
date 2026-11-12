@@ -39,7 +39,26 @@ fn the_version_check_never_checks_out_the_pull_request() {
     assert!(!workflow.contains("ref:"));
     assert!(!workflow.contains("head.ref"));
     assert!(!workflow.contains("github.head_ref"));
-    assert!(workflow.contains("run: scripts/version-check.sh HEAD \"$HEAD_SHA\"\n"));
+    assert!(workflow.contains("scripts/version-check.sh HEAD \"$HEAD_SHA\" 2>&1 || status=$?\n"));
+}
+
+#[test]
+fn the_check_runs_with_workflow_commands_stopped_by_a_token_made_at_run_time() {
+    let workflow = workflow();
+    let (_, check) = workflow
+        .split_once("- name: Only the release workflow may set the version")
+        .unwrap();
+    let (before_stop, stopped) = check
+        .split_once("echo \"::stop-commands::$stop\"\n")
+        .unwrap();
+    let (during, after) = stopped.split_once("echo \"::$stop::\"\n").unwrap();
+
+    assert!(before_stop.contains("stop=\"$(od -An -N16 -tx1 /dev/urandom | tr -d ' \\n')\"\n"));
+    assert!(!before_stop.contains("scripts/version-check.sh"));
+    assert!(during.contains("scripts/version-check.sh HEAD \"$HEAD_SHA\" 2>&1 || status=$?\n"));
+    assert!(after.contains("exit \"$status\"\n"));
+    assert!(!after.contains("scripts/version-check.sh"));
+    assert_eq!(workflow.matches("::stop-commands::").count(), 1);
 }
 
 #[test]
