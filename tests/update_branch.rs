@@ -448,6 +448,34 @@ fn after_a_refused_merge_u_updates_right_away() {
 }
 
 #[test]
+fn a_refused_merge_of_another_pull_request_keeps_the_landed_one_waiting() {
+    let mut h = Harness::with_size(160, 20);
+
+    h.run(vec![
+        prs(vec![behind(1, "a"), behind(2, "b")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+        Ok(Input::Merged(1, Ok(()))),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+        Ok(Input::Merged(2, Err("not mergeable".to_string()))),
+        key(KeyCode::Char('k')),
+        key(KeyCode::Char('S')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("Manage #1"), "{screen}");
+    assert!(
+        screen.contains("u  update branch · waiting for My PRs to catch up with"),
+        "{screen}"
+    );
+}
+
+#[test]
 fn s_waits_while_an_update_of_the_branch_is_in_flight() {
     let mut h = Harness::new();
 
