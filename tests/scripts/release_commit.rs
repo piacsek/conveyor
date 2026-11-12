@@ -249,6 +249,26 @@ fn a_malformed_fragment_is_refused_by_name_before_anything_is_written() {
 }
 
 #[test]
+fn a_carriage_return_inside_a_bullet_is_refused_by_name_before_anything_is_written() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    fragment(
+        &work,
+        "topic",
+        "kind: fix\n\n- Fixed the queue\r on every column.\n",
+    );
+
+    let output = release_commit(&work, &["0.3.2"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "changes/topic.md holds a carriage return inside a line: a carriage return may only end a line, right before its newline\n"
+    );
+    assert_eq!(git_stdout(&work, &["status", "--porcelain"]), "");
+}
+
+#[test]
 fn a_bullet_of_an_older_release_is_refused_by_name_before_anything_is_written() {
     let dir = tempfile::tempdir().unwrap();
     let work = sandbox(dir.path());
@@ -597,7 +617,7 @@ fn a_missing_version_is_refused() {
     assert_eq!(stderr(&output), "usage: scripts/release-commit.sh X.Y.Z\n");
 }
 
-fn release_commit(work: &Path, args: &[&str]) -> Output {
+pub fn release_commit(work: &Path, args: &[&str]) -> Output {
     isolated(
         Command::new(which("bash"))
             .arg(work.join("scripts/release-commit.sh"))
@@ -607,7 +627,7 @@ fn release_commit(work: &Path, args: &[&str]) -> Output {
     .unwrap()
 }
 
-fn git_stdout(work: &Path, args: &[&str]) -> String {
+pub fn git_stdout(work: &Path, args: &[&str]) -> String {
     let output = isolated(Command::new("git").current_dir(work).args(args))
         .output()
         .unwrap();
@@ -618,10 +638,11 @@ fn today() -> String {
     chrono::Utc::now().format("%Y-%m-%d").to_string()
 }
 
-fn sandbox(root: &Path) -> PathBuf {
+pub fn sandbox(root: &Path) -> PathBuf {
     let work = repository(root);
     link_script(&work, "fragments.sh");
     link_script(&work, "release-commit.sh");
+    link_script(&work, "release-rewrite.sh");
     fs::write(work.join("Cargo.toml"), CARGO_TOML).unwrap();
     fs::write(work.join("Cargo.lock"), CARGO_LOCK).unwrap();
     fs::write(work.join("CHANGELOG.md"), CHANGELOG).unwrap();

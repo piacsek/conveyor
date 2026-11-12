@@ -82,9 +82,11 @@ scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-d
 scripts/ship.sh               gates + dev-install (unless skippable) + commit + push, aborts on any failure; the first push of a branch opens the draft PR (commit subject as title, the template as body)
 scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
 scripts/feeds-binary.sh       reads paths on stdin, prints the ones that feed the binary; the one list of what does not (`tests/`, `docs/`, `changes/`, …)
-scripts/fragments.sh          sourced, not run: `last_tag`, `pending_fragments <tag>` (the `changes/*.md` at `HEAD` the tag's tree lacks), `fragment_kind` (refuses a malformed one by name), `fragment_bullets`, `refuse_repeats <tag> <pending>` (a pending bullet already in the tag's `CHANGELOG.md`, joined and trimmed as `changelog::check` reads it)
+scripts/fragments.sh          sourced, not run, reading the commit in `fragments_at` (`HEAD` unless the caller sets it): `last_tag`, `pending_fragments <tag>` (the `changes/*.md` at `HEAD` the tag's tree lacks), `fragment_kind` (refuses a malformed one by name), `fragment_bullets`, `refuse_repeats <tag> <pending>` (a pending bullet already in the tag's `CHANGELOG.md`, joined and trimmed as `changelog::check` reads it)
+scripts/version-check.sh      `<base> <head>`: the `version` job of `version.yml`; refuses a pull request that sets the version, edits `CHANGELOG.md` or a fragment, adds a malformed one, or feeds the binary without one; reads the head as git objects and asks `cargo metadata` for its version in a scratch copy, runs nothing from it; rehearses the release rewrite on that copy with a probe version drawn at random on every run
 scripts/next-version.sh       prints the version the pending fragments ask for (`feat` minor, `fix`/`internal` patch, never a major), nothing when none is pending
-scripts/release-commit.sh     `<version>`: writes it into `Cargo.toml` and the `conveyor` entry of `Cargo.lock`, and a `CHANGELOG.md` of the pending bullets above the last tag's; commits nothing
+scripts/release-commit.sh     `<version>`: writes it into `Cargo.toml` and the `conveyor` entry of `Cargo.lock`, and a `CHANGELOG.md` of the pending bullets above the last tag's; confirms that the release build's version line reads it, and with `cargo metadata` when cargo is on `PATH`; commits nothing
+scripts/release-rewrite.sh    sourced, not run: the release rewrite both `release-commit.sh` and `version-check.sh` use (`manifest_with_version`, `lock_with_version`, `manifest_reads`, `lock_reads`) and `root_package`, the reader of `cargo metadata` output
 scripts/releases.sh           sourced, not run: `release_state <tag>` prints `missing`, `draft`, `short` or `complete` (published with exactly the six assets); refuses an unreadable release or an unexpected asset
 scripts/release-unfinished.sh `<tag>`: prints `unfinished=true` unless the tag's release is `complete`; `build` and `publish` skip their steps on `false`, so a rerun never rebuilds a published release
 scripts/release-tag.sh        the `tag` job of `release.yml` (refuses outside GitHub Actions): prints `version=`/`tag=` of the newest tag when its release is not `complete` (a `::warning::` on stderr counts the fragments that wait for the next run), else commits and pushes the next release tag, else nothing
@@ -172,7 +174,7 @@ nearest the code the guideline is about.
   4. The phase outcome is in `PLAN.md` and, when the branch feeds the binary, its fragment
      `changes/<branch>.md` is on it (no version bump, no `CHANGELOG.md` edit). Re-read the PR
      title and body, fix what went stale, `gh pr ready`, wait for CI green.
-  5. Rebase-merge (squash when GitHub cannot rebase the branch). Watch the `release` run the
+  5. Squash-merge, the only method `main` allows. Watch the `release` run the
      merge starts to green; with a fragment, check the release holds the six assets and the
      tap formula names the new version (see "Releasing"). Never tag by hand.
   6. Remove the worktree and report what shipped, with the release link.
@@ -218,21 +220,21 @@ nearest the code the guideline is about.
   that the gates pass, and forbid edits, commits, and any write to GitHub or call to the
   clusters. When the skill asks whether to post the review on the PR, answer no.
   `gh pr ready` comes after the findings are addressed, not before.
-- **Merging and releasing.** Rebase-merge the phase PR into `main` when CI is green (squash
-  when GitHub cannot rebase it, see the next bullet), then watch the `release` run the merge
-  starts (see Releasing): no bump, no `CHANGELOG.md` edit, no tag by
-  hand. Never push to `main` directly except the very first bootstrap commit of an empty
+- **Merging and releasing.** Squash-merge the phase PR into `main` when CI is green, then
+  watch the `release` run the merge starts (see Releasing): no bump, no `CHANGELOG.md` edit,
+  no tag by hand. Squash is the only merge method the repository and the `main` ruleset allow
+  (since 2026-11-12, see `.github/AGENTS.md`). The squash commit on `main` takes GitHub's
+  default here: the pull request title followed by `(#N)` (a pull request of a single commit
+  gets that commit's subject instead), with the per-task commit messages listed in its body;
+  the per-task commits stay readable on the pull request. Never push to `main` directly except the very first bootstrap commit of an empty
   repository, and never force-push.
 - **Catching up with `main` on a pushed branch is a merge, not a rebase.** A rebase rewrites
   the pushed commits and the next `scripts/ship.sh` push is refused; the no-force-push rule
   then leaves only `git reset --hard origin/<branch>`, `git merge origin/main` and a
-  cherry-pick of the new work. The rebase-merge into `main` drops a clean merge commit anyway.
-  A merge that resolved conflicts can stop GitHub from rebase-merging: it answers `This branch
-  can't be rebased`, because the resolutions live only in the merge commit and replaying the
-  branch's own commits hits the same conflicts again (phase 28, after v0.21.2 shipped mid-phase
-  and its snapshots and `CHANGELOG.md` conflicted). When GitHub refuses, the branch lands as a
-  **squash merge** instead, subject `<type>(<scope>): <summary> (#N)`; the per-task commits stay
-  readable on the PR.
+  cherry-pick of the new work. The squash into `main` leaves the merge commit behind anyway.
+  Squash is the only method partly for this reason: a merge that resolved conflicts once stopped
+  GitHub from rebase-merging (phase 28), and a rebase-merge, which replays the branch's own
+  commits and drops its merge commits, could land a tree the `version` check never judged.
 - **Two binaries.** `conveyor` on PATH is the Homebrew release; `conveyor-dev` is a working
   tree (`scripts/dev-install.sh`). Never `cargo install` the crate into a PATH directory. A
   build from a working tree (`conveyor-dev`, CI) reads `v0.0.0` in the footer and in
@@ -330,6 +332,80 @@ kind: fix
   malformed committed fragment fails the gates (it reads `HEAD`, so locally only after the
   commit; CI always sees it). It needs the tags, like `every_released_tag_keeps_its_entry`.
 
+**The `version` check enforces all of this on every pull request into `main`**
+(`.github/workflows/version.yml`, details in `.github/AGENTS.md`). `scripts/version-check.sh
+<base> <head>` refuses the pull request, naming the file and what to do instead, when:
+
+- a path it changes holds a control character (a newline, a tab, any byte below 0x20, or
+  0x7f): the check stops there, before anything else, and prints only how many such paths
+  there are, since a newline would split one path into two and could inject a workflow
+  command through its output;
+- cargo, asked about the `Cargo.toml` at its head, reads a version of the root package other
+  than `0.0.0`, cannot load the manifest at all (the refusal quotes cargo's first `error` line),
+  finds no package at the root (a virtual manifest) or one not named `conveyor`; a workspace
+  member keeps its own version. The check never reads the version itself: a decoy line in a
+  multi-line string or inline table, or a key spelled with an escape, fooled every line reader
+  tried, while cargo is what decides. How the head is kept from running anything is in
+  `.github/AGENTS.md`. Without `cargo` on `PATH` the check fails rather than passes;
+- cargo reads `0.0.0`, but the release could not set the version: the check rehearses the
+  release on its copy of the head, applying to `Cargo.toml` and `Cargo.lock` the very rewrite
+  `scripts/release-commit.sh` applies (the functions of `scripts/release-rewrite.sh`, shared by
+  both) with a probe version drawn from `/dev/urandom` on every run (a major of 100000 or more,
+  which no release carries), and refuses unless the release script's own
+  verification passes, cargo (isolated as before) reads the probe, the line the `build` job of
+  `release.yml` compares with the tag (`grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2`,
+  the same spelling there, here and in `release-commit.sh`, pinned by
+  `tests/scripts/version_check_release.rs`) reads
+  it, and the lock's `conveyor` entry reads it by the lock rules below. The rewrite works line
+  by line, so `Cargo.toml` keeps one plain form: `[package]` alone on its line (no comment, no
+  spaces), `version = "0.0.0"` as its own line under it (not `version="0.0.0"`, not a quoted
+  key, not `version.workspace = true`), LF line endings, and no other line starting with
+  `version = ` above it. Anything else passed cargo yet left the release commit with the new
+  version in a decoy line or nowhere: the run would then push its tag and fail to build it,
+  and a released tag never moves, or `release-commit.sh` would refuse on every run;
+- `Cargo.lock` holds a `conveyor` entry other than `0.0.0`, none, or more than one entry of
+  that name (the check reads the lock line by line, so anything that could hide the real line
+  is refused);
+- `Cargo.lock` at its head is not in the one shape cargo writes it in: it holds a multi-line
+  string, a line whose key is `name` or quoted is not exactly `name = "<crate>"` (letters,
+  digits, `_` and `-`), or a `name = "conveyor"` line is not right after a `[[package]]` line
+  and right before its `version = "..."` line. A lock no tool would write could hide the real
+  entry behind a decoy the check reads, pass, and then fail the release's
+  `cargo build --locked`; the refusal says to regenerate it with cargo
+  (`cargo update --workspace`);
+- it changes `CHANGELOG.md` at all;
+- it edits, deletes or renames a file under `changes/`, or renames a file into it;
+- a fragment it adds is not a direct child `changes/<name>.md`, its name is already on the tip
+  of `main` (a branch behind `main` re-adding a fragment `main` gained later; it does not count
+  as the pull request's fragment), or `fragment_kind` or `refuse_repeats` of
+  `scripts/fragments.sh` refuses it (the same functions the release run uses, read at the pull
+  request's head through `fragments_at`; `fragment_kind` refuses a carriage return anywhere
+  but at the very end of a line, by name, in the release run too), or it repeats a bullet of
+  a fragment `main` holds that the last tag does not (compared as `refuse_repeats` compares,
+  naming both files: once the two land in different releases the later release run would
+  refuse on every run, and with `changes/` add-only nobody could repair it);
+- a path it changes feeds the binary (`scripts/feeds-binary.sh`, a rename counting both of its
+  paths, `CHANGELOG.md` left out since it is refused anyway) and it adds no fragment.
+
+Past the control character check it reports every refusal, not only the first. Every line it
+writes to stderr starts with `version check: `, the lines of the `scripts/fragments.sh`
+functions included (with a carriage return turned into a space), so a path or a fragment line
+starting with `::` is never the first thing on a line; the release scripts calling those
+functions print them as before. The prefix alone does not keep a pull request from issuing a
+workflow command: the runner also reads the legacy `##[warning]...` form anywhere in a line.
+What does is the workflow: it stops command processing with `::stop-commands::<token>` before
+the script runs, a token made in that step from `/dev/urandom` that the pull request cannot
+know, folds the script's stderr into stdout so nothing overtakes that line, and turns
+processing back on with `::<token>::` afterwards, keeping the script's exit code. The check
+judges the head's tree, which is exactly what a squash lands, so squash stays the only merge
+method `main` allows (see `.github/AGENTS.md`) until the check learns to judge what another
+method lands. The check becomes required when `version` is added to the `main` ruleset, which is done by hand after
+the workflow is on `main`.
+
+**A revert keeps the fragment.** A pull request that reverts a merged one keeps that pull
+request's fragment (GitHub's Revert button deletes it, which the check refuses, since
+`changes/` is add-only) and adds a new fragment for the revert itself.
+
 **The release run.** `.github/workflows/release.yml` starts on every push to `main` (and by
 hand: `gh workflow run release.yml`) and runs one at a time (`concurrency: release`). Its `tag`
 job checks out `main` at its current head, not the commit that started it, fetches every `v*`
@@ -347,7 +423,16 @@ tag (release commits are reachable only from their tags) and runs `scripts/relea
    nothing to release: `build` and `publish` are skipped, `tap` still runs and only reconciles
    the formula, and the run is green.
 3. Otherwise `scripts/release-commit.sh` writes the version into `Cargo.toml` and
-   `Cargo.lock` and a `CHANGELOG.md` with the new section above the last tag's, commits it
+   `Cargo.lock` and a `CHANGELOG.md` with the new section above the last tag's. Before the
+   changelog it reads `Cargo.toml` with the `build` job's own line
+   (`grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2`) and asks
+   `cargo metadata --no-deps --offline` whether the package version now reads the release;
+   on any other answer it puts `Cargo.toml` and `Cargo.lock` back and refuses, so no tag is
+   pushed. The `tag` job installs no toolchain: it relies on the cargo that GitHub's
+   `ubuntu-latest` image carries, which the image lists but nothing pins, so the cargo
+   confirmation is skipped silently when cargo is not on `PATH` (the `build` line is read
+   either way) and the rehearsal in the `version` check is then the only guard on what cargo
+   reads. The job commits the release
    as `github-actions[bot]` (`Release vX.Y.Z`) on top of `main` and pushes only the tag. `main`
    never moves; the tag push starts no other run.
 
@@ -403,6 +488,21 @@ forward, so rerunning an old run never rewrites a published release or the formu
 now, start a new run, or run `scripts/homebrew-formula.sh <version>` by hand and push the tap.
 Check with `brew audit --strict --online --formula piacsek/tap/conveyor` after changing the
 script.
+
+**When the newest tag can never build** (its commit does not compile, or its `Cargo.lock` is
+stale, so every run resumes it and fails again): the tag has no published release, so the
+rule about released tags does not cover it. Land the fix on `main` through a pull request,
+delete the unfinished tag and its draft release if one exists, then start a new run, which
+tags the same version again from the fixed `main`. Deleting a tag is the owner's decision:
+an agent asks first.
+
+```bash
+gh release delete vX.Y.Z --yes
+git push origin :refs/tags/vX.Y.Z
+gh workflow run release.yml
+```
+
+The first command only applies when a draft exists.
 
 Never push a `v*` tag by hand: tags come only from the `tag` job of the release run.
 

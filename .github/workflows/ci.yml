@@ -26,10 +26,10 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tmux
       - run: cargo fmt --check
-      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo clippy --locked --all-targets -- -D warnings
       # One test run covers the unit, TUI and tmux e2e suites; the release profile is
       # exercised by release.yml, not here.
-      - run: cargo test -- --include-ignored
+      - run: cargo test --locked -- --include-ignored
 
   audit:
     runs-on: ubuntu-latest

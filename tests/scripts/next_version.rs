@@ -153,6 +153,22 @@ fn a_fragment_with_an_unknown_kind_is_refused_by_name() {
 }
 
 #[test]
+fn a_carriage_return_inside_a_fragment_line_is_refused_by_name_without_the_line() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the\rqueue.\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "changes/topic.md holds a carriage return inside a line: a carriage return may only end a line, right before its newline\n"
+    );
+}
+
+#[test]
 fn a_fragment_without_a_kind_is_refused_by_name() {
     let dir = tempfile::tempdir().unwrap();
     let work = released(dir.path(), "v0.3.1");
