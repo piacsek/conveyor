@@ -16,6 +16,13 @@ refuse() {
   refused=1
 }
 
+under_changes() {
+  case "$1" in
+    changes/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 package="$(git show "$head:Cargo.toml" 2>/dev/null | awk '
   /^[ \t]*\[/ { package = ($0 == "[package]") }
   package && /^version = / { sub(/^version = "/, ""); sub(/".*$/, ""); print; exit }
@@ -27,6 +34,40 @@ lock="$(git show "$head:Cargo.lock" 2>/dev/null | awk '
   { entry = ($0 == "name = \"conveyor\"") }
 ')" || true
 [ "$lock" = 0.0.0 ] || refuse "Cargo.lock sets the conveyor entry to $lock: put back \`version = \"0.0.0\"\` under \`name = \"conveyor\"\`, only the release workflow picks a version (from the kinds in changes/)"
+
+fork="$(git merge-base "$1" "$head")"
+listing="$(mktemp)"
+trap 'rm -f "$listing"' EXIT
+git diff --name-status -z -M "$fork" "$head" >"$listing"
+while IFS= read -r -d '' status && IFS= read -r -d '' path; do
+  renamed=""
+  case "$status" in
+    R* | C*) IFS= read -r -d '' renamed ;;
+  esac
+  if [ "$path" = CHANGELOG.md ] || [ "$renamed" = CHANGELOG.md ]; then
+    refuse "CHANGELOG.md is changed: leave it as main has it, the release workflow writes it from the fragments in changes/ (add one there instead)"
+  fi
+  case "$status" in
+    A) ;;
+    R*)
+      if under_changes "$path"; then
+        refuse "$path is renamed to $renamed: a fragment on main is never renamed, so restore $path and add new text as a new file changes/<name>.md"
+      elif under_changes "$renamed"; then
+        refuse "$path is renamed to $renamed: a fragment is only ever added, so restore $path and add $renamed as a new file"
+      fi
+      ;;
+    D)
+      if under_changes "$path"; then
+        refuse "$path is deleted: a fragment on main is never deleted, so restore it as main has it"
+      fi
+      ;;
+    *)
+      if under_changes "$path"; then
+        refuse "$path is edited: a fragment on main never changes, so leave it as it is and put the correction in a new file changes/<name>.md"
+      fi
+      ;;
+  esac
+done <"$listing"
 
 [ "$refused" -eq 0 ] || exit 1
 echo "the pull request leaves the version to the release workflow"
