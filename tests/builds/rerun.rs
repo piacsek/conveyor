@@ -2,7 +2,7 @@ use conveyor::app::{Request, Stage};
 use conveyor::model::builds::BuildStatus;
 use ratatui::crossterm::event::KeyCode;
 
-use crate::helpers::{failing_newest, focus_builds, focus_failing_newest};
+use crate::helpers::{failing_newest, focus_builds, focus_failing_newest, line_after};
 use crate::support::{Harness, NOW, build, builds, failed, key, rerun_done, tick_at};
 
 #[test]
@@ -256,6 +256,52 @@ fn a_main_builds_rerun_schedules_no_my_prs_reload() {
         !h.requests.contains(&Request::Refresh(Stage::Prs)),
         "{:?}",
         h.requests
+    );
+}
+
+#[test]
+fn a_failed_rerun_from_main_builds_marks_the_build_card_under_its_title() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_failing_newest();
+    inputs.push(key(KeyCode::Char('S')));
+    inputs.push(key(KeyCode::Char('f')));
+    inputs.push(rerun_done(vec![(1025, Err("HTTP 403"))]));
+    h.run(inputs).unwrap();
+
+    let screen = h.screen();
+    assert!(
+        line_after(&screen, "Retry hooks").contains("! rerun failed: run 1025:"),
+        "{screen}"
+    );
+}
+
+#[test]
+fn a_rerun_from_main_builds_that_went_through_leaves_no_mark() {
+    let mut h = Harness::with_size(160, 20);
+    let mut inputs = focus_failing_newest();
+    inputs.push(key(KeyCode::Char('S')));
+    inputs.push(key(KeyCode::Char('f')));
+    inputs.push(rerun_done(vec![(1025, Ok(()))]));
+    h.run(inputs).unwrap();
+
+    assert!(!h.screen().contains("! rerun failed"), "{}", h.screen());
+}
+
+#[test]
+fn the_details_of_a_marked_build_start_with_the_reason_and_its_time() {
+    let mut h = Harness::with_size(160, 24);
+    let mut inputs = focus_failing_newest();
+    inputs.push(key(KeyCode::Char('S')));
+    inputs.push(key(KeyCode::Char('f')));
+    inputs.push(rerun_done(vec![(1025, Err("HTTP 403"))]));
+    inputs.push(key(KeyCode::Char('d')));
+    h.run(inputs).unwrap();
+
+    let screen = h.screen();
+    assert!(
+        line_after(&screen, "┌#4821 run 25")
+            .starts_with("│rerun failed at 08:00:00: run 1025: HTTP 403"),
+        "{screen}"
     );
 }
 

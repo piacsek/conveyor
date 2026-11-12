@@ -1,7 +1,7 @@
-use conveyor::model::prs::{PullRequest, StatusChange};
+use conveyor::model::prs::StatusChange;
 use ratatui::crossterm::event::KeyCode;
 
-use crate::helpers::{open, status, status_changed, tall};
+use crate::helpers::{draft, status, status_changed, tall};
 use crate::support::{key, prs};
 
 #[test]
@@ -66,10 +66,4 @@ fn a_landed_status_change_frees_only_its_own_pull_request() {
         .unwrap();
 
     assert!(h.screen().contains("Manage #1"), "{}", h.screen());
-}
-
-fn draft(number: u64, title: &str) -> PullRequest {
-    let mut pull = open(number, title);
-    pull.is_draft = true;
-    pull
 }

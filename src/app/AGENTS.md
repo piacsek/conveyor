@@ -5,14 +5,15 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
 ## Behaviour that is easy to break
 
 - **Errors stay inside the TUI.** A failed action or fetch sets an error drawn in the footer
-  or column title; the app never exits on it.
+  or column title, and a failed action also marks its card; the app never exits on it.
 - **Draw before the first read.** `run()` renders, then waits for input.
 - **The filter is a value, editing is a mode.** `App.query` is the live filter on all four
   columns; `Mode::Filter` only means it is being typed (footer cursor `▏`). `Enter` commits
   and returns to Normal with the query kept, `Esc` while typing clears it, `/` reopens it.
   Every column title reads `(visible/total)` while a query is live.
-- **`Esc` closes one thing per press**, in order: details pane, zoom, live filter; then it is a
-  no-op. It never quits. `1`–`4` focus a column in both layouts.
+- **`Esc` closes one thing per press**, in order: details pane, zoom, the selected card's
+  mark (see the failed writes bullet), live filter; then it is a no-op. It never quits. `1`–`4`
+  focus a column in both layouts.
 - **`L` is read-only, and the log has a pane of its own.** It asks `gh run view <run> --job
   <job> --log-failed` for the first failed job of the selected run (Main builds or Merge
   queue), keeps the last `LOG_TAIL` lines per job id in `App.logs`, and toggles `App.log_open`.
@@ -195,6 +196,25 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   `Request::Refresh(Stage::Prs)` and clears it. A second action before then moves the due time.
   `UpToDate`, `Conflicts`, errors and a Main builds rerun schedule nothing. `app.now` only
   moves on a tick, which only comes while no key is pressed, so a held key delays it.
+- **A failed write marks the card it was started from.** The footer shows only the latest
+  notice, and since several writes can run at once a later result (or the key that answers a
+  prompt) used to wipe a failure before anyone read it. So every `receive_*` hands the `Write`
+  that `finish_write` removed to `fail`, which keeps a `Failure { stage, subject, action,
+  message, at }` in `App::failures` (`src/app/actions/failures.rs`), `action` from
+  `Write::action` (`mark ready`, `merge`, `update`, `check out`, `rerun`, …). What marks: any
+  `Err`, `BranchUpdate::Conflicts` (`has conflicts with its base; resolve them locally`) and a
+  rerun where any run failed (`run <id>: <reason>` joined with `; `, prefixed `k of n runs
+  failed: ` when some went through). Already up to date, merge sent and every other success
+  mark nothing. A rerun marks the row it was started on: the pull request from My PRs, the
+  build from Main builds. A result for a row its column no longer holds (a refresh dropped it
+  while the write was in flight) marks nothing, since no card could show or clear it; the
+  footer still says it. A mark is per row key and stage, like the busy spinner. It clears
+  when (1) `start_write` starts a new write on that row, (2) `Esc` is pressed with the marked
+  card selected, or (3) a successful fetch of its column no longer holds the row
+  (`prune_failures` after `receive`, asking `Listing::holds`, all rows, not just the filtered
+  ones). A failed fetch and a fetch that still holds the row keep it: clearing on refresh
+  would bring the lost failure back on the refresh interval. How it is drawn: see
+  `src/ui/AGENTS.md`.
 - **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
   the deploy repo (`Context::deploy_repo`: the `[[repo]]` with a deploy, else `BuildsStage::repo`).
 - **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by

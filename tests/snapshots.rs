@@ -213,6 +213,26 @@ fn manage_layout() {
 }
 
 #[test]
+fn failed_card_layout() {
+    let mut h = Harness::with_size(160, 16);
+    h.run(vec![
+        prs(sample()),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        Ok(conveyor::app::Input::StatusChanged(
+            4821,
+            conveyor::model::prs::StatusChange::Draft,
+            Err("GraphQL: Pull request is in the merge queue".to_string()),
+        )),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+    ])
+    .unwrap();
+    insta::assert_snapshot!(versionless(h.screen()));
+}
+
+#[test]
 fn no_snapshot_carries_the_crate_version() {
     let versioned = format!("conveyor v{}", env!("CARGO_PKG_VERSION"));
     assert_eq!(snapshots_holding(&versioned), "");

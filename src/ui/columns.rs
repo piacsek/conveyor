@@ -4,39 +4,52 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, List, ListItem, Paragraph};
 
-use crate::app::{App, Column, Row, Stage, Write};
+use crate::app::{App, Column, Failure, Row, Stage, Write};
 use crate::ui::rows::{build_row, deployed_row, pr_row, queue_row};
 use crate::ui::style::{dim, short_repo};
 
-fn titled<T: Row>(base: &str, column: &Column<T>) -> String {
+fn titled<T: Row>(base: &str, column: &Column<T>, marks: usize) -> String {
+    let marks = match marks {
+        0 => String::new(),
+        marks => format!(" !{marks}"),
+    };
     let warning = if column.error.is_some() { " ⚠" } else { "" };
     if column.is_loading() {
-        format!("{base}{warning}")
+        format!("{base}{marks}{warning}")
     } else if column.filter.is_some() {
         format!(
-            "{base} ({}/{}){warning}",
+            "{base} ({}/{}){marks}{warning}",
             column.visible().len(),
             column.all().len()
         )
     } else {
-        format!("{base} ({}){warning}", column.all().len())
+        format!("{base} ({}){marks}{warning}", column.all().len())
     }
 }
 
 pub(crate) fn column_title(app: &App, stage: Stage) -> String {
+    let marks = app.failure_count(stage);
     match stage {
-        Stage::Prs => titled("My PRs", &app.prs.column),
+        Stage::Prs => titled("My PRs", &app.prs.column, marks),
         Stage::Queue => match &app.queue.repo {
-            Some(repo) => titled(&format!("Queue {}", short_repo(repo)), &app.queue.column),
-            None => titled("Merge queue", &app.queue.column),
+            Some(repo) => titled(
+                &format!("Queue {}", short_repo(repo)),
+                &app.queue.column,
+                marks,
+            ),
+            None => titled("Merge queue", &app.queue.column, marks),
         },
         Stage::Builds => match &app.builds.repo {
-            Some(repo) => titled(&format!("Main {}", short_repo(repo)), &app.builds.column),
-            None => titled("Main builds", &app.builds.column),
+            Some(repo) => titled(
+                &format!("Main {}", short_repo(repo)),
+                &app.builds.column,
+                marks,
+            ),
+            None => titled("Main builds", &app.builds.column, marks),
         },
         Stage::Deployed => match &app.deployed.system {
-            Some(system) => titled(&format!("Deployed {system}"), &app.deployed.column),
-            None => titled("Deployed", &app.deployed.column),
+            Some(system) => titled(&format!("Deployed {system}"), &app.deployed.column, marks),
+            None => titled("Deployed", &app.deployed.column, marks),
         },
     }
 }
@@ -74,6 +87,7 @@ pub(crate) fn draw_column(
                 .iter()
                 .map(|pr| app.write_on(Stage::Prs, pr.key()).map(Write::word))
                 .collect();
+            let failures = marks(app, Stage::Prs, &app.prs.column);
             draw_list(
                 frame,
                 &mut app.prs.column,
@@ -84,7 +98,14 @@ pub(crate) fn draw_column(
                 |i, pr, on, w| {
                     let word = busy.get(i).cloned().flatten();
                     let busy = word.as_deref().map(|word| (spinner, word));
-                    pr_row(pr, busy, now, on, w)
+                    pr_row(
+                        pr,
+                        busy,
+                        failures.get(i).and_then(Option::as_ref),
+                        now,
+                        on,
+                        w,
+                    )
                 },
             )
         }
@@ -100,15 +121,21 @@ pub(crate) fn draw_column(
                 queue_row(entry, jobs, now, on, w)
             },
         ),
-        Stage::Builds => draw_list(
-            frame,
-            &mut app.builds.column,
-            area,
-            block,
-            focused,
-            "no builds on main",
-            |_, build, on, w| build_row(build, jobs.get(&build.id), now, on, w),
-        ),
+        Stage::Builds => {
+            let failures = marks(app, Stage::Builds, &app.builds.column);
+            draw_list(
+                frame,
+                &mut app.builds.column,
+                area,
+                block,
+                focused,
+                "no builds on main",
+                |i, build, on, w| {
+                    let failure = failures.get(i).and_then(Option::as_ref);
+                    build_row(build, jobs.get(&build.id), failure, now, on, w)
+                },
+            )
+        }
         Stage::Deployed
             if app.deployed.column.is_loading()
                 && app.deployed.column.error.is_none()
@@ -139,6 +166,14 @@ pub(crate) fn draw_column(
         }
     }
     app.jobs = jobs;
+}
+
+fn marks<T: Row>(app: &App, stage: Stage, column: &Column<T>) -> Vec<Option<Failure>> {
+    column
+        .visible()
+        .iter()
+        .map(|row| app.failure_on(stage, row.key()).cloned())
+        .collect()
 }
 
 fn draw_list<T: Row>(

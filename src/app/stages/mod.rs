@@ -187,6 +187,7 @@ impl App {
                 let now = self.now;
                 self.stage_mut(stage).receive(rows, now);
                 self.age_jobs(stage);
+                self.prune_failures(stage);
             }
             Ok(_) => {}
             Err(message) => self.stage_mut(stage).listing_mut().fail(message),

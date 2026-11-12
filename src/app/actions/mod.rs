@@ -6,6 +6,7 @@ use crate::model::prs::StatusChange;
 use super::{Action, App, Mode, StageView};
 
 mod checkout;
+mod failures;
 mod merge;
 mod rerun;
 mod status;
@@ -13,6 +14,7 @@ mod update;
 mod writes;
 
 pub use checkout::CheckoutTarget;
+pub use failures::Failure;
 pub use merge::MergeTarget;
 pub use rerun::Rerun;
 pub(super) use rerun::rerun_offer;

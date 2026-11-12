@@ -185,3 +185,84 @@ fn q_quits_from_every_state_and_is_ordinary_text_in_a_filter() {
         "and the app kept running, so the input after it was read: {screen}"
     );
 }
+
+#[test]
+fn esc_closes_the_details_pane_before_it_clears_the_mark_of_the_selected_card() {
+    let mut h = Harness::with_size(160, 24);
+    h.run(marked_first(vec![key(KeyCode::Char('d'))])).unwrap();
+
+    h.run(vec![key(KeyCode::Esc)]).unwrap();
+
+    assert!(!h.app.details, "first Esc closes the details pane");
+    assert!(h.screen().contains("! mark ready failed"), "{}", h.screen());
+
+    h.run(vec![key(KeyCode::Esc)]).unwrap();
+
+    assert!(
+        !h.screen().contains("! mark ready failed"),
+        "{}",
+        h.screen()
+    );
+    assert!(h.screen().contains("┌My PRs (2)─"), "{}", h.screen());
+}
+
+#[test]
+fn esc_clears_the_mark_of_the_selected_card_before_the_live_filter() {
+    let mut h = Harness::with_size(160, 24);
+    h.run(marked_first(vec![
+        key(KeyCode::Char('/')),
+        key(KeyCode::Char('r')),
+        key(KeyCode::Enter),
+    ]))
+    .unwrap();
+
+    h.run(vec![key(KeyCode::Esc)]).unwrap();
+
+    assert!(
+        !h.screen().contains("! mark ready failed"),
+        "{}",
+        h.screen()
+    );
+    assert_eq!(h.app.filter(), Some("r"));
+
+    h.run(vec![key(KeyCode::Esc)]).unwrap();
+
+    assert_eq!(h.app.filter(), None);
+}
+
+#[test]
+fn esc_on_an_unmarked_card_leaves_the_other_marks_alone() {
+    let mut h = Harness::with_size(160, 24);
+    h.run(marked_first(vec![
+        key(KeyCode::Char('/')),
+        key(KeyCode::Char('z')),
+        key(KeyCode::Enter),
+    ]))
+    .unwrap();
+
+    h.run(vec![key(KeyCode::Esc)]).unwrap();
+
+    assert_eq!(h.app.filter(), None);
+    assert!(h.screen().contains("! mark ready failed"), "{}", h.screen());
+}
+
+fn marked_first(
+    then: Vec<std::io::Result<conveyor::app::Input>>,
+) -> Vec<std::io::Result<conveyor::app::Input>> {
+    let mut drafts = vec![pr(1, "Retry"), pr(2, "Zap")];
+    for draft in &mut drafts {
+        draft.is_draft = true;
+    }
+    let mut inputs = vec![
+        prs(drafts),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        Ok(conveyor::app::Input::StatusChanged(
+            1,
+            conveyor::model::prs::StatusChange::Ready,
+            Err("HTTP 422".to_string()),
+        )),
+    ];
+    inputs.extend(then);
+    inputs
+}
