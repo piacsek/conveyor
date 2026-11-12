@@ -63,6 +63,34 @@ under_changes() {
   esac
 }
 
+refuse_pending_repeats() {
+  local pending file known=""
+  pending="$(git -c core.quotePath=false diff-tree -r --name-only --no-renames --diff-filter=A "$2" "$1" -- changes/)" || return 1
+  while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    known="$known$(fragments_at="$1" fragment_bullets "$file" | joined_bullets 1 | FILE="$file" awk '{ print ENVIRON["FILE"] "\t" substr($0, index($0, "\t") + 1) }')"$'\n'
+  done <<<"$pending"
+  while IFS= read -r file; do
+    fragment_bullets "$file" | joined_bullets 1 | KNOWN="$known" FILE="$file" awk '
+      BEGIN {
+        count = split(ENVIRON["KNOWN"], lines, "\n")
+        for (i = 1; i <= count; i++) {
+          tab = index(lines[i], "\t")
+          bullet = substr(lines[i], tab + 1)
+          if (tab && !(bullet in owner)) owner[bullet] = substr(lines[i], 1, tab - 1)
+        }
+      }
+      {
+        bullet = substr($0, index($0, "\t") + 1)
+        if (bullet in owner) {
+          print ENVIRON["FILE"] " repeats a bullet of " owner[bullet] ", which main holds and no release has shipped yet: " bullet
+          exit 1
+        }
+      }
+    ' >&2 || return 1
+  done <<<"$3"
+}
+
 materialise() {
   local entry meta path made=""
   while IFS= read -r -d '' entry; do
@@ -248,6 +276,7 @@ done <<<"$added"
 if [ -n "$added" ]; then
   if last="$(said last_tag)"; then
     said refuse_repeats "$last" "${added%$'\n'}" || refused=1
+    said refuse_pending_repeats "$1" "$last" "${added%$'\n'}" || refused=1
   else
     refused=1
   fi

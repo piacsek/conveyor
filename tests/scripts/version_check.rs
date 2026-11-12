@@ -295,6 +295,46 @@ fn an_added_fragment_repeating_a_released_bullet_is_refused_by_file() {
 }
 
 #[test]
+fn an_added_fragment_repeating_a_bullet_main_holds_unreleased_is_refused_naming_both_files() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    git(&work, &["checkout", "-q", "main"]);
+    fragment(&work, "merged", "kind: fix\n\n- Fixed the\n  queue.\n");
+    git(&work, &["checkout", "-qB", "pull"]);
+    fragment(
+        &work,
+        "topic",
+        "kind: feat\n\n- A new key.\n- Fixed the queue.\n",
+    );
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "version check: changes/topic.md repeats a bullet of changes/merged.md, which main holds and no release has shipped yet: Fixed the queue.\n"
+    );
+}
+
+#[test]
+fn an_added_fragment_repeating_a_bullet_main_gained_after_the_branch_was_cut_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the footer.\n");
+    git(&work, &["checkout", "-q", "main"]);
+    fragment(&work, "late", "kind: fix\n\n- Fixed the footer.\n");
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "version check: changes/topic.md repeats a bullet of changes/late.md, which main holds and no release has shipped yet: Fixed the footer.\n"
+    );
+}
+
+#[test]
 fn a_change_to_the_binary_without_a_fragment_is_refused_by_file() {
     let dir = tempfile::tempdir().unwrap();
     let work = main_with_a_release(dir.path());
