@@ -2,6 +2,10 @@ use ratatui::crossterm::event::KeyCode;
 
 use crate::support::{Harness, NOW, key, pr, prs, tick_at};
 
+const LONG_REASON: &str = "Pull request #4821 cannot be marked ready for review because the \
+    repository requires every commit to be signed and the head commit 8c1f2a7d of retry-hooks \
+    carries no signature that GitHub could verify against the key of its author";
+
 #[test]
 fn d_toggles_a_details_pane_with_failed_checks_first() {
     use conveyor::model::prs::{Check, CheckConclusion, MergeState, ReviewDecision};
@@ -111,4 +115,80 @@ fn each_check_in_the_details_says_how_long_it_took_or_has_been_running() {
     let after_status = screen.split("ci/circleci").nth(1).unwrap_or_default();
     let rest_of_line = after_status.split('│').next().unwrap_or_default();
     assert_eq!(rest_of_line.trim(), "", "{screen}");
+}
+
+#[test]
+fn the_details_of_a_marked_card_start_with_the_whole_reason_and_its_time() {
+    let mut h = Harness::with_size(160, 24);
+
+    h.run(vec![
+        prs(vec![draft(4821, "Retry hooks")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        tick_at(NOW + 3723),
+        status_changed(Err(LONG_REASON)),
+        key(KeyCode::Char('d')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    let first = pane_line(&screen, 0);
+    assert!(
+        first.starts_with("│mark ready failed at 09:02:03: Pull request #4821"),
+        "{screen}"
+    );
+    assert!(pane_line(&screen, 1).contains("of its author"), "{screen}");
+    assert!(
+        pane_line(&screen, 2).contains("#4821 acme/webapp"),
+        "{screen}"
+    );
+    let y = pane_top(&screen) as u16 + 1;
+    assert_eq!(h.cell(1, y).fg, ratatui::style::Color::Red);
+}
+
+#[test]
+fn the_details_of_an_unmarked_card_start_as_before() {
+    let mut h = Harness::with_size(160, 24);
+
+    h.run(vec![
+        prs(vec![draft(4821, "Retry hooks")]),
+        key(KeyCode::Char('d')),
+    ])
+    .unwrap();
+
+    assert!(
+        pane_line(&h.screen(), 0).contains("#4821 acme/webapp"),
+        "{}",
+        h.screen()
+    );
+}
+
+fn draft(number: u64, title: &str) -> conveyor::model::prs::PullRequest {
+    let mut pull = pr(number, title);
+    pull.is_draft = true;
+    pull
+}
+
+fn status_changed(result: Result<(), &str>) -> std::io::Result<conveyor::app::Input> {
+    Ok(conveyor::app::Input::StatusChanged(
+        4821,
+        conveyor::model::prs::StatusChange::Ready,
+        result.map_err(str::to_string),
+    ))
+}
+
+fn pane_top(screen: &str) -> usize {
+    screen
+        .lines()
+        .position(|line| line.starts_with("┌#4821"))
+        .unwrap_or_else(|| panic!("no details pane: {screen}"))
+}
+
+fn pane_line(screen: &str, index: usize) -> String {
+    let top = pane_top(screen);
+    screen
+        .lines()
+        .nth(top + 1 + index)
+        .unwrap_or_default()
+        .to_string()
 }

@@ -287,6 +287,24 @@ fn a_rerun_from_main_builds_that_went_through_leaves_no_mark() {
     assert!(!h.screen().contains("! rerun failed"), "{}", h.screen());
 }
 
+#[test]
+fn the_details_of_a_marked_build_start_with_the_reason_and_its_time() {
+    let mut h = Harness::with_size(160, 24);
+    let mut inputs = focus_failing_newest();
+    inputs.push(key(KeyCode::Char('S')));
+    inputs.push(key(KeyCode::Char('f')));
+    inputs.push(rerun_done(vec![(1025, Err("HTTP 403"))]));
+    inputs.push(key(KeyCode::Char('d')));
+    h.run(inputs).unwrap();
+
+    let screen = h.screen();
+    assert!(
+        line_after(&screen, "┌#4821 run 25")
+            .starts_with("│rerun failed at 08:00:00: run 1025: HTTP 403"),
+        "{screen}"
+    );
+}
+
 fn footer(screen: &str) -> String {
     screen.lines().last().unwrap_or_default().to_string()
 }

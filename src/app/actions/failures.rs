@@ -26,6 +26,10 @@ impl App {
             .find(|failure| failure.stage == stage && failure.subject == subject)
     }
 
+    pub fn selected_failure(&self) -> Option<&Failure> {
+        self.failure_on(self.focus, self.selected_key()?)
+    }
+
     pub(in crate::app) fn clear_failure(&mut self, stage: Stage, subject: u64) {
         self.failures
             .retain(|failure| failure.stage != stage || failure.subject != subject);
