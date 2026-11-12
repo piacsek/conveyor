@@ -5,7 +5,7 @@ The CI workflows and the branch protection around them. Releasing is in the root
 ## CI
 
 `.github/workflows/ci.yml` runs on every push to `main` and every pull request: a `check` job
-(fmt, clippy `-D warnings`, `cargo test -- --include-ignored` with tmux installed for the e2e
+(fmt, clippy `-D warnings`, `cargo test -- --include-ignored`, both with `--locked`, with tmux installed for the e2e
 suite) and an `audit` job (`cargo audit`). Learnings from the 2026-09-14 speed-up, when the
 pipeline went from ~3 min 20 s to 37 s:
 
@@ -199,3 +199,9 @@ pipeline went from ~3 min 20 s to 37 s:
   tarballs and writes the formula back to v0.24.1. The way back is a release run
   (`gh workflow run release.yml`), whose `tap` job moves the formula forward again; the
   v0.24.1 tarballs then carry new checksums and stay that way.
+- **`check` runs clippy and the tests with `--locked`.** Without it cargo quietly updates a
+  stale `Cargo.lock` on the runner, so a pull request that changed `Cargo.toml` dependencies
+  and forgot the lock was green everywhere, and the first thing to refuse it was
+  `cargo build --release --locked` in the release run, after the tag was pushed. The local
+  gates (`scripts/gates.sh`) do not pass `--locked`: there cargo updating the lock is how the
+  lock gets written, and the change shows up in `git status`.

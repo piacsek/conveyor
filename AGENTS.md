@@ -489,6 +489,21 @@ now, start a new run, or run `scripts/homebrew-formula.sh <version>` by hand and
 Check with `brew audit --strict --online --formula piacsek/tap/conveyor` after changing the
 script.
 
+**When the newest tag can never build** (its commit does not compile, or its `Cargo.lock` is
+stale, so every run resumes it and fails again): the tag has no published release, so the
+rule about released tags does not cover it. Land the fix on `main` through a pull request,
+delete the unfinished tag and its draft release if one exists, then start a new run, which
+tags the same version again from the fixed `main`. Deleting a tag is the owner's decision:
+an agent asks first.
+
+```bash
+gh release delete vX.Y.Z --yes
+git push origin :refs/tags/vX.Y.Z
+gh workflow run release.yml
+```
+
+The first command only applies when a draft exists.
+
 Never push a `v*` tag by hand: tags come only from the `tag` job of the release run.
 
 Every action is pinned to a commit SHA with the tag in a trailing comment; bump pins with
