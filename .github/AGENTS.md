@@ -90,3 +90,11 @@ pipeline went from ~3 min 20 s to 37 s:
   retrigger CI loses the branch when the reopen comes after the job has looked (seconds),
   so push an empty commit or rerun the checks instead. Neither required check depends on it. Known and left: an open pull request whose **base** is the deleted
   branch is closed by GitHub (branches here are cut from `origin/main`, never stacked).
+- **A run of the old tag-triggered workflow for v0.24.1 is stuck in `queued` and cannot be
+  removed** (run 43098019853, 2026-11-11: no jobs, cancel answers "completed", force-cancel
+  "not queued yet", delete 403, the web UI "Failed to cancel workflow"). It holds neither the
+  `release` nor the `tap` group, so it does not block the release runs. Should GitHub ever
+  start it, it runs the workflow file of that tag: it rebuilds v0.24.1, overwrites its
+  tarballs and writes the formula back to v0.24.1. The way back is a release run
+  (`gh workflow run release.yml`), whose `tap` job moves the formula forward again; the
+  v0.24.1 tarballs then carry new checksums and stay that way.
