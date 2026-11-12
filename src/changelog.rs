@@ -1,5 +1,7 @@
 pub const CHANGELOG: &str = include_str!("../CHANGELOG.md");
 
+const UNRELEASED: &str = "0.0.0";
+
 struct Section<'a> {
     heading: &'a str,
     version: &'a str,
@@ -62,7 +64,7 @@ fn numbers(version: &str) -> Vec<u64> {
 pub fn check(text: &str, version: &str) -> Result<(), String> {
     let sections = sections(text);
     let newest = sections.first().map_or("none", |section| section.version);
-    if newest != version {
+    if version != UNRELEASED && newest != version {
         return Err(format!(
             "CHANGELOG.md has no entry for v{version} at the top (found v{newest})"
         ));
@@ -100,7 +102,7 @@ pub fn check(text: &str, version: &str) -> Result<(), String> {
 pub fn check_released(text: &str, released: &[&str], current: &str) -> Result<(), String> {
     let sections = sections(text);
     match released.iter().find(|version| {
-        numbers(version) <= numbers(current)
+        (current == UNRELEASED || numbers(version) <= numbers(current))
             && !sections.iter().any(|section| section.version == **version)
     }) {
         Some(version) => Err(format!(

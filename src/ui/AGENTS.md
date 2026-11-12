@@ -83,14 +83,17 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   `include_str!`ed, so the pane always matches the binary and needs no network. In the pane
   `j/k`/arrows move a line, `Ctrl-d`/`Ctrl-u` half a page, any other key returns (like the
   help, so `q` closes it rather than quitting). `tests/changelog.rs` runs
-  `changelog::check(CHANGELOG, CARGO_PKG_VERSION)`: the top entry is the crate version, every
+  `changelog::check(CHANGELOG, CARGO_PKG_VERSION)`: the top entry is the crate version (only
+  in a release commit: at `0.0.0`, the constant version of `main` and every branch, the top
+  entry is the last hand-made release and is not compared), every
   heading reads `## vX.Y.Z (YYYY-MM-DD)` with a real calendar date, versions strictly descend, every entry has a `- `
   bullet with text (an indented line continues the bullet above it) and no bullet repeats an
-  older one. Every `v*` git tag up to the crate version must keep its entry (`check_released`; a newer tag
-  from a sibling worktree's release is ignored; an older one, such as a hotfix released from
-  another branch, is asked for, and the message says to merge `origin/main`), so relabelling or
+  older one. Every `v*` git tag merged into `HEAD` must keep its entry (`check_released`; at a
+  real crate version only the tags up to it; release commits are reachable only from their
+  tags, so a newer release is never asked of `main`), so relabelling or
   deleting an old entry fails too; that test needs the tags, hence `fetch-depth: 0` in CI's
-  `check` job, and it fails loudly in a clone without them. A bump without its entry fails the gates.
+  `check` job, and it fails loudly in a clone without them. The pane of a build from `main`
+  shows the changelog as frozen there, not the newest release.
 - **Refresh feedback.** Fetchers send `Input::Fetching(stage)` before each fetch and set the
   column's `refreshing` flag; `Data` clears it. One braille spinner (frame from `app.now`, 100
   ms per frame, so the 250 ms tick advances it) is drawn at the very start of the footer while
