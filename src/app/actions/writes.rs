@@ -29,9 +29,7 @@ impl Write {
             WriteKind::Rerun { label, .. } => format!("rerunning {label}…"),
         }
     }
-}
 
-impl Write {
     pub fn word(&self) -> String {
         match &self.kind {
             WriteKind::Merge => "merging…",
