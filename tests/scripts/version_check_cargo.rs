@@ -235,10 +235,64 @@ fn a_lock_cargo_wrote_after_a_dependency_bump_passes() {
     assert_eq!(stderr(&output), "");
 }
 
+#[test]
+fn a_package_version_written_without_spaces_is_refused_as_unread() {
+    let output = checked_manifest("[package]\nname = \"conveyor\"\nversion=\"0.0.0\"\n");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "version check: Cargo.toml has no `version = \"...\"` line under a plain `[package]` header: the check reads the version line by line, so write the header as `[package]` alone on its line and the version as `version = \"0.0.0\"`\n"
+    );
+}
+
+#[test]
+fn a_package_header_with_a_comment_is_refused_as_unread() {
+    let output =
+        checked_manifest("[package] # the crate\nname = \"conveyor\"\nversion = \"0.0.0\"\n");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "version check: Cargo.toml has no `version = \"...\"` line under a plain `[package]` header: the check reads the version line by line, so write the header as `[package]` alone on its line and the version as `version = \"0.0.0\"`\n"
+    );
+}
+
+#[test]
+fn a_manifest_with_crlf_line_endings_is_refused_as_unread() {
+    let output = checked_manifest("[package]\r\nname = \"conveyor\"\r\nversion = \"0.0.0\"\r\n");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "version check: Cargo.toml has no `version = \"...\"` line under a plain `[package]` header: the check reads the version line by line, so write the header as `[package]` alone on its line and the version as `version = \"0.0.0\"`\n"
+    );
+}
+
+#[test]
+fn a_lock_without_a_conveyor_entry_is_refused_as_unread() {
+    let output =
+        checked_lock("version = 4\n\n[[package]]\nname = \"serde\"\nversion = \"1.0.0\"\n");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "version check: Cargo.lock has no `name = \"conveyor\"` line with a `version = \"...\"` line right after it: cargo writes Cargo.lock in one shape, so regenerate it with cargo (`cargo update --workspace`) instead of editing it by hand\n"
+    );
+}
+
 fn checked_lock(lock: &str) -> Output {
     let dir = tempfile::tempdir().unwrap();
     let work = main_with_a_release(dir.path());
     committed(&work, "Cargo.lock", lock);
+    fragment(&work, "topic", "kind: internal\n");
+    version_check(&work)
+}
+
+fn checked_manifest(manifest: &str) -> Output {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    committed(&work, "Cargo.toml", manifest);
     fragment(&work, "topic", "kind: internal\n");
     version_check(&work)
 }

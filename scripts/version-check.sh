@@ -73,6 +73,8 @@ case "$manifest" in
   *)
     if [ "$versions" -gt 1 ]; then
       refuse "Cargo.toml holds more than one \`version\` line in [package]: the check reads the version line by line, so keep the one \`version = \"0.0.0\"\`"
+    elif [ -z "$package" ]; then
+      refuse "Cargo.toml has no \`version = \"...\"\` line under a plain \`[package]\` header: the check reads the version line by line, so write the header as \`[package]\` alone on its line and the version as \`version = \"0.0.0\"\`"
     elif [ "$package" != 0.0.0 ]; then
       refuse "Cargo.toml sets the package version to $package: put back \`version = \"0.0.0\"\`, only the release workflow picks a version (from the kinds in changes/)"
     fi
@@ -104,6 +106,8 @@ if [ -n "$shape" ]; then
   refuse "Cargo.lock $shape: cargo writes Cargo.lock in one shape, so regenerate it with cargo (\`cargo update --workspace\`) instead of editing it by hand"
 elif [ "$entries" -gt 1 ]; then
   refuse "Cargo.lock holds more than one package named \`conveyor\`: the check reads the version line by line, so keep the one entry with \`version = \"0.0.0\"\`"
+elif [ -z "$lock" ]; then
+  refuse "Cargo.lock has no \`name = \"conveyor\"\` line with a \`version = \"...\"\` line right after it: cargo writes Cargo.lock in one shape, so regenerate it with cargo (\`cargo update --workspace\`) instead of editing it by hand"
 elif [ "$lock" != 0.0.0 ]; then
   refuse "Cargo.lock sets the conveyor entry to $lock: put back \`version = \"0.0.0\"\` under \`name = \"conveyor\"\`, only the release workflow picks a version (from the kinds in changes/)"
 fi

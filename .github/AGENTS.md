@@ -70,6 +70,10 @@ pipeline went from ~3 min 20 s to 37 s:
   an edit of its title or body, which only repeats the check. What the script refuses is in
   Releasing in the root `AGENTS.md`; `tests/scripts/version_workflow.rs` pins the trigger, the
   job name, the token, where the token goes and the absence of a checkout of the pull request.
+  Known and left: a fragment whose file name git would quote (one holding a double quote, for
+  example) is refused as not a fragment, by design; and a force-push landing between the event
+  and the fetch makes the superseded run fail with "is not a commit here", which the run of
+  the newer push replaces.
 - **`release.yml` is the release queue** (details in Releasing in the root `AGENTS.md`). It
   starts on every push to `main` and on `workflow_dispatch`, never on a tag, under
   `concurrency: { group: release, cancel-in-progress: false }`: one run at a time, and GitHub

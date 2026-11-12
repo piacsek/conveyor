@@ -339,11 +339,12 @@ kind: fix
   0x7f): the check stops there, before anything else, and prints only how many such paths
   there are, since a newline would split one path into two and could inject a workflow
   command through its output;
-- `Cargo.toml` at its head carries a package `version` other than `0.0.0`, holds a
-  multi-line string (`"""` or `'''`) or more than one `version` line in `[package]`, or
-  `Cargo.lock` holds a `conveyor` entry other than `0.0.0` or more than one entry of that name
-  (the check reads both files line by line, so anything that could hide the real line is
-  refused);
+- `Cargo.toml` at its head carries a package `version` other than `0.0.0`, none it can read
+  (no `version = "..."` line under a `[package]` header written alone on its line, as with
+  `version="0.0.0"`, `[package] # a comment` or CRLF line endings), holds a multi-line string
+  (`"""` or `'''`) or more than one `version` line in `[package]`, or `Cargo.lock` holds a
+  `conveyor` entry other than `0.0.0`, none, or more than one entry of that name (the check
+  reads both files line by line, so anything that could hide the real line is refused);
 - `Cargo.lock` at its head is not in the one shape cargo writes it in: it holds a multi-line
   string, a line whose key is `name` or quoted is not exactly `name = "<crate>"` (letters,
   digits, `_` and `-`), or a `name = "conveyor"` line is not right after a `[[package]]` line
