@@ -10,6 +10,13 @@ if [ "${GITHUB_ACTIONS:-}" != true ]; then
 fi
 
 resume() {
+  local waiting
+  waiting="$(pending_fragments "$last" 2>/dev/null | grep -c . || true)"
+  if [ "${waiting:-0}" -eq 1 ]; then
+    echo "::warning::this run finishes $last, so 1 pending fragment waits for the next release run (gh workflow run release.yml)" >&2
+  elif [ "${waiting:-0}" -gt 1 ]; then
+    echo "::warning::this run finishes $last, so $waiting pending fragments wait for the next release run (gh workflow run release.yml)" >&2
+  fi
   echo "version=${last#v}"
   echo "tag=$last"
   exit 0
