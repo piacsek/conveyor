@@ -101,8 +101,17 @@ refuse_repeats() {
   done <<<"$2"
 }
 
+stray_line() {
+  git show "HEAD:$1" | awk '
+    { sub(/\r$/, "") }
+    NR == 1 { next }
+    /^- / && $0 !~ /^- [ \t]*$/ { seen = 1; next }
+    seen && $0 != "" && !/^- / && !/^[ \t]/ { print; exit }
+  '
+}
+
 fragment_kind() {
-  local kind
+  local kind stray
   kind="$(git show "HEAD:$1" | sed -n '1s/^kind: //p' | tr -d '\r')"
   case "$kind" in
     internal) ;;
@@ -117,5 +126,10 @@ fragment_kind() {
       return 1
       ;;
   esac
+  stray="$(stray_line "$1")"
+  if [ -n "$stray" ]; then
+    echo "$1 has a line after its first bullet that is not a \`- \` bullet, an indented continuation or blank: $stray" >&2
+    return 1
+  fi
   echo "$kind"
 }

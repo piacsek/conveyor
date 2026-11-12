@@ -323,6 +323,46 @@ fn the_same_bullet_in_two_pending_fragments_passes_the_rules_of_the_bundled_one(
 }
 
 #[test]
+fn a_paragraph_after_the_first_bullet_is_refused_by_name_before_anything_is_written() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    fragment(
+        &work,
+        "topic",
+        "kind: feat\n\n- A new key.\n\nIt works on every column.\n",
+    );
+
+    let output = release_commit(&work, &["0.4.0"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "changes/topic.md has a line after its first bullet that is not a `- ` bullet, an indented continuation or blank: It works on every column.\n"
+    );
+    assert_eq!(git_stdout(&work, &["status", "--porcelain"]), "");
+}
+
+#[test]
+fn an_internal_bullet_followed_by_a_paragraph_is_refused_by_name_before_anything_is_written() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    fragment(
+        &work,
+        "topic",
+        "kind: internal\n\n- Faster startup.\n\nThe stages load in parallel.\n",
+    );
+
+    let output = release_commit(&work, &["0.3.2"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "changes/topic.md has a line after its first bullet that is not a `- ` bullet, an indented continuation or blank: The stages load in parallel.\n"
+    );
+    assert_eq!(git_stdout(&work, &["status", "--porcelain"]), "");
+}
+
+#[test]
 fn a_file_in_a_folder_under_changes_is_refused_by_name_before_anything_is_written() {
     let dir = tempfile::tempdir().unwrap();
     let work = sandbox(dir.path());
