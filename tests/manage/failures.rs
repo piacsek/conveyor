@@ -89,6 +89,23 @@ fn a_failed_merge_marks_its_card() {
 }
 
 #[test]
+fn a_reason_of_several_lines_reads_as_one_line_on_the_card() {
+    let screen = after(
+        &['m', 'y'],
+        Ok(Input::Merged(12, Err("Blocked.\n  See rules".to_string()))),
+    );
+
+    assert!(
+        line_after(&screen, "#12 Retry webhooks").contains("! merge failed: Blocked. See rules"),
+        "{screen}"
+    );
+    assert!(
+        line_after(&screen, "! merge failed").contains("webapp"),
+        "{screen}"
+    );
+}
+
+#[test]
 fn a_merge_that_was_sent_leaves_no_mark() {
     let screen = after(&['m', 'y'], Ok(Input::Merged(12, Ok(()))));
 

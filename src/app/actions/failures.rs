@@ -15,7 +15,8 @@ pub struct Failure {
 
 impl Failure {
     pub fn line(&self) -> String {
-        format!("! {} failed: {}", self.action, self.message)
+        let message: Vec<&str> = self.message.split_whitespace().collect();
+        format!("! {} failed: {}", self.action, message.join(" "))
     }
 }
 

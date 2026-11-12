@@ -206,7 +206,9 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   rerun where any run failed (`run <id>: <reason>` joined with `; `, prefixed `k of n runs
   failed: ` when some went through). Already up to date, merge sent and every other success
   mark nothing. A rerun marks the row it was started on: the pull request from My PRs, the
-  build from Main builds. A mark is per row key and stage, like the busy spinner. It clears
+  build from Main builds. A result for a row its column no longer holds (a refresh dropped it
+  while the write was in flight) marks nothing, since no card could show or clear it; the
+  footer still says it. A mark is per row key and stage, like the busy spinner. It clears
   when (1) `start_write` starts a new write on that row, (2) `Esc` is pressed with the marked
   card selected, or (3) a successful fetch of its column no longer holds the row
   (`prune_failures` after `receive`, asking `Listing::holds`, all rows, not just the filtered
