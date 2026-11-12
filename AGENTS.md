@@ -168,9 +168,10 @@ nearest the code the guideline is about.
   1. Plan in `plans/phase-N-<topic>.md` (next free N in `PLAN.md`), in a fresh worktree.
   2. `/my-tdd autonomous`: one task per red-green-refactor cycle, each shipped with
      `scripts/ship.sh` (gates, dev install, commit, push, draft PR on the first push).
-  3. `/pr-review` the PR (see "Review before ready"). Fix every must and should finding, TDD
-     like any change, ship, and review again. Minor findings are fixed when cheap, else listed
-     in the PR body. The loop ends only on a round with no must/should findings, and that
+  3. `/pr-review` the PR (see "Review before ready": what counts as must or should, when to
+     redesign, where the reviewer runs the gates, who fixes). Fix every must and should
+     finding, TDD like any change, ship once per round, and review again. Minor findings are
+     fixed when cheap, else listed in the PR body. The loop ends only on a round with no must/should findings, and that
      round is **unprimed**: the reviewers get the PR, the repo and this file, never the list
      of earlier findings or what was decided about them. Never post the review on the PR.
   4. The phase outcome is in `PLAN.md` and, when the branch feeds the binary, its fragment
@@ -184,7 +185,8 @@ nearest the code the guideline is about.
   cause, CI fails twice on the same step, a review finding needs a product decision, or the
   next step would force-push, push to `main` or delete a release.
 - **Cadence.** Outside the autonomous flow above, work runs under `/my-tdd autonomous`: one branch per phase (`phase-N-<topic>`),
-  one commit per task through `scripts/ship.sh`, no pause between tasks, a pause only for the
+  one commit per task through `scripts/ship.sh` (the fixes of a review round are the exception:
+  one commit per round, see "Review before ready"), no pause between tasks, a pause only for the
   end-of-phase retro. Retro outcomes go to `PLAN.md` (facts, decisions) and here (rules).
 - **One worktree per branch, by default.** Start every phase or fix in its own worktree off
   `origin/main`: `git worktree add -b <branch> .claude/worktrees/<branch> origin/main`, then
@@ -222,6 +224,23 @@ nearest the code the guideline is about.
   that the gates pass, and forbid edits, commits, and any write to GitHub or call to the
   clusters. When the skill asks whether to post the review on the PR, answer no.
   `gh pr ready` comes after the findings are addressed, not before.
+  - **Severity by reachability.** A finding is must or should only when the user hits it while
+    using conveyor, the release pipeline hits it in normal operation, or a pull request could
+    execute code or reach a token or secret. A bypass that needs a deliberately forged file,
+    which the owner would still have to merge, is minor: fixed when cheap, else listed in the
+    PR body. The reviewers are given this definition.
+  - **Two strikes, then redesign.** When a second round finds another hole in the same
+    mechanism, stop patching it: step back and pick a simpler design that removes the class of
+    finding, and ask the user when that changes behaviour. #65 took five rounds of patches and
+    converged only once the check asked cargo instead of parsing lines.
+  - **The gates run beside the branch, not in it.** The Claude reviewer runs
+    `scripts/gates.sh` in its own detached worktree of the PR head (`git worktree add --detach
+    <path> <sha>`, removed afterwards), never in the branch's worktree, so fixes do not wait
+    for its run.
+  - **Fixes go back to the builder.** The fixes of a round go to the agent that built the
+    branch, with its context intact, not to a fresh one, and land as one `ship.sh` per round
+    of findings rather than one per finding: the review-round exception to "one commit per
+    task". Each fix that touches `src/` still starts from a failing test.
 - **Merging and releasing.** Squash-merge the phase PR into `main` when CI is green, then
   watch the `release` run the merge starts (see Releasing): no bump, no `CHANGELOG.md` edit,
   no tag by hand. Squash is the only merge method the repository and the `main` ruleset allow
@@ -247,7 +266,11 @@ nearest the code the guideline is about.
   Plans are versioned here: write each one to its own file under `plans/` (for example
   `plans/phase-5-cards.md`) and commit it with the first ship of the phase. Never leave a plan
   only in an agent's private plan directory or memory. `PLAN.md` stays the index of phases,
-  retros and the backlog; a phase's outcome is appended there when it closes.
+  retros and the backlog; a phase's outcome is appended there when it closes. A plan that adds
+  logic over external state (pod states, check states, merge states, write results) carries a
+  table of the states and what the card shows for each, and that table is reviewed before any
+  code is written: on #44, review rounds 1 to 3 each found pod states such a table would have
+  listed up front.
 
 ## Development
 
