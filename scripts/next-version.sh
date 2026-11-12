@@ -11,6 +11,7 @@ while IFS= read -r file; do
   kind="$(fragment_kind "$file")"
   [ "$kind" != feat ] || bump=minor
 done <<<"$pending"
+refuse_repeats "$last" "$pending"
 if [ "$bump" = minor ]; then
   echo "$major.$((minor + 1)).0"
 else
