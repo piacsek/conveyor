@@ -24,6 +24,30 @@ fn the_package_version_in_cargo_toml_becomes_the_release() {
 }
 
 #[test]
+fn a_dependency_under_an_indented_table_header_keeps_its_version() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    committed(
+        &work,
+        "Cargo.toml",
+        &CARGO_TOML.replacen(
+            "[dependencies]\nchrono = { version = \"0.4\" }\n",
+            "  [dependencies.chrono]\nversion = \"0.4\"\n",
+            1,
+        ),
+    );
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+
+    let output = release_commit(&work, &["0.3.2"]);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(
+        fs::read_to_string(work.join("Cargo.toml")).unwrap(),
+        "[package]\nname = \"conveyor\"\nversion = \"0.3.2\"\nedition = \"2024\"\n\n  [dependencies.chrono]\nversion = \"0.4\"\n\n[package.metadata.acme]\nversion = \"0.3.1\"\n"
+    );
+}
+
+#[test]
 fn only_the_conveyor_entry_of_cargo_lock_becomes_the_release() {
     let dir = tempfile::tempdir().unwrap();
     let work = sandbox(dir.path());
@@ -289,6 +313,33 @@ fn a_package_version_line_the_rewrite_misses_is_refused_by_file() {
         &work,
         "Cargo.toml",
         &CARGO_TOML.replacen("version = \"0.3.1\"", "version=\"0.9.9\"", 1),
+    );
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+
+    let output = release_commit(&work, &["0.3.2"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "Cargo.toml: the version of [package] does not read 0.3.2 after the rewrite\n"
+    );
+    assert_eq!(git_stdout(&work, &["status", "--porcelain"]), "");
+}
+
+#[test]
+fn a_missed_package_version_is_refused_when_an_indented_table_reads_the_release() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    committed(
+        &work,
+        "Cargo.toml",
+        &CARGO_TOML
+            .replacen("version = \"0.3.1\"", "version=\"0.9.9\"", 1)
+            .replacen(
+                "[dependencies]\nchrono = { version = \"0.4\" }\n",
+                "  [dependencies.chrono]\nversion = \"0.3.2\"\n",
+                1,
+            ),
     );
     fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
 
