@@ -296,8 +296,37 @@ fn a_released_fragment_deleted_since_is_fine() {
     assert_eq!(stdout(&output), "0.4.0\n");
 }
 
+#[test]
+fn a_last_tag_whose_tree_cannot_be_read_stops_the_script() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    committed(&work, "unique.txt", "only in v0.4.0\n");
+    git(&work, &["tag", "v0.4.0"]);
+    git(&work, &["reset", "-q", "--hard", "HEAD~1"]);
+    lose_the_tree_of(&work, "v0.4.0");
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+}
+
 fn next_version(work: &Path) -> Output {
     isolated(Command::new(which("bash")).arg(work.join("scripts/next-version.sh")))
         .output()
         .unwrap()
+}
+
+fn lose_the_tree_of(work: &Path, tag: &str) {
+    let output = isolated(
+        Command::new("git")
+            .current_dir(work)
+            .args(["rev-parse", &format!("{tag}^{{tree}}")]),
+    )
+    .output()
+    .unwrap();
+    let tree = stdout(&output);
+    let (folder, file) = tree.trim().split_at(2);
+    fs::remove_file(work.join(".git/objects").join(folder).join(file)).unwrap();
 }
