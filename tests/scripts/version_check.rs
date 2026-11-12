@@ -217,6 +217,58 @@ fn a_file_renamed_into_changes_is_refused_by_file() {
     );
 }
 
+#[test]
+fn an_added_fragment_with_an_unknown_kind_is_refused_by_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    fragment(&work, "topic", "kind: major\n\n- A new config format.\n");
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "changes/topic.md must start with `kind: fix`, `kind: feat` or `kind: internal`\n"
+    );
+}
+
+#[test]
+fn an_added_file_in_a_folder_under_changes_is_refused_by_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    committed(
+        &work,
+        "changes/fix/topic.md",
+        "kind: fix\n\n- Fixed the queue.\n",
+    );
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "changes/fix/topic.md is not a fragment: a fragment is a file changes/<name>.md\n"
+    );
+}
+
+#[test]
+fn an_added_fragment_repeating_a_released_bullet_is_refused_by_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the builds.\n");
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "changes/topic.md repeats a bullet of v0.3.1: Fixed the builds.\n"
+    );
+}
+
 fn main_with_a_fragment(root: &Path) -> PathBuf {
     let work = main_with_a_release(root);
     git(&work, &["checkout", "-q", "main"]);

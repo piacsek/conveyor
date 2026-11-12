@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+fragments_at=HEAD
+
 last_tag() {
   local tag
   tag="$(git tag --list 'v*' --sort=-v:refname | awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/ && !found { print; found = 1 }')"
@@ -12,7 +14,7 @@ last_tag() {
 
 refuse_strays() {
   local listing stray
-  listing="$(git -c core.quotePath=false ls-tree -r --name-only HEAD -- changes/)" || return 1
+  listing="$(git -c core.quotePath=false ls-tree -r --name-only "$fragments_at" -- changes/)" || return 1
   stray="$(printf '%s\n' "$listing" | awk '$0 != "" && !/^changes\/[^\/]+\.md$/ { print; exit }')"
   if [ -n "$stray" ]; then
     echo "$stray is not a fragment: a fragment is a file changes/<name>.md" >&2
@@ -22,7 +24,7 @@ refuse_strays() {
 
 refuse_edits() {
   local edited
-  edited="$(git -c core.quotePath=false diff-tree -r --name-only --no-renames --diff-filter=M "$1" HEAD -- changes/)" || return 1
+  edited="$(git -c core.quotePath=false diff-tree -r --name-only --no-renames --diff-filter=M "$1" "$fragments_at" -- changes/)" || return 1
   edited="${edited%%$'\n'*}"
   if [ -n "$edited" ]; then
     echo "$edited was released in $1 and has changed since; a released fragment never changes, so put the change in a new file" >&2
@@ -34,12 +36,12 @@ pending_fragments() {
   local added
   refuse_strays || return 1
   refuse_edits "$1" || return 1
-  added="$(git -c core.quotePath=false diff-tree -r --name-only --no-renames --diff-filter=A "$1" HEAD -- changes/)" || return 1
+  added="$(git -c core.quotePath=false diff-tree -r --name-only --no-renames --diff-filter=A "$1" "$fragments_at" -- changes/)" || return 1
   [ -z "$added" ] || printf '%s\n' "$added" | LC_ALL=C sort
 }
 
 fragment_bullets() {
-  git show "HEAD:$1" | awk '
+  git show "$fragments_at:$1" | awk '
     { sub(/\r$/, "") }
     NR == 1 { next }
     /^- / && $0 !~ /^- [ \t]*$/ { print; seen = 1; next }
@@ -102,7 +104,7 @@ refuse_repeats() {
 }
 
 stray_line() {
-  git show "HEAD:$1" | awk '
+  git show "$fragments_at:$1" | awk '
     { sub(/\r$/, "") }
     NR == 1 { next }
     /^- / && $0 !~ /^- [ \t]*$/ { seen = 1; next }
@@ -115,7 +117,7 @@ stray_line() {
 
 fragment_kind() {
   local kind stray
-  kind="$(git show "HEAD:$1" | sed -n '1s/^kind: //p' | tr -d '\r')"
+  kind="$(git show "$fragments_at:$1" | sed -n '1s/^kind: //p' | tr -d '\r')"
   case "$kind" in
     internal) ;;
     fix | feat)

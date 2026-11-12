@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+. scripts/fragments.sh
 if [ "$#" -ne 2 ]; then
   echo "usage: scripts/version-check.sh <base> <head>" >&2
   exit 1
@@ -9,6 +10,8 @@ if ! head="$(git rev-parse --quiet --verify "$2^{commit}")"; then
   echo "$2 is not a commit here: fetch the pull request first (git fetch origin pull/<number>/head)" >&2
   exit 1
 fi
+fragments_at="$head"
+added=""
 refused=0
 
 refuse() {
@@ -48,7 +51,12 @@ while IFS= read -r -d '' status && IFS= read -r -d '' path; do
     refuse "CHANGELOG.md is changed: leave it as main has it, the release workflow writes it from the fragments in changes/ (add one there instead)"
   fi
   case "$status" in
-    A) ;;
+    A)
+      case "$path" in
+        changes/*/*) ;;
+        changes/*.md) added="$added$path"$'\n' ;;
+      esac
+      ;;
     R*)
       if under_changes "$path"; then
         refuse "$path is renamed to $renamed: a fragment on main is never renamed, so restore $path and add new text as a new file changes/<name>.md"
@@ -68,6 +76,19 @@ while IFS= read -r -d '' status && IFS= read -r -d '' path; do
       ;;
   esac
 done <"$listing"
+
+refuse_strays || refused=1
+while IFS= read -r file; do
+  [ -n "$file" ] || continue
+  fragment_kind "$file" >/dev/null || refused=1
+done <<<"$added"
+if [ -n "$added" ]; then
+  if last="$(last_tag)"; then
+    refuse_repeats "$last" "${added%$'\n'}" || refused=1
+  else
+    refused=1
+  fi
+fi
 
 [ "$refused" -eq 0 ] || exit 1
 echo "the pull request leaves the version to the release workflow"
