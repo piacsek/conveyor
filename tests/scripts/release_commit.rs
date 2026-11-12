@@ -333,6 +333,52 @@ fn a_version_that_is_not_three_numbers_is_refused() {
 }
 
 #[test]
+fn a_version_with_a_leading_zero_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+
+    let output = release_commit(&work, &["01.2.3"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stderr(&output), "usage: scripts/release-commit.sh X.Y.Z\n");
+    assert_eq!(git_stdout(&work, &["status", "--porcelain"]), "");
+}
+
+#[test]
+fn the_version_of_the_last_release_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+
+    let output = release_commit(&work, &["0.3.1"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "0.3.1 is not above the last release v0.3.1\n"
+    );
+    assert_eq!(git_stdout(&work, &["status", "--porcelain"]), "");
+}
+
+#[test]
+fn a_version_below_the_last_release_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    git(&work, &["tag", "v0.9.10"]);
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+
+    let output = release_commit(&work, &["0.9.9"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "0.9.9 is not above the last release v0.9.10\n"
+    );
+    assert_eq!(git_stdout(&work, &["status", "--porcelain"]), "");
+}
+
+#[test]
 fn a_missing_version_is_refused() {
     let dir = tempfile::tempdir().unwrap();
     let work = sandbox(dir.path());
