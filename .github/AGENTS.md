@@ -32,14 +32,16 @@ pipeline went from ~3 min 20 s to 37 s:
   trigger if advisories should be caught between pushes.
 - **Pins.** Every action stays pinned to a commit SHA with the tag in a trailing comment (see
   Releasing in the root `AGENTS.md` for how to bump one).
-- **`main` is protected by a ruleset** (`main`, Settings → Rules): a pull request, green `check`
-  and `audit`, linear history, no force-push or deletion, and no bypass for anyone. The checks
-  are matched by job name, so renaming either job in `ci.yml` blocks every merge, the rename's
-  own PR included; an advisory with no fixed version does the same through `audit`. Disable the
-  ruleset to get out (`gh api -X PUT repos/<owner>/<repo>/rulesets/<id> -f enforcement=disabled`),
-  fix, and enable it again. `version` (below) joins the required checks by hand, in the
-  ruleset, only after `version.yml` is on `main`: a required check that never reports blocks
-  every merge, and `pull_request_target` cannot report on the pull request that adds it.
+- **`main` is protected by a ruleset** (`main`, id 26900132, Settings → Rules): a pull
+  request, green `check`, `audit` and `version`, linear history, no force-push or deletion, and
+  no bypass for anyone. The checks are matched by job name, so renaming any of the three jobs
+  blocks every merge, the rename's own PR included; an advisory with no fixed version does the
+  same through `audit`. Disable the ruleset to get out
+  (`gh api -X PUT repos/<owner>/<repo>/rulesets/<id> -f enforcement=disabled`), fix, and enable
+  it again. `version` (below) has been required since 2026-11-12, added by hand once
+  `version.yml` was on `main`. A new required check follows the same order: a required check
+  that never reports blocks every merge, and a `pull_request_target` workflow cannot report on
+  the pull request that adds it.
   Since 2026-11-12 the ruleset also requires a branch to be up to date with `main` before it
   merges (`strict_required_status_checks_policy: true`): every merge to `main` is released
   unattended and the release run only builds, so a pull request's green CI must be a test of
@@ -199,9 +201,26 @@ pipeline went from ~3 min 20 s to 37 s:
   tarballs and writes the formula back to v0.24.1. The way back is a release run
   (`gh workflow run release.yml`), whose `tap` job moves the formula forward again; the
   v0.24.1 tarballs then carry new checksums and stay that way.
+- **No tag ruleset guards `v*` tags; the owner can still push or delete one by hand.** Whether
+  a tag ruleset can let only the release workflow's `GITHUB_TOKEN` create `v*` tags is
+  unproven. Tried 2026-11-12 on the private throwaway repository (user-owned, free plan):
+  `POST repos/<owner>/<repo>/rulesets` with `target: tag`, `refs/tags/v*`, the rules
+  `creation`, `update` and `deletion`, and as bypass actor GitHub Actions
+  (`actor_type: Integration`, `actor_id: 15368`), the admin role (`RepositoryRole`, 5), a
+  `DeployKey`, or none: every attempt answered 403 "Upgrade to GitHub Pro or make this
+  repository public to enable this feature", and so does listing the rulesets. The legacy
+  `tags/protection` endpoint answers 404. GitHub's ruleset docs list GitHub Apps as bypass
+  actors without saying whether the job token counts as the GitHub Actions app, so the
+  proof needs a public repository or a paid plan, not this repository: a wrong guess makes
+  every release run fail at the tag push. A `deletion` rule would also stop the recovery in
+  Releasing ("When the newest tag can never build") until the ruleset is disabled.
 - **`check` runs clippy and the tests with `--locked`.** Without it cargo quietly updates a
   stale `Cargo.lock` on the runner, so a pull request that changed `Cargo.toml` dependencies
   and forgot the lock was green everywhere, and the first thing to refuse it was
   `cargo build --release --locked` in the release run, after the tag was pushed. The local
   gates (`scripts/gates.sh`) do not pass `--locked`: there cargo updating the lock is how the
   lock gets written, and the change shows up in `git status`.
+- **Known and left: `check` builds and tests on Linux only.** A change that breaks only the
+  macOS build passes every required check, merges, and fails in the release run's `build`
+  job after its tag is pushed; that is the "newest tag can never build" case in Releasing in
+  the root `AGENTS.md`.

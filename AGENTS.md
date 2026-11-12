@@ -101,7 +101,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
                  `tests/stage_dispatch.rs` fails while a match arm on a `Stage` variant sits in `src/app/` outside `stages/mod.rs`, naming the line;
                  a test file that outgrows the limit becomes a folder (`tests/<name>/main.rs` plus one file per topic), so it stays one binary
 tests/AGENTS.md  the testing traps hit so far, the e2e `gh` shim dispatch note
-.github/AGENTS.md CI: what the workflows run and why, the `main` ruleset, branch cleanup
+.github/AGENTS.md CI: what the workflows run and why (`check`, `audit`, the `version` check, the release queue, the tap), the `main` ruleset, branch cleanup
 .github/pull_request_template.md  `## Summary` and `## Changes`: the body `ship.sh` opens a draft PR with
 ```
 
@@ -116,7 +116,7 @@ This file holds the rules and agreements. The facts about each directory live in
 | `src/app/AGENTS.md` | keys, `Esc`, the filter, the `S` popup and each action (`m`, `u`, `f`, `t`/`a`/`e`/`x`, `c`), jobs state (`age_jobs`, `jobs_needed`), refresh and follow-up, row order, open debounce, zoom, scroll | before touching `src/app/`, `src/refresh.rs` or `src/open.rs`, or adding a key or an action |
 | `src/ui/AGENTS.md` | cards, glyphs and icons, dialogs, the details, help and changelog panes, the footer, colours | before touching `src/ui/` or `src/changelog.rs`, or changing anything visible |
 | `tests/AGENTS.md` | the testing traps hit so far, the e2e `gh` shim dispatch note | before writing or debugging a test, a shim or a launcher of the binary |
-| `.github/AGENTS.md` | CI: what the workflows run and why, the `main` ruleset, branch cleanup | before touching `.github/` or a required check |
+| `.github/AGENTS.md` | CI: what the workflows run and why (`check`, `audit`, the `version` check, the release queue, the tap), the `main` ruleset and its required checks, the unguarded `v*` tags, branch cleanup | before touching `.github/`, a required check or a release script |
 
 ## Behaviour that is easy to break
 
@@ -399,8 +399,8 @@ know, folds the script's stderr into stdout so nothing overtakes that line, and 
 processing back on with `::<token>::` afterwards, keeping the script's exit code. The check
 judges the head's tree, which is exactly what a squash lands, so squash stays the only merge
 method `main` allows (see `.github/AGENTS.md`) until the check learns to judge what another
-method lands. The check becomes required when `version` is added to the `main` ruleset, which is done by hand after
-the workflow is on `main`.
+method lands. `version` is a required check of the `main` ruleset since 2026-11-12, next to
+`check` and `audit`, so a pull request it refuses cannot merge.
 
 **A revert keeps the fragment.** A pull request that reverts a merged one keeps that pull
 request's fragment (GitHub's Revert button deletes it, which the check refuses, since
@@ -504,7 +504,8 @@ gh workflow run release.yml
 
 The first command only applies when a draft exists.
 
-Never push a `v*` tag by hand: tags come only from the `tag` job of the release run.
+Never push a `v*` tag by hand: tags come only from the `tag` job of the release run. Nothing
+enforces that for the owner; why no tag ruleset does is in `.github/AGENTS.md`.
 
 Every action is pinned to a commit SHA with the tag in a trailing comment; bump pins with
 `gh api repos/<owner>/<repo>/git/ref/tags/<tag>`. Workflows default to `contents: read`; only

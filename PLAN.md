@@ -636,6 +636,35 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   five failing builds are still fetched one after another (about 10 s for the failed-job
   line on those cards), and a `builds` above 100 is still cut to 100 by GitHub.
 
+- Phase 36 never ran as a phase: its fix to `scripts/release.sh` for a release run GitHub left
+  stuck in `queued` (draft #62) was closed unmerged when phase 37 replaced the script. The
+  number stays unused; the stuck run (43098019853, v0.24.1) still exists and can be neither
+  cancelled nor deleted (`.github/AGENTS.md`).
+
+- Phase 37 (`plans/phase-37-automatic-versions.md`, #63, #64, #65 and a cleanup pull request;
+  released v0.24.2): the pipeline picks the version, a pull request cannot. `main` carries
+  `0.0.0` and a frozen `CHANGELOG.md`; a pull request that feeds the binary adds a fragment
+  `changes/<branch>.md` (`kind: fix|feat|internal`, the changelog bullets), and `release.yml`
+  runs on every push to `main` as a one-at-a-time queue: it releases every fragment pending
+  since the newest tag in a release commit reachable only from its tag, resumes an unfinished
+  tag first, and moves the tap formula only forward. v0.24.2 was the first automated release
+  (run 43135383854), checked down to `gh attestation verify`. The `version` check
+  (`pull_request_target`, `scripts/version-check.sh`) refuses a version, a `CHANGELOG.md` edit,
+  an edited or deleted fragment, and a binary change without a fragment. The owner decided:
+  dev builds read `v0.0.0`; a binary change is always released, a refactor as an `internal`
+  patch; no majors; and on 2026-11-12, `version` required in the `main` ruleset, branches up to
+  date before merging, squash as the only merge method. The check grew far past the plan:
+  five review rounds each found a way to hide a version from a line reader, so it asks cargo in
+  an isolated copy of the head and rehearses the release rewrite with a random probe; squash-only
+  was chosen over teaching it to replay a rebase-merge, which can land a tree it never judged.
+  `scripts/release.sh` went in the cutover, so the cleanup was documentation. Not done: a merge
+  queue (user-owned repository); a tag ruleset limiting `v*` tags to the workflow, since the
+  private throwaway repository answers 403 to any ruleset on a free plan, so whether the job
+  token can bypass one is unproven and the owner can still push a tag by hand. Known and left
+  (`.github/AGENTS.md`): "feeds the binary" is judged by path only, the attestation records the
+  run's `main` commit, `check` builds on Linux only, and cargo in the check can be pointed at
+  `Cargo.toml` files outside its copy.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
