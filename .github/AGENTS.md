@@ -77,8 +77,9 @@ pipeline went from ~3 min 20 s to 37 s:
   file naming a toolchain that does not exist gets its normal verdict and nothing it names
   runs. The check reads cargo's JSON without `jq`: only output starting exactly as cargo writes
   it (`{"packages":[{"name":…,"version":…,"id":…`) is read, scanned string by string, and the
-  root package is the one whose id is the copy's own directory. The job takes about 1 s on
-  this repository on top of the checkout.
+  root package is the one whose id is the copy's own directory. Cost, measured 2026-11-12: on
+  the throwaway repository the check step took about 1 s and the whole job 6 s; on this
+  repository the script takes about 1 s on a laptop.
   Workflow commands: the check step echoes `::stop-commands::<token>` before the script, with
   a token made in that step from `/dev/urandom`, folds the script's stderr into stdout, and
   echoes `::<token>::` after it, exiting with the script's code. Between the two the runner
