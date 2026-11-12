@@ -1,5 +1,6 @@
 mod dev_install;
 mod feeds_binary;
+mod formula_version;
 mod gates;
 mod helpers;
 mod next_version;

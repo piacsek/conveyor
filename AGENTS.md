@@ -91,6 +91,7 @@ scripts/release-tag.sh        the `tag` job of `release.yml` (refuses outside Gi
 changes/                      one fragment per pull request that feeds the binary (`kind:` and the changelog bullets); add-only, see Releasing
 plans/                        one versioned plan file per phase (see Working agreements)
 scripts/homebrew-formula.sh   prints the tap formula for a released version
+scripts/formula-version.sh    the `tap` job's decision: prints `version=` of the newest published `complete` release when the tap formula names an older one (or none), else nothing; never a version below the formula's
 scripts/release.sh            retired (see Releasing): tagged a merged version from `main` by hand; removed by phase 37's cleanup
 scripts/screenshots.sh        renders docs/details.png from a gh shim + synthetic fixture (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
