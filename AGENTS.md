@@ -83,11 +83,13 @@ scripts/ship.sh               gates + dev-install (unless skippable) + commit + 
 scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
 scripts/feeds-binary.sh       reads paths on stdin, prints the ones that feed the binary; the one list of what does not (`tests/`, `docs/`, `changes/`, …)
 scripts/fragments.sh          sourced, not run: `last_tag`, `pending_fragments <tag>` (the `changes/*.md` at `HEAD` the tag's tree lacks), `fragment_kind` (refuses a malformed one by name), `fragment_bullets`, `refuse_repeats <tag> <pending>` (a pending bullet already in the tag's `CHANGELOG.md`, joined and trimmed as `changelog::check` reads it)
-scripts/next-version.sh       prints the version the pending fragments ask for (`feat` minor, `fix`/`internal` patch, never a major), nothing when none is pending; nothing calls it yet (phase 37)
-scripts/release-commit.sh     `<version>`: writes it into `Cargo.toml` and the `conveyor` entry of `Cargo.lock`, and a `CHANGELOG.md` of the pending bullets above the last tag's; commits nothing; nothing calls it yet (phase 37)
+scripts/next-version.sh       prints the version the pending fragments ask for (`feat` minor, `fix`/`internal` patch, never a major), nothing when none is pending
+scripts/release-commit.sh     `<version>`: writes it into `Cargo.toml` and the `conveyor` entry of `Cargo.lock`, and a `CHANGELOG.md` of the pending bullets above the last tag's; commits nothing
+scripts/release-tag.sh        the `tag` job of `release.yml` (refuses outside GitHub Actions): prints `version=`/`tag=` of the newest tag when its release is unfinished, else commits and pushes the next release tag, else nothing
+changes/                      one fragment per pull request that feeds the binary (`kind:` and the changelog bullets); add-only, see Releasing
 plans/                        one versioned plan file per phase (see Working agreements)
 scripts/homebrew-formula.sh   prints the tap formula for a released version
-scripts/release.sh            tags a merged version from `main`, pushes the tag, watches `release` and checks the tarballs and the tap formula
+scripts/release.sh            retired (see Releasing): tagged a merged version from `main` by hand; removed by phase 37's cleanup
 scripts/screenshots.sh        renders docs/details.png from a gh shim + synthetic fixture (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
@@ -165,12 +167,12 @@ nearest the code the guideline is about.
      in the PR body. The loop ends only on a round with no must/should findings, and that
      round is **unprimed**: the reviewers get the PR, the repo and this file, never the list
      of earlier findings or what was decided about them. Never post the review on the PR.
-  4. The phase outcome is in `PLAN.md` and, for a behaviour change, the version bump and its
-     `CHANGELOG.md` entry are on the branch. Re-read the PR title and body, fix what went
-     stale, `gh pr ready`, wait for CI green.
-  5. Rebase-merge (squash when GitHub cannot rebase the branch).
-     For a behaviour change, tag and release per "Releasing", watch `release`
-     to green and check the tap formula names the new version.
+  4. The phase outcome is in `PLAN.md` and, when the branch feeds the binary, its fragment
+     `changes/<branch>.md` is on it (no version bump, no `CHANGELOG.md` edit). Re-read the PR
+     title and body, fix what went stale, `gh pr ready`, wait for CI green.
+  5. Rebase-merge (squash when GitHub cannot rebase the branch). Watch the `release` run the
+     merge starts to green; with a fragment, check the release holds the six assets and the
+     tap formula names the new version (see "Releasing"). Never tag by hand.
   6. Remove the worktree and report what shipped, with the release link.
   Stop and ask instead of proceeding when: a gate fails for a reason the change did not
   cause, CI fails twice on the same step, a review finding needs a product decision, or the
@@ -215,9 +217,10 @@ nearest the code the guideline is about.
   clusters. When the skill asks whether to post the review on the PR, answer no.
   `gh pr ready` comes after the findings are addressed, not before.
 - **Merging and releasing.** Rebase-merge the phase PR into `main` when CI is green (squash
-  when GitHub cannot rebase it, see the next bullet), then tag
-  from `main` (see Releasing). Never push to `main` directly except the very first bootstrap
-  commit of an empty repository, and never force-push.
+  when GitHub cannot rebase it, see the next bullet), then watch the `release` run the merge
+  starts (see Releasing): no bump, no `CHANGELOG.md` edit, no `scripts/release.sh`, no tag by
+  hand. Never push to `main` directly except the very first bootstrap commit of an empty
+  repository, and never force-push.
 - **Catching up with `main` on a pushed branch is a merge, not a rebase.** A rebase rewrites
   the pushed commits and the next `scripts/ship.sh` push is refused; the no-force-push rule
   then leaves only `git reset --hard origin/<branch>`, `git merge origin/main` and a
@@ -229,7 +232,10 @@ nearest the code the guideline is about.
   **squash merge** instead, subject `<type>(<scope>): <summary> (#N)`; the per-task commits stay
   readable on the PR.
 - **Two binaries.** `conveyor` on PATH is the Homebrew release; `conveyor-dev` is a working
-  tree (`scripts/dev-install.sh`). Never `cargo install` the crate into a PATH directory.
+  tree (`scripts/dev-install.sh`). Never `cargo install` the crate into a PATH directory. A
+  build from a working tree (`conveyor-dev`, CI) reads `v0.0.0` in the footer and in
+  `--version`, and its `c` pane shows the changelog as frozen on `main`, not the newest
+  release: that is expected, only a release commit carries a real version.
 - **Plan before code, plans in the repo.** Each phase starts from a written plan, re-planned
   after the previous retro, with its "Verified facts" checked against live tools before use.
   Plans are versioned here: write each one to its own file under `plans/` (for example
@@ -255,8 +261,9 @@ Without tmux the last gate is a plain `cargo test` and a notice that the e2e tes
 `tests/scripts/` runs the scripts themselves in a scratch directory and a scratch git
 repository, with `cargo`, `gh` and the scripts they call replaced by symlinks to
 `tests/fixtures/record-call.sh`, which appends its name and argv to `$CALLS_LOG` and exits 1 for a call whose argv starts with `$FAILING_CALL` (how a ship test says the branch has no pull request yet). Where a
-script reads what `gh` prints (`release.sh`), `gh` is a symlink to `tests/fixtures/reply-call.sh`
-instead: it records the same line, then prints every file in `$REPLIES` whose name is part of
+script reads what `gh` prints (`release.sh`, `release-tag.sh`), `gh` is a symlink to `tests/fixtures/reply-call.sh`
+instead: it records the same line, exits 1 with `$FAILING_STDERR` on stderr for a call whose
+argv starts with `$FAILING_CALL`, else prints every file in `$REPLIES` whose name is part of
 its argv.
 
 Ship with `scripts/ship.sh "<message>"`: `cargo fmt`, gates, `dev-install.sh` (unless skipped, see Install), commit, push, all under
@@ -292,60 +299,103 @@ directory off the list in the script.
 
 ## Releasing
 
-Releases are GitHub Releases built by `.github/workflows/release.yml` on a `v*` tag: one flat
-tarball per target (`conveyor-<target>.tar.gz` holding just the binary; targets
-`aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`) plus `.sha256`,
-with generated notes. Asset names carry no version so `releases/latest/download/` links stay
-valid. Both macOS targets build in **one** `macos-latest` job (`cargo build --target … --target
-…`, Intel cross-compiled); `macos-13` is retired and queues forever. They were two matrix jobs
-until v0.19.2: hosted macOS runners regularly failed to come online (the v0.19.1 Intel job was
-cancelled after 15 min without a step), and every macOS job is one more wait on that pool. A
-stuck job is rerun with `gh run rerun <id> --failed`. The workflow refuses a tag whose version differs from
-`Cargo.toml`. Every action is pinned to a commit SHA with the tag in a trailing comment;
-bump pins with `gh api repos/<owner>/<repo>/git/ref/tags/<tag>`. Workflows default to
-`contents: read`; only `publish` gets `contents: write`, `id-token` and `attestations: write`
-for `actions/attest-build-provenance` (`gh attestation verify <tarball> --repo
-piacsek/conveyor`). CI also runs `cargo audit` (a prebuilt binary via `taiki-e/install-action`;
-the `rustsec/audit-check` action compiled cargo-audit from source on every run, ~3 min of a
-~3.5 min pipeline). The `check` job runs `cargo test -- --include-ignored` in one pass; the e2e
-tests take the debug binary from `CARGO_BIN_EXE_conveyor`, so no release build there.
+The pipeline picks the version; a pull request never does. `main` carries the constant
+`version = "0.0.0"` in `Cargo.toml` and a `CHANGELOG.md` frozen at the last hand-made entry
+(v0.24.1); neither is edited by a pull request. The version lives in the `v*` tags.
 
-Only behaviour changes get packaged. A release (version bump, tag, tarballs, tap) follows a
-change a user can observe in the binary: a key, a card, a default, a fix, a config key. Docs,
-CI, tests, scripts, refactors, guideline edits and copy-only wording (a word in the help view,
-an error message) merge to `main` without a bump and ride the next behaviour release. Do not
-tag a docs-only or CI-only `main`.
+**A pull request says what kind of change it is in a fragment**, one added file
+`changes/<branch>.md` (a branch name holding `/` uses `-`):
 
-1. Bump `version` in `Cargo.toml` (`Cargo.lock` follows on the next build) and add its
-   `## vX.Y.Z (YYYY-MM-DD)` entry at the top of `CHANGELOG.md`: what a user sees, one bullet each.
-2. Run the gates, commit `Release vX.Y.Z`, merge to `main`.
-3. From a clean `main` that is exactly `origin/main`:
+```markdown
+kind: fix
 
-   ```bash
-   scripts/release.sh X.Y.Z
-   ```
+- Main builds appears much sooner on the first load.
+```
 
-   It refuses a dirty tree, another branch, a `main` that differs from `origin/main`, a version
-   `Cargo.toml` does not carry, a tag that already exists here or on `origin`, and a `release`
-   run still queued or in progress. Then it tags `vX.Y.Z`, pushes that one tag, watches the
-   `release` run to its end and checks that the release holds the three tarballs and their
-   `.sha256` and nothing else. The last line it prints is the release URL.
-4. The script also reads `Formula/conveyor.rb` from GitHub and fails when it does not name
-   the version. The `tap` job regenerates `Formula/conveyor.rb` in `github.com/piacsek/homebrew-tap`
-   (local clone `~/projects/homebrew-tap`) with `scripts/homebrew-formula.sh <version>` and
-   pushes with the `TAP_TOKEN` repo secret (fine-grained PAT, contents:write on
-   homebrew-tap; set per repo with `gh secret set TAP_TOKEN --repo piacsek/conveyor`). If
-   that job fails, run the script by hand and push the tap. Check with `brew audit --strict
-   --online --formula piacsek/tap/conveyor` after changing the script.
+- `kind` is `fix` (patch), `feat` (minor) or `internal` (patch). The bullets are the changelog
+  text, written for users, one bullet each; an indented line continues a bullet. `internal` is
+  for a change nobody can observe in the binary (a refactor, a dependency bump) and may have no
+  bullet; a release made only of those reads `- v<version>: internal changes only.`
+- **No majors.** No kind produces one; a config-format break is a decision made by hand later.
+- **A fragment is required exactly when the pull request touches what feeds the binary**
+  (`scripts/feeds-binary.sh`, the same list `ship.sh` uses for the dev install). Such a pull
+  request is always released, a refactor as an `internal` patch. One that touches only tests,
+  docs, plans, scripts, CI or guidelines needs none and releases nothing.
+- **`changes/` is add-only.** A fragment is never edited, renamed or deleted once it is on
+  `main`: "pending" means "not in the tree of the last tag", so a changed released fragment
+  stops every release and a reused name can skip one silently. Put a correction in a new file.
+- `tests/scripts/next_version.rs` runs `scripts/next-version.sh` on this repository, so a
+  malformed committed fragment fails the gates (it reads `HEAD`, so locally only after the
+  commit; CI always sees it). It needs the tags, like `every_released_tag_keeps_its_entry`.
+
+**The release run.** `.github/workflows/release.yml` starts on every push to `main` (and by
+hand: `gh workflow run release.yml`) and runs one at a time (`concurrency: release`). Its `tag`
+job checks out `main` at its current head, not the commit that started it, fetches every `v*`
+tag (release commits are reachable only from their tags) and runs `scripts/release-tag.sh`:
+
+1. The newest `vX.Y.Z` tag without a release holding exactly the three tarballs and their
+   `.sha256` is unfinished: the run builds and publishes that tag and computes nothing new
+   (a release holding any other asset stops the run; remove that asset by hand).
+2. Otherwise `scripts/next-version.sh` reads the fragments added since that tag; none means
+   nothing to release, and every later job is skipped with the run green.
+3. Otherwise `scripts/release-commit.sh` writes the version into `Cargo.toml` and
+   `Cargo.lock` and a `CHANGELOG.md` with the new section above the last tag's, commits it
+   as `github-actions[bot]` (`Release vX.Y.Z`) on top of `main` and pushes only the tag. `main`
+   never moves; the tag push starts no other run.
+
+Then `build` (one `macos-latest` job for both Apple targets, Intel cross-compiled, and one
+Linux job; `macos-13` is retired and queues forever) checks out the tag, refuses it when
+`Cargo.toml` there reads another version, and packages one flat tarball per target
+(`conveyor-<target>.tar.gz` holding just the binary) plus `.sha256`; `publish` attests them
+(`gh attestation verify <tarball> --repo piacsek/conveyor`) and creates the release with
+generated notes; `tap` regenerates `Formula/conveyor.rb` in `github.com/piacsek/homebrew-tap`
+(local clone `~/projects/homebrew-tap`) with `scripts/homebrew-formula.sh <version>` and pushes
+it with the `TAP_TOKEN` repo secret (fine-grained PAT, contents:write on homebrew-tap; set with
+`gh secret set TAP_TOKEN --repo piacsek/conveyor`). `tap` runs only in `piacsek/conveyor` and
+the attestation only in a public repository, so the same file can be proven in a private
+throwaway one. Asset names carry no version so `releases/latest/download/` links stay valid.
+
+Merges in quick succession queue up: GitHub keeps one waiting run per group and cancels the
+older waiting one, which is harmless because every run releases everything pending at the
+head of `main`. A cancelled `release` run is therefore normal; a red one is not.
+
+**After a merge**, watch the run (`gh run list --workflow release.yml --limit 3`, then
+`gh run watch <id> --exit-status`). For a pull request with a fragment, check that the release
+holds the six assets and that the tap formula names the new version:
+
+```bash
+gh release view --json tagName,assets --jq '.tagName, .assets[].name'
+gh api repos/piacsek/homebrew-tap/contents/Formula/conveyor.rb -H 'Accept: application/vnd.github.raw+json'
+```
+
+**When a run fails**, rerun it (`gh run rerun <id> --failed`; a stuck macOS job the same way).
+A run that died after pushing its tag is finished by the next run, whatever starts it: the
+next merge, or `gh workflow run release.yml`. A run that resumed a tag releases nothing new,
+so fragments merged meanwhile wait for the next run; dispatch one if nothing else is coming.
+If the `tap` job fails, run `scripts/homebrew-formula.sh <version>` by hand and push the tap;
+check with `brew audit --strict --online --formula piacsek/tap/conveyor` after changing the
+script.
+
+`scripts/release.sh` (tag `main` by hand) is **retired**: `main` no longer carries a release
+version, so it can only refuse. It stays in the tree until phase 37's cleanup pull request
+removes it; do not run it, and never push a `v*` tag by hand.
+
+Every action is pinned to a commit SHA with the tag in a trailing comment; bump pins with
+`gh api repos/<owner>/<repo>/git/ref/tags/<tag>`. Workflows default to `contents: read`; only
+the `tag` job (pushes the tag) and `publish` (`contents: write`, `id-token` and
+`attestations: write` for `actions/attest-build-provenance`) get more. CI also runs
+`cargo audit` (a prebuilt binary via `taiki-e/install-action`; the `rustsec/audit-check` action
+compiled cargo-audit from source on every run, ~3 min of a ~3.5 min pipeline). The `check` job
+runs `cargo test -- --include-ignored` in one pass; the e2e tests take the debug binary from
+`CARGO_BIN_EXE_conveyor`, so no release build there.
 
 Installed copies: Homebrew puts the release binary in `$(brew --prefix)/bin/conveyor`;
 dev builds are only reachable as `conveyor-dev`. `rustsec/audit-check` v2.0.0 (latest as of
 2026-09-10) still targets Node 20 and CI prints a deprecation annotation; bump the pin when a
 newer release exists.
 
-Never force-push a tag that has a release: the push re-runs `release.yml`, republishes the
-assets and rewrites the tap formula for that old version (seen 2026-09-10 after a history
-rewrite, when the `v0.0.1` re-run raced the `v0.1.0` run for the formula). If a released
-tag must move, delete the release and the tag first, or bump the version instead.
+Never move or delete a tag that has a release: the next run would rebuild and republish it
+and rewrite the tap formula for that old version. If a released version is wrong, release a
+fix on top.
 
-Semver: minor for new columns/keys/config, patch for fixes, major on a config-format break.
+Semver: `feat` for a new column, key or config key (minor), `fix` for a fix (patch), `internal` for the rest (patch); no majors for now.

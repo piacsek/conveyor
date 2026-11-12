@@ -38,12 +38,25 @@ pipeline went from ~3 min 20 s to 37 s:
   own PR included; an advisory with no fixed version does the same through `audit`. Disable the
   ruleset to get out (`gh api -X PUT repos/<owner>/<repo>/rulesets/<id> -f enforcement=disabled`),
   fix, and enable it again.
+- **`release.yml` is the release queue** (details in Releasing in the root `AGENTS.md`). It
+  starts on every push to `main` and on `workflow_dispatch`, never on a tag, under
+  `concurrency: { group: release, cancel-in-progress: false }`: one run at a time, and GitHub
+  keeps one waiting run per group, cancelling the older waiting one when a newer push arrives.
+  That is safe only because a run never releases "the commit that started me": the `tag` job
+  checks out `main` at its head and releases every fragment pending since the newest tag. The
+  decisions live in `scripts/release-tag.sh` (resume an unfinished tag, else tag what is
+  pending, else nothing) with its tests in `tests/scripts/release_tag.rs`; the YAML only wires
+  jobs. The `tag` job is the only one besides `publish` with `contents: write`, which it uses to
+  push one tag with the job's own token; a push made with that token starts no workflow, so
+  the build, publish and tap jobs run in the same run, from the tag. Nothing is ever pushed
+  to `main` (the ruleset has no bypass actor, so nothing could be). Its decisions were proven
+  end to end on a private throwaway repository before the cutover; there, `tap` is skipped
+  (`if: github.repository == 'piacsek/conveyor'`) and so is the attestation (private
+  repositories on a user account cannot attest).
 - **The `tap` job of `release.yml` runs one at a time** (`concurrency: tap`,
   `cancel-in-progress: false`), so two releases never write the formula at the same moment.
-  It does not order them: GitHub keeps one pending job per group, starts it whatever its
-  version, and cancels a pending one when a third arrives, so an older tag's `tap` job can
-  still run last. The main guard is `scripts/release.sh`, which refuses to tag while a
-  `release` run is queued or in progress.
+  With the whole workflow in the `release` group two runs no longer overlap, so the formula is
+  written in release order.
 - **A pull request's branch is deleted when it merges or closes.** Merged: the repository
   setting `delete_branch_on_merge`. Closed without merging: GitHub has no setting, so
   `.github/workflows/delete-closed-branch.yml` runs on `pull_request_target: closed` and
