@@ -171,7 +171,7 @@ impl App {
         }
     }
 
-    fn selected_key(&self) -> Option<u64> {
+    pub(super) fn selected_key(&self) -> Option<u64> {
         self.stage(self.focus).listing().selected_key()
     }
 

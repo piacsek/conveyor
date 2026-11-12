@@ -10,6 +10,7 @@ mod merge;
 mod rerun;
 mod status;
 mod update;
+mod writes;
 
 pub use checkout::CheckoutTarget;
 pub use merge::MergeTarget;
@@ -18,8 +19,7 @@ pub(super) use rerun::rerun_offer;
 pub use status::StatusTarget;
 pub use update::UpdateTarget;
 pub(super) use update::conflicts;
-
-use status::progress;
+pub use writes::{Write, WriteKind};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Choice {
@@ -80,8 +80,11 @@ impl App {
         if let Some(number) = self.updating {
             return Some(format!("updating #{number}…"));
         }
-        if let Some((number, change)) = &self.changing {
-            return Some(progress(*number, change));
+        if let Some(write) = self
+            .selected_key()
+            .and_then(|key| self.write_on(self.focus, key))
+        {
+            return Some(write.progress());
         }
         if let Some(number) = self.checking_out {
             return Some(format!("checking out #{number}…"));

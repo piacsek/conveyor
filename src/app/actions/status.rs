@@ -3,7 +3,7 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use crate::app::{Action, App};
 use crate::model::prs::StatusChange;
 
-use super::Choice;
+use super::{Choice, WriteKind};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatusTarget {
@@ -35,7 +35,7 @@ impl App {
 
     pub(super) fn send_status(&mut self, target: StatusTarget) -> Action {
         self.notice = Some(progress(target.number, &target.change));
-        self.changing = Some((target.number, target.change.clone()));
+        self.start_write(target.number, WriteKind::Status(target.change.clone()));
         Action::ChangeStatus(target)
     }
 
@@ -45,7 +45,7 @@ impl App {
         change: &StatusChange,
         result: &Result<(), String>,
     ) -> bool {
-        self.changing = None;
+        self.finish_write(number, &WriteKind::Status(change.clone()));
         self.notice = Some(match result {
             Ok(()) => done(number, change),
             Err(message) => format!("#{number}: {message}"),
