@@ -48,15 +48,27 @@ pipeline went from ~3 min 20 s to 37 s:
   pending, else nothing) with its tests in `tests/scripts/release_tag.rs`; the YAML only wires
   jobs. The `tag` job is the only one besides `publish` with `contents: write`, which it uses to
   push one tag with the job's own token; a push made with that token starts no workflow, so
-  the build, publish and tap jobs run in the same run, from the tag. Nothing is ever pushed
+  the build and publish jobs run in the same run, from the tag. Both first run
+  `scripts/release-unfinished.sh <tag>` and skip their other steps when the release is already
+  complete (published, not a draft, six assets), so a rerun never replaces published assets.
+  That check is a step, not a job, on purpose: `gh run rerun --failed` reruns the failed jobs
+  and the ones that need them, never a job they need, so a separate gate job would keep its
+  old answer. Nothing is ever pushed
   to `main` (the ruleset has no bypass actor, so nothing could be). Its decisions were proven
   end to end on a private throwaway repository before the cutover; there, `tap` is skipped
   (`if: github.repository == 'piacsek/conveyor'`) and so is the attestation (private
-  repositories on a user account cannot attest).
-- **The `tap` job of `release.yml` runs one at a time** (`concurrency: tap`,
-  `cancel-in-progress: false`), so two releases never write the formula at the same moment.
-  With the whole workflow in the `release` group two runs no longer overlap, so the formula is
-  written in release order.
+  repositories on a user account cannot attest). The attestation's subjects are the published tarballs, but
+  the source commit it records is the `main` commit of the event that started the run, not
+  the release commit the tag points at (what was built). Unless the run waited behind later
+  merges, the two trees differ only by the version in `Cargo.toml` and `Cargo.lock` and by
+  `CHANGELOG.md`.
+- **The `tap` job of `release.yml` reconciles, it does not replay.** It runs in every release
+  run that is not cancelled (`if: !cancelled() && github.repository == 'piacsek/conveyor'`),
+  built or not, and `scripts/formula-version.sh` decides: the newest published release holding
+  the six assets, written only when the formula names an older version. Concurrency alone
+  could not keep the formula from going back (a rerun of an old `tap` after a newer release),
+  nor repair a run cancelled between `publish` and `tap`. It still runs one at a time
+  (`concurrency: tap`, `cancel-in-progress: false`), so two writes never race.
 - **A pull request's branch is deleted when it merges or closes.** Merged: the repository
   setting `delete_branch_on_merge`. Closed without merging: GitHub has no setting, so
   `.github/workflows/delete-closed-branch.yml` runs on `pull_request_target: closed` and
