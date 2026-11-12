@@ -43,6 +43,11 @@ What has gone wrong in the tests before, and how the suites are set up to avoid 
   does). Treat a green PR run as no proof against this class: it is timing-dependent.
   `tests/scripts/` needs no mutex because it writes no executable: every shim is a symlink
   to a tracked script, and the scripts under test are symlinked into the scratch directory.
+- **A scratch repository's `scripts/` are symlinks to the real scripts.** `link_script` links
+  them, so a test that writes to one of those paths (`committed(&work, "scripts/<name>.sh", …)`)
+  writes through the link and overwrites the tracked script in the worktree, and every later
+  test runs the overwritten one. A test that needs a changed file under `scripts/` uses a name
+  no test links.
 - A card's first line in a 40-column pane holds about 30 characters after the bar, glyph and
   the right-aligned figure; a build card's title gets a line of its own and about `width - 4`.
   Card tests read line groups, not one line per row: a build card is four lines, so row `n`

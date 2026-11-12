@@ -82,7 +82,8 @@ scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-d
 scripts/ship.sh               gates + dev-install (unless skippable) + commit + push, aborts on any failure; the first push of a branch opens the draft PR (commit subject as title, the template as body)
 scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
 scripts/feeds-binary.sh       reads paths on stdin, prints the ones that feed the binary; the one list of what does not (`tests/`, `docs/`, `changes/`, …)
-scripts/fragments.sh          sourced, not run: `last_tag`, `pending_fragments <tag>` (the `changes/*.md` at `HEAD` the tag's tree lacks), `fragment_kind` (refuses a malformed one by name), `fragment_bullets`, `refuse_repeats <tag> <pending>` (a pending bullet already in the tag's `CHANGELOG.md`, joined and trimmed as `changelog::check` reads it)
+scripts/fragments.sh          sourced, not run, reading the commit in `fragments_at` (`HEAD` unless the caller sets it): `last_tag`, `pending_fragments <tag>` (the `changes/*.md` at `HEAD` the tag's tree lacks), `fragment_kind` (refuses a malformed one by name), `fragment_bullets`, `refuse_repeats <tag> <pending>` (a pending bullet already in the tag's `CHANGELOG.md`, joined and trimmed as `changelog::check` reads it)
+scripts/version-check.sh      `<base> <head>`: the `version` job of `version.yml`; refuses a pull request that sets the version, edits `CHANGELOG.md` or a fragment, adds a malformed one, or feeds the binary without one; reads the head as git objects, runs nothing from it
 scripts/next-version.sh       prints the version the pending fragments ask for (`feat` minor, `fix`/`internal` patch, never a major), nothing when none is pending
 scripts/release-commit.sh     `<version>`: writes it into `Cargo.toml` and the `conveyor` entry of `Cargo.lock`, and a `CHANGELOG.md` of the pending bullets above the last tag's; commits nothing
 scripts/releases.sh           sourced, not run: `release_state <tag>` prints `missing`, `draft`, `short` or `complete` (published with exactly the six assets); refuses an unreadable release or an unexpected asset
@@ -329,6 +330,23 @@ kind: fix
 - `tests/scripts/next_version.rs` runs `scripts/next-version.sh` on this repository, so a
   malformed committed fragment fails the gates (it reads `HEAD`, so locally only after the
   commit; CI always sees it). It needs the tags, like `every_released_tag_keeps_its_entry`.
+
+**The `version` check enforces all of this on every pull request into `main`**
+(`.github/workflows/version.yml`, details in `.github/AGENTS.md`). `scripts/version-check.sh
+<base> <head>` refuses the pull request, naming the file and what to do instead, when:
+
+- `Cargo.toml` at its head carries a package `version` other than `0.0.0`, or `Cargo.lock` a
+  `conveyor` entry other than `0.0.0`;
+- it changes `CHANGELOG.md` at all;
+- it edits, deletes or renames a file under `changes/`, or renames a file into it;
+- a fragment it adds is not a direct child `changes/<name>.md`, or `fragment_kind` or
+  `refuse_repeats` of `scripts/fragments.sh` refuses it (the same functions the release run
+  uses, read at the pull request's head through `fragments_at`);
+- a path it changes feeds the binary (`scripts/feeds-binary.sh`, a rename counting both of its
+  paths, `CHANGELOG.md` left out since it is refused anyway) and it adds no fragment.
+
+It reports every refusal, not only the first. The check becomes required when `version` is
+added to the `main` ruleset, which is done by hand after the workflow is on `main`.
 
 **The release run.** `.github/workflows/release.yml` starts on every push to `main` (and by
 hand: `gh workflow run release.yml`) and runs one at a time (`concurrency: release`). Its `tag`
