@@ -34,8 +34,10 @@ pipeline went from ~3 min 20 s to 37 s:
   Releasing in the root `AGENTS.md` for how to bump one).
 - **`main` is protected by a ruleset** (`main`, id 26900132, Settings → Rules): a pull
   request, green `check`, `audit` and `version`, linear history, no force-push or deletion, and
-  no bypass for anyone. The checks are matched by job name, so renaming any of the three jobs
-  blocks every merge, the rename's own PR included; an advisory with no fixed version does the
+  no bypass for anyone. The checks are matched by job name, so renaming `check` or `audit` in
+  `ci.yml` blocks every merge, the rename's own PR included; renaming `version` lets the
+  rename's own PR merge (the copy on `main` still reports the old name) and then blocks every
+  later pull request until the ruleset names the new job; an advisory with no fixed version does the
   same through `audit`. Disable the ruleset to get out
   (`gh api -X PUT repos/<owner>/<repo>/rulesets/<id> -f enforcement=disabled`), fix, and enable
   it again. `version` (below) has been required since 2026-11-12, added by hand once
@@ -55,7 +57,7 @@ pipeline went from ~3 min 20 s to 37 s:
   inside a merge of `main` could land although the check never saw that tree. If another merge
   method is ever allowed again, the check must first learn to judge what that method lands.
 - **`version.yml` keeps the version out of pull requests.** One job, named `version`; the
-  ruleset matches that name, so renaming the job blocks every merge as above. It runs on
+  ruleset matches that name, so a rename blocks every pull request after the one that renames it, as above. It runs on
   `pull_request_target` (opened, synchronize, reopened, edited; base `main` only), not `pull_request`,
   because that event runs the workflow as it is on `main`: a pull request that edits
   `version.yml` or `scripts/version-check.sh` is still judged by the `main` copies, so it cannot
@@ -191,7 +193,7 @@ pipeline went from ~3 min 20 s to 37 s:
   moved or vanished in the second between the read and the delete, and nothing is lost
   either way. The open pull request check is a snapshot: closing and reopening one to
   retrigger CI loses the branch when the reopen comes after the job has looked (seconds),
-  so push an empty commit or rerun the checks instead. Neither required check depends on it. Known and left: an open pull request whose **base** is the deleted
+  so push an empty commit or rerun the checks instead. None of the three required checks depends on it. Known and left: an open pull request whose **base** is the deleted
   branch is closed by GitHub (branches here are cut from `origin/main`, never stacked).
 - **A run of the old tag-triggered workflow for v0.24.1 is stuck in `queued` and cannot be
   removed** (run 43098019853, 2026-11-11: no jobs, cancel answers "completed", force-cancel

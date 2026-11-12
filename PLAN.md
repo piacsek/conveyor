@@ -637,12 +637,12 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   line on those cards), and a `builds` above 100 is still cut to 100 by GitHub.
 
 - Phase 36 never ran as a phase: its fix to `scripts/release.sh` for a release run GitHub left
-  stuck in `queued` (draft #62) was closed unmerged when phase 37 replaced the script. The
+  stuck in `queued` (draft #62) was closed unmerged because phase 37 replaces the script. The
   number stays unused; the stuck run (43098019853, v0.24.1) still exists and can be neither
   cancelled nor deleted (`.github/AGENTS.md`).
 
 - Phase 37 (`plans/phase-37-automatic-versions.md`, #63, #64, #65 and #66;
-  released v0.24.2): the pipeline picks the version, a pull request cannot. `main` carries
+  made the first automated release, phase 35's v0.24.2): the pipeline picks the version, a pull request cannot. `main` carries
   `0.0.0` and a frozen `CHANGELOG.md`; a pull request that feeds the binary adds a fragment
   `changes/<branch>.md` (`kind: fix|feat|internal`, the changelog bullets), and `release.yml`
   runs on every push to `main` as a one-at-a-time queue: it releases every fragment pending
