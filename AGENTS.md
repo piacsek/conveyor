@@ -174,7 +174,7 @@ nearest the code the guideline is about.
   4. The phase outcome is in `PLAN.md` and, when the branch feeds the binary, its fragment
      `changes/<branch>.md` is on it (no version bump, no `CHANGELOG.md` edit). Re-read the PR
      title and body, fix what went stale, `gh pr ready`, wait for CI green.
-  5. Rebase-merge (squash when GitHub cannot rebase the branch). Watch the `release` run the
+  5. Squash-merge, the only method `main` allows. Watch the `release` run the
      merge starts to green; with a fragment, check the release holds the six assets and the
      tap formula names the new version (see "Releasing"). Never tag by hand.
   6. Remove the worktree and report what shipped, with the release link.
@@ -220,21 +220,21 @@ nearest the code the guideline is about.
   that the gates pass, and forbid edits, commits, and any write to GitHub or call to the
   clusters. When the skill asks whether to post the review on the PR, answer no.
   `gh pr ready` comes after the findings are addressed, not before.
-- **Merging and releasing.** Rebase-merge the phase PR into `main` when CI is green (squash
-  when GitHub cannot rebase it, see the next bullet), then watch the `release` run the merge
-  starts (see Releasing): no bump, no `CHANGELOG.md` edit, no tag by
-  hand. Never push to `main` directly except the very first bootstrap commit of an empty
+- **Merging and releasing.** Squash-merge the phase PR into `main` when CI is green, then
+  watch the `release` run the merge starts (see Releasing): no bump, no `CHANGELOG.md` edit,
+  no tag by hand. Squash is the only merge method the repository and the `main` ruleset allow
+  (since 2026-11-12, see `.github/AGENTS.md`). The squash commit on `main` takes GitHub's
+  default here: the pull request title followed by `(#N)` (a pull request of a single commit
+  gets that commit's subject instead), with the per-task commit messages listed in its body;
+  the per-task commits stay readable on the pull request. Never push to `main` directly except the very first bootstrap commit of an empty
   repository, and never force-push.
 - **Catching up with `main` on a pushed branch is a merge, not a rebase.** A rebase rewrites
   the pushed commits and the next `scripts/ship.sh` push is refused; the no-force-push rule
   then leaves only `git reset --hard origin/<branch>`, `git merge origin/main` and a
-  cherry-pick of the new work. The rebase-merge into `main` drops a clean merge commit anyway.
-  A merge that resolved conflicts can stop GitHub from rebase-merging: it answers `This branch
-  can't be rebased`, because the resolutions live only in the merge commit and replaying the
-  branch's own commits hits the same conflicts again (phase 28, after v0.21.2 shipped mid-phase
-  and its snapshots and `CHANGELOG.md` conflicted). When GitHub refuses, the branch lands as a
-  **squash merge** instead, subject `<type>(<scope>): <summary> (#N)`; the per-task commits stay
-  readable on the PR.
+  cherry-pick of the new work. The squash into `main` leaves the merge commit behind anyway.
+  Squash is the only method partly for this reason: a merge that resolved conflicts once stopped
+  GitHub from rebase-merging (phase 28), and a rebase-merge, which replays the branch's own
+  commits and drops its merge commits, could land a tree the `version` check never judged.
 - **Two binaries.** `conveyor` on PATH is the Homebrew release; `conveyor-dev` is a working
   tree (`scripts/dev-install.sh`). Never `cargo install` the crate into a PATH directory. A
   build from a working tree (`conveyor-dev`, CI) reads `v0.0.0` in the footer and in
@@ -397,7 +397,9 @@ What does is the workflow: it stops command processing with `::stop-commands::<t
 the script runs, a token made in that step from `/dev/urandom` that the pull request cannot
 know, folds the script's stderr into stdout so nothing overtakes that line, and turns
 processing back on with `::<token>::` afterwards, keeping the script's exit code. The check
-becomes required when `version` is added to the `main` ruleset, which is done by hand after
+judges the head's tree, which is exactly what a squash lands, so squash stays the only merge
+method `main` allows (see `.github/AGENTS.md`) until the check learns to judge what another
+method lands. The check becomes required when `version` is added to the `main` ruleset, which is done by hand after
 the workflow is on `main`.
 
 **A revert keeps the fragment.** A pull request that reverts a merged one keeps that pull

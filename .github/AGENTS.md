@@ -45,6 +45,13 @@ pipeline went from ~3 min 20 s to 37 s:
   unattended and the release run only builds, so a pull request's green CI must be a test of
   exactly what `main` becomes. A pull request behind `main` is updated with a merge of `main`
   (never a rebase of a pushed branch), and that push runs the checks, `version` included, again.
+  Since 2026-11-12, too, squash is the only allowed merge method: the ruleset's
+  `allowed_merge_methods` is `["squash"]` and the repository settings allow neither merge
+  commits nor rebase merges. The `version` check judges the pull request's head tree against
+  `main`, and a squash lands exactly that tree; a rebase-merge would replay the pull request's
+  non-merge commits and drop its merge commits, so a rule broken in one commit and undone
+  inside a merge of `main` could land although the check never saw that tree. If another merge
+  method is ever allowed again, the check must first learn to judge what that method lands.
 - **`version.yml` keeps the version out of pull requests.** One job, named `version`; the
   ruleset matches that name, so renaming the job blocks every merge as above. It runs on
   `pull_request_target` (opened, synchronize, reopened, edited; base `main` only), not `pull_request`,
