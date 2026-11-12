@@ -402,6 +402,13 @@ fn a_feat_with_crlf_line_endings_bumps_the_minor() {
     assert_eq!(stdout(&output), "0.4.0\n");
 }
 
+#[test]
+fn the_fragments_committed_in_this_repository_are_well_formed() {
+    let output = next_version(Path::new(env!("CARGO_MANIFEST_DIR")));
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+}
+
 fn next_version(work: &Path) -> Output {
     isolated(Command::new(which("bash")).arg(work.join("scripts/next-version.sh")))
         .output()
