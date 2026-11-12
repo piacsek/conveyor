@@ -174,6 +174,27 @@ fn a_rename_from_a_path_holding_a_control_character_is_refused() {
 }
 
 #[test]
+fn a_fragment_main_gained_after_the_branch_was_cut_is_not_the_pull_requests_fragment() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    committed(&work, "src/main.rs", "fn main() { println!(); }\n");
+    git(&work, &["checkout", "-q", "main"]);
+    fragment(&work, "late", "kind: fix\n\n- Fixed the footer.\n");
+    git(&work, &["checkout", "-q", "pull"]);
+    fragment(&work, "late", "kind: fix\n\n- Fixed the footer.\n");
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "changes/late.md is taken on main: the pull request needs its own file changes/<name>.md\n\
+         src/main.rs feeds the binary, so the pull request needs a fragment: add changes/<branch>.md starting with `kind: fix`, `kind: feat` or `kind: internal` (see Releasing in AGENTS.md)\n"
+    );
+}
+
+#[test]
 fn a_call_without_a_base_and_a_head_prints_the_usage() {
     let dir = tempfile::tempdir().unwrap();
     let work = main_with_a_release(dir.path());

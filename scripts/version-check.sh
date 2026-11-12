@@ -94,7 +94,13 @@ while IFS= read -r -d '' status && IFS= read -r -d '' path; do
     A)
       case "$path" in
         changes/*/*) ;;
-        changes/*.md) added="$added$path"$'\n' ;;
+        changes/*.md)
+          if git cat-file -e "$1:$path" 2>/dev/null; then
+            refuse "$path is taken on main: the pull request needs its own file changes/<name>.md"
+          else
+            added="$added$path"$'\n'
+          fi
+          ;;
       esac
       ;;
     R*)
