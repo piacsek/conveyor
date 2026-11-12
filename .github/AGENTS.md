@@ -40,9 +40,14 @@ pipeline went from ~3 min 20 s to 37 s:
   fix, and enable it again. `version` (below) joins the required checks by hand, in the
   ruleset, only after `version.yml` is on `main`: a required check that never reports blocks
   every merge, and `pull_request_target` cannot report on the pull request that adds it.
+  Since 2026-11-12 the ruleset also requires a branch to be up to date with `main` before it
+  merges (`strict_required_status_checks_policy: true`): every merge to `main` is released
+  unattended and the release run only builds, so a pull request's green CI must be a test of
+  exactly what `main` becomes. A pull request behind `main` is updated with a merge of `main`
+  (never a rebase of a pushed branch), and that push runs the checks, `version` included, again.
 - **`version.yml` keeps the version out of pull requests.** One job, named `version`; the
   ruleset matches that name, so renaming the job blocks every merge as above. It runs on
-  `pull_request_target` (opened, synchronize, reopened; base `main` only), not `pull_request`,
+  `pull_request_target` (opened, synchronize, reopened, edited; base `main` only), not `pull_request`,
   because that event runs the workflow as it is on `main`: a pull request that edits
   `version.yml` or `scripts/version-check.sh` is still judged by the `main` copies, so it cannot
   weaken the check that judges it (proven: a pull request that bumped the version and rewrote
@@ -55,12 +60,16 @@ pipeline went from ~3 min 20 s to 37 s:
   and `git show`, never checks it out and never runs a file from it, so `.gitattributes`, hooks
   or scripts in the pull request do nothing. The file list comes from git, not the REST files
   API, which pages 100 at a time and stops at 3000 files; `git diff -M` also reports renames.
-  The job holds `contents: read` only, no secret, and its one action is pinned. Draft pull
-  requests are checked like any other. A pull request opened against another branch is not
-  checked; retargeting it to `main` starts no run (`edited` is not a trigger), so push a commit
-  or close and reopen it to get one. What the script refuses is in Releasing in the root
-  `AGENTS.md`; `tests/scripts/version_workflow.rs` pins the trigger, the job name, the token
-  and the absence of a checkout of the pull request.
+  The job holds `contents: read` only, no secret, and its one action is pinned. The checkout
+  keeps no credentials (`persist-credentials: false`), so the job's token is not in
+  `.git/config` while the script runs; only the fetch step gets it, as an `extraheader` in
+  `GIT_CONFIG_*` variables of that one step, because a private repository (the throwaway one
+  the check is proven on) refuses an unauthenticated fetch, and a public one takes the token
+  as well. Draft pull requests are checked like any other. A pull request opened against
+  another branch is not checked; retargeting it to `main` starts a run (`edited`), and so does
+  an edit of its title or body, which only repeats the check. What the script refuses is in
+  Releasing in the root `AGENTS.md`; `tests/scripts/version_workflow.rs` pins the trigger, the
+  job name, the token, where the token goes and the absence of a checkout of the pull request.
 - **`release.yml` is the release queue** (details in Releasing in the root `AGENTS.md`). It
   starts on every push to `main` and on `workflow_dispatch`, never on a tag, under
   `concurrency: { group: release, cancel-in-progress: false }`: one run at a time, and GitHub

@@ -335,18 +335,32 @@ kind: fix
 (`.github/workflows/version.yml`, details in `.github/AGENTS.md`). `scripts/version-check.sh
 <base> <head>` refuses the pull request, naming the file and what to do instead, when:
 
-- `Cargo.toml` at its head carries a package `version` other than `0.0.0`, or `Cargo.lock` a
-  `conveyor` entry other than `0.0.0`;
+- a path it changes holds a control character (a newline, a tab, any byte below 0x20, or
+  0x7f): the check stops there, before anything else, and prints only how many such paths
+  there are, since a newline would split one path into two and could inject a workflow
+  command through its output;
+- `Cargo.toml` at its head carries a package `version` other than `0.0.0`, holds a
+  multi-line string (`"""` or `'''`) or more than one `version` line in `[package]`, or
+  `Cargo.lock` holds a `conveyor` entry other than `0.0.0` or more than one entry of that name
+  (the check reads both files line by line, so anything that could hide the real line is
+  refused);
 - it changes `CHANGELOG.md` at all;
 - it edits, deletes or renames a file under `changes/`, or renames a file into it;
-- a fragment it adds is not a direct child `changes/<name>.md`, or `fragment_kind` or
-  `refuse_repeats` of `scripts/fragments.sh` refuses it (the same functions the release run
-  uses, read at the pull request's head through `fragments_at`);
+- a fragment it adds is not a direct child `changes/<name>.md`, its name is already on the tip
+  of `main` (a branch behind `main` re-adding a fragment `main` gained later; it does not count
+  as the pull request's fragment), or `fragment_kind` or `refuse_repeats` of
+  `scripts/fragments.sh` refuses it (the same functions the release run uses, read at the pull
+  request's head through `fragments_at`);
 - a path it changes feeds the binary (`scripts/feeds-binary.sh`, a rename counting both of its
   paths, `CHANGELOG.md` left out since it is refused anyway) and it adds no fragment.
 
-It reports every refusal, not only the first. The check becomes required when `version` is
-added to the `main` ruleset, which is done by hand after the workflow is on `main`.
+Past the control character check it reports every refusal, not only the first. The check
+becomes required when `version` is added to the `main` ruleset, which is done by hand after
+the workflow is on `main`.
+
+**A revert keeps the fragment.** A pull request that reverts a merged one keeps that pull
+request's fragment (GitHub's Revert button deletes it, which the check refuses, since
+`changes/` is add-only) and adds a new fragment for the revert itself.
 
 **The release run.** `.github/workflows/release.yml` starts on every push to `main` (and by
 hand: `gh workflow run release.yml`) and runs one at a time (`concurrency: release`). Its `tag`
