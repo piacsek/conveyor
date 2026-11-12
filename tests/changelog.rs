@@ -30,7 +30,7 @@ fn c_opens_the_changelog_at_the_newest_release() {
     let screen = h.screen();
     assert!(screen.contains("Changelog"), "{screen}");
     assert!(
-        screen.contains(&format!("v{}", env!("CARGO_PKG_VERSION"))),
+        screen.contains(&format!("v{}", newest_release())),
         "{screen}"
     );
     assert!(!screen.contains("no open pull requests"), "{screen}");
@@ -39,7 +39,7 @@ fn c_opens_the_changelog_at_the_newest_release() {
 #[test]
 fn ctrl_d_scrolls_the_changelog_and_ctrl_u_scrolls_it_back() {
     let mut h = Harness::with_size(80, 12);
-    let newest = format!("v{} ", env!("CARGO_PKG_VERSION"));
+    let newest = format!("v{} ", newest_release());
 
     h.run(vec![prs(vec![]), key(KeyCode::Char('c')), ctrl('d')])
         .unwrap();
@@ -131,7 +131,7 @@ fn headings_are_bold_without_their_markdown() {
     assert!(!screen.contains("│#"), "{screen}");
     let row = screen
         .lines()
-        .position(|line| line.contains(&format!("│v{} (", env!("CARGO_PKG_VERSION"))))
+        .position(|line| line.contains(&format!("│v{} (", newest_release())))
         .unwrap() as u16;
     assert!(
         h.cell(1, row)
@@ -264,7 +264,7 @@ fn a_released_version_without_its_entry_is_refused() {
 #[test]
 fn every_released_tag_keeps_its_entry() {
     let output = std::process::Command::new("git")
-        .args(["tag", "--list", "v*"])
+        .args(["tag", "--list", "v*", "--merged", "HEAD"])
         .current_dir(env!("CARGO_MANIFEST_DIR"))
         .output()
         .unwrap();
@@ -443,4 +443,12 @@ fn a_build_from_main_at_version_0_0_0_asks_for_every_released_tag_it_is_given() 
         check_released(text, &["0.20.0", "0.21.0"], "0.0.0"),
         Err("v0.20.0 was released but has no entry; restore it, or merge origin/main if another branch released it".to_string())
     );
+}
+
+fn newest_release() -> &'static str {
+    CHANGELOG
+        .lines()
+        .find_map(|line| line.strip_prefix("## v"))
+        .and_then(|heading| heading.split_whitespace().next())
+        .unwrap()
 }
