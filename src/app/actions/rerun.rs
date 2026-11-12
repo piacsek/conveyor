@@ -1,6 +1,6 @@
 use crate::app::{Action, App, Stage};
 
-use super::{Choice, Offer, Write, WriteKind, offer};
+use super::{Choice, Offer, WriteKind, offer};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rerun {
@@ -40,12 +40,9 @@ impl App {
             matches!(&write.kind, WriteKind::Rerun { run_ids, .. }
                 if results.iter().any(|(run_id, _)| run_ids.contains(run_id)))
         })?;
-        let Write {
-            stage,
-            kind: WriteKind::Rerun { label, .. },
-            ..
-        } = self.writes.remove(index)
-        else {
+        let write = self.writes.remove(index);
+        let stage = write.stage;
+        let WriteKind::Rerun { label, .. } = write.kind.clone() else {
             return None;
         };
         let errors: Vec<String> = results
@@ -58,6 +55,19 @@ impl App {
             })
             .collect();
         let reran = results.len() - errors.len();
+        match (reran, errors.is_empty()) {
+            (_, true) => {}
+            (0, false) => self.fail(Some(write), &errors.join("; ")),
+            _ => self.fail(
+                Some(write),
+                &format!(
+                    "{} of {} runs failed: {}",
+                    errors.len(),
+                    results.len(),
+                    errors.join("; ")
+                ),
+            ),
+        }
         self.notice = Some(match (reran, errors.is_empty()) {
             (_, true) => format!("rerun requested: {label}"),
             (0, false) => format!("rerun failed: {}", errors.join("; ")),

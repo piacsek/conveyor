@@ -170,6 +170,7 @@ pub(crate) fn queue_row(
 pub(crate) fn build_row(
     build: &Build,
     jobs: Option<&JobsState>,
+    failure: Option<&Failure>,
     now: SystemTime,
     selected: bool,
     width: usize,
@@ -202,6 +203,7 @@ pub(crate) fn build_row(
             emphasis,
         )]);
     }
+    lines.extend(failure_line(failure, width));
     lines.push(meta(&parts, width));
     lines.push(build_jobs(build, jobs, width));
     card(

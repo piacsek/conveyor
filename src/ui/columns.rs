@@ -74,13 +74,7 @@ pub(crate) fn draw_column(
                 .iter()
                 .map(|pr| app.write_on(Stage::Prs, pr.key()).map(Write::word))
                 .collect();
-            let failures: Vec<Option<Failure>> = app
-                .prs
-                .column
-                .visible()
-                .iter()
-                .map(|pr| app.failure_on(Stage::Prs, pr.key()).cloned())
-                .collect();
+            let failures = marks(app, Stage::Prs, &app.prs.column);
             draw_list(
                 frame,
                 &mut app.prs.column,
@@ -114,15 +108,21 @@ pub(crate) fn draw_column(
                 queue_row(entry, jobs, now, on, w)
             },
         ),
-        Stage::Builds => draw_list(
-            frame,
-            &mut app.builds.column,
-            area,
-            block,
-            focused,
-            "no builds on main",
-            |_, build, on, w| build_row(build, jobs.get(&build.id), now, on, w),
-        ),
+        Stage::Builds => {
+            let failures = marks(app, Stage::Builds, &app.builds.column);
+            draw_list(
+                frame,
+                &mut app.builds.column,
+                area,
+                block,
+                focused,
+                "no builds on main",
+                |i, build, on, w| {
+                    let failure = failures.get(i).and_then(Option::as_ref);
+                    build_row(build, jobs.get(&build.id), failure, now, on, w)
+                },
+            )
+        }
         Stage::Deployed
             if app.deployed.column.is_loading()
                 && app.deployed.column.error.is_none()
@@ -153,6 +153,14 @@ pub(crate) fn draw_column(
         }
     }
     app.jobs = jobs;
+}
+
+fn marks<T: Row>(app: &App, stage: Stage, column: &Column<T>) -> Vec<Option<Failure>> {
+    column
+        .visible()
+        .iter()
+        .map(|row| app.failure_on(stage, row.key()).cloned())
+        .collect()
 }
 
 fn draw_list<T: Row>(
