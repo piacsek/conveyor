@@ -14,9 +14,10 @@ The user wants pull requests to be version agnostic: a pull request says only wh
 - A `pull_request` workflow runs the pull request's own copy of the workflow file, so a pull request can weaken a check defined there. `pull_request_target` runs the copy on `main` (`delete-closed-branch.yml` already relies on this) and must never check out the pull request's code.
 - The version is read from `CARGO_PKG_VERSION` in `src/main.rs` (`--version`, the log's first line) and `src/ui/footer.rs`. `src/changelog.rs` bundles `CHANGELOG.md` with `include_str!`; `tests/changelog.rs` requires its top entry to be the crate version and every `v*` tag up to it to keep its entry. Snapshots are already versionless.
 - `scripts/homebrew-formula.sh <version>` builds the formula from the published assets and needs nothing from the working tree.
+- Verified 2026-11-11 on a private throwaway repository: the workflow's own token pushed a tag for a release commit that is on no branch, `main` did not move, and the tag push started no other workflow run.
+- Release commits are reachable only from their tags, so the workflow must fetch every `v*` tag explicitly. A checkout that only brings the tags reachable from `main` would see the same last tag forever.
 
 Not verified yet, to check before the task that depends on it:
-- That `GITHUB_TOKEN` with `contents: write` may push a tag whose commit is on no branch.
 - Which bypass actors a **tag** ruleset accepts on a user-owned repository (needed only for the optional hardening in task 8).
 
 ## Design
@@ -36,7 +37,7 @@ Not verified yet, to check before the task that depends on it:
   - Main builds appears much sooner on the first load.
   ```
 
-  `kind` is `fix` (patch), `feat` (minor) or `internal` (patch). The bullets are the changelog text, written for users as today. An `internal` fragment is for a change the user cannot observe, a refactor or a dependency bump, and may leave the bullets out; a release made only of such fragments gets the one line `- Internal changes only.`.
+  `kind` is `fix` (patch), `feat` (minor) or `internal` (patch). The bullets are the changelog text, written for users as today. An `internal` fragment is for a change the user cannot observe, a refactor or a dependency bump, and may leave the bullets out; a release made only of such fragments gets the one line `- v<version>: internal changes only.`, naming the version because the changelog rules refuse a bullet repeated from an older release.
 - **Majors are out of scope.** No kind produces one and the workflow never bumps the major number. A config-format break stays a decision made by hand, in a later phase.
 - **A fragment is required exactly when the pull request touches what ends up in the binary**, and that decides whether anything is released:
   - Touches the binary: a fragment is mandatory, so the change is always released. A refactor is released as a patch (`internal`).
@@ -71,13 +72,13 @@ Known limit: the owner of the repository can still push a `v*` tag by hand or ed
 - A refactor needs an `internal` fragment, or its pull request cannot merge.
 
 ## Tasks (each starts red)
-1. `scripts/next-version.sh`: prints the next version from the newest tag and the pending fragments, nothing when none is pending. Tests in `tests/scripts/` on a scratch repository: patch, minor, major, the highest kind wins, fragments already in the last tag are ignored.
-2. `scripts/release-commit.sh`: writes `Cargo.toml`, `Cargo.lock` and the `CHANGELOG.md` section for a given version from the pending fragments. Tests: the section's shape passes `changelog::check`, bullets keep their order, an older changelog is kept below.
+1. `scripts/next-version.sh`, with `scripts/fragments.sh` (the last tag, the pending fragments, the fragment format): prints the next version from the newest tag and the pending fragments, nothing when none is pending. Tests in `tests/scripts/` on a scratch repository: patch, minor, the highest kind wins, fragments already in the last tag are ignored.
+2. `scripts/release-commit.sh`, sourcing `scripts/fragments.sh`: writes `Cargo.toml`, `Cargo.lock` and the `CHANGELOG.md` section for a given version from the pending fragments. Tests: the section's shape passes `changelog::check`, bullets keep their order, an older changelog is kept below.
 3. `changelog::check` and `tests/changelog.rs` accept the constant `0.0.0` on `main` (the top entry must equal the crate version only in a release commit) and gain a test that every fragment in `changes/` parses.
 4. One script answers "does this path feed the binary"; `scripts/dev-install-skippable.sh` calls it and its tests stay green.
 5. `Cargo.toml` goes to `0.0.0`; the first fragment-based release continues from the newest tag (see Rollout for v0.24.2).
 6. `release.yml`: trigger on `main`, the concurrency group, the compute, release commit and tag steps, the existing build, publish and tap jobs fed from the release commit, the resume of an unfinished tag.
-7. The `version` check on `pull_request_target` (the version is untouched, fragments are well formed, a binary change carries one), then the ruleset gains it as a required check (after the workflow is on `main`, or every merge blocks).
+7. The `version` check on `pull_request_target` (the version is untouched, fragments are well formed, a binary change carries one), then the ruleset gains it as a required check (after the workflow is on `main`, or every merge blocks). A fragment must be an added file, never a modified or renamed one, and its name a direct child `changes/<name>.md` (a branch name holding `/` uses `-` instead).
 8. Optional hardening: a tag ruleset so `v*` tags are created only by the workflow. Only if the bypass actors available to a user-owned repository allow it.
 9. Remove `scripts/release.sh` and its tests; rewrite "Releasing" (the kinds, no majors, `v0.0.0` in dev builds), "Two binaries", the autonomous flow (steps 4 and 5) and `.github/AGENTS.md`; `PLAN.md` outcome.
 
