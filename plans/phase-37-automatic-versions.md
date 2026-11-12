@@ -90,6 +90,8 @@ One phase, four pull requests, so the only risky step is small and the rest can 
 3. **Enforcement** (task 7): the required check, then the ruleset. After one real release has worked.
 4. **Cleanup** (tasks 8 and 9): `scripts/release.sh` goes, the optional tag ruleset, the phase outcome.
 
+The removal of `scripts/release.sh` and its tests moved from pull request 4 into pull request 2.
+
 3 and 4 both need 2 and can run side by side. Between 2 and 3 a pull request can still edit the version; the workflow ignores it.
 
 ## Rollout
