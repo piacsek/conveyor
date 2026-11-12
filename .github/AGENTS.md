@@ -58,7 +58,34 @@ pipeline went from ~3 min 20 s to 37 s:
   in the base repository for a fork too), and runs `scripts/version-check.sh HEAD <head sha>`.
   The pull request is only data: the script reads it with `git diff` against the merge base
   and `git show`, never checks it out and never runs a file from it, so `.gitattributes`, hooks
-  or scripts in the pull request do nothing. The file list comes from git, not the REST files
+  or scripts in the pull request do nothing. The one program it runs on the head is
+  `cargo metadata --no-deps --offline --format-version 1`, which decides the package version,
+  and it runs it on a copy: `git ls-tree -r -z <head>` lists the regular files of the head,
+  each `Cargo.toml` is written with `git cat-file blob` and every other file as an empty
+  placeholder (cargo only checks that a target file exists), into a fresh `mktemp -d`
+  directory outside the checkout that is removed on exit. Symlinks, submodules, any path with
+  a `.cargo` component and any `rust-toolchain` or `rust-toolchain.toml` (any case, any
+  depth) are never written; `git archive` and `git checkout-index` are not used because they
+  apply the head's `.gitattributes` (`export-subst`, filters). cargo runs from an empty
+  directory of its own, so neither cargo nor rustup looks for configuration or a toolchain
+  file in the copy, under `env -i` with only `PATH`, `HOME` and `CARGO_HOME` (both an empty
+  directory of the scratch area), `RUSTUP_HOME` and `RUSTUP_TOOLCHAIN` (the caller's, else
+  `stable`), so no wrapper, `RUSTFLAGS`, target directory or user configuration applies.
+  `cargo metadata --no-deps` runs no build script and no proc macro and resolves nothing.
+  `tests/scripts/version_check_head.rs` proves it: a head carrying a `build.rs`, a
+  `.cargo/config.toml` naming a `rustc-wrapper`, `rustc`, aliases and `[env]`, or a toolchain
+  file naming a toolchain that does not exist gets its normal verdict and nothing it names
+  runs. The check reads cargo's JSON without `jq`: only output starting exactly as cargo writes
+  it (`{"packages":[{"name":…,"version":…,"id":…`) is read, scanned string by string, and the
+  root package is the one whose id is the copy's own directory. The job takes about 1 s on
+  this repository on top of the checkout.
+  Workflow commands: the check step echoes `::stop-commands::<token>` before the script, with
+  a token made in that step from `/dev/urandom`, folds the script's stderr into stdout, and
+  echoes `::<token>::` after it, exiting with the script's code. Between the two the runner
+  reads no workflow command, the legacy `##[warning]` form and one behind a carriage return
+  included, so a path, a fragment line or a cargo error a pull request controls can only be
+  printed. `tests/scripts/version_workflow.rs` pins that the token is made at run time and
+  the script runs between the two lines. The file list comes from git, not the REST files
   API, which pages 100 at a time and stops at 3000 files; `git diff -M` also reports renames.
   The job holds `contents: read` only, no secret, and its one action is pinned. The checkout
   keeps no credentials (`persist-credentials: false`), so the job's token is not in
@@ -73,7 +100,12 @@ pipeline went from ~3 min 20 s to 37 s:
   Known and left: a fragment whose file name git would quote (one holding a double quote, for
   example) is refused as not a fragment, by design; and a force-push landing between the event
   and the fetch makes the superseded run fail with "is not a commit here", which the run of
-  the newer push replaces.
+  the newer push replaces. Also known and left: "feeds the binary" is judged by path only
+  (`scripts/feeds-binary.sh`). Once a pull request, with its fragment, makes `src/` include or
+  point at a path outside it (`include_str!`, `#[path]`, a symlink, `build =` in
+  `Cargo.toml`), later edits to that path need no fragment and release nothing; and edits to
+  `release.yml` or the release scripts never need one, although they change what a release
+  builds.
 - **`release.yml` is the release queue** (details in Releasing in the root `AGENTS.md`). It
   starts on every push to `main` and on `workflow_dispatch`, never on a tag, under
   `concurrency: { group: release, cancel-in-progress: false }`: one run at a time, and GitHub

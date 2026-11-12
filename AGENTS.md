@@ -83,7 +83,7 @@ scripts/ship.sh               gates + dev-install (unless skippable) + commit + 
 scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
 scripts/feeds-binary.sh       reads paths on stdin, prints the ones that feed the binary; the one list of what does not (`tests/`, `docs/`, `changes/`, …)
 scripts/fragments.sh          sourced, not run, reading the commit in `fragments_at` (`HEAD` unless the caller sets it): `last_tag`, `pending_fragments <tag>` (the `changes/*.md` at `HEAD` the tag's tree lacks), `fragment_kind` (refuses a malformed one by name), `fragment_bullets`, `refuse_repeats <tag> <pending>` (a pending bullet already in the tag's `CHANGELOG.md`, joined and trimmed as `changelog::check` reads it)
-scripts/version-check.sh      `<base> <head>`: the `version` job of `version.yml`; refuses a pull request that sets the version, edits `CHANGELOG.md` or a fragment, adds a malformed one, or feeds the binary without one; reads the head as git objects, runs nothing from it
+scripts/version-check.sh      `<base> <head>`: the `version` job of `version.yml`; refuses a pull request that sets the version, edits `CHANGELOG.md` or a fragment, adds a malformed one, or feeds the binary without one; reads the head as git objects and asks `cargo metadata` for its version in a scratch copy, runs nothing from it
 scripts/next-version.sh       prints the version the pending fragments ask for (`feat` minor, `fix`/`internal` patch, never a major), nothing when none is pending
 scripts/release-commit.sh     `<version>`: writes it into `Cargo.toml` and the `conveyor` entry of `Cargo.lock`, and a `CHANGELOG.md` of the pending bullets above the last tag's; commits nothing
 scripts/releases.sh           sourced, not run: `release_state <tag>` prints `missing`, `draft`, `short` or `complete` (published with exactly the six assets); refuses an unreadable release or an unexpected asset
@@ -339,12 +339,16 @@ kind: fix
   0x7f): the check stops there, before anything else, and prints only how many such paths
   there are, since a newline would split one path into two and could inject a workflow
   command through its output;
-- `Cargo.toml` at its head carries a package `version` other than `0.0.0`, none it can read
-  (no `version = "..."` line under a `[package]` header written alone on its line, as with
-  `version="0.0.0"`, `[package] # a comment` or CRLF line endings), holds a multi-line string
-  (`"""` or `'''`) or more than one `version` line in `[package]`, or `Cargo.lock` holds a
-  `conveyor` entry other than `0.0.0`, none, or more than one entry of that name (the check
-  reads both files line by line, so anything that could hide the real line is refused);
+- cargo, asked about the `Cargo.toml` at its head, reads a version of the root package other
+  than `0.0.0`, cannot load the manifest at all (the refusal quotes cargo's first `error` line),
+  finds no package at the root (a virtual manifest) or one not named `conveyor`; a workspace
+  member keeps its own version. The check never reads the version itself: a decoy line in a
+  multi-line string or inline table, or a key spelled with an escape, fooled every line reader
+  tried, while cargo is what decides. How the head is kept from running anything is in
+  `.github/AGENTS.md`. Without `cargo` on `PATH` the check fails rather than passes;
+- `Cargo.lock` holds a `conveyor` entry other than `0.0.0`, none, or more than one entry of
+  that name (the check reads the lock line by line, so anything that could hide the real line
+  is refused);
 - `Cargo.lock` at its head is not in the one shape cargo writes it in: it holds a multi-line
   string, a line whose key is `name` or quoted is not exactly `name = "<crate>"` (letters,
   digits, `_` and `-`), or a `name = "conveyor"` line is not right after a `[[package]]` line
@@ -358,7 +362,11 @@ kind: fix
   of `main` (a branch behind `main` re-adding a fragment `main` gained later; it does not count
   as the pull request's fragment), or `fragment_kind` or `refuse_repeats` of
   `scripts/fragments.sh` refuses it (the same functions the release run uses, read at the pull
-  request's head through `fragments_at`);
+  request's head through `fragments_at`; `fragment_kind` refuses a carriage return anywhere
+  but at the very end of a line, by name, in the release run too), or it repeats a bullet of
+  a fragment `main` holds that the last tag does not (compared as `refuse_repeats` compares,
+  naming both files: once the two land in different releases the later release run would
+  refuse on every run, and with `changes/` add-only nobody could repair it);
 - a path it changes feeds the binary (`scripts/feeds-binary.sh`, a rename counting both of its
   paths, `CHANGELOG.md` left out since it is refused anyway) and it adds no fragment.
 
