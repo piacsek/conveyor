@@ -17,8 +17,8 @@ The user wants pull requests to be version agnostic: a pull request says only wh
 - Verified 2026-11-11 on a private throwaway repository: the workflow's own token pushed a tag for a release commit that is on no branch, `main` did not move, and the tag push started no other workflow run.
 - Release commits are reachable only from their tags, so the workflow must fetch every `v*` tag explicitly. A checkout that only brings the tags reachable from `main` would see the same last tag forever.
 
-Not verified yet, to check before the task that depends on it:
-- Which bypass actors a **tag** ruleset accepts on a user-owned repository (needed only for the optional hardening in task 8).
+Checked later (2026-11-12), for the optional hardening in task 8:
+- Which bypass actors a **tag** ruleset accepts on a user-owned repository is still open: the private throwaway repository refuses every ruleset on a free plan (403), whatever the bypass actor. See Outcome.
 
 ## Design
 
@@ -61,9 +61,9 @@ Not verified yet, to check before the task that depends on it:
 ### A pull request cannot set the version
 Two layers, the first being the one that matters:
 1. **The workflow never reads a version from `main`.** The number comes from the newest tag and the fragment kinds. Whatever a pull request writes into `Cargo.toml` or `CHANGELOG.md` is overwritten in the release commit.
-2. **A required check refuses the attempt.** A new job `version` on `pull_request_target` (the copy on `main`, no checkout, read-only API calls) fails when the pull request changes the `version` of the package in `Cargo.toml`, the `conveyor` entry in `Cargo.lock`, or `CHANGELOG.md`; when a fragment it adds is malformed (a `kind` other than `fix`, `feat` or `internal`, or a `fix`/`feat` without a bullet); and when it touches a path that feeds the binary without adding a fragment. It may check out `main` to run the path script, never the pull request. It is added to the ruleset's required checks after it exists on `main`.
+2. **A required check refuses the attempt.** A new job `version` on `pull_request_target` (the copy on `main`; as built it checks out `main`, fetches `refs/pull/<n>/head` as data and reads it with git, with no API call and nothing from the pull request executed) fails when the pull request changes the `version` of the package in `Cargo.toml`, the `conveyor` entry in `Cargo.lock`, or `CHANGELOG.md`; when a fragment it adds is malformed (a `kind` other than `fix`, `feat` or `internal`, or a `fix`/`feat` without a bullet); and when it touches a path that feeds the binary without adding a fragment. It may check out `main` to run the path script, never the pull request. It is added to the ruleset's required checks after it exists on `main`.
 
-Known limit: the owner of the repository can still push a `v*` tag by hand or edit the ruleset. Task 8 narrows the first if GitHub allows it for a user-owned repository.
+Known limit: the owner of the repository can still push a `v*` tag by hand or edit the ruleset. Task 8 would have narrowed the first; it stayed unproven (see Outcome).
 
 ## What changes for whoever works on a phase
 - No version bump and no `CHANGELOG.md` edit in a pull request; a fragment instead.
@@ -88,7 +88,7 @@ One phase, four pull requests, so the only risky step is small and the rest can 
 1. **Groundwork** (tasks 1, 2 and 4): the scripts and their tests. Nothing calls them yet, so releases work as before.
 2. **Cutover** (tasks 3, 5 and 6): `0.0.0` on `main`, the v0.24.2 entry as a fragment, the new `release.yml`, the guidelines for the new flow. Merging it makes the first automated release. Needs 1 and the proof on a throwaway repository.
 3. **Enforcement** (task 7): the required check, then the ruleset. After one real release has worked.
-4. **Cleanup** (tasks 8 and 9): `scripts/release.sh` goes, the optional tag ruleset, the phase outcome.
+4. **Cleanup** (tasks 8 and 9): the optional tag ruleset, the phase outcome.
 
 The removal of `scripts/release.sh` and its tests moved from pull request 4 into pull request 2.
 
@@ -107,3 +107,17 @@ The removal of `scripts/release.sh` and its tests moved from pull request 4 into
 - Dev builds read `v0.0.0`, and the guidelines say so.
 - A pull request that touches the binary always carries a fragment and is always released; a refactor goes out as a patch. A pull request that touches nothing in the binary releases nothing.
 - Majors are left out for now.
+
+## Outcome (2026-11-12)
+- **#63, groundwork** (tasks 1, 2, 4): `scripts/feeds-binary.sh`, `fragments.sh`, `next-version.sh` and `release-commit.sh` with their tests; `dev-install-skippable.sh` called `feeds-binary.sh` from then on, nothing called the release scripts yet. Four review rounds.
+- **#64, cutover** (tasks 3, 5, 6, and the removal of `scripts/release.sh` from task 9): `main` at `0.0.0`, the v0.24.2 entry as a `fix` fragment, `release.yml` as the release queue on every push to `main` (`scripts/release-tag.sh`), drafts resumed, `build` and `publish` skipping a release that is already complete, a `tap` job that only moves the formula forward. Its merge made v0.24.2 the first automated release (run 43135383854: tag on a bot commit off `main`, six assets, attestation, tap formula), checked by downloading a tarball, its checksum and `gh attestation verify`.
+- **#65, enforcement** (task 7, squash-merged): the `version` check on `pull_request_target` (`scripts/version-check.sh`), and `check` running clippy and the tests with `--locked`. Five review rounds. Then, by the owner on 2026-11-12, the `main` ruleset gained `version` as a required check, the up-to-date rule (`strict_required_status_checks_policy: true`) and squash as its only merge method; the repository settings allow squash merges only.
+- **#66, cleanup** (tasks 8 and 9): this outcome, the `PLAN.md` entry, and the guidelines that still called the `version` requirement a step to come.
+
+What changed against the plan:
+- **The check asks cargo and rehearses the release** instead of reading `Cargo.toml` and `Cargo.lock` line by line. Every review round found another way to hide a version from a line reader (a decoy in a multi-line string or inline table, an escaped key, a `version = ` line above `[package]`), so cargo reads the head in an isolated copy, and the release rewrite is rehearsed there with a random probe version that all three readers must see. `Cargo.lock` must be in the shape cargo writes. Far larger than the plan's "fails when the pull request changes the version".
+- **Squash only.** A review showed a rebase-merge replays a pull request's own commits and drops its merge commits, so it can land a tree the check never judged. The owner chose squash-only over teaching the check to replay a rebase-merge.
+- **Branches must be up to date before merging**, so a pull request's green CI tests exactly what `main` becomes; every merge is released unattended.
+- **`scripts/release.sh` went in #64**, not here, so pull request 4 shrank to documentation.
+- **Task 8, the tag ruleset, stayed unproven.** On the private throwaway repository every `POST .../rulesets` answered 403 "Upgrade to GitHub Pro or make this repository public to enable this feature", with GitHub Actions (`Integration` 15368), the admin role, a deploy key or no bypass actor alike. Whether the job's `GITHUB_TOKEN` counts as a bypass actor needs a public repository or a paid plan to prove; nothing was applied to this repository. The owner can still push or delete a `v*` tag by hand.
+- A merge queue was considered and left out: the repository is user-owned.
