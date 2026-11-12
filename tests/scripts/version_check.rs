@@ -269,6 +269,147 @@ fn an_added_fragment_repeating_a_released_bullet_is_refused_by_file() {
     );
 }
 
+#[test]
+fn a_change_to_the_binary_without_a_fragment_is_refused_by_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    committed(&work, "docs/note.md", "a note\n");
+    committed(&work, "src/main.rs", "fn main() { println!(); }\n");
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "src/main.rs feeds the binary, so the pull request needs a fragment: add changes/<branch>.md starting with `kind: fix`, `kind: feat` or `kind: internal` (see Releasing in AGENTS.md)\n"
+    );
+}
+
+#[test]
+fn a_head_with_no_history_in_common_with_the_base_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    git(&work, &["checkout", "-q", "--orphan", "unrelated"]);
+    git(&work, &["commit", "-qm", "unrelated history"]);
+    git(&work, &["branch", "-f", "pull", "unrelated"]);
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "pull shares no history with main: cut the branch from main and open the pull request again\n"
+    );
+}
+
+#[test]
+fn a_pull_request_that_touches_nothing_in_the_binary_needs_no_fragment() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    committed(&work, "docs/note.md", "a note\n");
+    committed(&work, "scripts/another.sh", "exit 0\n");
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
+fn a_change_to_the_binary_with_a_fragment_passes() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    committed(&work, "src/main.rs", "fn main() { println!(); }\n");
+    fragment(&work, "topic", "kind: internal\n");
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
+fn a_change_main_made_to_the_binary_after_the_branch_was_cut_needs_no_fragment_here() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    committed(&work, "docs/note.md", "a note\n");
+    git(&work, &["checkout", "-q", "main"]);
+    committed(&work, "src/main.rs", "fn main() { println!(); }\n");
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
+fn a_source_file_renamed_out_of_the_binary_still_needs_a_fragment() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    fs::create_dir_all(work.join("docs")).unwrap();
+    git(&work, &["mv", "src/main.rs", "docs/main.rs"]);
+    git(&work, &["commit", "-qm", "move the source out"]);
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "src/main.rs feeds the binary, so the pull request needs a fragment: add changes/<branch>.md starting with `kind: fix`, `kind: feat` or `kind: internal` (see Releasing in AGENTS.md)\n"
+    );
+}
+
+#[test]
+fn every_refusal_is_reported_not_only_the_first() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_fragment(dir.path());
+    committed(
+        &work,
+        "Cargo.toml",
+        "[package]\nname = \"conveyor\"\nversion = \"0.4.0\"\n\n[dependencies]\nserde = { version = \"1\" }\n",
+    );
+    fragment(&work, "merged", "kind: feat\n\n- A new key.\n");
+    committed(&work, "CHANGELOG.md", "# Changelog\n");
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "Cargo.toml sets the package version to 0.4.0: put back `version = \"0.0.0\"`, only the release workflow picks a version (from the kinds in changes/)\n\
+         CHANGELOG.md is changed: leave it as main has it, the release workflow writes it from the fragments in changes/ (add one there instead)\n\
+         changes/merged.md is edited: a fragment on main never changes, so leave it as it is and put the correction in a new file changes/<name>.md\n\
+         Cargo.toml feeds the binary, so the pull request needs a fragment: add changes/<branch>.md starting with `kind: fix`, `kind: feat` or `kind: internal` (see Releasing in AGENTS.md)\n"
+    );
+}
+
+#[test]
+fn the_head_is_read_from_git_objects_not_from_the_checked_out_tree() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    fragment(&work, "topic", "kind: major\n");
+    git(&work, &["checkout", "-q", "main"]);
+    fs::create_dir_all(work.join("changes")).unwrap();
+    fs::write(work.join("changes/topic.md"), "kind: fix\n\n- Fixed.\n").unwrap();
+
+    let output = isolated(
+        Command::new(which("bash"))
+            .current_dir(&work)
+            .arg(work.join("scripts/version-check.sh"))
+            .args(["main", "pull"]),
+    )
+    .output()
+    .unwrap();
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "changes/topic.md must start with `kind: fix`, `kind: feat` or `kind: internal`\n"
+    );
+}
+
 fn main_with_a_fragment(root: &Path) -> PathBuf {
     let work = main_with_a_release(root);
     git(&work, &["checkout", "-q", "main"]);

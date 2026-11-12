@@ -10,8 +10,13 @@ if ! head="$(git rev-parse --quiet --verify "$2^{commit}")"; then
   echo "$2 is not a commit here: fetch the pull request first (git fetch origin pull/<number>/head)" >&2
   exit 1
 fi
+if ! fork="$(git merge-base "$1" "$head")"; then
+  echo "$2 shares no history with $1: cut the branch from $1 and open the pull request again" >&2
+  exit 1
+fi
 fragments_at="$head"
 added=""
+touched=""
 refused=0
 
 refuse() {
@@ -38,7 +43,6 @@ lock="$(git show "$head:Cargo.lock" 2>/dev/null | awk '
 ')" || true
 [ "$lock" = 0.0.0 ] || refuse "Cargo.lock sets the conveyor entry to $lock: put back \`version = \"0.0.0\"\` under \`name = \"conveyor\"\`, only the release workflow picks a version (from the kinds in changes/)"
 
-fork="$(git merge-base "$1" "$head")"
 listing="$(mktemp)"
 trap 'rm -f "$listing"' EXIT
 git diff --name-status -z -M "$fork" "$head" >"$listing"
@@ -49,6 +53,8 @@ while IFS= read -r -d '' status && IFS= read -r -d '' path; do
   esac
   if [ "$path" = CHANGELOG.md ] || [ "$renamed" = CHANGELOG.md ]; then
     refuse "CHANGELOG.md is changed: leave it as main has it, the release workflow writes it from the fragments in changes/ (add one there instead)"
+  else
+    touched="$touched$path"$'\n'"$renamed"$'\n'
   fi
   case "$status" in
     A)
@@ -88,6 +94,11 @@ if [ -n "$added" ]; then
   else
     refused=1
   fi
+fi
+
+binary="$(printf '%s' "$touched" | scripts/feeds-binary.sh | sed -n 1p)"
+if [ -n "$binary" ] && [ -z "$added" ]; then
+  refuse "$binary feeds the binary, so the pull request needs a fragment: add changes/<branch>.md starting with \`kind: fix\`, \`kind: feat\` or \`kind: internal\` (see Releasing in AGENTS.md)"
 fi
 
 [ "$refused" -eq 0 ] || exit 1
