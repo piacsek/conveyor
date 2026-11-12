@@ -416,3 +416,31 @@ fn a_signed_year_is_refused() {
         Err("`## v0.2.0 (+202-11-01)` must read `## vX.Y.Z (YYYY-MM-DD)`".to_string())
     );
 }
+
+#[test]
+fn a_build_from_main_at_version_0_0_0_needs_no_entry_for_its_version() {
+    let text =
+        "# Changelog\n\n## v0.2.0 (2026-11-02)\n- second\n\n## v0.1.0 (2026-11-01)\n- first\n";
+
+    assert_eq!(check(text, "0.0.0"), Ok(()));
+}
+
+#[test]
+fn a_build_from_main_at_version_0_0_0_still_refuses_a_heading_without_a_date() {
+    let text = "# Changelog\n\n## v0.2.0\n- second\n\n## v0.1.0 (2026-11-01)\n- first\n";
+
+    assert_eq!(
+        check(text, "0.0.0"),
+        Err("`## v0.2.0` must read `## vX.Y.Z (YYYY-MM-DD)`".to_string())
+    );
+}
+
+#[test]
+fn a_build_from_main_at_version_0_0_0_asks_for_every_released_tag_it_is_given() {
+    let text = "# Changelog\n\n## v0.21.0 (2026-11-02)\n- relabelled\n";
+
+    assert_eq!(
+        check_released(text, &["0.20.0", "0.21.0"], "0.0.0"),
+        Err("v0.20.0 was released but has no entry; restore it, or merge origin/main if another branch released it".to_string())
+    );
+}
