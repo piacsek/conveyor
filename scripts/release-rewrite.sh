@@ -30,7 +30,8 @@ lock_reads() {
 }
 
 root_package() {
-  awk -v root="path+file://$1#" '
+  ROOT="$1" awk '
+    BEGIN { want = "\"manifest_path\":\"" ENVIRON["ROOT"] "/Cargo.toml\""; size_want = length(want) }
     NR > 1 { bad = 1; exit }
     {
       text = $0
@@ -45,10 +46,15 @@ root_package() {
           else if (c == "\"") quoted = 0
           continue
         }
-        if (c == "\"") { quoted = 1; continue }
+        if (c == "\"") {
+          if (depth == 3 && substr(text, i, size_want) == want) mine = 1
+          quoted = 1
+          continue
+        }
         if (c == "]" || c == "}") {
           depth--
           if (depth == 1) break
+          if (depth == 2 && mine) { found = found name " " version; roots++; mine = 0 }
           continue
         }
         if (c != "[" && c != "{") continue
@@ -56,7 +62,9 @@ root_package() {
         if (depth != 3) continue
         if (c != "{" || !match(substr(text, i, 4096), /^\{"name":"[^"\\]+","version":"[^"\\]+","id":"[^"\\]*"/)) { bad = 1; exit }
         split(substr(text, i, RLENGTH), field, "\"")
-        if (index(field[12], root) == 1) { found = found field[4] " " field[8]; roots++ }
+        name = field[4]
+        version = field[8]
+        mine = 0
       }
       if (depth != 1 || roots > 1 || substr(text, i, 23) != "],\"workspace_members\":[") { bad = 1; exit }
       read = 1

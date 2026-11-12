@@ -57,6 +57,21 @@ fn a_version_the_release_build_does_not_read_after_the_rewrite_is_refused_leavin
     assert_eq!(git_stdout(&work, &["status", "--porcelain"]), "");
 }
 
+#[test]
+fn a_checkout_whose_path_holds_a_space_is_confirmed_by_cargo() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(&dir.path().join("with space"));
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+
+    let output = release_commit(&work, &["0.3.2"]);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(
+        git_stdout(&work, &["status", "--porcelain"]),
+        " M CHANGELOG.md\n M Cargo.lock\n M Cargo.toml\n"
+    );
+}
+
 fn release_commit_without_cargo(work: &Path, args: &[&str]) -> Output {
     isolated(
         Command::new(which("bash"))

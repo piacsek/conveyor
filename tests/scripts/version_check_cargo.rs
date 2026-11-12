@@ -1,8 +1,8 @@
 use std::fs;
 use std::path::Path;
-use std::process::Output;
+use std::process::{Command, Output};
 
-use crate::helpers::{committed, fragment, stderr, stdout};
+use crate::helpers::{committed, fragment, git, isolated, stderr, stdout, which};
 use crate::version_check::{main_with_a_release, version_check};
 use crate::version_check_release::REFUSED;
 
@@ -242,6 +242,33 @@ fn a_lock_without_a_conveyor_entry_is_refused_as_unread() {
         stderr(&output),
         "version check: Cargo.lock has no `name = \"conveyor\"` line with a `version = \"...\"` line right after it: cargo writes Cargo.lock in one shape, so regenerate it with cargo (`cargo update --workspace`) instead of editing it by hand\n"
     );
+}
+
+#[test]
+fn a_scratch_directory_whose_path_holds_a_space_still_finds_the_root_package() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    fragment(&work, "topic", "kind: internal\n");
+    let spaced = dir.path().join("tmp with space");
+    fs::create_dir_all(&spaced).unwrap();
+
+    let output = version_check_with_tmpdir(&work, &spaced);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stderr(&output), "");
+}
+
+fn version_check_with_tmpdir(work: &Path, tmpdir: &Path) -> Output {
+    git(work, &["checkout", "-q", "main"]);
+    isolated(
+        Command::new(which("bash"))
+            .current_dir(work)
+            .env("TMPDIR", tmpdir)
+            .arg(work.join("scripts/version-check.sh"))
+            .args(["main", "pull"]),
+    )
+    .output()
+    .unwrap()
 }
 
 fn checked_lock(lock: &str) -> Output {

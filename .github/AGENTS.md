@@ -90,7 +90,10 @@ pipeline went from ~3 min 20 s to 37 s:
   file naming a toolchain that does not exist gets its normal verdict and nothing it names
   runs. The check reads cargo's JSON without `jq`: only output starting exactly as cargo writes
   it (`{"packages":[{"name":…,"version":…,"id":…`) is read, scanned string by string, and the
-  root package is the one whose id is the copy's own directory. Cost, measured 2026-11-12: on
+  root package is the one whose `manifest_path` is the copy's own `Cargo.toml`, compared as
+  cargo writes it (the id percent-encodes the path, so a space in the temporary directory
+  matched no package; a path holding `\` or `"`, which JSON escapes, still matches none and
+  the check refuses). Cost, measured 2026-11-12: on
   the throwaway repository the check step took about 1 s and the whole job 6 s; on this
   repository the script takes about 1 s on a laptop.
   Workflow commands: the check step echoes `::stop-commands::<token>` before the script, with
