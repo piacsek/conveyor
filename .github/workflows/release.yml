@@ -2,24 +2,40 @@ name: release
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
-  check-version:
+  tag:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - name: Tag must match Cargo.toml version
-        run: |
-          tag="${GITHUB_REF_NAME#v}"
-          version="$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)"
-          test "$tag" = "$version" || { echo "tag v$tag != Cargo.toml $version"; exit 1; }
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Fetch every release tag
+        run: git fetch --force origin '+refs/tags/v*:refs/tags/v*'
+      - name: Resume the newest tag or tag what is pending
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/release-tag.sh >> "$GITHUB_OUTPUT"
 
   build:
-    needs: check-version
+    needs: tag
+    if: needs.tag.outputs.tag != ''
     strategy:
       matrix:
         include:
@@ -30,8 +46,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       TARGETS: ${{ matrix.targets }}
+      VERSION: ${{ needs.tag.outputs.version }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ needs.tag.outputs.tag }}
+      - name: Tag must match Cargo.toml version
+        run: |
+          manifest="$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)"
+          test "$manifest" = "$VERSION" || { echo "tag v$VERSION != Cargo.toml $manifest"; exit 1; }
       - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # master 2026-09
         with:
           toolchain: 1.98.1
@@ -55,7 +78,7 @@ jobs:
           path: conveyor-*.tar.gz*
 
   publish:
-    needs: build
+    needs: [tag, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -67,21 +90,28 @@ jobs:
           path: dist
           merge-multiple: true
       - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        if: ${{ !github.event.repository.private }}
         with:
           subject-path: dist/*.tar.gz
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
+          tag_name: ${{ needs.tag.outputs.tag }}
           files: dist/*
           generate_release_notes: true
 
   tap:
-    needs: publish
+    needs: [tag, publish]
+    if: github.repository == 'piacsek/conveyor'
     runs-on: ubuntu-latest
     concurrency:
       group: tap
       cancel-in-progress: false
+    env:
+      VERSION: ${{ needs.tag.outputs.version }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ needs.tag.outputs.tag }}
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           repository: piacsek/homebrew-tap
@@ -89,11 +119,10 @@ jobs:
           path: tap
       - name: Update formula
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          scripts/homebrew-formula.sh "$version" > tap/Formula/conveyor.rb
+          scripts/homebrew-formula.sh "$VERSION" > tap/Formula/conveyor.rb
           cd tap
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add Formula/conveyor.rb
-          git diff --cached --quiet || git commit -m "conveyor $version"
+          git diff --cached --quiet || git commit -m "conveyor $VERSION"
           git push
