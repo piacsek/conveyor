@@ -31,17 +31,40 @@ under_changes() {
   esac
 }
 
-package="$(git show "$head:Cargo.toml" 2>/dev/null | awk '
+manifest="$(git show "$head:Cargo.toml" 2>/dev/null)" || true
+versions="$(printf '%s\n' "$manifest" | awk '
+  /^[ \t]*\[/ { package = ($0 == "[package]") }
+  package && /^[ \t]*["'\'']?version["'\'']?[ \t]*[=.]/ { count++ }
+  END { print count + 0 }
+')"
+package="$(printf '%s\n' "$manifest" | awk '
   /^[ \t]*\[/ { package = ($0 == "[package]") }
   package && /^version = / { sub(/^version = "/, ""); sub(/".*$/, ""); print; exit }
-')" || true
-[ "$package" = 0.0.0 ] || refuse "Cargo.toml sets the package version to $package: put back \`version = \"0.0.0\"\`, only the release workflow picks a version (from the kinds in changes/)"
+')"
+case "$manifest" in
+  *'"""'* | *"'''"*)
+    refuse "Cargo.toml holds a multi-line string (\"\"\" or '''): the check reads the version line by line, so write every string in Cargo.toml on one line"
+    ;;
+  *)
+    if [ "$versions" -gt 1 ]; then
+      refuse "Cargo.toml holds more than one \`version\` line in [package]: the check reads the version line by line, so keep the one \`version = \"0.0.0\"\`"
+    elif [ "$package" != 0.0.0 ]; then
+      refuse "Cargo.toml sets the package version to $package: put back \`version = \"0.0.0\"\`, only the release workflow picks a version (from the kinds in changes/)"
+    fi
+    ;;
+esac
 
-lock="$(git show "$head:Cargo.lock" 2>/dev/null | awk '
+lockfile="$(git show "$head:Cargo.lock" 2>/dev/null)" || true
+entries="$(printf '%s\n' "$lockfile" | awk '/^[ \t]*name[ \t]*=[ \t]*"conveyor"[ \t]*$/ { count++ } END { print count + 0 }')"
+lock="$(printf '%s\n' "$lockfile" | awk '
   entry && /^version = / { sub(/^version = "/, ""); sub(/".*$/, ""); print; exit }
   { entry = ($0 == "name = \"conveyor\"") }
-')" || true
-[ "$lock" = 0.0.0 ] || refuse "Cargo.lock sets the conveyor entry to $lock: put back \`version = \"0.0.0\"\` under \`name = \"conveyor\"\`, only the release workflow picks a version (from the kinds in changes/)"
+')"
+if [ "$entries" -gt 1 ]; then
+  refuse "Cargo.lock holds more than one package named \`conveyor\`: the check reads the version line by line, so keep the one entry with \`version = \"0.0.0\"\`"
+elif [ "$lock" != 0.0.0 ]; then
+  refuse "Cargo.lock sets the conveyor entry to $lock: put back \`version = \"0.0.0\"\` under \`name = \"conveyor\"\`, only the release workflow picks a version (from the kinds in changes/)"
+fi
 
 listing="$(mktemp)"
 trap 'rm -f "$listing"' EXIT

@@ -65,6 +65,69 @@ fn a_lock_entry_other_than_0_0_0_is_refused_by_file() {
 }
 
 #[test]
+fn a_manifest_with_a_multi_line_string_is_refused_since_it_could_hide_the_version() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    committed(
+        &work,
+        "Cargo.toml",
+        "[workspace]\nmetadata = '''\n[package]\nversion = \"0.0.0\"\n'''\n\n[package]\nname = \"conveyor\"\nversion = \"9.9.9\"\n",
+    );
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "Cargo.toml holds a multi-line string (\"\"\" or '''): the check reads the version line by line, so write every string in Cargo.toml on one line\n"
+    );
+}
+
+#[test]
+fn a_package_table_with_two_version_lines_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    committed(
+        &work,
+        "Cargo.toml",
+        "[package]\nname = \"conveyor\"\nversion = \"0.0.0\"\n version=\"9.9.9\"\n",
+    );
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "Cargo.toml holds more than one `version` line in [package]: the check reads the version line by line, so keep the one `version = \"0.0.0\"`\n"
+    );
+}
+
+#[test]
+fn a_lock_with_two_conveyor_entries_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    committed(
+        &work,
+        "Cargo.lock",
+        "version = 4\n\n[[package]]\nname = \"conveyor\"\nversion = \"0.0.0\"\n\n[[package]]\nname = \"conveyor\"\nversion = \"9.9.9\"\n",
+    );
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "Cargo.lock holds more than one package named `conveyor`: the check reads the version line by line, so keep the one entry with `version = \"0.0.0\"`\n"
+    );
+}
+
+#[test]
 fn a_call_without_a_base_and_a_head_prints_the_usage() {
     let dir = tempfile::tempdir().unwrap();
     let work = main_with_a_release(dir.path());
