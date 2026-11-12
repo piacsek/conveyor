@@ -1,7 +1,7 @@
 use std::io;
 
 use conveyor::app::Input;
-use conveyor::model::prs::{BranchUpdate, StatusChange};
+use conveyor::model::prs::{BranchUpdate, PullRequest, StatusChange};
 use ratatui::crossterm::event::KeyCode;
 use ratatui::style::Color;
 
@@ -189,6 +189,58 @@ fn a_new_write_that_fails_shows_the_new_reason_alone() {
         "{screen}"
     );
     assert!(!screen.contains("HTTP 422"), "{screen}");
+}
+
+#[test]
+fn the_column_title_counts_the_marks() {
+    let mut h = tall();
+
+    h.run(two_marked()).unwrap();
+
+    assert!(h.screen().contains("┌My PRs (5) !2─"), "{}", h.screen());
+}
+
+#[test]
+fn the_tab_of_the_narrow_layout_counts_the_marks() {
+    let mut h = Harness::with_size(80, 24);
+
+    h.run(two_marked()).unwrap();
+
+    assert!(
+        h.screen()
+            .lines()
+            .next()
+            .unwrap_or_default()
+            .contains("My PRs (5) !2"),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
+fn a_column_without_marks_has_no_count() {
+    let mut h = tall();
+
+    h.run(vec![prs(five())]).unwrap();
+
+    assert!(h.screen().contains("┌My PRs (5)─"), "{}", h.screen());
+}
+
+fn two_marked() -> Vec<io::Result<Input>> {
+    vec![
+        prs(five()),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        status_changed(1, StatusChange::Ready, Err("HTTP 422")),
+        status_changed(2, StatusChange::Ready, Err("HTTP 422")),
+    ]
+}
+
+fn five() -> Vec<PullRequest> {
+    (1..=5).map(|number| draft(number, "a")).collect()
 }
 
 fn marked() -> Harness {

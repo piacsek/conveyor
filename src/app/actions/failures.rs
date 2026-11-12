@@ -26,6 +26,13 @@ impl App {
             .find(|failure| failure.stage == stage && failure.subject == subject)
     }
 
+    pub fn failure_count(&self, stage: Stage) -> usize {
+        self.failures
+            .iter()
+            .filter(|failure| failure.stage == stage)
+            .count()
+    }
+
     pub fn selected_failure(&self) -> Option<&Failure> {
         self.failure_on(self.focus, self.selected_key()?)
     }

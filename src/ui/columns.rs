@@ -8,35 +8,48 @@ use crate::app::{App, Column, Failure, Row, Stage, Write};
 use crate::ui::rows::{build_row, deployed_row, pr_row, queue_row};
 use crate::ui::style::{dim, short_repo};
 
-fn titled<T: Row>(base: &str, column: &Column<T>) -> String {
+fn titled<T: Row>(base: &str, column: &Column<T>, marks: usize) -> String {
+    let marks = match marks {
+        0 => String::new(),
+        marks => format!(" !{marks}"),
+    };
     let warning = if column.error.is_some() { " ⚠" } else { "" };
     if column.is_loading() {
-        format!("{base}{warning}")
+        format!("{base}{marks}{warning}")
     } else if column.filter.is_some() {
         format!(
-            "{base} ({}/{}){warning}",
+            "{base} ({}/{}){marks}{warning}",
             column.visible().len(),
             column.all().len()
         )
     } else {
-        format!("{base} ({}){warning}", column.all().len())
+        format!("{base} ({}){marks}{warning}", column.all().len())
     }
 }
 
 pub(crate) fn column_title(app: &App, stage: Stage) -> String {
+    let marks = app.failure_count(stage);
     match stage {
-        Stage::Prs => titled("My PRs", &app.prs.column),
+        Stage::Prs => titled("My PRs", &app.prs.column, marks),
         Stage::Queue => match &app.queue.repo {
-            Some(repo) => titled(&format!("Queue {}", short_repo(repo)), &app.queue.column),
-            None => titled("Merge queue", &app.queue.column),
+            Some(repo) => titled(
+                &format!("Queue {}", short_repo(repo)),
+                &app.queue.column,
+                marks,
+            ),
+            None => titled("Merge queue", &app.queue.column, marks),
         },
         Stage::Builds => match &app.builds.repo {
-            Some(repo) => titled(&format!("Main {}", short_repo(repo)), &app.builds.column),
-            None => titled("Main builds", &app.builds.column),
+            Some(repo) => titled(
+                &format!("Main {}", short_repo(repo)),
+                &app.builds.column,
+                marks,
+            ),
+            None => titled("Main builds", &app.builds.column, marks),
         },
         Stage::Deployed => match &app.deployed.system {
-            Some(system) => titled(&format!("Deployed {system}"), &app.deployed.column),
-            None => titled("Deployed", &app.deployed.column),
+            Some(system) => titled(&format!("Deployed {system}"), &app.deployed.column, marks),
+            None => titled("Deployed", &app.deployed.column, marks),
         },
     }
 }
