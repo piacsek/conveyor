@@ -34,7 +34,7 @@ bullets="$(
 )"
 released="$(git show "$last:CHANGELOG.md" | awk '/^## / { found = 1 } found')"
 manifest="$(awk -v version="$version" '
-  /^\[/ { package = ($0 == "[package]") }
+  /^[ \t]*\[/ { package = ($0 == "[package]") }
   package && /^version = / { $0 = "version = \"" version "\"" }
   { print }
 ' Cargo.toml)"
@@ -43,7 +43,7 @@ lock="$(awk -v version="$version" '
   { entry = ($0 == "name = \"conveyor\""); print }
 ' Cargo.lock)"
 if ! printf '%s\n' "$manifest" | awk -v line="version = \"$version\"" '
-  /^\[/ { package = ($0 == "[package]") }
+  /^[ \t]*\[/ { package = ($0 == "[package]") }
   package && $0 == line { found = 1 }
   END { exit !found }
 '; then
