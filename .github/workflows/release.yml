@@ -51,21 +51,32 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ needs.tag.outputs.tag }}
+      - name: Is the tag still unfinished
+        id: state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.tag.outputs.tag }}
+        run: scripts/release-unfinished.sh "$TAG" >> "$GITHUB_OUTPUT"
       - name: Tag must match Cargo.toml version
+        if: steps.state.outputs.unfinished == 'true'
         run: |
           manifest="$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)"
           test "$manifest" = "$VERSION" || { echo "tag v$VERSION != Cargo.toml $manifest"; exit 1; }
       - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # master 2026-09
+        if: steps.state.outputs.unfinished == 'true'
         with:
           toolchain: 1.98.1
           targets: ${{ matrix.targets }}
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        if: steps.state.outputs.unfinished == 'true'
       - name: Build
+        if: steps.state.outputs.unfinished == 'true'
         run: |
           args=()
           for target in ${TARGETS//,/ }; do args+=(--target "$target"); done
           cargo build --release --locked "${args[@]}"
       - name: Package
+        if: steps.state.outputs.unfinished == 'true'
         run: |
           for target in ${TARGETS//,/ }; do
             name="conveyor-$target"
@@ -73,6 +84,7 @@ jobs:
             shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"
           done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: steps.state.outputs.unfinished == 'true'
         with:
           name: ${{ matrix.os }}
           path: conveyor-*.tar.gz*
@@ -85,15 +97,27 @@ jobs:
       id-token: write
       attestations: write
     steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ needs.tag.outputs.tag }}
+          sparse-checkout: scripts
+      - name: Is the tag still unfinished
+        id: state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.tag.outputs.tag }}
+        run: scripts/release-unfinished.sh "$TAG" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: steps.state.outputs.unfinished == 'true'
         with:
           path: dist
           merge-multiple: true
       - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
-        if: ${{ !github.event.repository.private }}
+        if: steps.state.outputs.unfinished == 'true' && !github.event.repository.private
         with:
           subject-path: dist/*.tar.gz
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        if: steps.state.outputs.unfinished == 'true'
         with:
           tag_name: ${{ needs.tag.outputs.tag }}
           files: dist/*
