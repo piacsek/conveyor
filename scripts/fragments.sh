@@ -47,6 +47,60 @@ fragment_bullets() {
   '
 }
 
+joined_bullets() {
+  awk -v sectioned="$1" '
+    function flush() {
+      if (bullet != "") print version "\t" bullet
+      bullet = ""
+    }
+    function trimmed(text) {
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", text)
+      return text
+    }
+    { sub(/\r$/, "") }
+    /^## / {
+      flush()
+      version = substr($0, 4)
+      sub(/^v/, "", version)
+      sub(/[[:space:]].*$/, "", version)
+      sectioned = 1
+      next
+    }
+    !sectioned { next }
+    /^- / && trimmed(substr($0, 3)) != "" {
+      flush()
+      bullet = trimmed(substr($0, 3))
+      next
+    }
+    /^[[:space:]]/ && trimmed($0) != "" && bullet != "" { bullet = bullet " " trimmed($0) }
+    END { flush() }
+  '
+}
+
+refuse_repeats() {
+  local released file
+  released="$(git show "$1:CHANGELOG.md" | joined_bullets 0)" || return 1
+  while IFS= read -r file; do
+    fragment_bullets "$file" | joined_bullets 1 | RELEASED="$released" FILE="$file" awk '
+      BEGIN {
+        count = split(ENVIRON["RELEASED"], lines, "\n")
+        for (i = 1; i <= count; i++) {
+          tab = index(lines[i], "\t")
+          bullet = substr(lines[i], tab + 1)
+          if (!(bullet in version)) version[bullet] = substr(lines[i], 1, tab - 1)
+        }
+      }
+      {
+        bullet = substr($0, index($0, "\t") + 1)
+        if (bullet in version) {
+          print ENVIRON["FILE"] " repeats a bullet of v" version[bullet] ": " bullet
+          exit 1
+        }
+      }
+    ' >&2 || return 1
+  done <<<"$2"
+}
+
 fragment_kind() {
   local kind
   kind="$(git show "HEAD:$1" | sed -n '1s/^kind: //p' | tr -d '\r')"

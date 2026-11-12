@@ -214,6 +214,28 @@ fn an_internal_fragment_without_a_bullet_bumps_the_patch() {
 }
 
 #[test]
+fn a_bullet_of_an_older_release_is_refused_by_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    committed(
+        &work,
+        "CHANGELOG.md",
+        "# Changelog\n\n## v0.3.2 (2026-11-02)\n- Fixed the builds.\n",
+    );
+    git(&work, &["tag", "v0.3.2"]);
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the builds.\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "changes/topic.md repeats a bullet of v0.3.2: Fixed the builds.\n"
+    );
+}
+
+#[test]
 fn a_file_in_a_folder_under_changes_is_refused_by_name() {
     let dir = tempfile::tempdir().unwrap();
     let work = released(dir.path(), "v0.3.1");

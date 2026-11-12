@@ -32,6 +32,7 @@ bullets="$(
     fragment_bullets "$file"
   done <<<"$pending"
 )"
+refuse_repeats "$last" "$pending"
 released="$(git show "$last:CHANGELOG.md" | awk '/^## / { found = 1 } found')"
 manifest="$(awk -v version="$version" '
   /^[ \t]*\[/ { package = ($0 == "[package]") }

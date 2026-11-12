@@ -249,6 +249,80 @@ fn a_malformed_fragment_is_refused_by_name_before_anything_is_written() {
 }
 
 #[test]
+fn a_bullet_of_an_older_release_is_refused_by_name_before_anything_is_written() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    fragment(&work, "a-topic", "kind: fix\n\n- Fixed the queue.\n");
+    fragment(&work, "b-topic", "kind: fix\n\n- A first key.\n");
+
+    let output = release_commit(&work, &["0.3.2"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "changes/b-topic.md repeats a bullet of v0.3.0: A first key.\n"
+    );
+    assert_eq!(git_stdout(&work, &["status", "--porcelain"]), "");
+}
+
+#[test]
+fn a_bullet_of_an_older_release_wrapped_differently_is_refused_by_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    fragment(&work, "topic", "kind: fix\n\n-  A first\n\n\tkey. \n");
+
+    let output = release_commit(&work, &["0.3.2"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "changes/topic.md repeats a bullet of v0.3.0: A first key.\n"
+    );
+    assert_eq!(git_stdout(&work, &["status", "--porcelain"]), "");
+}
+
+#[test]
+fn a_released_fragment_renamed_since_is_refused_by_its_new_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+    let first = release_commit(&work, &["0.3.2"]);
+    assert_eq!(first.status.code(), Some(0), "{}", stderr(&first));
+    git(&work, &["commit", "-qam", "Release v0.3.2"]);
+    git(&work, &["tag", "v0.3.2"]);
+    git(&work, &["mv", "changes/topic.md", "changes/topic2.md"]);
+    git(&work, &["commit", "-qm", "rename a released fragment"]);
+
+    let output = release_commit(&work, &["0.3.3"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "changes/topic2.md repeats a bullet of v0.3.2: Fixed the queue.\n"
+    );
+    assert_eq!(git_stdout(&work, &["status", "--porcelain"]), "");
+}
+
+#[test]
+fn the_same_bullet_in_two_pending_fragments_passes_the_rules_of_the_bundled_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    fragment(&work, "a-topic", "kind: fix\n\n- Fixed the queue.\n");
+    fragment(&work, "b-topic", "kind: fix\n\n- Fixed the queue.\n");
+
+    let output = release_commit(&work, &["0.3.2"]);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(
+        check(
+            &fs::read_to_string(work.join("CHANGELOG.md")).unwrap(),
+            "0.3.2"
+        ),
+        Ok(())
+    );
+}
+
+#[test]
 fn a_file_in_a_folder_under_changes_is_refused_by_name_before_anything_is_written() {
     let dir = tempfile::tempdir().unwrap();
     let work = sandbox(dir.path());
