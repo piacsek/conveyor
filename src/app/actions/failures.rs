@@ -37,6 +37,15 @@ impl App {
         self.failure_on(self.focus, self.selected_key()?)
     }
 
+    pub(in crate::app) fn prune_failures(&mut self, stage: Stage) {
+        let failures = std::mem::take(&mut self.failures);
+        let listing = self.stage(stage).listing();
+        self.failures = failures
+            .into_iter()
+            .filter(|failure| failure.stage != stage || listing.holds(failure.subject))
+            .collect();
+    }
+
     pub(in crate::app) fn clear_failure(&mut self, stage: Stage, subject: u64) {
         self.failures
             .retain(|failure| failure.stage != stage || failure.subject != subject);

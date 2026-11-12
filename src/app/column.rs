@@ -291,6 +291,7 @@ pub trait Listing: Navigable {
     fn fetched_at(&self) -> Option<SystemTime>;
     fn counts(&self) -> (usize, usize);
     fn selected_key(&self) -> Option<u64>;
+    fn holds(&self, key: u64) -> bool;
     fn is_refreshing(&self) -> bool;
     fn set_refreshing(&mut self, refreshing: bool);
     fn set_filter(&mut self, filter: Option<String>);
@@ -312,6 +313,10 @@ impl<T: Row> Listing for Column<T> {
 
     fn selected_key(&self) -> Option<u64> {
         self.selected().map(Row::key)
+    }
+
+    fn holds(&self, key: u64) -> bool {
+        self.all().iter().any(|row| row.key() == key)
     }
 
     fn is_refreshing(&self) -> bool {

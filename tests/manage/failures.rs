@@ -1,12 +1,12 @@
 use std::io;
 
-use conveyor::app::Input;
+use conveyor::app::{Input, Stage};
 use conveyor::model::prs::{BranchUpdate, PullRequest, StatusChange};
 use ratatui::crossterm::event::KeyCode;
 use ratatui::style::Color;
 
 use crate::helpers::{draft, line_after, open, status_changed, tall};
-use crate::support::{Harness, checkout_target, key, prs};
+use crate::support::{Harness, checkout_target, failed, key, prs};
 
 #[test]
 fn a_failed_status_change_stays_on_its_card_after_another_one_lands_and_a_refresh() {
@@ -224,6 +224,61 @@ fn a_column_without_marks_has_no_count() {
     h.run(vec![prs(five())]).unwrap();
 
     assert!(h.screen().contains("┌My PRs (5)─"), "{}", h.screen());
+}
+
+#[test]
+fn a_refresh_without_the_marked_row_takes_its_mark_along() {
+    let mut h = marked_next_to_another();
+
+    h.run(vec![prs(vec![draft(14, "Bump serde")])]).unwrap();
+
+    assert!(h.screen().contains("┌My PRs (1)─"), "{}", h.screen());
+
+    h.run(vec![prs(vec![
+        draft(12, "Retry webhooks"),
+        draft(14, "Bump serde"),
+    ])])
+    .unwrap();
+
+    assert!(
+        !h.screen().contains("! mark ready failed"),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
+fn a_failed_refresh_keeps_the_mark() {
+    let mut h = marked_next_to_another();
+
+    h.run(vec![failed(Stage::Prs, "HTTP 502")]).unwrap();
+
+    assert!(h.screen().contains("┌My PRs (2) !1 ⚠─"), "{}", h.screen());
+}
+
+#[test]
+fn a_refresh_that_still_holds_the_marked_row_keeps_the_mark() {
+    let mut h = marked_next_to_another();
+
+    h.run(vec![prs(vec![
+        draft(12, "Retry webhooks"),
+        draft(14, "Bump serde"),
+    ])])
+    .unwrap();
+
+    assert!(h.screen().contains("┌My PRs (2) !1─"), "{}", h.screen());
+}
+
+fn marked_next_to_another() -> Harness {
+    let mut h = tall();
+    h.run(vec![
+        prs(vec![draft(12, "Retry webhooks"), draft(14, "Bump serde")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        status_changed(12, StatusChange::Ready, Err("HTTP 422")),
+    ])
+    .unwrap();
+    h
 }
 
 fn two_marked() -> Vec<io::Result<Input>> {
