@@ -115,7 +115,6 @@ pub struct App {
     pub log_page: u16,
     /// The live filter applied to every column; `Mode::Filter` means it is being edited.
     pub query: Option<String>,
-    rerunning: Option<(Stage, String)>,
     writes: Vec<Write>,
     pending_g: bool,
     last_open: Option<(String, SystemTime)>,
@@ -153,7 +152,6 @@ impl App {
             log_scroll: u16::MAX,
             log_page: 0,
             query: None,
-            rerunning: None,
             writes: Vec::new(),
             pending_g: false,
             last_open: None,

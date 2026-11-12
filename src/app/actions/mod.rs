@@ -74,15 +74,9 @@ impl App {
     }
 
     fn write_in_flight(&self) -> Option<String> {
-        if let Some(write) = self
-            .selected_key()
+        self.selected_key()
             .and_then(|key| self.write_on(self.focus, key))
-        {
-            return Some(write.progress());
-        }
-        self.rerunning
-            .as_ref()
-            .map(|(_, label)| format!("rerunning {label}…"))
+            .map(Write::progress)
     }
 
     fn menu(&self) -> Result<Menu, String> {

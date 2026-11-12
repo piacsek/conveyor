@@ -174,6 +174,51 @@ fn a_rerun_that_failed_for_every_run_schedules_no_reload() {
     );
 }
 
+#[test]
+fn two_reruns_on_their_way_each_land_with_their_own_label_and_column() {
+    use conveyor::app::{Request, Stage};
+    use conveyor::model::builds::BuildStatus;
+    let mut h = Harness::with_size(160, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![failing_in("test", 70), failing_in("e2e", 80)];
+
+    h.run(vec![
+        prs(vec![failing]),
+        support::builds(vec![support::build(25, BuildStatus::Failure, None)]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('f')),
+        key(KeyCode::Char('3')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('f')),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        h.requests.last(),
+        Some(&Request::Rerun {
+            repo: "acme/webapp".to_string(),
+            run_ids: vec![1025],
+        })
+    );
+
+    h.run(vec![support::rerun_done(vec![(1025, Ok(()))])])
+        .unwrap();
+
+    let footer = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(footer.contains("rerun requested: run 25"), "{footer}");
+    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Builds)));
+
+    h.run(vec![support::rerun_done(vec![(70, Ok(())), (80, Ok(()))])])
+        .unwrap();
+
+    let footer = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(
+        footer.contains("rerun requested: #4821 (2 runs)"),
+        "{footer}"
+    );
+    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Prs)));
+}
+
 fn failing_in(name: &str, run_id: u64) -> conveyor::model::prs::Check {
     conveyor::model::prs::Check {
         name: name.to_string(),

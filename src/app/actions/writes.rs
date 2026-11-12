@@ -16,6 +16,7 @@ pub enum WriteKind {
     Update,
     Status(StatusChange),
     Checkout,
+    Rerun { run_ids: Vec<u64>, label: String },
 }
 
 impl Write {
@@ -25,6 +26,7 @@ impl Write {
             WriteKind::Update => format!("updating #{}…", self.subject),
             WriteKind::Status(change) => progress(self.subject, change),
             WriteKind::Checkout => format!("checking out #{}…", self.subject),
+            WriteKind::Rerun { label, .. } => format!("rerunning {label}…"),
         }
     }
 }
