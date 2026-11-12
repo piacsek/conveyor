@@ -70,7 +70,7 @@ fn the_changelog_gains_the_pending_bullets_in_file_name_order_above_the_last_rel
     fragment(
         &work,
         "a-topic",
-        "kind: feat\n\nA note nobody ships.\n- A new key,\n  on every column.\n\n- A new default.\n",
+        "kind: feat\n\n- A new key,\n  on every column.\n\n- A new default.\n",
     );
 
     let output = release_commit(&work, &["0.4.0"]);
@@ -337,7 +337,27 @@ fn a_paragraph_after_the_first_bullet_is_refused_by_name_before_anything_is_writ
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
         stderr(&output),
-        "changes/topic.md has a line after its first bullet that is not a `- ` bullet, an indented continuation or blank: It works on every column.\n"
+        "changes/topic.md has a bullet, so every line after its kind must be a `- ` bullet, an indented continuation or blank: It works on every column.\n"
+    );
+    assert_eq!(git_stdout(&work, &["status", "--porcelain"]), "");
+}
+
+#[test]
+fn prose_before_the_first_bullet_is_refused_by_name_before_anything_is_written() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    fragment(
+        &work,
+        "topic",
+        "kind: fix\nIntro prose lost\n- Fixed the queue.\n",
+    );
+
+    let output = release_commit(&work, &["0.3.2"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "changes/topic.md has a bullet, so every line after its kind must be a `- ` bullet, an indented continuation or blank: Intro prose lost\n"
     );
     assert_eq!(git_stdout(&work, &["status", "--porcelain"]), "");
 }
@@ -357,7 +377,7 @@ fn an_internal_bullet_followed_by_a_paragraph_is_refused_by_name_before_anything
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
         stderr(&output),
-        "changes/topic.md has a line after its first bullet that is not a `- ` bullet, an indented continuation or blank: The stages load in parallel.\n"
+        "changes/topic.md has a bullet, so every line after its kind must be a `- ` bullet, an indented continuation or blank: The stages load in parallel.\n"
     );
     assert_eq!(git_stdout(&work, &["status", "--porcelain"]), "");
 }

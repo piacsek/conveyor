@@ -217,7 +217,27 @@ fn a_fix_with_a_star_bullet_after_its_first_bullet_is_refused_by_name() {
     assert_eq!(stdout(&output), "");
     assert_eq!(
         stderr(&output),
-        "changes/topic.md has a line after its first bullet that is not a `- ` bullet, an indented continuation or blank: * Fixed the builds.\n"
+        "changes/topic.md has a bullet, so every line after its kind must be a `- ` bullet, an indented continuation or blank: * Fixed the builds.\n"
+    );
+}
+
+#[test]
+fn a_fix_with_prose_before_its_first_bullet_is_refused_by_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    fragment(
+        &work,
+        "topic",
+        "kind: fix\nIntro prose lost\n- Fixed the queue.\n",
+    );
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "changes/topic.md has a bullet, so every line after its kind must be a `- ` bullet, an indented continuation or blank: Intro prose lost\n"
     );
 }
 

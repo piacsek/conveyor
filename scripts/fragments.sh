@@ -106,7 +106,10 @@ stray_line() {
     { sub(/\r$/, "") }
     NR == 1 { next }
     /^- / && $0 !~ /^- [ \t]*$/ { seen = 1; next }
-    seen && $0 != "" && !/^- / && !/^[ \t]/ { print; exit }
+    stray != "" || /^- / { next }
+    !seen && !/^[ \t]*$/ { stray = $0 }
+    seen && $0 != "" && !/^[ \t]/ { stray = $0 }
+    END { if (seen) print stray }
   '
 }
 
@@ -128,7 +131,7 @@ fragment_kind() {
   esac
   stray="$(stray_line "$1")"
   if [ -n "$stray" ]; then
-    echo "$1 has a line after its first bullet that is not a \`- \` bullet, an indented continuation or blank: $stray" >&2
+    echo "$1 has a bullet, so every line after its kind must be a \`- \` bullet, an indented continuation or blank: $stray" >&2
     return 1
   fi
   echo "$kind"
