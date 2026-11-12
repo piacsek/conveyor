@@ -344,6 +344,13 @@ kind: fix
   `Cargo.lock` holds a `conveyor` entry other than `0.0.0` or more than one entry of that name
   (the check reads both files line by line, so anything that could hide the real line is
   refused);
+- `Cargo.lock` at its head is not in the one shape cargo writes it in: it holds a multi-line
+  string, a line whose key is `name` or quoted is not exactly `name = "<crate>"` (letters,
+  digits, `_` and `-`), or a `name = "conveyor"` line is not right after a `[[package]]` line
+  and right before its `version = "..."` line. A lock no tool would write could hide the real
+  entry behind a decoy the check reads, pass, and then fail the release's
+  `cargo build --locked`; the refusal says to regenerate it with cargo
+  (`cargo update --workspace`);
 - it changes `CHANGELOG.md` at all;
 - it edits, deletes or renames a file under `changes/`, or renames a file into it;
 - a fragment it adds is not a direct child `changes/<name>.md`, its name is already on the tip

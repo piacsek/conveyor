@@ -85,7 +85,24 @@ lock="$(printf '%s\n' "$lockfile" | awk '
   entry && /^version = / { sub(/^version = "/, ""); sub(/".*$/, ""); print; exit }
   { entry = ($0 == "name = \"conveyor\"") }
 ')"
-if [ "$entries" -gt 1 ]; then
+case "$lockfile" in
+  *'"""'* | *"'''"*)
+    shape="holds a multi-line string (\"\"\" or ''')"
+    ;;
+  *)
+    shape="$(printf '%s\n' "$lockfile" | awk -v q="'" '
+      function outside(line) { return "line " line " is a `name = \"conveyor\"` that is not right after a `[[package]]` line and right before its `version = \"...\"` line" }
+      entry && !/^version = "[^"]*"$/ { print outside(NR - 1); done = 1; exit }
+      $0 ~ "^[ \t]*(name|\"[^=]*\"|" q "[^=]*" q ")[ \t]*[=.]" && !/^name = "[A-Za-z0-9_-]+"$/ { print "line " NR " is a `name` or quoted key other than `name = \"<crate>\"` (letters, digits, `_` and `-`)"; done = 1; exit }
+      $0 == "name = \"conveyor\"" && previous != "[[package]]" { print outside(NR); done = 1; exit }
+      { entry = ($0 == "name = \"conveyor\""); previous = $0 }
+      END { if (entry && !done) print outside(NR) }
+    ')"
+    ;;
+esac
+if [ -n "$shape" ]; then
+  refuse "Cargo.lock $shape: cargo writes Cargo.lock in one shape, so regenerate it with cargo (\`cargo update --workspace\`) instead of editing it by hand"
+elif [ "$entries" -gt 1 ]; then
   refuse "Cargo.lock holds more than one package named \`conveyor\`: the check reads the version line by line, so keep the one entry with \`version = \"0.0.0\"\`"
 elif [ "$lock" != 0.0.0 ]; then
   refuse "Cargo.lock sets the conveyor entry to $lock: put back \`version = \"0.0.0\"\` under \`name = \"conveyor\"\`, only the release workflow picks a version (from the kinds in changes/)"
