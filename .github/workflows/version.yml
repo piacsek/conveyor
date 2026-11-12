@@ -2,7 +2,7 @@ name: version
 
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited]
     branches: [main]
 
 permissions:
@@ -19,10 +19,17 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Fetch the release tags and the pull request's commits, as data
         env:
           NUMBER: ${{ github.event.pull_request.number }}
+          TOKEN: ${{ github.token }}
         run: |
+          auth="$(printf 'x-access-token:%s' "$TOKEN" | base64 | tr -d '\n')"
+          echo "::add-mask::$auth"
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0=http.https://github.com/.extraheader
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $auth"
           git fetch --force origin '+refs/tags/v*:refs/tags/v*'
           git fetch --no-tags origin "+refs/pull/$NUMBER/head:refs/remotes/pull/head"
       - name: Only the release workflow may set the version

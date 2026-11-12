@@ -2,10 +2,10 @@ use std::fs;
 use std::path::Path;
 
 #[test]
-fn the_version_check_runs_the_copy_on_main_for_every_pull_request_into_main() {
+fn the_version_check_runs_the_copy_on_main_for_every_pull_request_into_main_or_retargeted_to_it() {
     let workflow = workflow();
 
-    assert!(workflow.contains("on:\n  pull_request_target:\n    types: [opened, synchronize, reopened]\n    branches: [main]\n"));
+    assert!(workflow.contains("on:\n  pull_request_target:\n    types: [opened, synchronize, reopened, edited]\n    branches: [main]\n"));
     assert!(workflow.contains("jobs:\n  version:\n"));
 }
 
@@ -16,6 +16,20 @@ fn the_version_check_holds_a_read_only_token_and_no_secret() {
     assert!(workflow.contains("permissions:\n  contents: read\n"));
     assert!(!workflow.contains("write"));
     assert!(!workflow.contains("secrets."));
+}
+
+#[test]
+fn the_token_reaches_only_the_fetch_and_is_never_left_in_the_checkout() {
+    let workflow = workflow();
+    let (before_check, check) = workflow
+        .split_once("- name: Only the release workflow may set the version")
+        .unwrap();
+
+    assert!(workflow.contains("persist-credentials: false\n"));
+    assert_eq!(workflow.matches("github.token").count(), 1);
+    assert!(before_check.contains("TOKEN: ${{ github.token }}\n"));
+    assert!(before_check.contains("GIT_CONFIG_KEY_0=http.https://github.com/.extraheader"));
+    assert!(!check.to_lowercase().contains("token"));
 }
 
 #[test]
