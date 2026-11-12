@@ -31,6 +31,27 @@ impl Write {
     }
 }
 
+impl Write {
+    pub fn word(&self) -> String {
+        match &self.kind {
+            WriteKind::Merge => "merging…",
+            WriteKind::Update => "updating…",
+            WriteKind::Status(change) => match change {
+                StatusChange::Ready => "marking ready…",
+                StatusChange::Draft => "converting to draft…",
+                StatusChange::EnableAutoMerge { .. } => "enabling auto-merge…",
+                StatusChange::DisableAutoMerge { .. } => "disabling auto-merge…",
+                StatusChange::Dequeue { .. } => "leaving the merge queue…",
+                StatusChange::Enqueue { .. } => "adding to the merge queue…",
+                StatusChange::Close => "closing…",
+            },
+            WriteKind::Checkout => "checking out…",
+            WriteKind::Rerun { .. } => "rerunning…",
+        }
+        .to_string()
+    }
+}
+
 impl App {
     pub fn write_on(&self, stage: Stage, subject: u64) -> Option<&Write> {
         self.writes

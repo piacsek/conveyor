@@ -28,6 +28,7 @@ pub(crate) fn build_label(build: &Build) -> (String, String) {
 
 pub(crate) fn pr_row(
     pr: &PullRequest,
+    busy: Option<(char, &str)>,
     now: SystemTime,
     selected: bool,
     width: usize,
@@ -38,6 +39,7 @@ pub(crate) fn pr_row(
         None => age,
     };
     let parts = [
+        busy.map(|(_, word)| word.to_string()).unwrap_or_default(),
         short_repo(&pr.repo).to_string(),
         if pr.auto_merge {
             "auto-merge".to_string()
@@ -57,7 +59,7 @@ pub(crate) fn pr_row(
     ];
     card(
         selected,
-        glyph(pr.checks),
+        busy.map_or_else(|| glyph(pr.checks), |(spinner, _)| (spinner, Color::Yellow)),
         Some(pr_glyph(pr.is_draft, pr.queue_position.is_some())),
         format!("#{} {}", pr.number, pr.title),
         right,
