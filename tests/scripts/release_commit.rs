@@ -617,7 +617,7 @@ fn a_missing_version_is_refused() {
     assert_eq!(stderr(&output), "usage: scripts/release-commit.sh X.Y.Z\n");
 }
 
-fn release_commit(work: &Path, args: &[&str]) -> Output {
+pub fn release_commit(work: &Path, args: &[&str]) -> Output {
     isolated(
         Command::new(which("bash"))
             .arg(work.join("scripts/release-commit.sh"))
@@ -627,7 +627,7 @@ fn release_commit(work: &Path, args: &[&str]) -> Output {
     .unwrap()
 }
 
-fn git_stdout(work: &Path, args: &[&str]) -> String {
+pub fn git_stdout(work: &Path, args: &[&str]) -> String {
     let output = isolated(Command::new("git").current_dir(work).args(args))
         .output()
         .unwrap();
@@ -638,7 +638,7 @@ fn today() -> String {
     chrono::Utc::now().format("%Y-%m-%d").to_string()
 }
 
-fn sandbox(root: &Path) -> PathBuf {
+pub fn sandbox(root: &Path) -> PathBuf {
     let work = repository(root);
     link_script(&work, "fragments.sh");
     link_script(&work, "release-commit.sh");

@@ -45,6 +45,19 @@ if ! lock_reads "$version" "$lock"; then
   echo "Cargo.lock: the version of the conveyor entry does not read $version after the rewrite" >&2
   exit 1
 fi
+if command -v cargo >/dev/null 2>&1; then
+  kept="$(mktemp -d "${TMPDIR:-/tmp}/release-commit.XXXXXX")"
+  trap 'rm -rf "$kept"' EXIT
+  cp Cargo.toml Cargo.lock "$kept/"
+fi
 printf '%s\n' "$manifest" >Cargo.toml
 printf '%s\n' "$lock" >Cargo.lock
+if [ -n "${kept:-}" ]; then
+  package="$(cargo metadata --no-deps --offline --format-version 1 2>/dev/null | root_package "$(pwd -P)")" || package=""
+  if [ "$package" != "conveyor $version" ]; then
+    cp "$kept/Cargo.toml" "$kept/Cargo.lock" .
+    echo "Cargo.toml: cargo does not read the package version $version after the rewrite" >&2
+    exit 1
+  fi
+fi
 printf '# Changelog\n\n## v%s (%s)\n%s\n\n%s\n' "$version" "$(date -u +%Y-%m-%d)" "${bullets:-- v$version: internal changes only.}" "$released" >CHANGELOG.md

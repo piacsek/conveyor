@@ -5,6 +5,7 @@ mod gates;
 mod helpers;
 mod next_version;
 mod release_commit;
+mod release_commit_cargo;
 mod release_tag;
 mod release_unfinished;
 mod ship;
