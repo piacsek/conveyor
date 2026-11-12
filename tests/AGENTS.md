@@ -53,6 +53,11 @@ What has gone wrong in the tests before, and how the suites are set up to avoid 
   Card tests read line groups, not one line per row: a build card is four lines, so row `n`
   starts at screen line `1 + 4n` and a test that wants a third card needs a terminal taller
   than the 12-row default. The helper that finds the selected card looks for `│▌`.
+- **`Harness::screen()` is the text a person reads, not the cells.** A linked `#N` holds an
+  OSC 8 escape in each of its cells (see `src/ui/AGENTS.md`); `screen()` drops the escapes and
+  keeps the character, so text assertions and snapshots never see them. Assert on links with
+  `Harness::links()`, which returns `(text, url)` per link, column by column; `h.cell(x, y)`
+  still returns the raw cell, escape included.
 - **Snapshots carry `vX.Y.Z`, not the crate version.** Every snapshot in `tests/snapshots.rs`
   goes through `versionless(h.screen())`, which swaps the footer logo for a placeholder and
   pads the line back to the terminal width, so a release bump touches no `.snap` file.
