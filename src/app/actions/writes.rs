@@ -30,6 +30,25 @@ impl Write {
         }
     }
 
+    pub fn action(&self) -> String {
+        match &self.kind {
+            WriteKind::Merge => "merge",
+            WriteKind::Update => "update",
+            WriteKind::Status(change) => match change {
+                StatusChange::Ready => "mark ready",
+                StatusChange::Draft => "convert to draft",
+                StatusChange::EnableAutoMerge { .. } => "enable auto-merge",
+                StatusChange::DisableAutoMerge { .. } => "disable auto-merge",
+                StatusChange::Dequeue { .. } => "leave the merge queue",
+                StatusChange::Enqueue { .. } => "add to the merge queue",
+                StatusChange::Close => "close",
+            },
+            WriteKind::Checkout => "check out",
+            WriteKind::Rerun { .. } => "rerun",
+        }
+        .to_string()
+    }
+
     pub fn word(&self) -> String {
         match &self.kind {
             WriteKind::Merge => "merging…",
@@ -67,13 +86,11 @@ impl App {
         self.writes.push(write);
     }
 
-    pub(super) fn finish_write(&mut self, subject: u64, kind: &WriteKind) {
-        if let Some(index) = self
+    pub(super) fn finish_write(&mut self, subject: u64, kind: &WriteKind) -> Option<Write> {
+        let index = self
             .writes
             .iter()
-            .position(|write| write.subject == subject && &write.kind == kind)
-        {
-            self.writes.remove(index);
-        }
+            .position(|write| write.subject == subject && &write.kind == kind)?;
+        Some(self.writes.remove(index))
     }
 }

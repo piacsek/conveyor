@@ -44,7 +44,10 @@ impl App {
         change: &StatusChange,
         result: &Result<(), String>,
     ) -> bool {
-        self.finish_write(number, &WriteKind::Status(change.clone()));
+        let write = self.finish_write(number, &WriteKind::Status(change.clone()));
+        if let Err(message) = result {
+            self.fail(write, message);
+        }
         self.notice = Some(match result {
             Ok(()) => done(number, change),
             Err(message) => format!("#{number}: {message}"),

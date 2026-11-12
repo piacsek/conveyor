@@ -30,6 +30,21 @@ pub fn status_changed(
     ))
 }
 
+pub fn draft(number: u64, title: &str) -> PullRequest {
+    let mut pull = open(number, title);
+    pull.is_draft = true;
+    pull
+}
+
+pub fn line_after(screen: &str, needle: &str) -> String {
+    let lines: Vec<&str> = screen.lines().collect();
+    let at = lines
+        .iter()
+        .position(|line| line.contains(needle))
+        .unwrap_or_else(|| panic!("{needle} is not on screen: {screen}"));
+    lines[at + 1].to_string()
+}
+
 pub fn queueable(number: u64, title: &str) -> PullRequest {
     let mut pull = open(number, title);
     pull.merge_queue_enabled = true;

@@ -4,7 +4,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, List, ListItem, Paragraph};
 
-use crate::app::{App, Column, Row, Stage, Write};
+use crate::app::{App, Column, Failure, Row, Stage, Write};
 use crate::ui::rows::{build_row, deployed_row, pr_row, queue_row};
 use crate::ui::style::{dim, short_repo};
 
@@ -74,6 +74,13 @@ pub(crate) fn draw_column(
                 .iter()
                 .map(|pr| app.write_on(Stage::Prs, pr.key()).map(Write::word))
                 .collect();
+            let failures: Vec<Option<Failure>> = app
+                .prs
+                .column
+                .visible()
+                .iter()
+                .map(|pr| app.failure_on(Stage::Prs, pr.key()).cloned())
+                .collect();
             draw_list(
                 frame,
                 &mut app.prs.column,
@@ -84,7 +91,14 @@ pub(crate) fn draw_column(
                 |i, pr, on, w| {
                     let word = busy.get(i).cloned().flatten();
                     let busy = word.as_deref().map(|word| (spinner, word));
-                    pr_row(pr, busy, now, on, w)
+                    pr_row(
+                        pr,
+                        busy,
+                        failures.get(i).and_then(Option::as_ref),
+                        now,
+                        on,
+                        w,
+                    )
                 },
             )
         }

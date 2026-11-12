@@ -20,8 +20,8 @@ mod run;
 mod stages;
 
 pub use actions::{
-    CheckoutTarget, Choice, Menu, MergeTarget, Offer, Pending, Rerun, StatusTarget, UpdateTarget,
-    Write, WriteKind,
+    CheckoutTarget, Choice, Failure, Menu, MergeTarget, Offer, Pending, Rerun, StatusTarget,
+    UpdateTarget, Write, WriteKind,
 };
 pub use browser::OPEN_DEBOUNCE;
 pub use column::{Column, ColumnState, Listing, Navigable, Order, Row};
@@ -116,6 +116,7 @@ pub struct App {
     /// The live filter applied to every column; `Mode::Filter` means it is being edited.
     pub query: Option<String>,
     writes: Vec<Write>,
+    failures: Vec<Failure>,
     pending_g: bool,
     last_open: Option<(String, SystemTime)>,
 }
@@ -153,6 +154,7 @@ impl App {
             log_page: 0,
             query: None,
             writes: Vec::new(),
+            failures: Vec::new(),
             pending_g: false,
             last_open: None,
         }
