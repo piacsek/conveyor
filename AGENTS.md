@@ -83,9 +83,10 @@ scripts/ship.sh               gates + dev-install (unless skippable) + commit + 
 scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
 scripts/feeds-binary.sh       reads paths on stdin, prints the ones that feed the binary; the one list of what does not (`tests/`, `docs/`, `changes/`, …)
 scripts/fragments.sh          sourced, not run, reading the commit in `fragments_at` (`HEAD` unless the caller sets it): `last_tag`, `pending_fragments <tag>` (the `changes/*.md` at `HEAD` the tag's tree lacks), `fragment_kind` (refuses a malformed one by name), `fragment_bullets`, `refuse_repeats <tag> <pending>` (a pending bullet already in the tag's `CHANGELOG.md`, joined and trimmed as `changelog::check` reads it)
-scripts/version-check.sh      `<base> <head>`: the `version` job of `version.yml`; refuses a pull request that sets the version, edits `CHANGELOG.md` or a fragment, adds a malformed one, or feeds the binary without one; reads the head as git objects and asks `cargo metadata` for its version in a scratch copy, runs nothing from it
+scripts/version-check.sh      `<base> <head>`: the `version` job of `version.yml`; refuses a pull request that sets the version, edits `CHANGELOG.md` or a fragment, adds a malformed one, or feeds the binary without one; reads the head as git objects and asks `cargo metadata` for its version in a scratch copy, runs nothing from it; rehearses the release rewrite on that copy with a probe version
 scripts/next-version.sh       prints the version the pending fragments ask for (`feat` minor, `fix`/`internal` patch, never a major), nothing when none is pending
-scripts/release-commit.sh     `<version>`: writes it into `Cargo.toml` and the `conveyor` entry of `Cargo.lock`, and a `CHANGELOG.md` of the pending bullets above the last tag's; commits nothing
+scripts/release-commit.sh     `<version>`: writes it into `Cargo.toml` and the `conveyor` entry of `Cargo.lock`, and a `CHANGELOG.md` of the pending bullets above the last tag's; confirms with `cargo metadata` when cargo is on `PATH`; commits nothing
+scripts/release-rewrite.sh    sourced, not run: the release rewrite both `release-commit.sh` and `version-check.sh` use (`manifest_with_version`, `lock_with_version`, `manifest_reads`, `lock_reads`) and `root_package`, the reader of `cargo metadata` output
 scripts/releases.sh           sourced, not run: `release_state <tag>` prints `missing`, `draft`, `short` or `complete` (published with exactly the six assets); refuses an unreadable release or an unexpected asset
 scripts/release-unfinished.sh `<tag>`: prints `unfinished=true` unless the tag's release is `complete`; `build` and `publish` skip their steps on `false`, so a rerun never rebuilds a published release
 scripts/release-tag.sh        the `tag` job of `release.yml` (refuses outside GitHub Actions): prints `version=`/`tag=` of the newest tag when its release is not `complete` (a `::warning::` on stderr counts the fragments that wait for the next run), else commits and pushes the next release tag, else nothing
@@ -346,6 +347,20 @@ kind: fix
   multi-line string or inline table, or a key spelled with an escape, fooled every line reader
   tried, while cargo is what decides. How the head is kept from running anything is in
   `.github/AGENTS.md`. Without `cargo` on `PATH` the check fails rather than passes;
+- cargo reads `0.0.0`, but the release could not set the version: the check rehearses the
+  release on its copy of the head, applying to `Cargo.toml` and `Cargo.lock` the very rewrite
+  `scripts/release-commit.sh` applies (the functions of `scripts/release-rewrite.sh`, shared by
+  both) with the probe version `987.654.321`, and refuses unless the release script's own
+  verification passes, cargo (isolated as before) reads the probe, the line the `build` job of
+  `release.yml` compares with the tag (`grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2`,
+  the same spelling in both files, pinned by `tests/scripts/version_check_release.rs`) reads
+  it, and the lock's `conveyor` entry reads it by the lock rules below. The rewrite works line
+  by line, so `Cargo.toml` keeps one plain form: `[package]` alone on its line (no comment, no
+  spaces), `version = "0.0.0"` as its own line under it (not `version="0.0.0"`, not a quoted
+  key, not `version.workspace = true`), LF line endings, and no other line starting with
+  `version = ` above it. Anything else passed cargo yet left the release commit with the new
+  version in a decoy line or nowhere: the run would then push its tag and fail to build it,
+  and a released tag never moves, or `release-commit.sh` would refuse on every run;
 - `Cargo.lock` holds a `conveyor` entry other than `0.0.0`, none, or more than one entry of
   that name (the check reads the lock line by line, so anything that could hide the real line
   is refused);
@@ -404,7 +419,13 @@ tag (release commits are reachable only from their tags) and runs `scripts/relea
    nothing to release: `build` and `publish` are skipped, `tap` still runs and only reconciles
    the formula, and the run is green.
 3. Otherwise `scripts/release-commit.sh` writes the version into `Cargo.toml` and
-   `Cargo.lock` and a `CHANGELOG.md` with the new section above the last tag's, commits it
+   `Cargo.lock` and a `CHANGELOG.md` with the new section above the last tag's. Before the
+   changelog it asks `cargo metadata --no-deps --offline` whether the package version now
+   reads the release, and on any other answer puts `Cargo.toml` and `Cargo.lock` back and
+   refuses, so no tag is pushed. The `tag` job installs no toolchain: it relies on the cargo
+   that GitHub's `ubuntu-latest` image carries, which the image lists but nothing pins, so the
+   confirmation is skipped silently when cargo is not on `PATH` and the rehearsal in the
+   `version` check is then the only guard. The job commits the release
    as `github-actions[bot]` (`Release vX.Y.Z`) on top of `main` and pushes only the tag. `main`
    never moves; the tag push starts no other run.
 
