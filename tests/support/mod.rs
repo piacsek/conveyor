@@ -278,14 +278,55 @@ impl Harness {
         buffer
             .content
             .chunks(width)
-            .map(|row| row.iter().map(|c| c.symbol()).collect::<String>())
+            .map(|row| row.iter().map(|c| shown(c.symbol())).collect::<String>())
             .collect::<Vec<_>>()
             .join("\n")
+    }
+
+    pub fn links(&self) -> Vec<(String, String)> {
+        let buffer = self.terminal.backend().buffer();
+        let width = buffer.area.width as usize;
+        let mut found: Vec<(&str, String)> = Vec::new();
+        for column in 0..Stage::ALL.len() {
+            let span = column * width / 4..(column + 1) * width / 4;
+            for row in buffer.content.chunks(width) {
+                let mut open = false;
+                for cell in &row[span.clone()] {
+                    let Some((target, text)) = hyperlink(cell.symbol()) else {
+                        open = false;
+                        continue;
+                    };
+                    match found.last_mut().filter(|last| open && last.0 == target) {
+                        Some(last) => last.1.push_str(text),
+                        None => found.push((target, text.to_string())),
+                    }
+                    open = true;
+                }
+            }
+        }
+        found
+            .into_iter()
+            .map(|(target, text)| {
+                let url = target.split_once(';').map_or("", |(_, url)| url);
+                (text, url.to_string())
+            })
+            .collect()
     }
 
     pub fn cell(&self, x: u16, y: u16) -> &ratatui::buffer::Cell {
         &self.terminal.backend().buffer()[(x, y)]
     }
+}
+
+fn hyperlink(symbol: &str) -> Option<(&str, &str)> {
+    let rest = symbol.strip_prefix("\x1b]8;")?;
+    let (target, rest) = rest.split_once("\x1b\\")?;
+    let text = rest.strip_suffix("\x1b]8;;\x1b\\")?;
+    Some((target, text))
+}
+
+fn shown(symbol: &str) -> &str {
+    hyperlink(symbol).map_or(symbol, |(_, text)| text)
 }
 
 pub fn pr(number: u64, title: &str) -> PullRequest {

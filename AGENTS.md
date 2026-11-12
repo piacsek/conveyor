@@ -64,6 +64,7 @@ src/ui/mod.rs    draw: 4 columns or tabs below `4 × ui.min_column_width`
 src/ui/style.rs  the shared vocabulary: BAR, INDENT, dim(), glyphs and status words, short_repo, sha8
 src/ui/card.rs   card() and meta(): one title line plus indented span lines
 src/ui/columns.rs column titles, blocks and draw_list
+src/ui/link.rs   link(): wraps the `#N` of a drawn card in an OSC 8 terminal hyperlink
 src/ui/rows.rs   one card builder per stage: pr_row, queue_row, build_row, deployed_row
 src/ui/details.rs the `d` pane per stage, including the job list; no URLs
 src/ui/footer.rs footer text, the refresh spinner and the static logo
