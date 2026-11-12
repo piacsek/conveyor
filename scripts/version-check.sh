@@ -151,7 +151,8 @@ lock_rehearsed() {
   [ "$(printf '%s\n' "$rewritten" | lock_version)" = "$probe" ]
 }
 
-probe=987.654.321
+read -r high minor patch < <(od -An -N6 -tu2 /dev/urandom)
+probe="$((high + 100000)).$minor.$patch"
 mkdir "$tree" "$scratch/home" "$scratch/cwd"
 materialise
 if metadata; then
@@ -165,7 +166,7 @@ if metadata; then
       ;;
     "conveyor 0.0.0")
       if ! manifest_rehearsed; then
-        refuse "the release workflow could not set the version in Cargo.toml: rehearsed with a probe version, cargo, the release build and the release script did not all read it back, so after the merge the release run would push its tag and then fail to build it; keep the plain form: \`[package]\` alone on its line, \`version = \"0.0.0\"\` as its own line under it, and no other \`version = \` line above it"
+        refuse "the release workflow could not set the version in Cargo.toml: rehearsed with a random probe version, cargo, the release build and the release script did not all read it back, so after the merge the release run would push its tag and then fail to build it; keep the plain form: \`[package]\` alone on its line, \`version = \"0.0.0\"\` as its own line under it, and no other \`version = \` line above it"
       fi
       ;;
     "conveyor "*)
@@ -216,7 +217,7 @@ elif [ -z "$lock" ]; then
 elif [ "$lock" != 0.0.0 ]; then
   refuse "Cargo.lock sets the conveyor entry to $lock: put back \`version = \"0.0.0\"\` under \`name = \"conveyor\"\`, only the release workflow picks a version (from the kinds in changes/)"
 elif ! lock_rehearsed; then
-  refuse "the release workflow could not set the version in Cargo.lock: rehearsed with a probe version, the conveyor entry did not read it back, so after the merge the release run would push its tag and then fail to build it; regenerate it with cargo (\`cargo update --workspace\`) instead of editing it by hand"
+  refuse "the release workflow could not set the version in Cargo.lock: rehearsed with a random probe version, the conveyor entry did not read it back, so after the merge the release run would push its tag and then fail to build it; regenerate it with cargo (\`cargo update --workspace\`) instead of editing it by hand"
 fi
 
 while IFS= read -r -d '' status && IFS= read -r -d '' path; do

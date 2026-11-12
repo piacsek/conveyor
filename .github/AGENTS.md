@@ -74,14 +74,17 @@ pipeline went from ~3 min 20 s to 37 s:
   `cargo metadata --no-deps` runs no build script and no proc macro and resolves nothing.
   It runs a second time on the same copy after the check has rehearsed the release there:
   when cargo reads `0.0.0`, the copy's `Cargo.toml` is rewritten with the functions
-  `scripts/release-commit.sh` uses (`scripts/release-rewrite.sh`) to the probe version
-  `987.654.321`, and cargo, the `build` job's `grep -m1 '^version = '` line and the release
-  script's own verification must all read the probe (the lock is rehearsed the same way, as
-  text). So a manifest passes only in the plain form the line rewrite handles (`[package]`
-  alone on its line, `version = "0.0.0"` as its own line under it, no other `version = ` line
-  above it): a quoted key with a decoy line, `version="0.0.0"`, a comment after `[package]`
-  or a `version = ` line in a table above it would otherwise pass and then push a tag that
-  cannot build.
+  `scripts/release-commit.sh` uses (`scripts/release-rewrite.sh`) to a probe version drawn
+  from `/dev/urandom` on every run (a major of 100000 or more), and cargo, the `build` job's
+  `grep -m1 '^version = '` line and the release script's own verification must all read the
+  probe (the lock is rehearsed the same way, as text). So a manifest passes only in the plain
+  form the line rewrite handles (`[package]` alone on its line, `version = "0.0.0"` as its own
+  line under it, no other `version = ` line above it): a quoted key with a decoy line,
+  `version="0.0.0"`, a comment after `[package]` or a `version = ` line in a table above it
+  would otherwise pass and then push a tag that cannot build. The probe is not a fixed value
+  because a fixed one can be planted: a `version = ` line holding it above `[package]` made
+  the `build` line read the probe during the rehearsal and that planted value after the
+  merge.
   `tests/scripts/version_check_head.rs` proves it: a head carrying a `build.rs`, a
   `.cargo/config.toml` naming a `rustc-wrapper`, `rustc`, aliases and `[env]`, or a toolchain
   file naming a toolchain that does not exist gets its normal verdict and nothing it names
@@ -123,8 +126,9 @@ pipeline went from ~3 min 20 s to 37 s:
   keeps one waiting run per group, cancelling the older waiting one when a newer push arrives.
   That is safe only because a run never releases "the commit that started me": the `tag` job
   checks out `main` at its head and releases every fragment pending since the newest tag
-  (`scripts/release-commit.sh` confirms the version it wrote with `cargo metadata` before the
-  tag exists, when the runner image's cargo is on `PATH`). The
+  (`scripts/release-commit.sh` confirms the version it wrote with the `build` job's
+  `grep -m1 '^version = '` line, and with `cargo metadata` when the runner image's cargo is on
+  `PATH`, before the tag exists). The
   decisions live in `scripts/release-tag.sh` (resume an unfinished tag, else tag what is
   pending, else nothing) with its tests in `tests/scripts/release_tag.rs`; the YAML only wires
   jobs. The `tag` job is the only one besides `publish` with `contents: write`, which it uses to
