@@ -14,6 +14,20 @@ if ! fork="$(git merge-base "$1" "$head")"; then
   echo "$2 shares no history with $1: cut the branch from $1 and open the pull request again" >&2
   exit 1
 fi
+export LC_ALL=C
+listing="$(mktemp)"
+trap 'rm -f "$listing"' EXIT
+git diff --name-status -z -M "$fork" "$head" >"$listing"
+hostile=0
+while IFS= read -r -d '' field; do
+  case "$field" in
+    *[[:cntrl:]]*) hostile=$((hostile + 1)) ;;
+  esac
+done <"$listing"
+if [ "$hostile" -gt 0 ]; then
+  echo "changed paths whose name holds a control character (a newline, a tab, another byte below 0x20 or 0x7f): $hostile; rename them, the check never prints such a name" >&2
+  exit 1
+fi
 fragments_at="$head"
 added=""
 touched=""
@@ -66,9 +80,6 @@ elif [ "$lock" != 0.0.0 ]; then
   refuse "Cargo.lock sets the conveyor entry to $lock: put back \`version = \"0.0.0\"\` under \`name = \"conveyor\"\`, only the release workflow picks a version (from the kinds in changes/)"
 fi
 
-listing="$(mktemp)"
-trap 'rm -f "$listing"' EXIT
-git diff --name-status -z -M "$fork" "$head" >"$listing"
 while IFS= read -r -d '' status && IFS= read -r -d '' path; do
   renamed=""
   case "$status" in

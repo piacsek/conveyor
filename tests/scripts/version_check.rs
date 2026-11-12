@@ -128,6 +128,52 @@ fn a_lock_with_two_conveyor_entries_is_refused() {
 }
 
 #[test]
+fn paths_holding_a_control_character_are_counted_before_anything_else_and_never_printed() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    committed(
+        &work,
+        "Cargo.toml",
+        "[package]\nname = \"conveyor\"\nversion = \"0.4.0\"\n",
+    );
+    committed(&work, "changes/a\n::warning::spoof.md", "kind: major\n");
+    committed(&work, "PLAN.md\tdocs/main.rs", "fn main() {}\n");
+    committed(&work, "docs/del\x7f.md", "a note\n");
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "changed paths whose name holds a control character (a newline, a tab, another byte below 0x20 or 0x7f): 3; rename them, the check never prints such a name\n"
+    );
+}
+
+#[test]
+fn a_rename_from_a_path_holding_a_control_character_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    git(&work, &["checkout", "-q", "main"]);
+    committed(
+        &work,
+        "docs/a\rb.md",
+        "a note that is long enough to be a rename\n",
+    );
+    git(&work, &["checkout", "-qB", "pull"]);
+    git(&work, &["mv", "docs/a\rb.md", "docs/ab.md"]);
+    git(&work, &["commit", "-qm", "rename"]);
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "changed paths whose name holds a control character (a newline, a tab, another byte below 0x20 or 0x7f): 1; rename them, the check never prints such a name\n"
+    );
+}
+
+#[test]
 fn a_call_without_a_base_and_a_head_prints_the_usage() {
     let dir = tempfile::tempdir().unwrap();
     let work = main_with_a_release(dir.path());
