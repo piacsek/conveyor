@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.25.0 (2026-11-12)
+- `S` works on another pull request while an action on the first one is still running; only the pull request with an action on its way refuses it.
+- A pull request card with an action on its way shows a spinner in place of its check mark and names the action (`marking ready…`, `merging…`) on its second line until the result lands.
+
+## v0.24.2 (2026-11-12)
+- Main builds appears much sooner on the first load: the pull requests of all its runs are asked for in one request instead of one request per run (about 4 s instead of 27 s for 30 builds).
+- The Deployed column asks for the pull requests of all its environments in one request as well.
+
 ## v0.24.1 (2026-11-11)
 - In the `S` popup of My PRs the close action reads `x  close PR` instead of `x  close`.
 
