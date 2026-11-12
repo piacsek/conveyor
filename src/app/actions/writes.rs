@@ -83,6 +83,7 @@ impl App {
             kind,
         };
         self.notice = Some(write.progress());
+        self.clear_failure(write.stage, write.subject);
         self.writes.push(write);
     }
 

@@ -6,7 +6,7 @@ use ratatui::crossterm::event::KeyCode;
 use ratatui::style::Color;
 
 use crate::helpers::{draft, line_after, open, status_changed, tall};
-use crate::support::{checkout_target, key, prs};
+use crate::support::{Harness, checkout_target, key, prs};
 
 #[test]
 fn a_failed_status_change_stays_on_its_card_after_another_one_lands_and_a_refresh() {
@@ -137,6 +137,70 @@ fn a_checkout_that_worked_leaves_no_mark() {
     let screen = after(&['c'], checked_out(Ok(())));
 
     assert!(!screen.contains("failed"), "{screen}");
+}
+
+#[test]
+fn a_new_write_on_the_marked_card_takes_the_mark_away() {
+    let mut h = marked();
+
+    h.run(vec![key(KeyCode::Char('S')), key(KeyCode::Char('t'))])
+        .unwrap();
+
+    let screen = h.screen();
+    assert!(
+        line_after(&screen, "#12 Retry webhooks").contains("marking ready…"),
+        "{screen}"
+    );
+    assert!(!screen.contains("! mark ready failed"), "{screen}");
+}
+
+#[test]
+fn a_new_write_that_works_leaves_no_mark() {
+    let mut h = marked();
+
+    h.run(vec![
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        status_changed(12, StatusChange::Ready, Ok(())),
+    ])
+    .unwrap();
+
+    assert!(
+        !h.screen().contains("! mark ready failed"),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
+fn a_new_write_that_fails_shows_the_new_reason_alone() {
+    let mut h = marked();
+
+    h.run(vec![
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        status_changed(12, StatusChange::Ready, Err("HTTP 503")),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(
+        line_after(&screen, "#12 Retry webhooks").contains("! mark ready failed: HTTP 503"),
+        "{screen}"
+    );
+    assert!(!screen.contains("HTTP 422"), "{screen}");
+}
+
+fn marked() -> Harness {
+    let mut h = tall();
+    h.run(vec![
+        prs(vec![draft(12, "Retry webhooks")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        status_changed(12, StatusChange::Ready, Err("HTTP 422")),
+    ])
+    .unwrap();
+    h
 }
 
 fn after(letters: &[char], result: io::Result<Input>) -> String {

@@ -26,6 +26,11 @@ impl App {
             .find(|failure| failure.stage == stage && failure.subject == subject)
     }
 
+    pub(in crate::app) fn clear_failure(&mut self, stage: Stage, subject: u64) {
+        self.failures
+            .retain(|failure| failure.stage != stage || failure.subject != subject);
+    }
+
     pub(super) fn fail(&mut self, write: Option<Write>, message: &str) {
         let Some(write) = write else {
             return;
