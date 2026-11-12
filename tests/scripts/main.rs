@@ -4,7 +4,6 @@ mod formula_version;
 mod gates;
 mod helpers;
 mod next_version;
-mod release;
 mod release_commit;
 mod release_tag;
 mod release_unfinished;

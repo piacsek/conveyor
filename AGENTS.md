@@ -92,7 +92,6 @@ changes/                      one fragment per pull request that feeds the binar
 plans/                        one versioned plan file per phase (see Working agreements)
 scripts/homebrew-formula.sh   prints the tap formula for a released version
 scripts/formula-version.sh    the `tap` job's decision: prints `version=` of the newest published `complete` release when the tap formula names an older one (or none), else nothing; never a version below the formula's
-scripts/release.sh            retired (see Releasing): tagged a merged version from `main` by hand; removed by phase 37's cleanup
 scripts/screenshots.sh        renders docs/details.png from a gh shim + synthetic fixture (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
@@ -221,7 +220,7 @@ nearest the code the guideline is about.
   `gh pr ready` comes after the findings are addressed, not before.
 - **Merging and releasing.** Rebase-merge the phase PR into `main` when CI is green (squash
   when GitHub cannot rebase it, see the next bullet), then watch the `release` run the merge
-  starts (see Releasing): no bump, no `CHANGELOG.md` edit, no `scripts/release.sh`, no tag by
+  starts (see Releasing): no bump, no `CHANGELOG.md` edit, no tag by
   hand. Never push to `main` directly except the very first bootstrap commit of an empty
   repository, and never force-push.
 - **Catching up with `main` on a pushed branch is a merge, not a rebase.** A rebase rewrites
@@ -264,7 +263,7 @@ Without tmux the last gate is a plain `cargo test` and a notice that the e2e tes
 `tests/scripts/` runs the scripts themselves in a scratch directory and a scratch git
 repository, with `cargo`, `gh` and the scripts they call replaced by symlinks to
 `tests/fixtures/record-call.sh`, which appends its name and argv to `$CALLS_LOG` and exits 1 for a call whose argv starts with `$FAILING_CALL` (how a ship test says the branch has no pull request yet). Where a
-script reads what `gh` prints (`release.sh`, `release-tag.sh`), `gh` is a symlink to `tests/fixtures/reply-call.sh`
+script reads what `gh` prints (`release-tag.sh`, `release-unfinished.sh`, `formula-version.sh`), `gh` is a symlink to `tests/fixtures/reply-call.sh`
 instead: it records the same line, exits 1 with `$FAILING_STDERR` on stderr for a call whose
 argv starts with `$FAILING_CALL`, else prints every file in `$REPLIES` whose name is part of
 its argv.
@@ -379,9 +378,7 @@ If the `tap` job fails, run `scripts/homebrew-formula.sh <version>` by hand and 
 check with `brew audit --strict --online --formula piacsek/tap/conveyor` after changing the
 script.
 
-`scripts/release.sh` (tag `main` by hand) is **retired**: `main` no longer carries a release
-version, so it can only refuse. It stays in the tree until phase 37's cleanup pull request
-removes it; do not run it, and never push a `v*` tag by hand.
+Never push a `v*` tag by hand: tags come only from the `tag` job of the release run.
 
 Every action is pinned to a commit SHA with the tag in a trailing comment; bump pins with
 `gh api repos/<owner>/<repo>/git/ref/tags/<tag>`. Workflows default to `contents: read`; only
