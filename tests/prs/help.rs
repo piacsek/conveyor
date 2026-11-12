@@ -70,7 +70,7 @@ fn question_mark_shows_the_key_help_and_any_key_returns() {
         "z",
         "zoom",
         "Esc",
-        "close details / zoom / filter",
+        "close details / zoom / mark / filter",
         "log of the failed step",
         "S",
         "manage: merge, update, rerun, status",
