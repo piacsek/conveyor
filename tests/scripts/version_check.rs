@@ -509,7 +509,26 @@ fn a_carriage_return_in_a_fragment_never_starts_a_line_a_workflow_reads() {
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
         stderr(&output),
-        "version check: changes/topic.md has a bullet, so every line after its kind must be a `- ` bullet, an indented continuation or blank: stray ::warning::spoof\n"
+        "version check: changes/topic.md holds a carriage return inside a line: a carriage return may only end a line, right before its newline\n"
+    );
+}
+
+#[test]
+fn a_carriage_return_inside_a_bullet_is_refused_by_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    fragment(
+        &work,
+        "topic",
+        "kind: fix\n\n- Fixed the queue\r on every column.\n",
+    );
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "version check: changes/topic.md holds a carriage return inside a line: a carriage return may only end a line, right before its newline\n"
     );
 }
 

@@ -117,6 +117,10 @@ stray_line() {
 
 fragment_kind() {
   local kind stray
+  if git show "$fragments_at:$1" | awk '{ sub(/\r$/, "") } /\r/ { found = 1 } END { exit !found }'; then
+    echo "$1 holds a carriage return inside a line: a carriage return may only end a line, right before its newline" >&2
+    return 1
+  fi
   kind="$(git show "$fragments_at:$1" | sed -n '1s/^kind: //p' | tr -d '\r')"
   case "$kind" in
     internal) ;;

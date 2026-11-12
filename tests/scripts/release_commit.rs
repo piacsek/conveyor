@@ -249,6 +249,26 @@ fn a_malformed_fragment_is_refused_by_name_before_anything_is_written() {
 }
 
 #[test]
+fn a_carriage_return_inside_a_bullet_is_refused_by_name_before_anything_is_written() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    fragment(
+        &work,
+        "topic",
+        "kind: fix\n\n- Fixed the queue\r on every column.\n",
+    );
+
+    let output = release_commit(&work, &["0.3.2"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "changes/topic.md holds a carriage return inside a line: a carriage return may only end a line, right before its newline\n"
+    );
+    assert_eq!(git_stdout(&work, &["status", "--porcelain"]), "");
+}
+
+#[test]
 fn a_bullet_of_an_older_release_is_refused_by_name_before_anything_is_written() {
     let dir = tempfile::tempdir().unwrap();
     let work = sandbox(dir.path());
