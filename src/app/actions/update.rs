@@ -38,7 +38,12 @@ impl App {
         number: u64,
         result: &Result<BranchUpdate, String>,
     ) -> bool {
-        self.finish_write(number, &WriteKind::Update);
+        let write = self.finish_write(number, &WriteKind::Update);
+        match result {
+            Ok(BranchUpdate::Conflicts) => self.fail(write, CONFLICTS),
+            Err(message) => self.fail(write, message),
+            Ok(_) => {}
+        }
         self.notice = Some(match result {
             Ok(BranchUpdate::Updated) => format!("branch of #{number} updated"),
             Ok(BranchUpdate::UpToDate) => format!("#{number} is already up to date"),
@@ -49,6 +54,8 @@ impl App {
     }
 }
 
+const CONFLICTS: &str = "has conflicts with its base; resolve them locally";
+
 pub(in crate::app) fn conflicts(number: u64) -> String {
-    format!("#{number} has conflicts with its base; resolve them locally")
+    format!("#{number} {CONFLICTS}")
 }

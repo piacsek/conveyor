@@ -14,7 +14,10 @@ pub struct CheckoutTarget {
 impl App {
     pub fn receive_checkout(&mut self, target: &CheckoutTarget, result: &Result<(), String>) {
         let number = target.number;
-        self.finish_write(number, &WriteKind::Checkout);
+        let write = self.finish_write(number, &WriteKind::Checkout);
+        if let Err(message) = result {
+            self.fail(write, message);
+        }
         self.notice = Some(match (result, &target.dir) {
             (Ok(()), Some(dir)) => format!("#{number} checked out in {}", dir.display()),
             (Ok(()), None) => format!("#{number} checked out in the current directory"),

@@ -27,9 +27,10 @@ impl App {
     }
 
     pub fn receive_merged(&mut self, number: u64, result: &Result<(), String>) {
-        self.finish_write(number, &WriteKind::Merge);
-        if result.is_ok() {
-            self.land(number);
+        let write = self.finish_write(number, &WriteKind::Merge);
+        match result {
+            Ok(()) => self.land(number),
+            Err(message) => self.fail(write, message),
         }
         self.notice = Some(match result {
             Ok(()) => format!("merge sent for #{number}"),
