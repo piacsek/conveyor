@@ -5,4 +5,5 @@ mod helpers;
 mod next_version;
 mod release;
 mod release_commit;
+mod release_tag;
 mod ship;
