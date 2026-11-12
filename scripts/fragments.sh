@@ -10,12 +10,6 @@ last_tag() {
   echo "$tag"
 }
 
-fragments_at() {
-  git -c core.quotePath=false ls-tree --name-only "$1" changes/ |
-    { grep -E '^changes/[^/]+\.md$' || true; } |
-    LC_ALL=C sort
-}
-
 refuse_strays() {
   local listing stray
   listing="$(git -c core.quotePath=false ls-tree -r --name-only HEAD -- changes/)" || return 1
@@ -37,9 +31,11 @@ refuse_edits() {
 }
 
 pending_fragments() {
+  local added
   refuse_strays || return 1
   refuse_edits "$1" || return 1
-  LC_ALL=C comm -23 <(fragments_at HEAD) <(fragments_at "$1")
+  added="$(git -c core.quotePath=false diff-tree -r --name-only --no-renames --diff-filter=A "$1" HEAD -- changes/)" || return 1
+  [ -z "$added" ] || printf '%s\n' "$added" | LC_ALL=C sort
 }
 
 fragment_bullets() {
