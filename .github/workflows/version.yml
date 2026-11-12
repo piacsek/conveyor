@@ -1,0 +1,31 @@
+name: version
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: version-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - name: Fetch the release tags and the pull request's commits, as data
+        env:
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          git fetch --force origin '+refs/tags/v*:refs/tags/v*'
+          git fetch --no-tags origin "+refs/pull/$NUMBER/head:refs/remotes/pull/head"
+      - name: Only the release workflow may set the version
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: scripts/version-check.sh HEAD "$HEAD_SHA"

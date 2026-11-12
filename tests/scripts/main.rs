@@ -9,3 +9,4 @@ mod release_tag;
 mod release_unfinished;
 mod ship;
 mod version_check;
+mod version_workflow;
