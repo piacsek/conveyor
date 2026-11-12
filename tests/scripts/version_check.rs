@@ -23,111 +23,6 @@ fn a_pull_request_that_adds_a_well_formed_fragment_passes() {
 }
 
 #[test]
-fn a_package_version_other_than_0_0_0_is_refused_by_file() {
-    let dir = tempfile::tempdir().unwrap();
-    let work = main_with_a_release(dir.path());
-    committed(
-        &work,
-        "Cargo.toml",
-        "[package]\nname = \"conveyor\"\nversion = \"0.4.0\"\n\n[dependencies]\nserde = { version = \"1\" }\n",
-    );
-    fragment(&work, "topic", "kind: feat\n\n- A new key.\n");
-
-    let output = version_check(&work);
-
-    assert_eq!(output.status.code(), Some(1));
-    assert_eq!(stdout(&output), "");
-    assert_eq!(
-        stderr(&output),
-        "Cargo.toml sets the package version to 0.4.0: put back `version = \"0.0.0\"`, only the release workflow picks a version (from the kinds in changes/)\n"
-    );
-}
-
-#[test]
-fn a_lock_entry_other_than_0_0_0_is_refused_by_file() {
-    let dir = tempfile::tempdir().unwrap();
-    let work = main_with_a_release(dir.path());
-    committed(
-        &work,
-        "Cargo.lock",
-        "version = 4\n\n[[package]]\nname = \"conveyor\"\nversion = \"0.3.2\"\n\n[[package]]\nname = \"serde\"\nversion = \"1.0.0\"\n",
-    );
-    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
-
-    let output = version_check(&work);
-
-    assert_eq!(output.status.code(), Some(1));
-    assert_eq!(stdout(&output), "");
-    assert_eq!(
-        stderr(&output),
-        "Cargo.lock sets the conveyor entry to 0.3.2: put back `version = \"0.0.0\"` under `name = \"conveyor\"`, only the release workflow picks a version (from the kinds in changes/)\n"
-    );
-}
-
-#[test]
-fn a_manifest_with_a_multi_line_string_is_refused_since_it_could_hide_the_version() {
-    let dir = tempfile::tempdir().unwrap();
-    let work = main_with_a_release(dir.path());
-    committed(
-        &work,
-        "Cargo.toml",
-        "[workspace]\nmetadata = '''\n[package]\nversion = \"0.0.0\"\n'''\n\n[package]\nname = \"conveyor\"\nversion = \"9.9.9\"\n",
-    );
-    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
-
-    let output = version_check(&work);
-
-    assert_eq!(output.status.code(), Some(1));
-    assert_eq!(stdout(&output), "");
-    assert_eq!(
-        stderr(&output),
-        "Cargo.toml holds a multi-line string (\"\"\" or '''): the check reads the version line by line, so write every string in Cargo.toml on one line\n"
-    );
-}
-
-#[test]
-fn a_package_table_with_two_version_lines_is_refused() {
-    let dir = tempfile::tempdir().unwrap();
-    let work = main_with_a_release(dir.path());
-    committed(
-        &work,
-        "Cargo.toml",
-        "[package]\nname = \"conveyor\"\nversion = \"0.0.0\"\n version=\"9.9.9\"\n",
-    );
-    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
-
-    let output = version_check(&work);
-
-    assert_eq!(output.status.code(), Some(1));
-    assert_eq!(stdout(&output), "");
-    assert_eq!(
-        stderr(&output),
-        "Cargo.toml holds more than one `version` line in [package]: the check reads the version line by line, so keep the one `version = \"0.0.0\"`\n"
-    );
-}
-
-#[test]
-fn a_lock_with_two_conveyor_entries_is_refused() {
-    let dir = tempfile::tempdir().unwrap();
-    let work = main_with_a_release(dir.path());
-    committed(
-        &work,
-        "Cargo.lock",
-        "version = 4\n\n[[package]]\nname = \"conveyor\"\nversion = \"0.0.0\"\n\n[[package]]\nname = \"conveyor\"\nversion = \"9.9.9\"\n",
-    );
-    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
-
-    let output = version_check(&work);
-
-    assert_eq!(output.status.code(), Some(1));
-    assert_eq!(stdout(&output), "");
-    assert_eq!(
-        stderr(&output),
-        "Cargo.lock holds more than one package named `conveyor`: the check reads the version line by line, so keep the one entry with `version = \"0.0.0\"`\n"
-    );
-}
-
-#[test]
 fn paths_holding_a_control_character_are_counted_before_anything_else_and_never_printed() {
     let dir = tempfile::tempdir().unwrap();
     let work = main_with_a_release(dir.path());
@@ -146,7 +41,7 @@ fn paths_holding_a_control_character_are_counted_before_anything_else_and_never_
     assert_eq!(stdout(&output), "");
     assert_eq!(
         stderr(&output),
-        "changed paths whose name holds a control character (a newline, a tab, another byte below 0x20 or 0x7f): 3; rename them, the check never prints such a name\n"
+        "version check: changed paths whose name holds a control character (a newline, a tab, another byte below 0x20 or 0x7f): 3; rename them, the check never prints such a name\n"
     );
 }
 
@@ -169,7 +64,7 @@ fn a_rename_from_a_path_holding_a_control_character_is_refused() {
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
         stderr(&output),
-        "changed paths whose name holds a control character (a newline, a tab, another byte below 0x20 or 0x7f): 1; rename them, the check never prints such a name\n"
+        "version check: changed paths whose name holds a control character (a newline, a tab, another byte below 0x20 or 0x7f): 1; rename them, the check never prints such a name\n"
     );
 }
 
@@ -189,8 +84,8 @@ fn a_fragment_main_gained_after_the_branch_was_cut_is_not_the_pull_requests_frag
     assert_eq!(stdout(&output), "");
     assert_eq!(
         stderr(&output),
-        "changes/late.md is taken on main: the pull request needs its own file changes/<name>.md\n\
-         src/main.rs feeds the binary, so the pull request needs a fragment: add changes/<branch>.md starting with `kind: fix`, `kind: feat` or `kind: internal` (see Releasing in AGENTS.md)\n"
+        "version check: changes/late.md is taken on main: the pull request needs its own file changes/<name>.md\n\
+         version check: src/main.rs feeds the binary, so the pull request needs a fragment: add changes/<branch>.md starting with `kind: fix`, `kind: feat` or `kind: internal` (see Releasing in AGENTS.md)\n"
     );
 }
 
@@ -212,7 +107,7 @@ fn a_call_without_a_base_and_a_head_prints_the_usage() {
     assert_eq!(stdout(&output), "");
     assert_eq!(
         stderr(&output),
-        "usage: scripts/version-check.sh <base> <head>\n"
+        "version check: usage: scripts/version-check.sh <base> <head>\n"
     );
 }
 
@@ -234,7 +129,7 @@ fn a_head_that_is_not_a_commit_here_is_refused() {
     assert_eq!(stdout(&output), "");
     assert_eq!(
         stderr(&output),
-        "8c1f2a7d5e3b4c6a9f0e1d2c3b4a5f6e7d8c9b0a is not a commit here: fetch the pull request first (git fetch origin pull/<number>/head)\n"
+        "version check: 8c1f2a7d5e3b4c6a9f0e1d2c3b4a5f6e7d8c9b0a is not a commit here: fetch the pull request first (git fetch origin pull/<number>/head)\n"
     );
 }
 
@@ -254,7 +149,7 @@ fn an_edited_changelog_is_refused_by_file() {
     assert_eq!(stdout(&output), "");
     assert_eq!(
         stderr(&output),
-        "CHANGELOG.md is changed: leave it as main has it, the release workflow writes it from the fragments in changes/ (add one there instead)\n"
+        "version check: CHANGELOG.md is changed: leave it as main has it, the release workflow writes it from the fragments in changes/ (add one there instead)\n"
     );
 }
 
@@ -288,7 +183,7 @@ fn an_edited_fragment_is_refused_by_file() {
     assert_eq!(stdout(&output), "");
     assert_eq!(
         stderr(&output),
-        "changes/merged.md is edited: a fragment on main never changes, so leave it as it is and put the correction in a new file changes/<name>.md\n"
+        "version check: changes/merged.md is edited: a fragment on main never changes, so leave it as it is and put the correction in a new file changes/<name>.md\n"
     );
 }
 
@@ -305,7 +200,7 @@ fn a_deleted_fragment_is_refused_by_file() {
     assert_eq!(stdout(&output), "");
     assert_eq!(
         stderr(&output),
-        "changes/merged.md is deleted: a fragment on main is never deleted, so restore it as main has it\n"
+        "version check: changes/merged.md is deleted: a fragment on main is never deleted, so restore it as main has it\n"
     );
 }
 
@@ -322,7 +217,7 @@ fn a_renamed_fragment_is_refused_by_file() {
     assert_eq!(stdout(&output), "");
     assert_eq!(
         stderr(&output),
-        "changes/merged.md is renamed to changes/renamed.md: a fragment on main is never renamed, so restore changes/merged.md and add new text as a new file changes/<name>.md\n"
+        "version check: changes/merged.md is renamed to changes/renamed.md: a fragment on main is never renamed, so restore changes/merged.md and add new text as a new file changes/<name>.md\n"
     );
 }
 
@@ -343,7 +238,7 @@ fn a_file_renamed_into_changes_is_refused_by_file() {
     assert_eq!(stdout(&output), "");
     assert_eq!(
         stderr(&output),
-        "docs/note.md is renamed to changes/note.md: a fragment is only ever added, so restore docs/note.md and add changes/note.md as a new file\n"
+        "version check: docs/note.md is renamed to changes/note.md: a fragment is only ever added, so restore docs/note.md and add changes/note.md as a new file\n"
     );
 }
 
@@ -359,7 +254,7 @@ fn an_added_fragment_with_an_unknown_kind_is_refused_by_file() {
     assert_eq!(stdout(&output), "");
     assert_eq!(
         stderr(&output),
-        "changes/topic.md must start with `kind: fix`, `kind: feat` or `kind: internal`\n"
+        "version check: changes/topic.md must start with `kind: fix`, `kind: feat` or `kind: internal`\n"
     );
 }
 
@@ -379,7 +274,7 @@ fn an_added_file_in_a_folder_under_changes_is_refused_by_file() {
     assert_eq!(stdout(&output), "");
     assert_eq!(
         stderr(&output),
-        "changes/fix/topic.md is not a fragment: a fragment is a file changes/<name>.md\n"
+        "version check: changes/fix/topic.md is not a fragment: a fragment is a file changes/<name>.md\n"
     );
 }
 
@@ -395,7 +290,7 @@ fn an_added_fragment_repeating_a_released_bullet_is_refused_by_file() {
     assert_eq!(stdout(&output), "");
     assert_eq!(
         stderr(&output),
-        "changes/topic.md repeats a bullet of v0.3.1: Fixed the builds.\n"
+        "version check: changes/topic.md repeats a bullet of v0.3.1: Fixed the builds.\n"
     );
 }
 
@@ -412,7 +307,7 @@ fn a_change_to_the_binary_without_a_fragment_is_refused_by_file() {
     assert_eq!(stdout(&output), "");
     assert_eq!(
         stderr(&output),
-        "src/main.rs feeds the binary, so the pull request needs a fragment: add changes/<branch>.md starting with `kind: fix`, `kind: feat` or `kind: internal` (see Releasing in AGENTS.md)\n"
+        "version check: src/main.rs feeds the binary, so the pull request needs a fragment: add changes/<branch>.md starting with `kind: fix`, `kind: feat` or `kind: internal` (see Releasing in AGENTS.md)\n"
     );
 }
 
@@ -430,7 +325,7 @@ fn a_head_with_no_history_in_common_with_the_base_is_refused() {
     assert_eq!(stdout(&output), "");
     assert_eq!(
         stderr(&output),
-        "pull shares no history with main: cut the branch from main and open the pull request again\n"
+        "version check: pull shares no history with main: cut the branch from main and open the pull request again\n"
     );
 }
 
@@ -487,7 +382,7 @@ fn a_source_file_renamed_out_of_the_binary_still_needs_a_fragment() {
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
         stderr(&output),
-        "src/main.rs feeds the binary, so the pull request needs a fragment: add changes/<branch>.md starting with `kind: fix`, `kind: feat` or `kind: internal` (see Releasing in AGENTS.md)\n"
+        "version check: src/main.rs feeds the binary, so the pull request needs a fragment: add changes/<branch>.md starting with `kind: fix`, `kind: feat` or `kind: internal` (see Releasing in AGENTS.md)\n"
     );
 }
 
@@ -508,10 +403,10 @@ fn every_refusal_is_reported_not_only_the_first() {
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
         stderr(&output),
-        "Cargo.toml sets the package version to 0.4.0: put back `version = \"0.0.0\"`, only the release workflow picks a version (from the kinds in changes/)\n\
-         CHANGELOG.md is changed: leave it as main has it, the release workflow writes it from the fragments in changes/ (add one there instead)\n\
-         changes/merged.md is edited: a fragment on main never changes, so leave it as it is and put the correction in a new file changes/<name>.md\n\
-         Cargo.toml feeds the binary, so the pull request needs a fragment: add changes/<branch>.md starting with `kind: fix`, `kind: feat` or `kind: internal` (see Releasing in AGENTS.md)\n"
+        "version check: Cargo.toml sets the package version to 0.4.0: put back `version = \"0.0.0\"`, only the release workflow picks a version (from the kinds in changes/)\n\
+         version check: CHANGELOG.md is changed: leave it as main has it, the release workflow writes it from the fragments in changes/ (add one there instead)\n\
+         version check: changes/merged.md is edited: a fragment on main never changes, so leave it as it is and put the correction in a new file changes/<name>.md\n\
+         version check: Cargo.toml feeds the binary, so the pull request needs a fragment: add changes/<branch>.md starting with `kind: fix`, `kind: feat` or `kind: internal` (see Releasing in AGENTS.md)\n"
     );
 }
 
@@ -536,7 +431,42 @@ fn the_head_is_read_from_git_objects_not_from_the_checked_out_tree() {
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
         stderr(&output),
-        "changes/topic.md must start with `kind: fix`, `kind: feat` or `kind: internal`\n"
+        "version check: changes/topic.md must start with `kind: fix`, `kind: feat` or `kind: internal`\n"
+    );
+}
+
+#[test]
+fn a_changed_path_starting_with_two_colons_never_begins_a_stderr_line() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    committed(&work, "::warning::spoof", "a file\n");
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(!stderr(&output).lines().any(|line| line.starts_with("::")));
+    assert_eq!(
+        stderr(&output),
+        "version check: ::warning::spoof feeds the binary, so the pull request needs a fragment: add changes/<branch>.md starting with `kind: fix`, `kind: feat` or `kind: internal` (see Releasing in AGENTS.md)\n"
+    );
+}
+
+#[test]
+fn a_carriage_return_in_a_fragment_never_starts_a_line_a_workflow_reads() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = main_with_a_release(dir.path());
+    fragment(
+        &work,
+        "topic",
+        "kind: fix\n\n- Fixed the queue.\nstray\r::warning::spoof\n",
+    );
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "version check: changes/topic.md has a bullet, so every line after its kind must be a `- ` bullet, an indented continuation or blank: stray ::warning::spoof\n"
     );
 }
 
@@ -548,7 +478,7 @@ fn main_with_a_fragment(root: &Path) -> PathBuf {
     work
 }
 
-fn main_with_a_release(root: &Path) -> PathBuf {
+pub fn main_with_a_release(root: &Path) -> PathBuf {
     let work = released(root, "v0.3.1");
     link_script(&work, "version-check.sh");
     committed(
@@ -572,7 +502,7 @@ fn main_with_a_release(root: &Path) -> PathBuf {
     work
 }
 
-fn version_check(work: &Path) -> Output {
+pub fn version_check(work: &Path) -> Output {
     git(work, &["checkout", "-q", "main"]);
     isolated(
         Command::new(which("bash"))

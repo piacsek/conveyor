@@ -354,7 +354,11 @@ kind: fix
 - a path it changes feeds the binary (`scripts/feeds-binary.sh`, a rename counting both of its
   paths, `CHANGELOG.md` left out since it is refused anyway) and it adds no fragment.
 
-Past the control character check it reports every refusal, not only the first. The check
+Past the control character check it reports every refusal, not only the first. Every line it
+writes to stderr starts with `version check: `, the lines of the `scripts/fragments.sh`
+functions included (with a carriage return turned into a space), so a path or a fragment line
+starting with `::` never reaches the start of a line, where GitHub Actions would read it as a
+workflow command; the release scripts calling those functions print them as before. The check
 becomes required when `version` is added to the `main` ruleset, which is done by hand after
 the workflow is on `main`.
 

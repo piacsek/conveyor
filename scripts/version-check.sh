@@ -2,21 +2,25 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 . scripts/fragments.sh
+say() {
+  printf 'version check: %s\n' "$*" >&2
+}
 if [ "$#" -ne 2 ]; then
-  echo "usage: scripts/version-check.sh <base> <head>" >&2
+  say "usage: scripts/version-check.sh <base> <head>"
   exit 1
 fi
 if ! head="$(git rev-parse --quiet --verify "$2^{commit}")"; then
-  echo "$2 is not a commit here: fetch the pull request first (git fetch origin pull/<number>/head)" >&2
+  say "$2 is not a commit here: fetch the pull request first (git fetch origin pull/<number>/head)"
   exit 1
 fi
 if ! fork="$(git merge-base "$1" "$head")"; then
-  echo "$2 shares no history with $1: cut the branch from $1 and open the pull request again" >&2
+  say "$2 shares no history with $1: cut the branch from $1 and open the pull request again"
   exit 1
 fi
 export LC_ALL=C
 listing="$(mktemp)"
-trap 'rm -f "$listing"' EXIT
+errors="$(mktemp)"
+trap 'rm -f "$listing" "$errors"' EXIT
 git diff --name-status -z -M "$fork" "$head" >"$listing"
 hostile=0
 while IFS= read -r -d '' field; do
@@ -25,7 +29,7 @@ while IFS= read -r -d '' field; do
   esac
 done <"$listing"
 if [ "$hostile" -gt 0 ]; then
-  echo "changed paths whose name holds a control character (a newline, a tab, another byte below 0x20 or 0x7f): $hostile; rename them, the check never prints such a name" >&2
+  say "changed paths whose name holds a control character (a newline, a tab, another byte below 0x20 or 0x7f): $hostile; rename them, the check never prints such a name"
   exit 1
 fi
 fragments_at="$head"
@@ -34,8 +38,15 @@ touched=""
 refused=0
 
 refuse() {
-  echo "$*" >&2
+  say "$*"
   refused=1
+}
+
+said() {
+  local status=0
+  "$@" 2>"$errors" || status=$?
+  tr '\r' ' ' <"$errors" | sed 's/^/version check: /' >&2
+  return "$status"
 }
 
 under_changes() {
@@ -123,14 +134,14 @@ while IFS= read -r -d '' status && IFS= read -r -d '' path; do
   esac
 done <"$listing"
 
-refuse_strays || refused=1
+said refuse_strays || refused=1
 while IFS= read -r file; do
   [ -n "$file" ] || continue
-  fragment_kind "$file" >/dev/null || refused=1
+  said fragment_kind "$file" >/dev/null || refused=1
 done <<<"$added"
 if [ -n "$added" ]; then
-  if last="$(last_tag)"; then
-    refuse_repeats "$last" "${added%$'\n'}" || refused=1
+  if last="$(said last_tag)"; then
+    said refuse_repeats "$last" "${added%$'\n'}" || refused=1
   else
     refused=1
   fi
