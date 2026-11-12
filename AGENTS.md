@@ -335,9 +335,13 @@ hand: `gh workflow run release.yml`) and runs one at a time (`concurrency: relea
 job checks out `main` at its current head, not the commit that started it, fetches every `v*`
 tag (release commits are reachable only from their tags) and runs `scripts/release-tag.sh`:
 
-1. The newest `vX.Y.Z` tag without a release holding exactly the three tarballs and their
-   `.sha256` is unfinished: the run builds and publishes that tag and computes nothing new
-   (a release holding any other asset stops the run; remove that asset by hand).
+1. The newest `vX.Y.Z` tag whose release is not `complete` (published, not a draft, holding
+   exactly the three tarballs and their `.sha256`; `scripts/releases.sh`) is unfinished: the
+   run builds and publishes that tag and computes nothing new. A draft counts as unfinished:
+   `softprops/action-gh-release` creates the release as a draft, uploads, then publishes, so a
+   run that dies in between leaves a draft that may already hold every asset. A release
+   holding any other asset stops the run; remove that asset by hand. Fragments merged since
+   that tag wait for the next run, and the run says so in a `::warning::`.
 2. Otherwise `scripts/next-version.sh` reads the fragments added since that tag; none means
    nothing to release, and every later job is skipped with the run green.
 3. Otherwise `scripts/release-commit.sh` writes the version into `Cargo.toml` and
@@ -345,17 +349,31 @@ tag (release commits are reachable only from their tags) and runs `scripts/relea
    as `github-actions[bot]` (`Release vX.Y.Z`) on top of `main` and pushes only the tag. `main`
    never moves; the tag push starts no other run.
 
-Then `build` (one `macos-latest` job for both Apple targets, Intel cross-compiled, and one
+Then `build` and `publish` each start with `scripts/release-unfinished.sh <tag>` and skip
+every other step when the tag's release is already `complete`, so no run, a rerun of an old
+one included, rebuilds a published version or replaces its assets (their checksums never
+change once published). Otherwise `build` (one `macos-latest` job for both Apple targets, Intel cross-compiled, and one
 Linux job; `macos-13` is retired and queues forever) checks out the tag, refuses it when
 `Cargo.toml` there reads another version, and packages one flat tarball per target
 (`conveyor-<target>.tar.gz` holding just the binary) plus `.sha256`; `publish` attests them
 (`gh attestation verify <tarball> --repo piacsek/conveyor`) and creates the release with
-generated notes; `tap` regenerates `Formula/conveyor.rb` in `github.com/piacsek/homebrew-tap`
-(local clone `~/projects/homebrew-tap`) with `scripts/homebrew-formula.sh <version>` and pushes
-it with the `TAP_TOKEN` repo secret (fine-grained PAT, contents:write on homebrew-tap; set with
+generated notes. **What the attestation proves:** its subjects are the digests of the
+published tarballs, but the source commit it records is the commit of the event that started
+the run (a commit on `main`), not the release commit the tag points at, which is what was
+built. When the run was not queued behind later merges, the two trees differ only by the
+version in `Cargo.toml` and `Cargo.lock` and by `CHANGELOG.md`; a run that waited in the queue
+or resumed an older tag records a `main` commit that can be further from what was built.
+`tap` runs in every release run that is not cancelled, whether or not this run built anything:
+`scripts/formula-version.sh` picks the newest published `complete` release, and only when
+`Formula/conveyor.rb` in `github.com/piacsek/homebrew-tap` (local clone
+`~/projects/homebrew-tap`) names an older version (or the file is missing) does the job
+regenerate it with `scripts/homebrew-formula.sh <version>` and push it with the `TAP_TOKEN`
+repo secret (fine-grained PAT, contents:write on homebrew-tap; set with
 `gh secret set TAP_TOKEN --repo piacsek/conveyor`). `tap` runs only in `piacsek/conveyor` and
 the attestation only in a public repository, so the same file can be proven in a private
-throwaway one. Asset names carry no version so `releases/latest/download/` links stay valid.
+throwaway one. The formula never goes backwards: a run cancelled between `publish` and `tap`
+is repaired by the next run, and an old `tap` job run again finds a formula already at or past
+its release and writes nothing. Asset names carry no version so `releases/latest/download/` links stay valid.
 
 Merges in quick succession queue up: GitHub keeps one waiting run per group and cancels the
 older waiting one, which is harmless because every run releases everything pending at the
@@ -370,12 +388,18 @@ gh release view --json tagName,assets --jq '.tagName, .assets[].name'
 gh api repos/piacsek/homebrew-tap/contents/Formula/conveyor.rb -H 'Accept: application/vnd.github.raw+json'
 ```
 
-**When a run fails**, rerun it (`gh run rerun <id> --failed`; a stuck macOS job the same way).
-A run that died after pushing its tag is finished by the next run, whatever starts it: the
-next merge, or `gh workflow run release.yml`. A run that resumed a tag releases nothing new,
-so fragments merged meanwhile wait for the next run; dispatch one if nothing else is coming.
-If the `tap` job fails, run `scripts/homebrew-formula.sh <version>` by hand and push the tap;
-check with `brew audit --strict --online --formula piacsek/tap/conveyor` after changing the
+**When a run fails or a job is stuck** (a macOS job left in `queued`), cancel it if it is
+still going and **start a new run** (`gh workflow run release.yml`) rather than rerunning the
+old one. A new run reads the head of `main` with the current workflow file and, when the
+newest tag is unfinished (no release, a draft, or an asset missing), finishes it and
+releases nothing new in that run, so fragments merged meanwhile wait for the run after it
+(dispatch one more if nothing else is coming). A rerun (`gh run rerun <id> --failed`) still
+works but replays the old run: the workflow file of its commit, and the tag its `tag` job chose
+then. Its `build` and `publish` check that tag again: they finish it when its release is still
+unfinished and do nothing when it is already `complete`, and its `tap` only moves the formula
+forward, so rerunning an old run never rewrites a published release or the formula backwards. If `tap` fails, the next release run repairs the formula; to repair it
+now, start a new run, or run `scripts/homebrew-formula.sh <version>` by hand and push the tap.
+Check with `brew audit --strict --online --formula piacsek/tap/conveyor` after changing the
 script.
 
 Never push a `v*` tag by hand: tags come only from the `tag` job of the release run.
