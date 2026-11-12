@@ -39,7 +39,7 @@ fn a_build_script_of_the_head_never_runs() {
     committed(
         &work,
         "Cargo.toml",
-        "[package]\nname = \"conveyor\"\nversion=\"0.0.0\"\nbuild = \"build.rs\"\n",
+        "[package]\nname = \"conveyor\"\nversion = \"0.0.0\"\nbuild = \"build.rs\"\n",
     );
     fragment(&work, "topic", "kind: internal\n");
 
@@ -66,7 +66,7 @@ fn a_cargo_config_of_the_head_never_runs_a_wrapper_an_alias_or_sets_an_environme
     committed(
         &work,
         "Cargo.toml",
-        "[package]\nname = \"conveyor\"\nversion=\"0.0.0\"\n",
+        "[package]\nname = \"conveyor\"\nversion = \"0.0.0\"\n",
     );
     fragment(&work, "topic", "kind: internal\n");
 
@@ -90,7 +90,7 @@ fn a_toolchain_file_of_the_head_naming_no_installed_toolchain_is_ignored() {
     committed(
         &work,
         "Cargo.toml",
-        "[package]\nname = \"conveyor\"\nversion=\"0.0.0\"\n",
+        "[package]\nname = \"conveyor\"\nversion = \"0.0.0\"\n",
     );
     fragment(&work, "topic", "kind: internal\n");
 

@@ -2,6 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 . scripts/fragments.sh
+. scripts/release-rewrite.sh
 version="${1:-}"
 number='(0|[1-9][0-9]*)'
 if ! [[ "$version" =~ ^$number\.$number\.$number$ ]]; then
@@ -34,28 +35,13 @@ bullets="$(
 )"
 refuse_repeats "$last" "$pending"
 released="$(git show "$last:CHANGELOG.md" | awk '/^## / { found = 1 } found')"
-manifest="$(awk -v version="$version" '
-  /^[ \t]*\[/ { package = ($0 == "[package]") }
-  package && /^version = / { $0 = "version = \"" version "\"" }
-  { print }
-' Cargo.toml)"
-lock="$(awk -v version="$version" '
-  entry && /^version = / { $0 = "version = \"" version "\"" }
-  { entry = ($0 == "name = \"conveyor\""); print }
-' Cargo.lock)"
-if ! printf '%s\n' "$manifest" | awk -v line="version = \"$version\"" '
-  /^[ \t]*\[/ { package = ($0 == "[package]") }
-  package && $0 == line { found = 1 }
-  END { exit !found }
-'; then
+manifest="$(manifest_with_version "$version" Cargo.toml)"
+lock="$(lock_with_version "$version" Cargo.lock)"
+if ! manifest_reads "$version" "$manifest"; then
   echo "Cargo.toml: the version of [package] does not read $version after the rewrite" >&2
   exit 1
 fi
-if ! printf '%s\n' "$lock" | awk -v line="version = \"$version\"" '
-  entry && $0 == line { found = 1 }
-  { entry = ($0 == "name = \"conveyor\"") }
-  END { exit !found }
-'; then
+if ! lock_reads "$version" "$lock"; then
   echo "Cargo.lock: the version of the conveyor entry does not read $version after the rewrite" >&2
   exit 1
 fi

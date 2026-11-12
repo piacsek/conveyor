@@ -4,6 +4,7 @@ use std::process::Output;
 
 use crate::helpers::{committed, fragment, stderr, stdout};
 use crate::version_check::{main_with_a_release, version_check};
+use crate::version_check_release::REFUSED;
 
 #[test]
 fn a_package_version_other_than_0_0_0_is_refused_by_file() {
@@ -207,28 +208,28 @@ fn a_lock_cargo_wrote_after_a_dependency_bump_passes() {
 }
 
 #[test]
-fn a_package_version_written_without_spaces_passes_since_cargo_reads_it() {
+fn a_package_version_written_without_spaces_is_refused_since_the_release_cannot_set_it() {
     let output = checked_manifest("[package]\nname = \"conveyor\"\nversion=\"0.0.0\"\n");
 
-    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
-    assert_eq!(stderr(&output), "");
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stderr(&output), REFUSED);
 }
 
 #[test]
-fn a_package_header_with_a_comment_passes_since_cargo_reads_it() {
+fn a_package_header_with_a_comment_is_refused_since_the_release_cannot_set_it() {
     let output =
         checked_manifest("[package] # the crate\nname = \"conveyor\"\nversion = \"0.0.0\"\n");
 
-    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
-    assert_eq!(stderr(&output), "");
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stderr(&output), REFUSED);
 }
 
 #[test]
-fn a_manifest_with_crlf_line_endings_passes_since_cargo_reads_it() {
+fn a_manifest_with_crlf_line_endings_is_refused_since_the_release_cannot_set_it() {
     let output = checked_manifest("[package]\r\nname = \"conveyor\"\r\nversion = \"0.0.0\"\r\n");
 
-    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
-    assert_eq!(stderr(&output), "");
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(stderr(&output), REFUSED);
 }
 
 #[test]
@@ -251,7 +252,7 @@ fn checked_lock(lock: &str) -> Output {
     version_check(&work)
 }
 
-fn checked_manifest(manifest: &str) -> Output {
+pub fn checked_manifest(manifest: &str) -> Output {
     let dir = tempfile::tempdir().unwrap();
     let work = main_with_a_release(dir.path());
     committed(&work, "Cargo.toml", manifest);

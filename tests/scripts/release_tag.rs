@@ -260,6 +260,7 @@ fn sandbox(root: &Path) -> PathBuf {
     link_script(&work, "fragments.sh");
     link_script(&work, "next-version.sh");
     link_script(&work, "release-commit.sh");
+    link_script(&work, "release-rewrite.sh");
     link_script(&work, "release-tag.sh");
     link_script(&work, "releases.sh");
     fs::write(work.join("Cargo.toml"), CARGO_TOML).unwrap();

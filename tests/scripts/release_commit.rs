@@ -642,6 +642,7 @@ fn sandbox(root: &Path) -> PathBuf {
     let work = repository(root);
     link_script(&work, "fragments.sh");
     link_script(&work, "release-commit.sh");
+    link_script(&work, "release-rewrite.sh");
     fs::write(work.join("Cargo.toml"), CARGO_TOML).unwrap();
     fs::write(work.join("Cargo.lock"), CARGO_LOCK).unwrap();
     fs::write(work.join("CHANGELOG.md"), CHANGELOG).unwrap();

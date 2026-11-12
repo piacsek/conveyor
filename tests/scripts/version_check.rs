@@ -543,6 +543,7 @@ fn main_with_a_fragment(root: &Path) -> PathBuf {
 pub fn main_with_a_release(root: &Path) -> PathBuf {
     let work = released(root, "v0.3.1");
     link_script(&work, "version-check.sh");
+    link_script(&work, "release-rewrite.sh");
     committed(
         &work,
         "Cargo.toml",

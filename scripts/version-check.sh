@@ -2,6 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 . scripts/fragments.sh
+. scripts/release-rewrite.sh
 say() {
   printf 'version check: %s\n' "$*" >&2
 }
@@ -118,52 +119,42 @@ materialise() {
   done < <(git ls-tree -r -z "$head")
 }
 
-root_package() {
-  awk -v root="path+file://$1#" '
-    NR > 1 { bad = 1; exit }
-    {
-      text = $0
-      if (substr(text, 1, 13) != "{\"packages\":[") { bad = 1; exit }
-      size = length(text)
-      depth = 2
-      for (i = 14; i <= size; i++) {
-        c = substr(text, i, 1)
-        if (quoted) {
-          if (escaped) escaped = 0
-          else if (c == "\\") escaped = 1
-          else if (c == "\"") quoted = 0
-          continue
-        }
-        if (c == "\"") { quoted = 1; continue }
-        if (c == "]" || c == "}") {
-          depth--
-          if (depth == 1) break
-          continue
-        }
-        if (c != "[" && c != "{") continue
-        depth++
-        if (depth != 3) continue
-        if (c != "{" || !match(substr(text, i, 4096), /^\{"name":"[^"\\]+","version":"[^"\\]+","id":"[^"\\]*"/)) { bad = 1; exit }
-        split(substr(text, i, RLENGTH), field, "\"")
-        if (index(field[12], root) == 1) { found = found field[4] " " field[8]; roots++ }
-      }
-      if (depth != 1 || roots > 1 || substr(text, i, 23) != "],\"workspace_members\":[") { bad = 1; exit }
-      read = 1
-    }
-    END {
-      if (bad || !read) print "unreadable"
-      else print found
-    }
+metadata() {
+  (
+    cd "$scratch/cwd"
+    env -i PATH="$PATH" HOME="$scratch/home" CARGO_HOME="$scratch/home" RUSTUP_HOME="${RUSTUP_HOME:-${HOME:-}/.rustup}" RUSTUP_TOOLCHAIN="${RUSTUP_TOOLCHAIN:-stable}" \
+      cargo metadata --no-deps --offline --format-version 1 --manifest-path "$tree/Cargo.toml" >"$scratch/metadata" 2>"$errors"
+  )
+}
+
+lock_version() {
+  awk '
+    entry && /^version = / { sub(/^version = "/, ""); sub(/".*$/, ""); print; exit }
+    { entry = ($0 == "name = \"conveyor\"") }
   '
 }
 
+manifest_rehearsed() {
+  local rewritten
+  rewritten="$(manifest_with_version "$probe" "$tree/Cargo.toml")" || return 1
+  manifest_reads "$probe" "$rewritten" || return 1
+  printf '%s\n' "$rewritten" >"$tree/Cargo.toml"
+  [ "$(cd "$tree" && grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)" = "$probe" ] || return 1
+  metadata || return 1
+  [ "$(root_package "$tree" <"$scratch/metadata")" = "conveyor $probe" ]
+}
+
+lock_rehearsed() {
+  local rewritten
+  rewritten="$(printf '%s\n' "$lockfile" | lock_with_version "$probe" -)" || return 1
+  lock_reads "$probe" "$rewritten" || return 1
+  [ "$(printf '%s\n' "$rewritten" | lock_version)" = "$probe" ]
+}
+
+probe=987.654.321
 mkdir "$tree" "$scratch/home" "$scratch/cwd"
 materialise
-if (
-  cd "$scratch/cwd"
-  env -i PATH="$PATH" HOME="$scratch/home" CARGO_HOME="$scratch/home" RUSTUP_HOME="${RUSTUP_HOME:-${HOME:-}/.rustup}" RUSTUP_TOOLCHAIN="${RUSTUP_TOOLCHAIN:-stable}" \
-    cargo metadata --no-deps --offline --format-version 1 --manifest-path "$tree/Cargo.toml" >"$scratch/metadata" 2>"$errors"
-); then
+if metadata; then
   package="$(root_package "$tree" <"$scratch/metadata")"
   case "$package" in
     unreadable)
@@ -172,7 +163,11 @@ if (
     "")
       refuse "Cargo.toml has no package of its own (cargo reads a virtual manifest): the package conveyor belongs at the root, where the release workflow writes its version"
       ;;
-    "conveyor 0.0.0") ;;
+    "conveyor 0.0.0")
+      if ! manifest_rehearsed; then
+        refuse "the release workflow could not set the version in Cargo.toml: rehearsed with a probe version, cargo, the release build and the release script did not all read it back, so after the merge the release run would push its tag and then fail to build it; keep the plain form: \`[package]\` alone on its line, \`version = \"0.0.0\"\` as its own line under it, and no other \`version = \` line above it"
+      fi
+      ;;
     "conveyor "*)
       refuse "Cargo.toml sets the package version to ${package#conveyor }: put back \`version = \"0.0.0\"\`, only the release workflow picks a version (from the kinds in changes/)"
       ;;
@@ -196,10 +191,7 @@ fi
 
 lockfile="$(git show "$head:Cargo.lock" 2>/dev/null)" || true
 entries="$(printf '%s\n' "$lockfile" | awk '/^[ \t]*name[ \t]*=[ \t]*"conveyor"[ \t]*$/ { count++ } END { print count + 0 }')"
-lock="$(printf '%s\n' "$lockfile" | awk '
-  entry && /^version = / { sub(/^version = "/, ""); sub(/".*$/, ""); print; exit }
-  { entry = ($0 == "name = \"conveyor\"") }
-')"
+lock="$(printf '%s\n' "$lockfile" | lock_version)"
 case "$lockfile" in
   *'"""'* | *"'''"*)
     shape="holds a multi-line string (\"\"\" or ''')"
@@ -223,6 +215,8 @@ elif [ -z "$lock" ]; then
   refuse "Cargo.lock has no \`name = \"conveyor\"\` line with a \`version = \"...\"\` line right after it: cargo writes Cargo.lock in one shape, so regenerate it with cargo (\`cargo update --workspace\`) instead of editing it by hand"
 elif [ "$lock" != 0.0.0 ]; then
   refuse "Cargo.lock sets the conveyor entry to $lock: put back \`version = \"0.0.0\"\` under \`name = \"conveyor\"\`, only the release workflow picks a version (from the kinds in changes/)"
+elif ! lock_rehearsed; then
+  refuse "the release workflow could not set the version in Cargo.lock: rehearsed with a probe version, the conveyor entry did not read it back, so after the merge the release run would push its tag and then fail to build it; regenerate it with cargo (\`cargo update --workspace\`) instead of editing it by hand"
 fi
 
 while IFS= read -r -d '' status && IFS= read -r -d '' path; do
