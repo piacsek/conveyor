@@ -386,6 +386,49 @@ fn after_a_merge_lands_the_update_waits_for_a_refresh_that_started_after_it() {
 }
 
 #[test]
+fn after_a_merge_lands_another_pull_request_is_offered_its_update_and_draft() {
+    let mut h = Harness::with_size(160, 20);
+
+    h.run(vec![
+        prs(vec![behind(1, "a"), behind(2, "b")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+        Ok(Input::Merged(1, Ok(()))),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("Manage #2"), "{screen}");
+    assert!(!screen.contains("waiting for My PRs"), "{screen}");
+
+    h.run(vec![key(KeyCode::Char('u'))]).unwrap();
+
+    assert_eq!(
+        h.requests.last(),
+        Some(&target(2, "b", UpdateMethod::Merge)),
+        "{:?}",
+        h.requests
+    );
+
+    h.run(vec![key(KeyCode::Char('k')), key(KeyCode::Char('S'))])
+        .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("Manage #1"), "{screen}");
+    assert!(
+        screen.contains("u  update branch · waiting for My PRs to catch up with"),
+        "{screen}"
+    );
+    assert!(
+        screen.contains("t  convert to draft · waiting for My PRs to catch up"),
+        "{screen}"
+    );
+}
+
+#[test]
 fn after_a_refused_merge_u_updates_right_away() {
     let mut h = Harness::new();
 

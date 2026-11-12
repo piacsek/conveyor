@@ -85,12 +85,8 @@ impl PrsStage {
                 "convert to draft",
                 Err(format!("#{} is in the merge queue", pr.number)),
             )
-        } else if let Some((number, _)) = context.merge_landing {
-            offer(
-                't',
-                "convert to draft",
-                Err(format!("waiting for My PRs to catch up with #{number}")),
-            )
+        } else if context.landing(pr.number) {
+            offer('t', "convert to draft", Err(waiting(pr.number)))
         } else {
             offer('t', "convert to draft", status(StatusChange::Draft))
         };
@@ -174,8 +170,8 @@ impl PrsStage {
 
     fn update_target(&self, context: &Context) -> Result<UpdateTarget, String> {
         let pr = self.column.selected().ok_or("nothing selected")?;
-        if let Some((number, _)) = context.merge_landing {
-            return Err(format!("waiting for My PRs to catch up with #{number}"));
+        if context.landing(pr.number) {
+            return Err(waiting(pr.number));
         }
         if pr.queue_position.is_some() {
             return Err(format!(
@@ -209,6 +205,10 @@ impl PrsStage {
             label,
         })
     }
+}
+
+fn waiting(number: u64) -> String {
+    format!("waiting for My PRs to catch up with #{number}")
 }
 
 fn checkout_target(pr: &PullRequest, context: &Context) -> CheckoutTarget {

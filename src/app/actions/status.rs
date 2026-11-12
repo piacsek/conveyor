@@ -50,7 +50,7 @@ impl App {
             Err(message) => format!("#{number}: {message}"),
         });
         if result.is_ok() && change.lands_a_merge() {
-            self.merge_landing = Some((number, false));
+            self.land(number);
         }
         result.is_ok()
     }

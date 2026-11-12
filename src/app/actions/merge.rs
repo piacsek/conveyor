@@ -28,10 +28,17 @@ impl App {
 
     pub fn receive_merged(&mut self, number: u64, result: &Result<(), String>) {
         self.finish_write(number, &WriteKind::Merge);
-        self.merge_landing = result.is_ok().then_some((number, false));
+        if result.is_ok() {
+            self.land(number);
+        }
         self.notice = Some(match result {
             Ok(()) => format!("merge sent for #{number}"),
             Err(message) => format!("#{number}: {message}"),
         });
+    }
+
+    pub(super) fn land(&mut self, number: u64) {
+        self.merge_landing.retain(|(landing, _)| *landing != number);
+        self.merge_landing.push((number, false));
     }
 }
