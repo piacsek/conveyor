@@ -213,6 +213,29 @@ fn while_an_update_is_in_flight_s_says_so_instead_of_opening() {
     assert_eq!(h.requests.len(), 1);
 }
 
+#[test]
+fn while_an_update_is_in_flight_s_opens_on_another_pull_request() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(vec![behind(1, "a"), behind(2, "b")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('u')),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('u')),
+    ])
+    .unwrap();
+
+    assert_eq!(h.requests.len(), 2, "{:?}", h.requests);
+    assert_eq!(h.requests[1], target(2, "b", UpdateMethod::Merge));
+
+    h.run(vec![key(KeyCode::Char('k')), key(KeyCode::Char('S'))])
+        .unwrap();
+
+    assert!(h.screen().contains("updating #1…"), "{}", h.screen());
+}
+
 fn updated(number: u64, result: Result<BranchUpdate, &str>) -> std::io::Result<Input> {
     Ok(Input::BranchUpdated(number, result.map_err(str::to_string)))
 }

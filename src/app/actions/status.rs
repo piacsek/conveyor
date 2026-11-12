@@ -34,7 +34,6 @@ impl App {
     }
 
     pub(super) fn send_status(&mut self, target: StatusTarget) -> Action {
-        self.notice = Some(progress(target.number, &target.change));
         self.start_write(target.number, WriteKind::Status(target.change.clone()));
         Action::ChangeStatus(target)
     }

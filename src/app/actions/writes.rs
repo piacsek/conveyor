@@ -12,13 +12,19 @@ pub struct Write {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WriteKind {
+    Merge,
+    Update,
     Status(StatusChange),
+    Checkout,
 }
 
 impl Write {
     pub fn progress(&self) -> String {
         match &self.kind {
+            WriteKind::Merge => format!("merging #{}…", self.subject),
+            WriteKind::Update => format!("updating #{}…", self.subject),
             WriteKind::Status(change) => progress(self.subject, change),
+            WriteKind::Checkout => format!("checking out #{}…", self.subject),
         }
     }
 }
@@ -31,11 +37,13 @@ impl App {
     }
 
     pub(super) fn start_write(&mut self, subject: u64, kind: WriteKind) {
-        self.writes.push(Write {
+        let write = Write {
             subject,
             stage: self.focus,
             kind,
-        });
+        };
+        self.notice = Some(write.progress());
+        self.writes.push(write);
     }
 
     pub(super) fn finish_write(&mut self, subject: u64, kind: &WriteKind) {

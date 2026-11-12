@@ -74,20 +74,11 @@ impl App {
     }
 
     fn write_in_flight(&self) -> Option<String> {
-        if let Some(number) = self.merging {
-            return Some(format!("merging #{number}…"));
-        }
-        if let Some(number) = self.updating {
-            return Some(format!("updating #{number}…"));
-        }
         if let Some(write) = self
             .selected_key()
             .and_then(|key| self.write_on(self.focus, key))
         {
             return Some(write.progress());
-        }
-        if let Some(number) = self.checking_out {
-            return Some(format!("checking out #{number}…"));
         }
         self.rerunning
             .as_ref()

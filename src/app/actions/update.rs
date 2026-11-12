@@ -4,7 +4,7 @@ use crate::app::{Action, App};
 use crate::config::UpdateMethod;
 use crate::model::prs::BranchUpdate;
 
-use super::Choice;
+use super::{Choice, WriteKind};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateTarget {
@@ -29,8 +29,7 @@ impl App {
     }
 
     pub(super) fn send_update(&mut self, target: UpdateTarget) -> Action {
-        self.updating = Some(target.number);
-        self.notice = Some(format!("updating #{}…", target.number));
+        self.start_write(target.number, WriteKind::Update);
         Action::UpdateBranch(target)
     }
 
@@ -39,7 +38,7 @@ impl App {
         number: u64,
         result: &Result<BranchUpdate, String>,
     ) -> bool {
-        self.updating = None;
+        self.finish_write(number, &WriteKind::Update);
         self.notice = Some(match result {
             Ok(BranchUpdate::Updated) => format!("branch of #{number} updated"),
             Ok(BranchUpdate::UpToDate) => format!("#{number} is already up to date"),

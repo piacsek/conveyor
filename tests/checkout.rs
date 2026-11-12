@@ -98,6 +98,29 @@ fn s_waits_while_a_checkout_is_on_its_way() {
 }
 
 #[test]
+fn while_a_checkout_is_on_its_way_s_opens_on_another_pull_request() {
+    let mut h = tall(Config::default());
+
+    h.run(vec![
+        prs(vec![pr(1, "a"), pr(2, "b")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('c')),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('c')),
+    ])
+    .unwrap();
+
+    assert_eq!(h.requests.len(), 2, "{:?}", h.requests);
+    assert_eq!(h.requests[1], checkout(2, None));
+
+    h.run(vec![key(KeyCode::Char('k')), key(KeyCode::Char('S'))])
+        .unwrap();
+
+    assert!(h.screen().contains("checking out #1…"), "{}", h.screen());
+}
+
+#[test]
 fn a_landed_checkout_names_the_directory_and_refreshes_nothing() {
     let mut h = tall(with_path("acme/webapp", "~/projects/webapp"));
 

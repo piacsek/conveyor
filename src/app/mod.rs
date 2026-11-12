@@ -97,8 +97,6 @@ pub struct App {
     pub now: SystemTime,
     pub utc_offset_secs: i32,
     pub notice: Option<String>,
-    pub merging: Option<u64>,
-    pub updating: Option<u64>,
     pub follow_up: Option<SystemTime>,
     pub merge_landing: Option<(u64, bool)>,
     pub details: bool,
@@ -119,7 +117,6 @@ pub struct App {
     pub query: Option<String>,
     rerunning: Option<(Stage, String)>,
     writes: Vec<Write>,
-    checking_out: Option<u64>,
     pending_g: bool,
     last_open: Option<(String, SystemTime)>,
 }
@@ -141,8 +138,6 @@ impl App {
             now,
             utc_offset_secs: 0,
             notice: None,
-            merging: None,
-            updating: None,
             follow_up: None,
             merge_landing: None,
             details: false,
@@ -160,7 +155,6 @@ impl App {
             query: None,
             rerunning: None,
             writes: Vec::new(),
-            checking_out: None,
             pending_g: false,
             last_open: None,
         }
