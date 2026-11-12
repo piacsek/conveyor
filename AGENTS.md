@@ -335,15 +335,17 @@ hand: `gh workflow run release.yml`) and runs one at a time (`concurrency: relea
 job checks out `main` at its current head, not the commit that started it, fetches every `v*`
 tag (release commits are reachable only from their tags) and runs `scripts/release-tag.sh`:
 
-1. The newest `vX.Y.Z` tag whose release is not `complete` (published, not a draft, holding
-   exactly the three tarballs and their `.sha256`; `scripts/releases.sh`) is unfinished: the
+1. The newest `vX.Y.Z` tag, when its release is not `complete` (published, not a draft, holding
+   exactly the three tarballs and their `.sha256`; `scripts/releases.sh`), is unfinished (only
+   the newest tag is looked at, an older unfinished one below it is never resumed): the
    run builds and publishes that tag and computes nothing new. A draft counts as unfinished:
    `softprops/action-gh-release` creates the release as a draft, uploads, then publishes, so a
    run that dies in between leaves a draft that may already hold every asset. A release
    holding any other asset stops the run; remove that asset by hand. Fragments merged since
    that tag wait for the next run, and the run says so in a `::warning::`.
 2. Otherwise `scripts/next-version.sh` reads the fragments added since that tag; none means
-   nothing to release, and every later job is skipped with the run green.
+   nothing to release: `build` and `publish` are skipped, `tap` still runs and only reconciles
+   the formula, and the run is green.
 3. Otherwise `scripts/release-commit.sh` writes the version into `Cargo.toml` and
    `Cargo.lock` and a `CHANGELOG.md` with the new section above the last tag's, commits it
    as `github-actions[bot]` (`Release vX.Y.Z`) on top of `main` and pushes only the tag. `main`
