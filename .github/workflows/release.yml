@@ -125,23 +125,30 @@ jobs:
 
   tap:
     needs: [tag, publish]
-    if: github.repository == 'piacsek/conveyor'
+    if: ${{ !cancelled() && github.repository == 'piacsek/conveyor' }}
     runs-on: ubuntu-latest
     concurrency:
       group: tap
       cancel-in-progress: false
-    env:
-      VERSION: ${{ needs.tag.outputs.version }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: ${{ needs.tag.outputs.tag }}
+          sparse-checkout: scripts
+      - name: Pick the version the formula should name
+        id: formula
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/formula-version.sh >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        if: steps.formula.outputs.version != ''
         with:
           repository: piacsek/homebrew-tap
           token: ${{ secrets.TAP_TOKEN }}
           path: tap
       - name: Update formula
+        if: steps.formula.outputs.version != ''
+        env:
+          VERSION: ${{ steps.formula.outputs.version }}
         run: |
           scripts/homebrew-formula.sh "$VERSION" > tap/Formula/conveyor.rb
           cd tap
