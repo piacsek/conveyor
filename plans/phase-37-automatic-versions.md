@@ -56,7 +56,7 @@ Not verified yet, to check before the task that depends on it:
   6. Push the tag `vNEXT` at that commit, then build, publish and update the tap in the same run.
 - Four merges in quick succession: the first run releases the first one; the runs behind it collapse into one that releases the other three as a single version.
 - A run that died after pushing its tag is finished by the next run: when `last` has no release holding the six assets, that tag is built and published before anything new is computed.
-- Fragments are never deleted by the workflow (it cannot write to `main`). "Pending" is defined against the last tag's tree, so old fragments cost nothing; a later pull request may delete them.
+- Fragments are never deleted by the workflow (it cannot write to `main`). "Pending" is defined against the last tag's tree, so old fragments cost nothing. **A fragment is never deleted, edited or renamed once it is on `main`:** `changes/` only grows. Deleting a released fragment and later reusing its name would either stop every release (the content differs from the released one) or skip a release without a word (the content is the same), so the check of task 7 refuses a pull request that deletes, edits or renames a file under `changes/`.
 
 ### A pull request cannot set the version
 Two layers, the first being the one that matters:
@@ -78,7 +78,7 @@ Known limit: the owner of the repository can still push a `v*` tag by hand or ed
 4. One script answers "does this path feed the binary"; `scripts/dev-install-skippable.sh` calls it and its tests stay green.
 5. `Cargo.toml` goes to `0.0.0`; the first fragment-based release continues from the newest tag (see Rollout for v0.24.2).
 6. `release.yml`: trigger on `main`, the concurrency group, the compute, release commit and tag steps, the existing build, publish and tap jobs fed from the release commit, the resume of an unfinished tag.
-7. The `version` check on `pull_request_target` (the version is untouched, fragments are well formed, a binary change carries one), then the ruleset gains it as a required check (after the workflow is on `main`, or every merge blocks). A fragment must be an added file, never a modified or renamed one, and its name a direct child `changes/<name>.md` (a branch name holding `/` uses `-` instead).
+7. The `version` check on `pull_request_target` (the version is untouched, fragments are well formed, a binary change carries one), then the ruleset gains it as a required check (after the workflow is on `main`, or every merge blocks). A fragment must be an added file, never a modified or renamed one, and its name a direct child `changes/<name>.md` (a branch name holding `/` uses `-` instead). It refuses a pull request that deletes, edits or renames a file under `changes/`.
 8. Optional hardening: a tag ruleset so `v*` tags are created only by the workflow. Only if the bypass actors available to a user-owned repository allow it.
 9. Remove `scripts/release.sh` and its tests; rewrite "Releasing" (the kinds, no majors, `v0.0.0` in dev builds), "Two binaries", the autonomous flow (steps 4 and 5) and `.github/AGENTS.md`; `PLAN.md` outcome.
 
