@@ -62,6 +62,28 @@ fn the_changelog_gains_the_pending_bullets_in_file_name_order_above_the_last_rel
 }
 
 #[test]
+fn a_fragment_with_crlf_line_endings_reaches_the_changelog_without_carriage_returns() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    fragment(
+        &work,
+        "topic",
+        "kind: fix\r\n\r\n- Fixed the queue,\r\n  on every column.\r\n",
+    );
+
+    let output = release_commit(&work, &["0.3.2"]);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(
+        fs::read_to_string(work.join("CHANGELOG.md")).unwrap(),
+        format!(
+            "# Changelog\n\n## v0.3.2 ({})\n- Fixed the queue,\n  on every column.\n\n## v0.3.1 (2026-11-02)\n- Fixed the builds.\n\n## v0.3.0 (2026-11-01)\n- A first key.\n",
+            today()
+        )
+    );
+}
+
+#[test]
 fn the_older_releases_come_from_the_last_tag_whatever_the_branch_wrote() {
     let dir = tempfile::tempdir().unwrap();
     let work = sandbox(dir.path());

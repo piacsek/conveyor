@@ -40,6 +40,7 @@ pending_fragments() {
 
 fragment_bullets() {
   git show "HEAD:$1" | awk '
+    { sub(/\r$/, "") }
     NR == 1 { next }
     /^- / && $0 !~ /^- [ \t]*$/ { print; seen = 1; next }
     /^[ \t]+[^ \t]/ && seen { print }
@@ -48,7 +49,7 @@ fragment_bullets() {
 
 fragment_kind() {
   local kind
-  kind="$(git show "HEAD:$1" | sed -n '1s/^kind: //p')"
+  kind="$(git show "HEAD:$1" | sed -n '1s/^kind: //p' | tr -d '\r')"
   case "$kind" in
     internal) ;;
     fix | feat)

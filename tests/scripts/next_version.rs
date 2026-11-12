@@ -312,6 +312,18 @@ fn a_last_tag_whose_tree_cannot_be_read_stops_the_script() {
     assert_eq!(stdout(&output), "");
 }
 
+#[test]
+fn a_feat_with_crlf_line_endings_bumps_the_minor() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = released(dir.path(), "v0.3.1");
+    fragment(&work, "topic", "kind: feat\r\n\r\n- A new key.\r\n");
+
+    let output = next_version(&work);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "0.4.0\n");
+}
+
 fn next_version(work: &Path) -> Output {
     isolated(Command::new(which("bash")).arg(work.join("scripts/next-version.sh")))
         .output()
