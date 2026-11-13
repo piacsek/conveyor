@@ -104,6 +104,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
                  `tests/source_size.rs` fails while any Rust file under `src/` or `tests/` is longer than 700 lines, naming it;
                  `tests/stage_dispatch.rs` fails while a match arm on a `Stage` variant sits in `src/app/` outside `stages/mod.rs`, naming the line;
+                 `tests/dead_code.rs` fails while a `pub` item under `src/` has its name nowhere else in `src/` (a name scan, not a resolver) and is not on its `SEAMS` list, while a seam on that list is no longer declared or used by a test, while a `pub fn` of `tests/support/mod.rs` is used by no test, or while a `dead_code` attribute sits outside `tests/support/mod.rs`, naming each;
                  a test file that outgrows the limit becomes a folder (`tests/<name>/main.rs` plus one file per topic), so it stays one binary
 tests/AGENTS.md  the testing traps hit so far, the e2e `gh` shim dispatch note
 .github/AGENTS.md CI: what the workflows run and why (`check`, `audit`, the `version` check, the release queue, the tap), the `main` ruleset, branch cleanup; the release internals
@@ -308,6 +309,11 @@ nearest the code the guideline is about.
 Strict TDD: one failing test, minimal code, refactor. Outside-in: start from the binary or
 from `run()` with scripted inputs, drop to unit tests only for pure helpers. No code
 comments; names and tests carry the intent.
+
+Dead code is strictly forbidden. An item nothing calls is deleted in the same change that
+orphans it, never kept "for later". A `pub` item that only tests call is a test seam and must
+be on the `SEAMS` list in `tests/dead_code.rs`. `#[allow(dead_code)]` appears nowhere except
+`tests/support/mod.rs`, where each test binary uses only some of the helpers.
 
 Gates, all required before a task is done, wrapped by `scripts/gates.sh`:
 
