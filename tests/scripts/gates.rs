@@ -180,7 +180,7 @@ fn gates_repository(root: &Path) -> PathBuf {
     symlink(recorder(), work.join("scripts/scrub-check.sh")).unwrap();
     for target in [
         "tests/cli.rs",
-        "tests/e2e.rs",
+        "tests/e2e/main.rs",
         "tests/prs/main.rs",
         "tests/scripts/main.rs",
         "tests/support/mod.rs",

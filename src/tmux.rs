@@ -1,4 +1,7 @@
+use std::io::Read;
 use std::process::{Command, Stdio};
+use std::sync::mpsc;
+use std::thread;
 use std::time::{Duration, Instant};
 
 const ASK: &str = "#{client_termname}\t#{version}\t#{client_termfeatures}";
@@ -53,27 +56,35 @@ fn older_than_3_4(version: &str) -> bool {
 
 pub fn ask() -> Option<String> {
     std::env::var_os("TMUX")?;
-    let mut child = Command::new("tmux")
-        .args(["display-message", "-p", ASK])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .ok()?;
-    let started = Instant::now();
-    loop {
-        match child.try_wait().ok()? {
-            Some(status) if status.success() => break,
-            Some(_) => return None,
-            None if started.elapsed() >= DEADLINE => {
+    let mut child = {
+        let _spawning = crate::sources::spawning();
+        Command::new("tmux")
+            .args(["display-message", "-p", ASK])
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .ok()?
+    };
+    let mut stdout = child.stdout.take()?;
+    let (sender, answer) = mpsc::channel();
+    thread::spawn(move || {
+        let mut text = String::new();
+        let _ = stdout.read_to_string(&mut text);
+        let _ = sender.send(text);
+    });
+    let deadline = Instant::now() + DEADLINE;
+    let text = answer.recv_timeout(DEADLINE).ok();
+    let succeeded = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status.success(),
+            Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(5)),
+            _ => {
                 let _ = child.kill();
                 let _ = child.wait();
-                return None;
+                break false;
             }
-            None => std::thread::sleep(Duration::from_millis(10)),
         }
-    }
-    let mut answer = String::new();
-    std::io::Read::read_to_string(&mut child.stdout.take()?, &mut answer).ok()?;
-    Some(answer)
+    };
+    text.filter(|_| succeeded)
 }
