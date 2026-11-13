@@ -21,6 +21,11 @@ fn every_support_helper_is_used_by_a_test() {
     assert_eq!(unused_support_helpers(), "");
 }
 
+#[test]
+fn dead_code_is_allowed_only_in_the_support_module() {
+    assert_eq!(dead_code_allowances(), "");
+}
+
 struct Source {
     path: String,
     lines: Vec<String>,
@@ -74,6 +79,21 @@ fn unused_support_helpers() -> String {
         .filter(|item| !referenced(&tests, &item.name, Some(item), false))
         .map(Item::label)
         .collect();
+    found.sort();
+    found.join(" ")
+}
+
+fn dead_code_allowances() -> String {
+    let mut found = Vec::new();
+    let all = sources("src").into_iter().chain(sources("tests"));
+    for source in all.filter(|source| source.path != SUPPORT) {
+        for (index, line) in source.lines.iter().enumerate() {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with('#') && contains_word(trimmed, "dead_code") {
+                found.push(format!("{}:{}", source.path, index + 1));
+            }
+        }
+    }
     found.sort();
     found.join(" ")
 }
