@@ -66,6 +66,19 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   row is the one `p` opens (`Build::pull_request` for a main build, which falls back to the
   `(#N)` of a squash title). A number cut by `…` on a narrow card gets no link. Not linked:
   the `#N` in the details pane, dialogs and footer.
+- **Inside tmux the link reaches the terminal only when tmux passes it on.** tmux (3.4 and
+  later) keeps OSC 8 in its own grid and writes it out only to a client with the `hyperlinks`
+  terminal feature. tmux turns that on by itself for iTerm2, foot, WezTerm and kitty, and for
+  Ghostty only from 3.8, so the same binary links in tmux + iTerm2 and not in tmux + Ghostty
+  (issue #76). At start, with `$TMUX` set, `tmux::ask` runs `tmux display-message -p` once (a
+  1 s deadline, nothing inherited) for the client's `TERM`, the version and the client's
+  features, and `tmux::links_notice` puts the line to add in the footer notice, naming that
+  `TERM`, or says a tmux older than 3.4 cannot pass links at all. A config error wins the
+  notice. Nothing is said with no client attached (a detached server, as in the e2e tests),
+  when the client has `hyperlinks`, or when tmux does not answer. conveyor never sets the tmux
+  option itself: tmux reads `terminal-features` only when a client attaches, and it would
+  change every other program's terminal. The DCS passthrough was not taken: it needs
+  `allow-passthrough on`, off by default, and tmux drops it on every redraw.
 - **A busy PR card spins.** While a write started on a pull request is in flight
   (`App::write_on`), its card draws the footer's braille frame (`App::spinner`) in yellow in
   place of the check glyph, and its meta line starts with the action word (`Write::word`:

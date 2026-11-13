@@ -694,6 +694,14 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   latest notice, and a success that lands under a prompt is still hidden by it;
   `docs/details.png` was not regenerated, since its fixture has no failed write.
 
+- Phase 40 (`plans/phase-40-tmux-links.md`, #76): inside tmux, a client without the
+  `hyperlinks` terminal feature drops the OSC 8 `#N` links of #69, which is why they worked in
+  tmux + iTerm2 (tmux turns the feature on for iTerm2 since 3.4) and not in tmux + Ghostty
+  (only from tmux 3.8). conveyor now asks tmux once at start and, when the attached client would
+  drop the links, the footer notice gives the `terminal-features` line to add, naming the
+  client's `TERM`; a tmux older than 3.4 is told it cannot pass them. Not done: conveyor does
+  not set the option itself, and nothing is said while no client is attached.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
