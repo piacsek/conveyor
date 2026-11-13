@@ -130,6 +130,34 @@ The two bullets about `src/cli.rs` and `src/config.rs` stay here; every other on
   unreadable file or unknown key is an error naming the file (`deny_unknown_fields` on every
   table). `conveyor config` exits 1 on it and doubles as the reference for defaults.
 
+## Known limits
+
+Accepted limits a reviewer treats as decided, one line each, with where they are written down.
+Pointing reviewers here is not priming, since the list is in the repo. A limit joins it when a
+review finding is declined for good; a reviewer may still report one as must when it shows new
+impact.
+
+- **A pull request number is the row key**: the same number in two repositories shares the busy
+  spinner and the failure mark, one blocking the other (`src/app/AGENTS.md`, the `S` popup and
+  "A failed write marks the card").
+- **Widths are counted in characters, not display width**: wide characters (CJK, emoji) can be
+  clipped at a dialog's border, and the footer cuts titles the same way (`src/ui/AGENTS.md`,
+  dialogs; `PLAN.md` backlog).
+- **The footer shows only the latest notice**: a success that lands under a prompt is hidden by
+  it; a failure stays on its card (`src/app/AGENTS.md`, "A failed write marks the card";
+  `PLAN.md` phase 39).
+- **A checkout can hang on ssh**: a key that needs a passphrase and has no agent prompts on
+  `/dev/tty`, and a stalled fetch has no deadline (`src/app/AGENTS.md`, the checkout).
+- **Some commits cost a call on every refresh**: a sha the batch answers `null` for and REST
+  answers 422, and an upper-case sha (`src/sources/AGENTS.md`, `Pulls`).
+- **The `version` check judges "feeds the binary" by path only**, can be pointed by cargo at
+  manifests outside its copy, and refuses a fragment name git would quote
+  (`.github/AGENTS.md`, `version.yml`).
+- **`check` builds and tests on Linux only**: a macOS-only break fails in the release run
+  (`.github/AGENTS.md`).
+- **No tag ruleset guards `v*` tags**: the owner can still push or delete one by hand
+  (`.github/AGENTS.md`).
+
 ## Documentation rule
 
 `README.md` is minimal and holds only what a user needs, in this order and nothing else: the
@@ -220,7 +248,7 @@ nearest the code the guideline is about.
   skill on the PR first, and acting on what it finds. It runs a Claude and a Codex reviewer
   over the diff and merges their findings; run it from the main session, because the skill
   launches Codex there. Give both reviewers the intent of the change, point them at this
-  file, have the Claude reviewer run `scripts/gates.sh` itself rather than trust the claim
+  file and tell them to read its "Known limits" before reporting, have the Claude reviewer run `scripts/gates.sh` itself rather than trust the claim
   that the gates pass, and forbid edits, commits, and any write to GitHub or call to the
   clusters. When the skill asks whether to post the review on the PR, answer no.
   `gh pr ready` comes after the findings are addressed, not before.
