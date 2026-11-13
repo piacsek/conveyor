@@ -1,4 +1,4 @@
-//! The README is the user-facing contract: four sections, one screenshot, and a key table
+//! The README is the user-facing contract: five sections, one screenshot, and a key table
 //! that mirrors the in-app help so the two can never drift.
 
 use conveyor::ui::help::KEYS;
@@ -35,7 +35,7 @@ fn sentences(text: &str) -> usize {
 }
 
 #[test]
-fn the_readme_has_exactly_the_four_user_sections_in_order() {
+fn the_readme_has_exactly_the_five_user_sections_in_order() {
     let prose = prose();
     let sections: Vec<&str> = prose
         .iter()
@@ -44,8 +44,14 @@ fn the_readme_has_exactly_the_four_user_sections_in_order() {
         .collect();
     assert_eq!(
         sections,
-        ["## Installation", "## Usage", "## Development"],
-        "Installation, Usage, Development and nothing else"
+        [
+            "## Installation",
+            "## Dependencies",
+            "## Usage",
+            "## FAQ",
+            "## Development"
+        ],
+        "Installation, Dependencies, Usage, FAQ, Development and nothing else"
     );
     assert!(prose[0].starts_with("<img "), "a banner opens the README");
     assert!(

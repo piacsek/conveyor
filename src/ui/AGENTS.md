@@ -47,7 +47,7 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   U+F407 in green for an open pull request, U+F4DB (git-merge-queue) in yellow once it has a
   merge queue position, and U+F4DD in grey for a draft, so the meta line no longer says
   `draft`. They are Nerd Font octicons, the only Nerd Font glyphs in the UI: a terminal
-  without a Nerd Font draws a box there. `card()` takes the icon as an
+  without a Nerd Font draws a box there, which the README's Dependencies and FAQ say. `card()` takes the icon as an
   `Option<(char, Color)>`; every other stage passes `None`.
 - **A card's `#N` is a terminal hyperlink (OSC 8).** After the list is drawn, `draw_list` asks
   `ui::link::link` to find the card's `#N` in the frame buffer, inside that card's own lines,
