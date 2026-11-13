@@ -19,9 +19,14 @@ attestation), or build from source with Rust 1.98+:
 cargo install --git https://github.com/piacsek/conveyor --locked
 ```
 
-Needs `gh` logged in (`gh auth login`); Homebrew installs it. The Deployed column needs
-`kubectl` with a working context. Opening and copying use `open`/`pbcopy` on macOS,
-`xdg-open`/`xclip` on Linux.
+## Dependencies
+
+- [`gh`](https://cli.github.com), logged in (`gh auth login`); Homebrew installs it.
+- `git`, to check a pull request out locally.
+- `kubectl` with a working context, for the Deployed column only.
+- `open`/`pbcopy` on macOS, `xdg-open`/`xclip` on Linux, to open links and copy URLs.
+- A [Nerd Font](https://www.nerdfonts.com) as the terminal font, for the pull request icon
+  on each card in My PRs (open, in the merge queue, draft). Every other glyph is plain Unicode.
 
 ## Usage
 
@@ -84,6 +89,14 @@ context = "my-staging-context"
 namespace = "api"
 deployment = "api"
 ```
+
+## FAQ
+
+**A card shows a box, a `?` in a box, or a blank square before its `#number`.** That is the
+pull request icon, a Nerd Font glyph, drawn by a terminal font that lacks it. Set the
+terminal's font to a Nerd Font (for example `brew install --cask font-fira-code-nerd-font`,
+then pick "FiraCode Nerd Font"), or add one as the terminal's fallback for symbols.
+Everything else works without it; only the icon is missing.
 
 ## Development
 

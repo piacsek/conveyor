@@ -168,8 +168,9 @@ impact.
 
 `README.md` is minimal and holds only what a user needs, in this order and nothing else: the
 banner `<img>` (it stands in for the h1; there is no `# ` heading), two sentences on what conveyor does, the one screenshot `docs/details.png` right below them (all
-four columns with the details pane open), then `## Installation`, `## Usage` (commands, the key
-table, the default config) and `## Development`. The key table mirrors `ui::help::KEYS` word
+four columns with the details pane open), then `## Installation`, `## Dependencies` (what must
+be installed and what each one is for, the Nerd Font included), `## Usage` (commands, the key
+table, the default config), `## FAQ` (symptoms a user sees, each with its fix) and `## Development`. The key table mirrors `ui::help::KEYS` word
 for word; `tests/readme.rs` fails when the README and the help view drift, when a second
 screenshot, a subsection or another section appears, or when the description grows past two
 sentences (the help view is the single source: change `KEYS`, then the table). Feature depth, glyph meanings and data-source notes belong in the `AGENTS.md` files, not there. After
