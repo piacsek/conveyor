@@ -86,7 +86,9 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   (`tmux::LINKS_NOTICE`, `tmux drops the #N links: ? says why`), short enough for a narrow
   footer; a config error wins it. The help pane neither wraps nor scrolls, so a terminal
   shorter than the keys or narrower than the command (about 65 columns) clips these lines;
-  the log keeps them whole. Nothing is said with no client attached (a
+  the log keeps them whole. The answer is read once: after the user runs the command and reattaches, the links
+  work at once in the running conveyor (tmux kept them in its grid), but the notice and the
+  help lines stay until conveyor restarts. Nothing is said with no client attached (a
   detached server, as in the e2e tests), when the client has `hyperlinks`, when tmux does not
   answer in time, or when the `TERM` holds anything but letters, digits and `._+-` (it is
   printed into a quoted command). conveyor never sets the tmux option itself: it would not
