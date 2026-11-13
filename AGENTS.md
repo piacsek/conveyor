@@ -22,80 +22,83 @@ check is skipped where the file is absent, so CI does not enforce it).
 
 ## Layout
 
+The layout names what each file or directory is for; read its types, functions and variants
+from the code, and its rules from the `AGENTS.md` of its directory.
+
 ```
 src/main.rs      CLI dispatch, config load, wiring
-src/cli.rs       `conveyor` (TUI) | `config` | `log` | `--help` | `--version`; hand-rolled, no clap
-src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override, `expand_home`
+src/cli.rs       the subcommands and flags; hand-rolled, no clap
+src/config.rs    the config: its tables, defaults, path and `CONVEYOR_CONFIG` override
 src/sources/     everything that reaches out to an external service, and nothing else
-src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`, `log_failed`, `rerun_failed`, `merge`, `update_branch`, `change_status`, `checkout`), CliGh spawns `gh api …` / `gh repo view` / `gh run view --log-failed` / `gh run rerun --failed` / `gh pr merge|update-branch|ready|close|checkout` and `git remote -v` (the checkout guard), error mapping
-src/sources/kube.rs   Kube trait (`deployment(env)`, `pods(env, selector)`), CliKubectl (`kubectl --context … get deploy|pods … -o json`, a 10 s request timeout and a 15 s `DEADLINE` that kills the process)
-src/sources/fetch.rs  repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), fetch_jobs, fetch_log (LOG_TAIL lines), Pulls (sha→PR: `prefetch` asks for all the shas of a fetch in one GraphQL call, `for_sha` reads the cache and asks REST for the rest), BuildsSource (caches workflow id and sha→PR), DeploySource (kubectl per env on parallel threads + cached sha→PR)
+src/sources/github.rs the Github trait and CliGh, which spawns `gh` (and `git` for the checkout guard), error mapping
+src/sources/kube.rs   the Kube trait and CliKubectl, which spawns `kubectl` under a deadline that kills it
+src/sources/fetch.rs  what each stage fetches, the sha → pull request cache, Deployed read per environment on parallel threads
 src/sources/queries/  GraphQL documents, `include_str!`ed
 src/sources/AGENTS.md GitHub and kubectl facts: API shapes and queries, the sha → pull request lookup, the spawn lock, call logging, the kubectl deadline
-src/model/prs.rs PullRequest, CheckState, Check, ReviewDecision, MergeState; lenient `parse` of gh JSON
-src/model/queue.rs Queue, QueueEntry, QueueState, MergeGroupRun; `parse`, `parse_merge_group_runs`, `attach_runs`
-src/model/builds.rs Build, BuildStatus, PullRef, Builds; `parse_runs`, `pr_number_from_title`, `parse_pull_numbers`, `parse_commit_pulls` (the batched GraphQL answer)
-src/model/deployed.rs Deployment, Deployed, Rollout, Condition, Pod, Health; `sha_from_image` (40-hex tag or `-<sha>` suffix), `parse_deployment`, `parse_pods` (problems first), `health`
-src/model/jobs.rs Job, `parse_jobs` (failures first), `failed_step`
-src/model/log.rs  `tail`: the failed step's log as gh prints it, minus job/step/timestamp prefixes and ANSI
+src/model/prs.rs My PRs: pull requests and their checks, review and merge state; lenient parse of gh JSON
+src/model/queue.rs Merge queue: entries and the merge-group runs attached to them
+src/model/builds.rs Main builds: runs and the pull requests they came from
+src/model/deployed.rs Deployed: deployments, the sha in an image tag, pods (problems first), health
+src/model/jobs.rs the jobs of a run and the failed step
+src/model/log.rs  the failed step's log as gh prints it, minus job/step/timestamp prefixes and ANSI
 src/model/AGENTS.md check dedup, merge-group run attach rules, deploy health rules, jobs parsing, lenient parsing
-src/app/mod.rs   App (one stage type per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Mode::{Normal, Filter, Help, Changelog, Confirm, Manage}, Input::{Key, Fetching, Data, Jobs, Log, Merged, Rerun, BranchUpdated, StatusChanged, CheckedOut, Tick}, Action, Request::{Refresh, Jobs, Log, Rerun, Merge, UpdateBranch, ChangeStatus, Checkout}; `behind_main`, `deploy_configured`, `follow_up_*`; re-exports everything below as `app::X`
+src/app/mod.rs   App, its modes, inputs, actions and requests; re-exports everything below as `app::X`
 src/app/stages/  one type per stage behind the StageView trait: `mod.rs` is the trait and the dispatch, one file per stage for everything that stage does
-src/app/stages/mod.rs Stage, Rows, StageView (`listing`, `receive`, `error`, `pull_target`, `build_url`, `selected_run`, `runs`, `menu`, `changed`), Context (what a stage may read from the rest of App: config, Main builds, `merge_landing`; `landing`, `behind_main`, `deploy_repo`), `App::stage`/`stage_mut` (the one match from a Stage to its field), `receive`, `fetching`, `any_refreshing`, `spinner`
-src/app/stages/prs.rs PrsStage: what My PRs offers (`menu`, `offers`, `merge_target`, `update_target`, `rerun_target`, `checkout_target`) and where its rows lead
-src/app/stages/queue.rs QueueStage (column, `repo`): its merge-group runs and where its rows lead
-src/app/stages/builds.rs BuildsStage (column, `repo`): its runs, what Main builds offers (`menu`, `rerun_target`) and where its rows lead
-src/app/stages/deployed.rs DeployedStage (column, `system`): a row's own error, where its rows lead, `keep_last_known`
-src/app/browser.rs where a row leads: `pull_target` and `build_url` of the focused stage, `open` and its `OPEN_DEBOUNCE`
-src/app/navigation.rs moving around: the `focused_*` readers, `refocus`, `with_focused`, the filter (`filter`, `sync_filter`) and the scroll helpers
-src/app/column.rs Column<T: Row> (state, error, list, filter), ColumnState, Row and its four impls, Order, `merge_keeping_order`, Navigable, Listing (what every column answers whatever its row type, `holds(key)` included)
-src/app/jobs.rs  JobsState, LogState, `age_jobs`, `jobs_needed` (selected, stale, then the first `EAGER_JOBS` failing builds), `selected_run`, `toggle_log`, `receive_jobs`, `receive_log`
+src/app/stages/mod.rs the trait, what a stage may read from the rest of App, and the one match from a Stage to its field
+src/app/stages/prs.rs My PRs: what it offers and where its rows lead
+src/app/stages/queue.rs Merge queue: its merge-group runs and where its rows lead
+src/app/stages/builds.rs Main builds: its runs, what it offers and where its rows lead
+src/app/stages/deployed.rs Deployed: a row's own error, where its rows lead, keeping the last known sha
+src/app/browser.rs where a row leads, and opening it with a debounce
+src/app/navigation.rs moving around: the focused readers, refocus, the filter and the scroll helpers
+src/app/column.rs the column every stage holds (state, error, list, filter), row order, what every column answers whatever its row type
+src/app/jobs.rs  the jobs and log state: which runs need their jobs, aging, the log pane
 src/app/actions/ the `S` popup: `mod.rs` is the machinery, one file per action for how it runs; what a column offers is its stage's `menu`
-src/app/actions/mod.rs Menu/Offer/Choice, Pending, `ask_to_manage`, `menu` (the focused stage's), `manage`, `confirm`, `reconfirm`, `write_in_flight`, `offer`
-src/app/actions/writes.rs Write, WriteKind (the writes in flight, one per row), `progress` (footer), `word` (card), `action` (the mark), `write_on`, `start_write`, `finish_write`
-src/app/actions/merge.rs MergeTarget, `confirm_merge`, `receive_merged`, `land` (adds to `merge_landing`)
-src/app/actions/update.rs UpdateTarget, `confirm_update`, `send_update`, `receive_branch_update`, `conflicts`
-src/app/actions/status.rs StatusTarget, `confirm_status`, `send_status`, `receive_status`, the `progress` and `done` wording
-src/app/actions/checkout.rs CheckoutTarget, `send_checkout`, `receive_checkout`
-src/app/actions/failures.rs Failure (the mark a failed write leaves), `failure_on`, `failure_count`, `selected_failure`, `fail`, `prune_failures`, `clear_failure`
-src/app/actions/rerun.rs Rerun, `rerun_offer`, `send_rerun`, `receive_rerun`
-src/app/keymap.rs `handle_key` and the Filter and Normal mode key handlers, `escape`
+src/app/actions/mod.rs the popup machinery: menus, offers, pending confirms, writes in flight
+src/app/actions/writes.rs the writes in flight, one per row, and their footer and card wording
+src/app/actions/merge.rs merge
+src/app/actions/update.rs update the branch, and its conflicts
+src/app/actions/status.rs the status changes (ready, draft, close, auto-merge, the merge queue) and their wording
+src/app/actions/checkout.rs check out locally
+src/app/actions/failures.rs the mark a failed write leaves on its card, and when it clears
+src/app/actions/rerun.rs rerun the failed jobs
+src/app/keymap.rs the key handlers per mode, `Esc`
 src/app/run.rs   run(): draw, read one Input, turn each Action into a Request
 src/app/AGENTS.md keys, `Esc`, the filter, the `S` popup and each action, failed write marks, jobs state, refresh and follow-up, row order, open debounce, zoom, scroll
 src/ui/mod.rs    draw: 4 columns or tabs below `4 × ui.min_column_width`
-src/ui/style.rs  the shared vocabulary: BAR, INDENT, dim(), glyphs and status words, short_repo, sha8
-src/ui/card.rs   card() and meta(): one title line plus indented span lines
-src/ui/columns.rs column titles, blocks and draw_list
-src/ui/rows.rs   one card builder per stage: pr_row, queue_row, build_row, deployed_row
+src/ui/style.rs  the shared vocabulary: bars, indents, dim, glyphs and status words, short repo and sha
+src/ui/card.rs   a card: one title line plus indented span lines
+src/ui/columns.rs column titles, blocks and lists
+src/ui/rows.rs   one card builder per stage
 src/ui/details.rs the `d` pane per stage, including the job list; no URLs
 src/ui/footer.rs footer text, the refresh spinner and the static logo
-src/ui/dialog.rs the `S` popup (`draw_manage`) and the confirm dialog (`draw_confirm`) for `m`, `x`, enabling auto-merge and a rebase
-src/ui/help.rs   KEYS is the generic table the README mirrors; `keys_for(stage)` swaps the `p`/`b` wording per column
+src/ui/dialog.rs the `S` popup and the confirm dialog
+src/ui/help.rs   KEYS is the generic table the README mirrors; the `p`/`b` wording swapped per column
 src/ui/AGENTS.md  cards, glyphs and icons, dialogs, the details, help and changelog panes, the footer, colours
-src/refresh.rs   `spawn`: one fetcher thread per stage; `wait` sleeps until the interval or a refresh, draining queued signals
-src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`): the OS seam, not a service, so it stays out of `sources/`
-src/changelog.rs CHANGELOG (the bundled CHANGELOG.md) and `check`, the rules a release entry must meet
+src/refresh.rs   one fetcher thread per stage, sleeping until the interval or a refresh
+src/open.rs      opening a URL and copying to the clipboard: the OS seam, not a service, so it stays out of `sources/`
+src/changelog.rs the bundled CHANGELOG.md and the rules a release entry must meet
 src/ui/changelog.rs the `c` pane: wrapped to its width (bullets hang), headings bold without their `#`, scrolled like the details pane
-src/log.rs       `path` (CONVEYOR_LOG, else XDG_STATE_HOME/conveyor/<program>.log), `program_name` (argv[0]), Log (`open` rotates to `.1`, `line`, `call`)
-src/text.rs      truncate/pad_right with `…`, age(), duration() (coarse, cards), elapsed() (seconds, details pane), strip_ansi()
+src/log.rs       the call log: its path, per program name, rotated on open
+src/text.rs      text helpers: truncation and wrapping with `…`, ages, durations and clock times, ANSI stripping
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
 scripts/ship.sh               gates + dev-install (unless skippable) + commit + push, aborts on any failure; the first push of a branch opens the draft PR (commit subject as title, the template as body)
 scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
 scripts/feeds-binary.sh       reads paths on stdin, prints the ones that feed the binary; the one list of what does not (`tests/`, `docs/`, `changes/`, …)
-scripts/fragments.sh          sourced, not run, reading the commit in `fragments_at` (`HEAD` unless the caller sets it): `last_tag`, `pending_fragments <tag>` (the `changes/*.md` at `HEAD` the tag's tree lacks), `fragment_kind` (refuses a malformed one by name), `fragment_bullets`, `refuse_repeats <tag> <pending>` (a pending bullet already in the tag's `CHANGELOG.md`, joined and trimmed as `changelog::check` reads it)
-scripts/version-check.sh      `<base> <head>`: the `version` job of `version.yml`; refuses a pull request that sets the version, edits `CHANGELOG.md` or a fragment, adds a malformed one, or feeds the binary without one; reads the head as git objects and asks `cargo metadata` for its version in a scratch copy, runs nothing from it; rehearses the release rewrite on that copy with a probe version drawn at random on every run
-scripts/next-version.sh       prints the version the pending fragments ask for (`feat` minor, `fix`/`internal` patch, never a major), nothing when none is pending
-scripts/release-commit.sh     `<version>`: writes it into `Cargo.toml` and the `conveyor` entry of `Cargo.lock`, and a `CHANGELOG.md` of the pending bullets above the last tag's; confirms that the release build's version line reads it, and with `cargo metadata` when cargo is on `PATH`; commits nothing
-scripts/release-rewrite.sh    sourced, not run: the release rewrite both `release-commit.sh` and `version-check.sh` use (`manifest_with_version`, `lock_with_version`, `manifest_reads`, `lock_reads`) and `root_package`, the reader of `cargo metadata` output
-scripts/releases.sh           sourced, not run: `release_state <tag>` prints `missing`, `draft`, `short` or `complete` (published with exactly the six assets); refuses an unreadable release or an unexpected asset
-scripts/release-unfinished.sh `<tag>`: prints `unfinished=true` unless the tag's release is `complete`; `build` and `publish` skip their steps on `false`, so a rerun never rebuilds a published release
-scripts/release-tag.sh        the `tag` job of `release.yml` (refuses outside GitHub Actions): prints `version=`/`tag=` of the newest tag when its release is not `complete` (a `::warning::` on stderr counts the fragments that wait for the next run), else commits and pushes the next release tag, else nothing
+scripts/fragments.sh          sourced, not run: reads the pending fragments and refuses a malformed or repeated one, at the commit its caller names
+scripts/version-check.sh      `<base> <head>`: the `version` job of `version.yml`; reads the head as git objects, runs nothing from it
+scripts/next-version.sh       prints the version the pending fragments ask for, nothing when none is pending
+scripts/release-commit.sh     `<version>`: writes the release into `Cargo.toml`, `Cargo.lock` and `CHANGELOG.md` and confirms it reads back; commits nothing
+scripts/release-rewrite.sh    sourced, not run: the release rewrite both `release-commit.sh` and `version-check.sh` use
+scripts/releases.sh           sourced, not run: the state of a tag's release
+scripts/release-unfinished.sh `<tag>`: whether `build` and `publish` still have work, so a rerun never rebuilds a published release
+scripts/release-tag.sh        the `tag` job of `release.yml` (refuses outside GitHub Actions): resume an unfinished tag, else tag what is pending, else nothing
 changes/                      one fragment per pull request that feeds the binary (`kind:` and the changelog bullets); add-only, see Releasing
 plans/                        one versioned plan file per phase (see Working agreements)
 scripts/homebrew-formula.sh   prints the tap formula for a released version
-scripts/formula-version.sh    the `tap` job's decision: prints `version=` of the newest published `complete` release when the tap formula names an older one (or none), else nothing; never a version below the formula's
+scripts/formula-version.sh    the `tap` job's decision; never a version below the formula's
 scripts/screenshots.sh        renders docs/details.png from a gh shim + synthetic fixture (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
@@ -103,7 +106,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
                  `tests/stage_dispatch.rs` fails while a match arm on a `Stage` variant sits in `src/app/` outside `stages/mod.rs`, naming the line;
                  a test file that outgrows the limit becomes a folder (`tests/<name>/main.rs` plus one file per topic), so it stays one binary
 tests/AGENTS.md  the testing traps hit so far, the e2e `gh` shim dispatch note
-.github/AGENTS.md CI: what the workflows run and why (`check`, `audit`, the `version` check, the release queue, the tap), the `main` ruleset, branch cleanup
+.github/AGENTS.md CI: what the workflows run and why (`check`, `audit`, the `version` check, the release queue, the tap), the `main` ruleset, branch cleanup; the release internals
 .github/pull_request_template.md  `## Summary` and `## Changes`: the body `ship.sh` opens a draft PR with
 ```
 
@@ -118,7 +121,7 @@ This file holds the rules and agreements. The facts about each directory live in
 | `src/app/AGENTS.md` | keys, `Esc`, the filter, the `S` popup and each action (`m`, `u`, `f`, `t`/`a`/`e`/`x`, `c`), failed write marks, jobs state (`age_jobs`, `jobs_needed`), refresh and follow-up, row order, open debounce, zoom, scroll | before touching `src/app/`, `src/refresh.rs` or `src/open.rs`, or adding a key or an action |
 | `src/ui/AGENTS.md` | cards, glyphs and icons, dialogs, the details, help and changelog panes, the footer, colours | before touching `src/ui/` or `src/changelog.rs`, or changing anything visible |
 | `tests/AGENTS.md` | the testing traps hit so far, the e2e `gh` shim dispatch note | before writing or debugging a test, a shim or a launcher of the binary |
-| `.github/AGENTS.md` | CI: what the workflows run and why (`check`, `audit`, the `version` check, the release queue, the tap), the `main` ruleset and its required checks, the unguarded `v*` tags, branch cleanup | before touching `.github/`, a required check or a release script |
+| `.github/AGENTS.md` | CI: what the workflows run and why (`check`, `audit`, the `version` check, the release queue, the tap), the `main` ruleset and its required checks, the unguarded `v*` tags, branch cleanup; the release internals: every refusal of the `version` check, the release run, recovering a failed or stuck run, pins and permissions | before touching `.github/`, a required check or a release script, or when a release run fails |
 
 ## Behaviour that is easy to break
 
@@ -129,6 +132,34 @@ The two bullets about `src/cli.rs` and `src/config.rs` stay here; every other on
 - **Config is loaded before any subcommand runs.** Missing file = `Config::default()`; an
   unreadable file or unknown key is an error naming the file (`deny_unknown_fields` on every
   table). `conveyor config` exits 1 on it and doubles as the reference for defaults.
+
+## Known limits
+
+Accepted limits a reviewer treats as decided, one line each, with where they are written down.
+Pointing reviewers here is not priming, since the list is in the repo. A limit joins it when a
+review finding is declined for good; a reviewer may still report one as must when it shows new
+impact.
+
+- **A pull request number is the row key**: the same number in two repositories shares the busy
+  spinner and the failure mark, one blocking the other (`src/app/AGENTS.md`, the `S` popup and
+  "A failed write marks the card").
+- **Widths are counted in characters, not display width**: wide characters (CJK, emoji) can be
+  clipped at a dialog's border, and the footer cuts titles the same way (`src/ui/AGENTS.md`,
+  dialogs; `PLAN.md` backlog).
+- **The footer shows only the latest notice**: a success that lands under a prompt is hidden by
+  it; a failure stays on its card (`src/app/AGENTS.md`, "A failed write marks the card";
+  `PLAN.md` phase 39).
+- **A checkout can hang on ssh**: a key that needs a passphrase and has no agent prompts on
+  `/dev/tty`, and a stalled fetch has no deadline (`src/app/AGENTS.md`, the checkout).
+- **Some commits cost a call on every refresh**: a sha the batch answers `null` for and REST
+  answers 422, and an upper-case sha (`src/sources/AGENTS.md`, `Pulls`).
+- **The `version` check judges "feeds the binary" by path only**, can be pointed by cargo at
+  manifests outside its copy, and refuses a fragment name git would quote
+  (`.github/AGENTS.md`, `version.yml`).
+- **`check` builds and tests on Linux only**: a macOS-only break fails in the release run
+  (`.github/AGENTS.md`).
+- **No tag ruleset guards `v*` tags**: the owner can still push or delete one by hand
+  (`.github/AGENTS.md`).
 
 ## Documentation rule
 
@@ -168,9 +199,10 @@ nearest the code the guideline is about.
   1. Plan in `plans/phase-N-<topic>.md` (next free N in `PLAN.md`), in a fresh worktree.
   2. `/my-tdd autonomous`: one task per red-green-refactor cycle, each shipped with
      `scripts/ship.sh` (gates, dev install, commit, push, draft PR on the first push).
-  3. `/pr-review` the PR (see "Review before ready"). Fix every must and should finding, TDD
-     like any change, ship, and review again. Minor findings are fixed when cheap, else listed
-     in the PR body. The loop ends only on a round with no must/should findings, and that
+  3. `/pr-review` the PR (see "Review before ready": what counts as must or should, when to
+     redesign, where the reviewer runs the gates, who fixes). Fix every must and should
+     finding, TDD like any change, ship once per round, and review again. Minor findings are
+     fixed when cheap, else listed in the PR body. The loop ends only on a round with no must/should findings, and that
      round is **unprimed**: the reviewers get the PR, the repo and this file, never the list
      of earlier findings or what was decided about them. Never post the review on the PR.
   4. The phase outcome is in `PLAN.md` and, when the branch feeds the binary, its fragment
@@ -184,7 +216,8 @@ nearest the code the guideline is about.
   cause, CI fails twice on the same step, a review finding needs a product decision, or the
   next step would force-push, push to `main` or delete a release.
 - **Cadence.** Outside the autonomous flow above, work runs under `/my-tdd autonomous`: one branch per phase (`phase-N-<topic>`),
-  one commit per task through `scripts/ship.sh`, no pause between tasks, a pause only for the
+  one commit per task through `scripts/ship.sh` (the fixes of a review round are the exception:
+  one commit per round, see "Review before ready"), no pause between tasks, a pause only for the
   end-of-phase retro. Retro outcomes go to `PLAN.md` (facts, decisions) and here (rules).
 - **One worktree per branch, by default.** Start every phase or fix in its own worktree off
   `origin/main`: `git worktree add -b <branch> .claude/worktrees/<branch> origin/main`, then
@@ -218,10 +251,27 @@ nearest the code the guideline is about.
   skill on the PR first, and acting on what it finds. It runs a Claude and a Codex reviewer
   over the diff and merges their findings; run it from the main session, because the skill
   launches Codex there. Give both reviewers the intent of the change, point them at this
-  file, have the Claude reviewer run `scripts/gates.sh` itself rather than trust the claim
+  file and tell them to read its "Known limits" before reporting, have the Claude reviewer run `scripts/gates.sh` itself rather than trust the claim
   that the gates pass, and forbid edits, commits, and any write to GitHub or call to the
   clusters. When the skill asks whether to post the review on the PR, answer no.
   `gh pr ready` comes after the findings are addressed, not before.
+  - **Severity by reachability.** A finding is must or should only when the user hits it while
+    using conveyor, the release pipeline hits it in normal operation, or a pull request could
+    execute code or reach a token or secret. A bypass that needs a deliberately forged file,
+    which the owner would still have to merge, is minor: fixed when cheap, else listed in the
+    PR body. The reviewers are given this definition.
+  - **Two strikes, then redesign.** When a second round finds another hole in the same
+    mechanism, stop patching it: step back and pick a simpler design that removes the class of
+    finding, and ask the user when that changes behaviour. #65 took five rounds of patches and
+    converged only once the check asked cargo instead of parsing lines.
+  - **The gates run beside the branch, not in it.** The Claude reviewer runs
+    `scripts/gates.sh` in its own detached worktree of the PR head (`git worktree add --detach
+    <path> <sha>`, removed afterwards), never in the branch's worktree, so fixes do not wait
+    for its run.
+  - **Fixes go back to the builder.** The fixes of a round go to the agent that built the
+    branch, with its context intact, not to a fresh one, and land as one `ship.sh` per round
+    of findings rather than one per finding: the review-round exception to "one commit per
+    task". Each fix that touches `src/` still starts from a failing test.
 - **Merging and releasing.** Squash-merge the phase PR into `main` when CI is green, then
   watch the `release` run the merge starts (see Releasing): no bump, no `CHANGELOG.md` edit,
   no tag by hand. Squash is the only merge method the repository and the `main` ruleset allow
@@ -247,7 +297,11 @@ nearest the code the guideline is about.
   Plans are versioned here: write each one to its own file under `plans/` (for example
   `plans/phase-5-cards.md`) and commit it with the first ship of the phase. Never leave a plan
   only in an agent's private plan directory or memory. `PLAN.md` stays the index of phases,
-  retros and the backlog; a phase's outcome is appended there when it closes.
+  retros and the backlog; a phase's outcome is appended there when it closes. A plan that adds
+  logic over external state (pod states, check states, merge states, write results) carries a
+  table of the states and what the card shows for each, and that table is reviewed before any
+  code is written: on #44, review rounds 1 to 3 each found pod states such a table would have
+  listed up front.
 
 ## Development
 
@@ -334,139 +388,17 @@ kind: fix
   malformed committed fragment fails the gates (it reads `HEAD`, so locally only after the
   commit; CI always sees it). It needs the tags, like `every_released_tag_keeps_its_entry`.
 
-**The `version` check enforces all of this on every pull request into `main`**
-(`.github/workflows/version.yml`, details in `.github/AGENTS.md`). `scripts/version-check.sh
-<base> <head>` refuses the pull request, naming the file and what to do instead, when:
-
-- a path it changes holds a control character (a newline, a tab, any byte below 0x20, or
-  0x7f): the check stops there, before anything else, and prints only how many such paths
-  there are, since a newline would split one path into two and could inject a workflow
-  command through its output;
-- cargo, asked about the `Cargo.toml` at its head, reads a version of the root package other
-  than `0.0.0`, cannot load the manifest at all (the refusal quotes cargo's first `error` line),
-  finds no package at the root (a virtual manifest) or one not named `conveyor`; a workspace
-  member keeps its own version. The check never reads the version itself: a decoy line in a
-  multi-line string or inline table, or a key spelled with an escape, fooled every line reader
-  tried, while cargo is what decides. How the head is kept from running anything is in
-  `.github/AGENTS.md`. Without `cargo` on `PATH` the check fails rather than passes;
-- cargo reads `0.0.0`, but the release could not set the version: the check rehearses the
-  release on its copy of the head, applying to `Cargo.toml` and `Cargo.lock` the very rewrite
-  `scripts/release-commit.sh` applies (the functions of `scripts/release-rewrite.sh`, shared by
-  both) with a probe version drawn from `/dev/urandom` on every run (a major of 100000 or more,
-  which no release carries), and refuses unless the release script's own
-  verification passes, cargo (isolated as before) reads the probe, the line the `build` job of
-  `release.yml` compares with the tag (`grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2`,
-  the same spelling there, here and in `release-commit.sh`, pinned by
-  `tests/scripts/version_check_release.rs`) reads
-  it, and the lock's `conveyor` entry reads it by the lock rules below. The rewrite works line
-  by line, so `Cargo.toml` keeps one plain form: `[package]` alone on its line (no comment, no
-  spaces), `version = "0.0.0"` as its own line under it (not `version="0.0.0"`, not a quoted
-  key, not `version.workspace = true`), LF line endings, and no other line starting with
-  `version = ` above it. Anything else passed cargo yet left the release commit with the new
-  version in a decoy line or nowhere: the run would then push its tag and fail to build it,
-  and a released tag never moves, or `release-commit.sh` would refuse on every run;
-- `Cargo.lock` holds a `conveyor` entry other than `0.0.0`, none, or more than one entry of
-  that name (the check reads the lock line by line, so anything that could hide the real line
-  is refused);
-- `Cargo.lock` at its head is not in the one shape cargo writes it in: it holds a multi-line
-  string, a line whose key is `name` or quoted is not exactly `name = "<crate>"` (letters,
-  digits, `_` and `-`), or a `name = "conveyor"` line is not right after a `[[package]]` line
-  and right before its `version = "..."` line. A lock no tool would write could hide the real
-  entry behind a decoy the check reads, pass, and then fail the release's
-  `cargo build --locked`; the refusal says to regenerate it with cargo
-  (`cargo update --workspace`);
-- it changes `CHANGELOG.md` at all;
-- it edits, deletes or renames a file under `changes/`, or renames a file into it;
-- a fragment it adds is not a direct child `changes/<name>.md`, its name is already on the tip
-  of `main` (a branch behind `main` re-adding a fragment `main` gained later; it does not count
-  as the pull request's fragment), or `fragment_kind` or `refuse_repeats` of
-  `scripts/fragments.sh` refuses it (the same functions the release run uses, read at the pull
-  request's head through `fragments_at`; `fragment_kind` refuses a carriage return anywhere
-  but at the very end of a line, by name, in the release run too), or it repeats a bullet of
-  a fragment `main` holds that the last tag does not (compared as `refuse_repeats` compares,
-  naming both files: once the two land in different releases the later release run would
-  refuse on every run, and with `changes/` add-only nobody could repair it);
-- a path it changes feeds the binary (`scripts/feeds-binary.sh`, a rename counting both of its
-  paths, `CHANGELOG.md` left out since it is refused anyway) and it adds no fragment.
-
-Past the control character check it reports every refusal, not only the first. Every line it
-writes to stderr starts with `version check: `, the lines of the `scripts/fragments.sh`
-functions included (with a carriage return turned into a space), so a path or a fragment line
-starting with `::` is never the first thing on a line; the release scripts calling those
-functions print them as before. The prefix alone does not keep a pull request from issuing a
-workflow command: the runner also reads the legacy `##[warning]...` form anywhere in a line.
-What does is the workflow: it stops command processing with `::stop-commands::<token>` before
-the script runs, a token made in that step from `/dev/urandom` that the pull request cannot
-know, folds the script's stderr into stdout so nothing overtakes that line, and turns
-processing back on with `::<token>::` afterwards, keeping the script's exit code. The check
-judges the head's tree, which is exactly what a squash lands, so squash stays the only merge
-method `main` allows (see `.github/AGENTS.md`) until the check learns to judge what another
-method lands. `version` is a required check of the `main` ruleset since 2026-11-12, next to
-`check` and `audit`, so a pull request it refuses cannot merge.
+**The `version` check enforces these rules on every pull request into `main`.** It is a required
+check, so a pull request it refuses cannot merge. It refuses one that sets the version in
+`Cargo.toml` or `Cargo.lock` or leaves either in a shape the release cannot rewrite, changes
+`CHANGELOG.md`, edits, deletes or renames a fragment, adds a malformed or repeated one, or feeds
+the binary without one, naming the file and what to do instead. The full list, how it reads a
+pull request without running it, the release run, and what to do when a run fails or a tag can
+never build are under "Releasing internals" in [`.github/AGENTS.md`](.github/AGENTS.md).
 
 **A revert keeps the fragment.** A pull request that reverts a merged one keeps that pull
 request's fragment (GitHub's Revert button deletes it, which the check refuses, since
 `changes/` is add-only) and adds a new fragment for the revert itself.
-
-**The release run.** `.github/workflows/release.yml` starts on every push to `main` (and by
-hand: `gh workflow run release.yml`) and runs one at a time (`concurrency: release`). Its `tag`
-job checks out `main` at its current head, not the commit that started it, fetches every `v*`
-tag (release commits are reachable only from their tags) and runs `scripts/release-tag.sh`:
-
-1. The newest `vX.Y.Z` tag, when its release is not `complete` (published, not a draft, holding
-   exactly the three tarballs and their `.sha256`; `scripts/releases.sh`), is unfinished (only
-   the newest tag is looked at, an older unfinished one below it is never resumed): the
-   run builds and publishes that tag and computes nothing new. A draft counts as unfinished:
-   `softprops/action-gh-release` creates the release as a draft, uploads, then publishes, so a
-   run that dies in between leaves a draft that may already hold every asset. A release
-   holding any other asset stops the run; remove that asset by hand. Fragments merged since
-   that tag wait for the next run, and the run says so in a `::warning::`.
-2. Otherwise `scripts/next-version.sh` reads the fragments added since that tag; none means
-   nothing to release: `build` and `publish` are skipped, `tap` still runs and only reconciles
-   the formula, and the run is green.
-3. Otherwise `scripts/release-commit.sh` writes the version into `Cargo.toml` and
-   `Cargo.lock` and a `CHANGELOG.md` with the new section above the last tag's. Before the
-   changelog it reads `Cargo.toml` with the `build` job's own line
-   (`grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2`) and asks
-   `cargo metadata --no-deps --offline` whether the package version now reads the release;
-   on any other answer it puts `Cargo.toml` and `Cargo.lock` back and refuses, so no tag is
-   pushed. The `tag` job installs no toolchain: it relies on the cargo that GitHub's
-   `ubuntu-latest` image carries, which the image lists but nothing pins, so the cargo
-   confirmation is skipped silently when cargo is not on `PATH` (the `build` line is read
-   either way) and the rehearsal in the `version` check is then the only guard on what cargo
-   reads. The job commits the release
-   as `github-actions[bot]` (`Release vX.Y.Z`) on top of `main` and pushes only the tag. `main`
-   never moves; the tag push starts no other run.
-
-Then `build` and `publish` each start with `scripts/release-unfinished.sh <tag>` and skip
-every other step when the tag's release is already `complete`, so no run, a rerun of an old
-one included, rebuilds a published version or replaces its assets (their checksums never
-change once published). Otherwise `build` (one `macos-latest` job for both Apple targets, Intel cross-compiled, and one
-Linux job; `macos-13` is retired and queues forever) checks out the tag, refuses it when
-`Cargo.toml` there reads another version, and packages one flat tarball per target
-(`conveyor-<target>.tar.gz` holding just the binary) plus `.sha256`; `publish` attests them
-(`gh attestation verify <tarball> --repo piacsek/conveyor`) and creates the release with
-generated notes. **What the attestation proves:** its subjects are the digests of the
-published tarballs, but the source commit it records is the commit of the event that started
-the run (a commit on `main`), not the release commit the tag points at, which is what was
-built. When the run was not queued behind later merges, the two trees differ only by the
-version in `Cargo.toml` and `Cargo.lock` and by `CHANGELOG.md`; a run that waited in the queue
-or resumed an older tag records a `main` commit that can be further from what was built.
-`tap` runs in every release run that is not cancelled, whether or not this run built anything:
-`scripts/formula-version.sh` picks the newest published `complete` release, and only when
-`Formula/conveyor.rb` in `github.com/piacsek/homebrew-tap` (local clone
-`~/projects/homebrew-tap`) names an older version (or the file is missing) does the job
-regenerate it with `scripts/homebrew-formula.sh <version>` and push it with the `TAP_TOKEN`
-repo secret (fine-grained PAT, contents:write on homebrew-tap; set with
-`gh secret set TAP_TOKEN --repo piacsek/conveyor`). `tap` runs only in `piacsek/conveyor` and
-the attestation only in a public repository, so the same file can be proven in a private
-throwaway one. The formula never goes backwards: a run cancelled between `publish` and `tap`
-is repaired by the next run, and an old `tap` job run again finds a formula already at or past
-its release and writes nothing. Asset names carry no version so `releases/latest/download/` links stay valid.
-
-Merges in quick succession queue up: GitHub keeps one waiting run per group and cancels the
-older waiting one, which is harmless because every run releases everything pending at the
-head of `main`. A cancelled `release` run is therefore normal; a red one is not.
 
 **After a merge**, watch the run (`gh run list --workflow release.yml --limit 3`, then
 `gh run watch <id> --exit-status`). For a pull request with a fragment, check that the release
@@ -477,51 +409,11 @@ gh release view --json tagName,assets --jq '.tagName, .assets[].name'
 gh api repos/piacsek/homebrew-tap/contents/Formula/conveyor.rb -H 'Accept: application/vnd.github.raw+json'
 ```
 
-**When a run fails or a job is stuck** (a macOS job left in `queued`), cancel it if it is
-still going and **start a new run** (`gh workflow run release.yml`) rather than rerunning the
-old one. A new run reads the head of `main` with the current workflow file and, when the
-newest tag is unfinished (no release, a draft, or an asset missing), finishes it and
-releases nothing new in that run, so fragments merged meanwhile wait for the run after it
-(dispatch one more if nothing else is coming). A rerun (`gh run rerun <id> --failed`) still
-works but replays the old run: the workflow file of its commit, and the tag its `tag` job chose
-then. Its `build` and `publish` check that tag again: they finish it when its release is still
-unfinished and do nothing when it is already `complete`, and its `tap` only moves the formula
-forward, so rerunning an old run never rewrites a published release or the formula backwards. If `tap` fails, the next release run repairs the formula; to repair it
-now, start a new run, or run `scripts/homebrew-formula.sh <version>` by hand and push the tap.
-Check with `brew audit --strict --online --formula piacsek/tap/conveyor` after changing the
-script.
-
-**When the newest tag can never build** (its commit does not compile, or its `Cargo.lock` is
-stale, so every run resumes it and fails again): the tag has no published release, so the
-rule about released tags does not cover it. Land the fix on `main` through a pull request,
-delete the unfinished tag and its draft release if one exists, then start a new run, which
-tags the same version again from the fixed `main`. Deleting a tag is the owner's decision:
-an agent asks first.
-
-```bash
-gh release delete vX.Y.Z --yes
-git push origin :refs/tags/vX.Y.Z
-gh workflow run release.yml
-```
-
-The first command only applies when a draft exists.
+A cancelled `release` run is normal (merges in quick succession queue up); a red one is not: see
+"When a run fails or a job is stuck" under "Releasing internals" in `.github/AGENTS.md`.
 
 Never push a `v*` tag by hand: tags come only from the `tag` job of the release run. Nothing
 enforces that for the owner; why no tag ruleset does is in `.github/AGENTS.md`.
-
-Every action is pinned to a commit SHA with the tag in a trailing comment; bump pins with
-`gh api repos/<owner>/<repo>/git/ref/tags/<tag>`. Workflows default to `contents: read`; only
-the `tag` job (pushes the tag) and `publish` (`contents: write`, `id-token` and
-`attestations: write` for `actions/attest-build-provenance`) get more. CI also runs
-`cargo audit` (a prebuilt binary via `taiki-e/install-action`; the `rustsec/audit-check` action
-compiled cargo-audit from source on every run, ~3 min of a ~3.5 min pipeline). The `check` job
-runs `cargo test -- --include-ignored` in one pass; the e2e tests take the debug binary from
-`CARGO_BIN_EXE_conveyor`, so no release build there.
-
-Installed copies: Homebrew puts the release binary in `$(brew --prefix)/bin/conveyor`;
-dev builds are only reachable as `conveyor-dev`. `rustsec/audit-check` v2.0.0 (latest as of
-2026-09-10) still targets Node 20 and CI prints a deprecation annotation; bump the pin when a
-newer release exists.
 
 Never move or delete a tag that has a release: the next run would rebuild and republish it
 and rewrite the tap formula for that old version. If a released version is wrong, release a
