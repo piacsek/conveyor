@@ -184,7 +184,8 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   v0.23.2: a healthy environment read `kubectl did not answer` in about 9 of 100 fetches while
   another one hung, and a `gh` call started next to a hung one waited for it. The four fetcher
   threads all spawn at startup and on `R`, so `gh` had this race before the parallel read too.
-  A new runner of an external program whose output is read must spawn under the same lock.
+  A new runner of an external program whose output is read must spawn under the same lock;
+  `tmux::ask` (the start-up question to tmux, see `src/ui/AGENTS.md`) does.
   `open`/`pbcopy` and the `kill` behind the deadline do not: they exit in milliseconds. Known
   and left: `pbcopy` is fed through a pipe, so a `gh` or `kubectl` spawned in the same
   microseconds as a `y`/`Y` press inherits its write end and the copy blocks the UI until that

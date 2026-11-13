@@ -23,7 +23,7 @@ What has gone wrong in the tests before, and how the suites are set up to avoid 
   hangs ends in `exec sleep`: killing the group kills `sleep` and `sh` together, and a `sh`
   that outlived its child by a moment wrote `Killed: 9 sleep 5` to stderr, which then showed
   up in the logged line.
-- `tests/e2e.rs` runs the real binary in a scratch tmux server (`-L`, `-f /dev/null`) with
+- `tests/e2e/` runs the real binary in a scratch tmux server (`-L`, `-f /dev/null`) with
   `HOME` in a tempdir and a `gh` shell shim that prints `tests/fixtures/prs.json`. The pane
   command must be `env HOME=… PATH=… <binary>`: `respawn-pane -e PATH=…` looked right but
   the pane's login shell rebuilt `PATH` (macOS `path_helper` and rc files), the shim was

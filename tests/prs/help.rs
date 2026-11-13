@@ -94,3 +94,30 @@ fn question_mark_shows_the_key_help_and_any_key_returns() {
     h.run(vec![key(KeyCode::Char('x'))]).unwrap();
     assert!(h.screen().contains("#1 a"), "{}", h.screen());
 }
+
+#[test]
+fn the_help_shows_how_to_keep_the_links_when_tmux_drops_them() {
+    let mut h = Harness::with_size(100, 24);
+    h.app.links_fix = vec![
+        "tmux drops the #N links for this terminal. If it shows links, run".to_string(),
+        "  tmux set -as terminal-features ',xterm-ghostty:hyperlinks'".to_string(),
+    ];
+
+    h.run(vec![prs(three()), key(KeyCode::Char('?'))]).unwrap();
+
+    let screen = h.screen();
+    assert!(
+        screen.contains("│  tmux set -as terminal-features ',xterm-ghostty:hyperlinks'"),
+        "{screen}"
+    );
+    assert!(screen.contains("If it shows links, run"), "{screen}");
+}
+
+#[test]
+fn the_help_says_nothing_about_tmux_when_the_links_get_through() {
+    let mut h = Harness::with_size(100, 24);
+
+    h.run(vec![prs(three()), key(KeyCode::Char('?'))]).unwrap();
+
+    assert!(!h.screen().contains("tmux"), "{}", h.screen());
+}

@@ -5,7 +5,9 @@ use std::process::Command;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
-struct Server {
+mod tmux;
+
+pub(crate) struct Server {
     socket: String,
 }
 
@@ -14,7 +16,7 @@ impl Server {
         Self::sized(name, "12")
     }
 
-    fn sized(name: &str, height: &str) -> Self {
+    pub(crate) fn sized(name: &str, height: &str) -> Self {
         Self::with_env(name, height, &[])
     }
 
@@ -43,7 +45,7 @@ impl Server {
         cmd
     }
 
-    fn respawn(&self, env: &[(&str, &str)], command: &str) {
+    pub(crate) fn respawn(&self, env: &[(&str, &str)], command: &str) {
         let pairs: Vec<String> = env.iter().map(|(k, v)| format!("{k}='{v}'")).collect();
         let command = format!(
             "env -u XDG_CONFIG_HOME -u CONVEYOR_CONFIG -u XDG_STATE_HOME -u CONVEYOR_LOG {} '{command}'",
@@ -56,7 +58,7 @@ impl Server {
         assert!(status.success());
     }
 
-    fn send_keys(&self, keys: &[&str]) {
+    pub(crate) fn send_keys(&self, keys: &[&str]) {
         for key in keys {
             let status = self.tmux(&["send-keys", key]).status().unwrap();
             assert!(status.success());
@@ -64,7 +66,7 @@ impl Server {
         }
     }
 
-    fn wait_for_screen(&self, needle: &str) -> String {
+    pub(crate) fn wait_for_screen(&self, needle: &str) -> String {
         let deadline = Instant::now() + Duration::from_secs(10);
         let mut screen = String::new();
         while Instant::now() < deadline {
@@ -85,7 +87,7 @@ impl Drop for Server {
     }
 }
 
-fn shim(home: &Path, script: &str) -> String {
+pub(crate) fn shim(home: &Path, script: &str) -> String {
     let bin = home.join("bin");
     fs::create_dir_all(&bin).unwrap();
     let gh = bin.join("gh");
@@ -98,9 +100,9 @@ fn shim(home: &Path, script: &str) -> String {
     )
 }
 
-fn fixture_path(home: &Path) -> String {
+pub(crate) fn fixture_path(home: &Path) -> String {
     let path = home.join("prs.json");
-    fs::write(&path, include_str!("fixtures/prs.json")).unwrap();
+    fs::write(&path, include_str!("../fixtures/prs.json")).unwrap();
     path.display().to_string()
 }
 
@@ -139,7 +141,7 @@ fn kubectl_shim(home: &Path) {
     )
     .unwrap();
     let pods = home.join("pods.json");
-    fs::write(&pods, include_str!("fixtures/pods.json")).unwrap();
+    fs::write(&pods, include_str!("../fixtures/pods.json")).unwrap();
     let kubectl = home.join("bin").join("kubectl");
     fs::write(
         &kubectl,
@@ -154,15 +156,27 @@ fn kubectl_shim(home: &Path) {
 }
 
 fn dispatching_shim(home: &Path) -> String {
-    fs::write(home.join("prs.json"), include_str!("fixtures/prs.json")).unwrap();
-    fs::write(home.join("queue.json"), include_str!("fixtures/queue.json")).unwrap();
-    fs::write(home.join("runs.json"), include_str!("fixtures/runs.json")).unwrap();
+    fs::write(home.join("prs.json"), include_str!("../fixtures/prs.json")).unwrap();
     fs::write(
-        home.join("pulls.json"),
-        include_str!("fixtures/commit-pulls.json"),
+        home.join("queue.json"),
+        include_str!("../fixtures/queue.json"),
     )
     .unwrap();
-    fs::write(home.join("jobs.json"), include_str!("fixtures/jobs.json")).unwrap();
+    fs::write(
+        home.join("runs.json"),
+        include_str!("../fixtures/runs.json"),
+    )
+    .unwrap();
+    fs::write(
+        home.join("pulls.json"),
+        include_str!("../fixtures/commit-pulls.json"),
+    )
+    .unwrap();
+    fs::write(
+        home.join("jobs.json"),
+        include_str!("../fixtures/jobs.json"),
+    )
+    .unwrap();
     fs::write(
         home.join("commit.json"),
         r#"{"commit":{"message":"Phase 2: merge queue column (#3)"}}"#,
@@ -616,7 +630,7 @@ fn s_then_t_runs_gh_pr_ready_undo_on_an_open_pull_request() {
     );
 }
 
-fn wait_for_file_line(path: &Path, needle: &str) -> String {
+pub(crate) fn wait_for_file_line(path: &Path, needle: &str) -> String {
     let deadline = Instant::now() + Duration::from_secs(10);
     let mut text = String::new();
     while Instant::now() < deadline {

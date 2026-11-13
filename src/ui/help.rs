@@ -51,14 +51,14 @@ pub fn keys_for(stage: Stage) -> Vec<(&'static str, &'static str)> {
         .collect()
 }
 
-pub(crate) fn draw_help(frame: &mut Frame, area: Rect, stage: Stage) {
+pub(crate) fn draw_help(frame: &mut Frame, area: Rect, stage: Stage, links_fix: &[String]) {
     let keys = keys_for(stage);
     let width = keys
         .iter()
         .map(|(k, _)| k.chars().count())
         .max()
         .unwrap_or(0);
-    let lines: Vec<Line> = keys
+    let mut lines: Vec<Line> = keys
         .iter()
         .map(|(key, what)| {
             Line::from(vec![
@@ -71,6 +71,10 @@ pub(crate) fn draw_help(frame: &mut Frame, area: Rect, stage: Stage) {
             ])
         })
         .collect();
+    if !links_fix.is_empty() {
+        lines.push(Line::default());
+        lines.extend(links_fix.iter().map(|line| Line::raw(line.clone())));
+    }
     frame.render_widget(
         Paragraph::new(lines)
             .block(Block::bordered().title(format!("Keys \u{2014} {}", column_name(stage)))),

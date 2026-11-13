@@ -66,6 +66,35 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   row is the one `p` opens (`Build::pull_request` for a main build, which falls back to the
   `(#N)` of a squash title). A number cut by `…` on a narrow card gets no link. Not linked:
   the `#N` in the details pane, dialogs and footer.
+- **Inside tmux the link reaches the terminal only when tmux passes it on.** tmux (3.4 and
+  later) keeps OSC 8 in its own grid and writes it out only to a client with the `hyperlinks`
+  terminal feature. tmux turns that on by itself for iTerm2 from 3.4, foot from 3.7, WezTerm and
+  Ghostty from 3.8 (kitty only on master), so the same binary links in tmux + iTerm2 and not in
+  tmux + Ghostty before 3.8 (issue #76). At start, with `$TMUX` set, `tmux::ask` runs
+  `tmux display-message -p` once for the client's `TERM`, the version and the client's
+  features: spawned under `sources::spawning()` like `gh` and `kubectl`, nothing inherited, and
+  the whole call, reading the answer included, bounded by a 1 s deadline (a tmux that answers
+  but leaves its output open to a child held the TUI back before). Without `-c`, tmux answers
+  for its most recent client, so with two terminals attached the answer can describe the other
+  one. The call is logged like a `gh` call (`ok`, `exit N`, `did not start`, `timed out`). `tmux::links_fix` turns the answer into the lines the help pane (`?`) shows under the
+  keys and the call log keeps: the `tmux set -as terminal-features ',<TERM>:hyperlinks'`
+  command, then detach and reattach, and `set -as terminal-features ',<TERM>:hyperlinks'`
+  (without `tmux`, which a config file refuses) for `tmux.conf` to keep it (tmux reads
+  `tmux.conf` only when its server starts and `terminal-features` only when a client attaches,
+  so the line in `tmux.conf` alone did nothing until the server restarted); or, below 3.4, that
+  tmux cannot pass links at all. The footer notice only points there
+  (`tmux::LINKS_NOTICE`, `tmux drops the #N links: ? says why`), short enough for a narrow
+  footer; a config error wins it. The help pane neither wraps nor scrolls, so a terminal
+  shorter than the keys or narrower than the command (about 65 columns) clips these lines;
+  the log keeps them whole. The answer is read once: after the user runs the command and reattaches, the links
+  work at once in the running conveyor (tmux kept them in its grid), but the notice and the
+  help lines stay until conveyor restarts. Nothing is said with no client attached (a
+  detached server, as in the e2e tests), when the client has `hyperlinks`, when tmux does not
+  answer in time, or when the `TERM` holds anything but letters, digits and `._+-` (it is
+  printed into a quoted command). conveyor never sets the tmux option itself: it would not
+  reach the running client, and it would change every other program's terminal. The DCS
+  passthrough was not taken: it needs `allow-passthrough on`, off by default, and tmux drops
+  it on every redraw.
 - **A busy PR card spins.** While a write started on a pull request is in flight
   (`App::write_on`), its card draws the footer's braille frame (`App::spinner`) in yellow in
   place of the check glyph, and its meta line starts with the action word (`Write::word`:
