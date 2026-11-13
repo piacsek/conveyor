@@ -228,10 +228,6 @@ pub fn tick_at_ms(millis: u64) -> io::Result<Input> {
     Ok(Input::Tick(UNIX_EPOCH + Duration::from_millis(millis)))
 }
 
-pub fn tick() -> io::Result<Input> {
-    tick_at(NOW)
-}
-
 pub fn tick_at(secs: u64) -> io::Result<Input> {
     Ok(Input::Tick(UNIX_EPOCH + Duration::from_secs(secs)))
 }
