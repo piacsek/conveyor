@@ -76,15 +76,17 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   the whole call, reading the answer included, bounded by a 1 s deadline (a tmux that answers
   but leaves its output open to a child held the TUI back before). Without `-c`, tmux answers
   for its most recent client, so with two terminals attached the answer can describe the other
-  one. `tmux::links_fix` turns the answer into the lines the help pane (`?`) shows under the
+  one. The call is logged like a `gh` call (`ok`, `exit N`, `did not start`, `timed out`). `tmux::links_fix` turns the answer into the lines the help pane (`?`) shows under the
   keys and the call log keeps: the `tmux set -as terminal-features ',<TERM>:hyperlinks'`
-  command, then detach and reattach, the same line in `tmux.conf` to keep it (tmux reads
+  command, then detach and reattach, and `set -as terminal-features ',<TERM>:hyperlinks'`
+  (without `tmux`, which a config file refuses) for `tmux.conf` to keep it (tmux reads
   `tmux.conf` only when its server starts and `terminal-features` only when a client attaches,
   so the line in `tmux.conf` alone did nothing until the server restarted); or, below 3.4, that
   tmux cannot pass links at all. The footer notice only points there
-  (`tmux::LINKS_NOTICE`, `tmux drops the #N links: ? says how to keep them`), short enough
-  for a narrow footer; a config error wins it. On a terminal shorter than the keys the help
-  pane clips these lines (see the next bullets). Nothing is said with no client attached (a
+  (`tmux::LINKS_NOTICE`, `tmux drops the #N links: ? says why`), short enough for a narrow
+  footer; a config error wins it. The help pane neither wraps nor scrolls, so a terminal
+  shorter than the keys or narrower than the command (about 65 columns) clips these lines;
+  the log keeps them whole. Nothing is said with no client attached (a
   detached server, as in the e2e tests), when the client has `hyperlinks`, when tmux does not
   answer in time, or when the `TERM` holds anything but letters, digits and `._+-` (it is
   printed into a quoted command). conveyor never sets the tmux option itself: it would not

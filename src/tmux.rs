@@ -1,5 +1,7 @@
 use std::io::Read;
-use std::process::{Command, Stdio};
+use std::process::{Command, Output, Stdio};
+
+use crate::log::Log;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -55,17 +57,29 @@ fn older_than_3_4(version: &str) -> bool {
     }
 }
 
-pub fn ask() -> Option<String> {
+pub fn ask(log: &Log) -> Option<String> {
     std::env::var_os("TMUX")?;
-    let mut child = {
+    let args = [
+        "display-message".to_string(),
+        "-p".to_string(),
+        ASK.to_string(),
+    ];
+    let started = Instant::now();
+    let spawned = {
         let _spawning = crate::sources::spawning();
         Command::new("tmux")
-            .args(["display-message", "-p", ASK])
+            .args(&args)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .spawn()
-            .ok()?
+    };
+    let mut child = match spawned {
+        Ok(child) => child,
+        Err(err) => {
+            log.call("tmux", &args, started.elapsed(), &Err(err));
+            return None;
+        }
     };
     let mut stdout = child.stdout.take()?;
     let (sender, answer) = mpsc::channel();
@@ -74,18 +88,32 @@ pub fn ask() -> Option<String> {
         let _ = stdout.read_to_string(&mut text);
         let _ = sender.send(text);
     });
-    let deadline = Instant::now() + DEADLINE;
+    let deadline = started + DEADLINE;
     let text = answer.recv_timeout(DEADLINE).ok();
-    let succeeded = loop {
+    let status = loop {
         match child.try_wait() {
-            Ok(Some(status)) => break status.success(),
+            Ok(Some(status)) => break Some(status),
             Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(5)),
             _ => {
                 let _ = child.kill();
                 let _ = child.wait();
-                break false;
+                break None;
             }
         }
     };
-    text.filter(|_| succeeded)
+    match (status, text) {
+        (Some(status), Some(text)) => {
+            let output = Output {
+                status,
+                stdout: text.clone().into_bytes(),
+                stderr: Vec::new(),
+            };
+            log.call("tmux", &args, started.elapsed(), &Ok(output));
+            status.success().then_some(text)
+        }
+        _ => {
+            log.timed_out("tmux", &args, started.elapsed(), &[]);
+            None
+        }
+    }
 }

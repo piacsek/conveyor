@@ -15,11 +15,12 @@ The notice is short and points to the help pane, which shows the fix under the k
 log keeps the same lines:
 
 ```text
-footer: tmux drops the #N links: ? says how to keep them
+footer: tmux drops the #N links: ? says why
 
 ? pane: tmux drops the #N links for this terminal. If it shows links, run
           tmux set -as terminal-features ',xterm-ghostty:hyperlinks'
-        then detach and reattach; add that line to tmux.conf to keep it.
+        then detach and reattach. To keep it, put this line in tmux.conf:
+          set -as terminal-features ',xterm-ghostty:hyperlinks'
    or:  tmux 3.3 drops the #N links: tmux 3.4 or later passes them through
 ```
 
@@ -59,3 +60,6 @@ footer: tmux drops the #N links: ? says how to keep them
    `TERM` that would break the quoted command is left out; the spawn lock and a deadline over
    the read (e2e: a tmux that hangs, a tmux that leaves its output open); `tests/e2e.rs`
    becomes a folder at the 700-line limit.
+5. Review round 2: the `tmux.conf` line shown without `tmux` (a config file refuses it), the
+   footer wording fits an old tmux too, the tmux call is logged like a `gh` call, the hang
+   tests assert a time bound.

@@ -1,5 +1,6 @@
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
+use std::time::{Duration, Instant};
 
 use crate::{Server, fixture_path, shim, wait_for_file_line};
 
@@ -28,9 +29,15 @@ fn inside_tmux_a_client_without_hyperlinks_is_told_how_to_turn_them_on() {
     server.wait_for_screen("tmux drops the #N links: ? says why");
     server.send_keys(&["?"]);
     server.wait_for_screen("tmux set -as terminal-features ',xterm-ghostty:hyperlinks'");
-    wait_for_file_line(
-        &home.path().join(".local/state/conveyor/conveyor.log"),
+    let log = wait_for_file_line(
+        &log_of(&home),
         " tmux set -as terminal-features ',xterm-ghostty:hyperlinks'",
+    );
+    assert!(
+        log.contains(
+            "tmux display-message -p #{client_termname}\\t#{version}\\t#{client_termfeatures} "
+        ),
+        "{log}"
     );
 }
 
@@ -47,13 +54,21 @@ fn inside_tmux_a_client_with_hyperlinks_hears_nothing_about_them() {
 #[test]
 #[ignore]
 fn a_tmux_whose_answer_never_ends_holds_the_columns_back_at_most_a_moment() {
-    let (server, _home) = under_tmux_answering(
+    let started = Instant::now();
+    let (server, home) = under_tmux_answering(
         "hung",
         "xterm-ghostty\\t3.4\\ttitle\\n'; exec sleep 30; printf '",
     );
 
     let screen = server.wait_for_screen("#1 Phase 0: setup");
+    assert!(
+        started.elapsed() < Duration::from_secs(4),
+        "{:?}",
+        started.elapsed()
+    );
     assert!(!screen.contains("drops the #N links"), "{screen}");
+    let log = wait_for_file_line(&log_of(&home), "tmux display-message -p");
+    assert!(log.contains("ms timed out"), "{log}");
 }
 
 #[test]
@@ -64,5 +79,15 @@ fn a_tmux_that_leaves_its_output_open_holds_the_columns_back_at_most_a_moment() 
         "xterm-ghostty\\t3.4\\ttitle\\n'; sleep 30 & printf '",
     );
 
+    let started = Instant::now();
     server.wait_for_screen("#1 Phase 0: setup");
+    assert!(
+        started.elapsed() < Duration::from_secs(4),
+        "{:?}",
+        started.elapsed()
+    );
+}
+
+fn log_of(home: &tempfile::TempDir) -> std::path::PathBuf {
+    home.path().join(".local/state/conveyor/conveyor.log")
 }

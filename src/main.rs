@@ -126,7 +126,7 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
     let statuses = spawn_status_changer(&log, tx.clone());
     let checkouts = spawn_checkout_worker(&log, tx.clone());
     spawn_terminal_events(tx);
-    let links_fix = tmux::ask().map_or_else(Vec::new, |answer| tmux::links_fix(&answer));
+    let links_fix = tmux::ask(&log).map_or_else(Vec::new, |answer| tmux::links_fix(&answer));
     for line in &links_fix {
         log.line(line.trim_start());
     }
