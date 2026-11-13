@@ -62,3 +62,8 @@ fn a_version_that_does_not_parse_gets_the_command() {
 fn a_term_holding_a_control_character_is_never_echoed() {
     assert!(links_fix("xterm\u{1b}]8;;x\t3.4\ttitle\n").is_empty());
 }
+
+#[test]
+fn a_term_that_would_break_the_command_gets_none() {
+    assert!(links_fix("xterm',x:y\t3.4\ttitle\n").is_empty());
+}

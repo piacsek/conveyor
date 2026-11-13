@@ -9,7 +9,12 @@ pub const LINKS_NOTICE: &str = "tmux drops the #N links: ? says how to keep them
 pub fn links_fix(answer: &str) -> Vec<String> {
     let mut fields = answer.trim_end_matches('\n').split('\t');
     let (Some(term), Some(version)) = (
-        fields.next().filter(|term| printable(term)),
+        fields.next().filter(|term| {
+            !term.is_empty()
+                && term
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || b"._+-".contains(&byte))
+        }),
         fields.next().filter(|version| printable(version)),
     ) else {
         return Vec::new();
