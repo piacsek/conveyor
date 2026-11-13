@@ -126,9 +126,14 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
     let statuses = spawn_status_changer(&log, tx.clone());
     let checkouts = spawn_checkout_worker(&log, tx.clone());
     spawn_terminal_events(tx);
-    let links = tmux::ask().as_deref().and_then(tmux::links_notice);
+    let links_fix = tmux::ask().map_or_else(Vec::new, |answer| tmux::links_fix(&answer));
+    for line in &links_fix {
+        log.line(line.trim_start());
+    }
     let mut app = App::new(config);
-    app.notice = config_error.or(links);
+    app.notice =
+        config_error.or_else(|| (!links_fix.is_empty()).then(|| tmux::LINKS_NOTICE.to_string()));
+    app.links_fix = links_fix;
     app.utc_offset_secs = chrono::Local::now().offset().local_minus_utc();
     let mut terminal = ratatui::init();
     let result = run(

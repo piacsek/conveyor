@@ -623,7 +623,7 @@ fn under_tmux_answering(name: &str, answer: &str) -> (Server, tempfile::TempDir)
     let tmux = home.path().join("bin/tmux");
     fs::write(&tmux, format!("#!/bin/sh\nprintf '{answer}\\n'\n")).unwrap();
     fs::set_permissions(&tmux, fs::Permissions::from_mode(0o755)).unwrap();
-    let server = Server::start(name);
+    let server = Server::sized(name, "24");
     let home_dir = home.path().display().to_string();
     server.respawn(
         &[("HOME", &home_dir), ("PATH", &path)],
@@ -635,11 +635,15 @@ fn under_tmux_answering(name: &str, answer: &str) -> (Server, tempfile::TempDir)
 #[test]
 #[ignore]
 fn inside_tmux_a_client_without_hyperlinks_is_told_how_to_turn_them_on() {
-    let (server, _home) =
+    let (server, home) =
         under_tmux_answering("nolinks", "xterm-ghostty\\t3.4\\tclipboard,focus,title");
 
-    server.wait_for_screen(
-        "tmux drops the #N links: add set -as terminal-features ',xterm-ghostty:hyperlinks' to tmux.conf and reattach",
+    server.wait_for_screen("tmux drops the #N links: ? says how to keep them");
+    server.send_keys(&["?"]);
+    server.wait_for_screen("tmux set -as terminal-features ',xterm-ghostty:hyperlinks'");
+    wait_for_file_line(
+        &home.path().join(".local/state/conveyor/conveyor.log"),
+        " tmux set -as terminal-features ',xterm-ghostty:hyperlinks'",
     );
 }
 

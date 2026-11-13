@@ -4,22 +4,30 @@ use std::time::{Duration, Instant};
 const ASK: &str = "#{client_termname}\t#{version}\t#{client_termfeatures}";
 const DEADLINE: Duration = Duration::from_secs(1);
 
-pub fn links_notice(answer: &str) -> Option<String> {
+pub const LINKS_NOTICE: &str = "tmux drops the #N links: ? says how to keep them";
+
+pub fn links_fix(answer: &str) -> Vec<String> {
     let mut fields = answer.trim_end_matches('\n').split('\t');
-    let term = fields.next().filter(|term| printable(term))?;
-    let version = fields.next().filter(|version| printable(version))?;
+    let (Some(term), Some(version)) = (
+        fields.next().filter(|term| printable(term)),
+        fields.next().filter(|version| printable(version)),
+    ) else {
+        return Vec::new();
+    };
     let features = fields.next().unwrap_or_default();
     if older_than_3_4(version) {
-        return Some(format!(
+        return vec![format!(
             "tmux {version} drops the #N links: tmux 3.4 or later passes them through"
-        ));
+        )];
     }
     if features.split(',').any(|feature| feature == "hyperlinks") {
-        return None;
+        return Vec::new();
     }
-    Some(format!(
-        "tmux drops the #N links: add set -as terminal-features ',{term}:hyperlinks' to tmux.conf and reattach"
-    ))
+    vec![
+        "tmux drops the #N links for this terminal. If it shows links, run".to_string(),
+        format!("  tmux set -as terminal-features ',{term}:hyperlinks'"),
+        "then detach and reattach; add that line to tmux.conf to keep it.".to_string(),
+    ]
 }
 
 fn printable(text: &str) -> bool {

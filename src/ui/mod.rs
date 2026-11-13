@@ -46,7 +46,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         return;
     }
     if app.mode == Mode::Help {
-        draw_help(frame, body, app.focus);
+        draw_help(frame, body, app.focus, &app.links_fix);
         draw_overlay_footer(frame, app, "any key returns", footer);
         return;
     }
