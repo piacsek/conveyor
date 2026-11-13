@@ -5,6 +5,7 @@ mod details;
 mod dialog;
 mod footer;
 pub mod help;
+mod link;
 mod rows;
 mod style;
 

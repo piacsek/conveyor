@@ -5,8 +5,11 @@ use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, List, ListItem, Paragraph};
 
 use crate::app::{App, Column, Failure, Row, Stage, Write};
+use crate::ui::link::link;
 use crate::ui::rows::{build_row, deployed_row, pr_row, queue_row};
 use crate::ui::style::{dim, short_repo};
+
+type Pull = Option<(u64, String)>;
 
 fn titled<T: Row>(base: &str, column: &Column<T>, marks: usize) -> String {
     let marks = match marks {
@@ -77,6 +80,7 @@ pub(crate) fn draw_column(
     let focused = stage == app.focus;
     let now = app.now;
     let jobs = std::mem::take(&mut app.jobs);
+    let repo = app.builds.repo.clone();
     match stage {
         Stage::Prs => {
             let spinner = app.spinner();
@@ -98,14 +102,9 @@ pub(crate) fn draw_column(
                 |i, pr, on, w| {
                     let word = busy.get(i).cloned().flatten();
                     let busy = word.as_deref().map(|word| (spinner, word));
-                    pr_row(
-                        pr,
-                        busy,
-                        failures.get(i).and_then(Option::as_ref),
-                        now,
-                        on,
-                        w,
-                    )
+                    let pull = Some((pr.number, pr.url.clone()));
+                    let failure = failures.get(i).and_then(Option::as_ref);
+                    (pr_row(pr, busy, failure, now, on, w), pull)
                 },
             )
         }
@@ -118,7 +117,8 @@ pub(crate) fn draw_column(
             "queue empty",
             |_, entry, on, w| {
                 let jobs = entry.run.as_ref().and_then(|run| jobs.get(&run.id));
-                queue_row(entry, jobs, now, on, w)
+                let pull = Some((entry.number, entry.url.clone()));
+                (queue_row(entry, jobs, now, on, w), pull)
             },
         ),
         Stage::Builds => {
@@ -132,7 +132,11 @@ pub(crate) fn draw_column(
                 "no builds on main",
                 |i, build, on, w| {
                     let failure = failures.get(i).and_then(Option::as_ref);
-                    build_row(build, jobs.get(&build.id), failure, now, on, w)
+                    let pull = build.pull_request(repo.as_deref());
+                    (
+                        build_row(build, jobs.get(&build.id), failure, now, on, w),
+                        pull,
+                    )
                 },
             )
         }
@@ -161,7 +165,14 @@ pub(crate) fn draw_column(
                 block,
                 focused,
                 "no environments",
-                |i, row, on, w| deployed_row(row, behind.get(i).copied().flatten(), now, on, w),
+                |i, row, on, w| {
+                    let pull = row
+                        .pull
+                        .as_ref()
+                        .map(|pull| (pull.number, pull.url.clone()));
+                    let behind = behind.get(i).copied().flatten();
+                    (deployed_row(row, behind, now, on, w), pull)
+                },
             )
         }
     }
@@ -183,7 +194,7 @@ fn draw_list<T: Row>(
     block: Block<'static>,
     focused: bool,
     empty: &str,
-    row: impl Fn(usize, &T, bool, usize) -> Vec<Line<'static>>,
+    row: impl Fn(usize, &T, bool, usize) -> (Vec<Line<'static>>, Pull),
 ) {
     if column.is_loading() {
         let body = column
@@ -208,11 +219,28 @@ fn draw_list<T: Row>(
     }
     let width = usize::from(area.width.saturating_sub(2));
     let selected = column.list.selected().filter(|_| focused);
-    let items: Vec<ListItem> = visible
+    let (cards, pulls): (Vec<Vec<Line<'static>>>, Vec<Pull>) = visible
         .iter()
         .enumerate()
-        .map(|(i, item)| ListItem::new(Text::from(row(i, item, Some(i) == selected, width))))
+        .map(|(i, item)| row(i, item, Some(i) == selected, width))
+        .unzip();
+    let heights: Vec<u16> = cards.iter().map(|card| card.len() as u16).collect();
+    let inner = block.inner(area);
+    let items: Vec<ListItem> = cards
+        .into_iter()
+        .map(|card| ListItem::new(Text::from(card)))
         .collect();
     let list = List::new(items).block(block);
     frame.render_stateful_widget(list, area, &mut column.list);
+    let mut top = inner.y;
+    for (height, pull) in heights.into_iter().zip(pulls).skip(column.list.offset()) {
+        if top >= inner.bottom() {
+            break;
+        }
+        if let Some((number, url)) = pull {
+            let card = Rect::new(inner.x, top, inner.width, height).intersection(inner);
+            link(frame.buffer_mut(), card, number, &url);
+        }
+        top = top.saturating_add(height);
+    }
 }

@@ -49,6 +49,23 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   `draft`. They are Nerd Font octicons, the only Nerd Font glyphs in the UI: a terminal
   without a Nerd Font draws a box there. `card()` takes the icon as an
   `Option<(char, Color)>`; every other stage passes `None`.
+- **A card's `#N` is a terminal hyperlink (OSC 8).** After the list is drawn, `draw_list` asks
+  `ui::link::link` to find the card's `#N` in the frame buffer, inside that card's own lines,
+  and rewrites each of its cells as `ESC ] 8 ; id=<x>-<y> ; <url> ESC \ <char> ESC ] 8 ; ; ESC \`
+  with `CellDiffOption::ForcedWidth(1)`, so ratatui counts the cell as one column whatever the
+  escape measures. One cell per character, not the whole number squeezed into the first cell:
+  every cell stays self-contained, so a partial redraw, a popup drawn over half a number and
+  the `TestBackend` all see whole cells. The shared `id` is what makes a terminal underline the
+  whole number on hover rather than one digit; it is the number's screen position, so two cards
+  never share one. The terminal does the rest (hover, click; Cmd-click in iTerm2): conveyor
+  captures no mouse, so text selection is untouched, and a terminal without OSC 8 ignores the
+  sequence. The text and the style of the card do not change, so no snapshot or screenshot
+  does. **The URL is written to the terminal raw, so `linkable` is the guard**: only an
+  http(s) URL (`open::web_url`) made of printable ASCII without a space becomes a link; an
+  escape or a control character in a URL would otherwise reach the terminal. The URL of each
+  row is the one `p` opens (`Build::pull_request` for a main build, which falls back to the
+  `(#N)` of a squash title). A number cut by `…` on a narrow card gets no link. Not linked:
+  the `#N` in the details pane, dialogs and footer.
 - **A busy PR card spins.** While a write started on a pull request is in flight
   (`App::write_on`), its card draws the footer's braille frame (`App::spinner`) in yellow in
   place of the check glyph, and its meta line starts with the action word (`Write::word`:

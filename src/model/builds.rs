@@ -44,6 +44,16 @@ pub struct Build {
 }
 
 impl Build {
+    pub fn pull_request(&self, repo: Option<&str>) -> Option<(u64, String)> {
+        match (&self.pull, self.pr_number, repo) {
+            (Some(pull), _, _) => Some((pull.number, pull.url.clone())),
+            (None, Some(number), Some(repo)) => {
+                Some((number, format!("https://github.com/{repo}/pull/{number}")))
+            }
+            _ => None,
+        }
+    }
+
     pub fn duration(&self) -> Option<Duration> {
         match self.status {
             BuildStatus::Running | BuildStatus::Queued => None,

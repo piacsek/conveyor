@@ -29,17 +29,11 @@ impl StageView for BuildsStage {
     }
 
     fn pull_target(&self) -> Result<(u64, String), String> {
-        let build = self
-            .column
+        self.column
             .selected()
-            .ok_or_else(|| "nothing selected".to_string())?;
-        match (&build.pull, build.pr_number, &self.repo) {
-            (Some(pull), _, _) => Ok((pull.number, pull.url.clone())),
-            (None, Some(number), Some(repo)) => {
-                Ok((number, format!("https://github.com/{repo}/pull/{number}")))
-            }
-            _ => Err("no pull request for this run".to_string()),
-        }
+            .ok_or_else(|| "nothing selected".to_string())?
+            .pull_request(self.repo.as_deref())
+            .ok_or_else(|| "no pull request for this run".to_string())
     }
 
     fn build_url(&self, _: &Context) -> Result<String, String> {
