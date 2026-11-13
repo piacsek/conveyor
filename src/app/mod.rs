@@ -20,7 +20,8 @@ mod run;
 mod stages;
 
 pub use actions::{
-    CheckoutTarget, Choice, Menu, MergeTarget, Offer, Pending, Rerun, StatusTarget, UpdateTarget,
+    CheckoutTarget, Choice, Failure, Menu, MergeTarget, Offer, Pending, Rerun, StatusTarget,
+    UpdateTarget, Write, WriteKind,
 };
 pub use browser::OPEN_DEBOUNCE;
 pub use column::{Column, ColumnState, Listing, Navigable, Order, Row};
@@ -96,10 +97,8 @@ pub struct App {
     pub now: SystemTime,
     pub utc_offset_secs: i32,
     pub notice: Option<String>,
-    pub merging: Option<u64>,
-    pub updating: Option<u64>,
     pub follow_up: Option<SystemTime>,
-    pub merge_landing: Option<(u64, bool)>,
+    pub merge_landing: Vec<(u64, bool)>,
     pub details: bool,
     pub details_scroll: u16,
     pub details_page: u16,
@@ -116,9 +115,8 @@ pub struct App {
     pub log_page: u16,
     /// The live filter applied to every column; `Mode::Filter` means it is being edited.
     pub query: Option<String>,
-    rerunning: Option<(Stage, String)>,
-    changing: Option<(u64, StatusChange)>,
-    checking_out: Option<u64>,
+    writes: Vec<Write>,
+    failures: Vec<Failure>,
     pending_g: bool,
     last_open: Option<(String, SystemTime)>,
 }
@@ -140,10 +138,8 @@ impl App {
             now,
             utc_offset_secs: 0,
             notice: None,
-            merging: None,
-            updating: None,
             follow_up: None,
-            merge_landing: None,
+            merge_landing: Vec::new(),
             details: false,
             details_scroll: 0,
             details_page: 0,
@@ -157,9 +153,8 @@ impl App {
             log_scroll: u16::MAX,
             log_page: 0,
             query: None,
-            rerunning: None,
-            changing: None,
-            checking_out: None,
+            writes: Vec::new(),
+            failures: Vec::new(),
             pending_g: false,
             last_open: None,
         }

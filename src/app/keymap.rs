@@ -76,14 +76,14 @@ impl App {
         self.sync_filter();
     }
 
-    /// `Esc` closes the topmost thing, one per press: the details pane, then zoom, then a
-    /// live filter. With nothing open it does nothing; it never quits.
     fn escape(&mut self) {
         if self.details {
             self.details = false;
             self.reset_scroll();
         } else if self.zoom {
             self.zoom = false;
+        } else if let Some(subject) = self.selected_failure().map(|failure| failure.subject) {
+            self.clear_failure(self.focus, subject);
         } else if self.query.is_some() {
             self.clear_filter();
         }

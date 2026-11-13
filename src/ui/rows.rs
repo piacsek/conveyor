@@ -3,7 +3,7 @@ use std::time::SystemTime;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
-use crate::app::JobsState;
+use crate::app::{Failure, JobsState};
 use crate::model::builds::{Build, BuildStatus};
 use crate::model::deployed::{Deployment, Health};
 use crate::model::jobs::Job;
@@ -28,6 +28,8 @@ pub(crate) fn build_label(build: &Build) -> (String, String) {
 
 pub(crate) fn pr_row(
     pr: &PullRequest,
+    busy: Option<(char, &str)>,
+    failure: Option<&Failure>,
     now: SystemTime,
     selected: bool,
     width: usize,
@@ -38,6 +40,7 @@ pub(crate) fn pr_row(
         None => age,
     };
     let parts = [
+        busy.map(|(_, word)| word.to_string()).unwrap_or_default(),
         short_repo(&pr.repo).to_string(),
         if pr.auto_merge {
             "auto-merge".to_string()
@@ -57,13 +60,25 @@ pub(crate) fn pr_row(
     ];
     card(
         selected,
-        glyph(pr.checks),
+        busy.map_or_else(|| glyph(pr.checks), |(spinner, _)| (spinner, Color::Yellow)),
         Some(pr_glyph(pr.is_draft, pr.queue_position.is_some())),
         format!("#{} {}", pr.number, pr.title),
         right,
-        vec![meta(&parts, width), pr_checks(pr, width)],
+        failure_line(failure, width)
+            .into_iter()
+            .chain([meta(&parts, width), pr_checks(pr, width)])
+            .collect(),
         width,
     )
+}
+
+fn failure_line(failure: Option<&Failure>, width: usize) -> Option<Vec<Span<'static>>> {
+    failure.map(|failure| {
+        vec![Span::styled(
+            truncate(&failure.line(), width.saturating_sub(INDENT)),
+            Style::default().fg(Color::Red),
+        )]
+    })
 }
 
 fn pr_checks(pr: &PullRequest, width: usize) -> Vec<Span<'static>> {
@@ -155,6 +170,7 @@ pub(crate) fn queue_row(
 pub(crate) fn build_row(
     build: &Build,
     jobs: Option<&JobsState>,
+    failure: Option<&Failure>,
     now: SystemTime,
     selected: bool,
     width: usize,
@@ -187,6 +203,7 @@ pub(crate) fn build_row(
             emphasis,
         )]);
     }
+    lines.extend(failure_line(failure, width));
     lines.push(meta(&parts, width));
     lines.push(build_jobs(build, jobs, width));
     card(

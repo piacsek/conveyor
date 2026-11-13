@@ -51,10 +51,6 @@ impl SystemOpener {
         }
     }
 
-    pub fn open_args(url: &str) -> Vec<String> {
-        vec![Self::default_open_program().to_string(), url.to_string()]
-    }
-
     pub fn copy_args() -> Vec<String> {
         if cfg!(target_os = "macos") {
             vec!["pbcopy".to_string()]

@@ -665,13 +665,43 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   run's `main` commit, `check` builds on Linux only, and cargo in the check can be pointed at
   `Cargo.toml` files outside its copy.
 
+- Phase 38 (`plans/phase-38-parallel-writes.md`, #71): `S` is refused only on the row that
+  already has a write in flight, so several pull requests can each have one running. The user
+  asked to act on other pull requests while `mark ready` waited on GitHub, and picked the busy
+  card: the footer's spinner in place of the check glyph and the action word first on the meta
+  line. The five single slots on `App` became one `writes` list keyed by the row a write
+  started on; results already named their pull request, and a rerun is matched by its run ids,
+  so no worker changed. `merge_landing` became a list too: after a merge of #A, `u` and `t` on
+  #B are offered at once, while #A still waits for My PRs to catch up; a refused merge no
+  longer clears another pull request's wait. `tests/manage.rs` passed 700 lines and became a
+  folder. Not done: one worker per kind still runs two writes of the same kind one after the
+  other; the footer shows only the latest notice; Main builds cards do not spin; the same
+  number in two repositories shares a key; `docs/details.png` was not regenerated, since its
+  fixture has no busy card.
+
+- Phase 39 (`plans/phase-39-failed-write-marks.md`, #70, #72): a failed write leaves a red
+  `! <action> failed: <reason>` line under the title of the card it was started from, My PRs
+  cards and, for a rerun started there, Main builds cards. An error, an update that hit
+  conflicts and a rerun where any run failed mark; successes leave nothing new. `d` on a marked
+  card starts with the whole reason and the time it landed, and the column title counts marks
+  (`My PRs (5) !1`, in the tabs of the narrow layout too). A mark clears when a new write starts
+  on that row, on `Esc` with the marked card selected (after the details pane and zoom, before
+  the live filter), or when the row leaves its column on a successful refresh. `App::failures`
+  is filled from the `Write` the result removes, and `Listing::holds` lets `App::receive` prune
+  without a `Stage` match. The help and README now read `Esc  close details / zoom / mark /
+  filter`. Deviation: the partial rerun wording (`1 of 2 runs failed: …`) is tested from My
+  PRs, since a Main builds rerun is always one run. Not done: the footer still shows only the
+  latest notice, and a success that lands under a prompt is still hidden by it;
+  `docs/details.png` was not regenerated, since its fixture has no failed write.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
 - More `S` actions: `gh pr review --approve`; reopen if the query ever lists closed pull requests.
 - Merge follow-ups from the phase 20 review: `merge_method` per `[[repo]]` (one global value cannot
   serve a squash-only and a merge-commit-only repo at once); a write result that lands while the other prompt is open is
-  hidden by that prompt; the footer cuts titles by characters, not display width.
+  hidden by that prompt (the failure half is done in phase 39: a failure stays on its card; a
+  success is still hidden); the footer cuts titles by characters, not display width.
 - Follow one PR across columns: `f` on a PR highlights its sha/number in queue, builds, deployed.
 - Desktop/tmux notification on queue state change or main build failure (tmux-agents `watch` pattern).
 - Multiple `[[repo]]` entries → repeated column groups or a repo switcher.

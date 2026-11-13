@@ -1,3 +1,5 @@
+use conveyor::app::Input;
+use conveyor::model::prs::StatusChange;
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::three;
@@ -232,4 +234,76 @@ fn a_pull_request_with_auto_merge_on_says_so_on_its_meta_line() {
         "{screen}"
     );
     assert!(!rows[5].contains("auto-merge"), "{screen}");
+}
+
+#[test]
+fn a_card_with_a_write_on_its_way_spins_and_names_the_action() {
+    let mut h = Harness::new();
+    let mut draft = pr(1, "a");
+    draft.is_draft = true;
+
+    h.run(vec![
+        prs(vec![draft]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    let (title, meta) = card(&screen, "#1 a");
+    assert!(title.contains('⠋'), "{screen}");
+    assert!(!title.contains('✓'), "{screen}");
+    assert!(meta.starts_with("│▌   marking ready… · webapp"), "{screen}");
+}
+
+#[test]
+fn a_card_returns_to_its_check_glyph_when_the_result_lands() {
+    let mut h = Harness::new();
+    let mut draft = pr(1, "a");
+    draft.is_draft = true;
+
+    h.run(vec![
+        prs(vec![draft]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        Ok(Input::StatusChanged(1, StatusChange::Ready, Ok(()))),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    let (title, meta) = card(&screen, "#1 a");
+    assert!(title.contains('✓'), "{screen}");
+    assert!(!title.contains('⠋'), "{screen}");
+    assert!(!meta.contains("marking ready…"), "{screen}");
+}
+
+#[test]
+fn two_busy_cards_each_name_their_own_action() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(vec![pr(1, "a"), pr(2, "b")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    let (_, first) = card(&screen, "#1 a");
+    let (_, second) = card(&screen, "#2 b");
+    assert!(first.contains("converting to draft… · webapp"), "{screen}");
+    assert!(second.contains("merging… · webapp"), "{screen}");
+}
+
+fn card(screen: &str, title: &str) -> (String, String) {
+    let lines: Vec<&str> = screen.lines().collect();
+    let at = lines
+        .iter()
+        .position(|line| line.contains(title))
+        .expect("a card with that title");
+    (lines[at].to_string(), lines[at + 1].to_string())
 }

@@ -4,7 +4,7 @@ use crate::app::{Action, App};
 use crate::config::UpdateMethod;
 use crate::model::prs::BranchUpdate;
 
-use super::Choice;
+use super::{Choice, WriteKind};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateTarget {
@@ -29,8 +29,7 @@ impl App {
     }
 
     pub(super) fn send_update(&mut self, target: UpdateTarget) -> Action {
-        self.updating = Some(target.number);
-        self.notice = Some(format!("updating #{}…", target.number));
+        self.start_write(target.number, WriteKind::Update);
         Action::UpdateBranch(target)
     }
 
@@ -39,7 +38,12 @@ impl App {
         number: u64,
         result: &Result<BranchUpdate, String>,
     ) -> bool {
-        self.updating = None;
+        let write = self.finish_write(number, &WriteKind::Update);
+        match result {
+            Ok(BranchUpdate::Conflicts) => self.fail(write, CONFLICTS),
+            Err(message) => self.fail(write, message),
+            Ok(_) => {}
+        }
         self.notice = Some(match result {
             Ok(BranchUpdate::Updated) => format!("branch of #{number} updated"),
             Ok(BranchUpdate::UpToDate) => format!("#{number} is already up to date"),
@@ -50,6 +54,8 @@ impl App {
     }
 }
 
+const CONFLICTS: &str = "has conflicts with its base; resolve them locally";
+
 pub(in crate::app) fn conflicts(number: u64) -> String {
-    format!("#{number} has conflicts with its base; resolve them locally")
+    format!("#{number} {CONFLICTS}")
 }

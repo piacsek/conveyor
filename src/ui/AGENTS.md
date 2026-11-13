@@ -66,6 +66,28 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   row is the one `p` opens (`Build::pull_request` for a main build, which falls back to the
   `(#N)` of a squash title). A number cut by `…` on a narrow card gets no link. Not linked:
   the `#N` in the details pane, dialogs and footer.
+- **A busy PR card spins.** While a write started on a pull request is in flight
+  (`App::write_on`), its card draws the footer's braille frame (`App::spinner`) in yellow in
+  place of the check glyph, and its meta line starts with the action word (`Write::word`:
+  `marking ready…`, `converting to draft…`, `merging…`, `updating…`, `rerunning…`,
+  `checking out…`, `closing…`, and the auto-merge and merge queue ones), first so a narrow card
+  keeps it. `draw_column` looks the word up per visible row before `draw_list` borrows the
+  column. The card goes back to its check glyph when the result lands. Main builds cards do
+  not spin; a rerun there shows its progress in the footer only (a failed one marks the card,
+  see the next bullet).
+- **A failed write leaves a red line on its card.** `pr_row` and `build_row` take the row's
+  `Failure` (`App::failure_on`, looked up per visible row in `draw_column` like the busy word)
+  and draw `! <action> failed: <reason>` in red, its whitespace runs (a multi-line gh error
+  included) collapsed to one space and cut with `…`, as the line right under the
+  title: the second line of a pull request card, the line after the title line of a build
+  card. The card grows by that line; the check glyph and the rest are unchanged. With the
+  marked card selected, the details pane starts with `<action> failed at HH:MM:SS: <reason>`
+  in red, wrapped over the pane's width with nothing cut (`App::selected_failure`, `text::clock`
+  with `utc_offset_secs`). The column title counts marks after the row count, before the
+  `⚠`: `My PRs (5) !1`. The count covers every row of the column, rows hidden by the filter
+  included, like the `/total` half of the title. `column_title` feeds the tabs of the narrow layout too, so a mark
+  behind a tab still shows. No mark, no suffix. What marks and what clears: see
+  `src/app/AGENTS.md`.
 - **No URLs in the details pane.** Every line there is text a person reads: the checks, the
   jobs, the sha, the pull request. A URL is 60 columns of noise nobody retypes, and both keys
   that need one (`b`, `p`) already hand it to the browser. `y`/`Y` copy them.

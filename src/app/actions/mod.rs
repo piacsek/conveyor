@@ -6,20 +6,22 @@ use crate::model::prs::StatusChange;
 use super::{Action, App, Mode, StageView};
 
 mod checkout;
+mod failures;
 mod merge;
 mod rerun;
 mod status;
 mod update;
+mod writes;
 
 pub use checkout::CheckoutTarget;
+pub use failures::Failure;
 pub use merge::MergeTarget;
 pub use rerun::Rerun;
 pub(super) use rerun::rerun_offer;
 pub use status::StatusTarget;
 pub use update::UpdateTarget;
 pub(super) use update::conflicts;
-
-use status::progress;
+pub use writes::{Write, WriteKind};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Choice {
@@ -74,21 +76,9 @@ impl App {
     }
 
     fn write_in_flight(&self) -> Option<String> {
-        if let Some(number) = self.merging {
-            return Some(format!("merging #{number}…"));
-        }
-        if let Some(number) = self.updating {
-            return Some(format!("updating #{number}…"));
-        }
-        if let Some((number, change)) = &self.changing {
-            return Some(progress(*number, change));
-        }
-        if let Some(number) = self.checking_out {
-            return Some(format!("checking out #{number}…"));
-        }
-        self.rerunning
-            .as_ref()
-            .map(|(_, label)| format!("rerunning {label}…"))
+        self.selected_key()
+            .and_then(|key| self.write_on(self.focus, key))
+            .map(Write::progress)
     }
 
     fn menu(&self) -> Result<Menu, String> {

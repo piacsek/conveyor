@@ -68,7 +68,7 @@ impl Rows {
 pub struct Context<'a> {
     pub config: &'a Config,
     pub builds: &'a BuildsStage,
-    pub merge_landing: Option<(u64, bool)>,
+    pub merge_landing: &'a [(u64, bool)],
 }
 
 impl Context<'_> {
@@ -78,6 +78,12 @@ impl Context<'_> {
             .all()
             .iter()
             .find(|build| build.sha == sha)
+    }
+
+    pub fn landing(&self, number: u64) -> bool {
+        self.merge_landing
+            .iter()
+            .any(|(landing, _)| *landing == number)
     }
 
     pub fn behind_main(&self, row: &Deployment) -> Option<usize> {
@@ -156,13 +162,13 @@ impl App {
         Context {
             config: &self.config,
             builds: &self.builds,
-            merge_landing: self.merge_landing,
+            merge_landing: &self.merge_landing,
         }
     }
 
     pub fn receive(&mut self, stage: Stage, data: Result<Rows, String>) {
-        if stage == Stage::Prs && matches!(self.merge_landing, Some((_, true))) {
-            self.merge_landing = None;
+        if stage == Stage::Prs {
+            self.merge_landing.retain(|(_, started)| !started);
         }
         let selected = self.selected_key();
         self.receive_rows(stage, data);
@@ -171,7 +177,7 @@ impl App {
         }
     }
 
-    fn selected_key(&self) -> Option<u64> {
+    pub(super) fn selected_key(&self) -> Option<u64> {
         self.stage(self.focus).listing().selected_key()
     }
 
@@ -181,6 +187,7 @@ impl App {
                 let now = self.now;
                 self.stage_mut(stage).receive(rows, now);
                 self.age_jobs(stage);
+                self.prune_failures(stage);
             }
             Ok(_) => {}
             Err(message) => self.stage_mut(stage).listing_mut().fail(message),
@@ -188,8 +195,10 @@ impl App {
     }
 
     pub fn fetching(&mut self, stage: Stage) {
-        if let (Stage::Prs, Some((_, started))) = (stage, self.merge_landing.as_mut()) {
-            *started = true;
+        if stage == Stage::Prs {
+            for (_, started) in &mut self.merge_landing {
+                *started = true;
+            }
         }
         self.stage_mut(stage).listing_mut().set_refreshing(true);
     }

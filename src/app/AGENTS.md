@@ -5,14 +5,15 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
 ## Behaviour that is easy to break
 
 - **Errors stay inside the TUI.** A failed action or fetch sets an error drawn in the footer
-  or column title; the app never exits on it.
+  or column title, and a failed action also marks its card; the app never exits on it.
 - **Draw before the first read.** `run()` renders, then waits for input.
 - **The filter is a value, editing is a mode.** `App.query` is the live filter on all four
   columns; `Mode::Filter` only means it is being typed (footer cursor `▏`). `Enter` commits
   and returns to Normal with the query kept, `Esc` while typing clears it, `/` reopens it.
   Every column title reads `(visible/total)` while a query is live.
-- **`Esc` closes one thing per press**, in order: details pane, zoom, live filter; then it is a
-  no-op. It never quits. `1`–`4` focus a column in both layouts.
+- **`Esc` closes one thing per press**, in order: details pane, zoom, the selected card's
+  mark (see the failed writes bullet), live filter; then it is a no-op. It never quits. `1`–`4`
+  focus a column in both layouts.
 - **`L` is read-only, and the log has a pane of its own.** It asks `gh run view <run> --job
   <job> --log-failed` for the first failed job of the selected run (Main builds or Merge
   queue), keeps the last `LOG_TAIL` lines per job id in `App.logs`, and toggles `App.log_open`.
@@ -36,9 +37,16 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   checks the pull request out, which writes nothing to GitHub and is undone with `git switch -`.
   Keep any new letter that writes to GitHub off the Normal-mode keys. `S` refuses with a
   footer notice while the focused column's last refresh failed (the rows it would judge by are
-  older than they look), while any write is in flight (`merging`, `updating`, `rerunning`,
-  `changing`, `checking out`: one at a time across all actions) and in Merge queue and Deployed (`S manages My
-  PRs and Main builds`). `X`, `M` and `U` were removed in v0.21.0; `S` replaced them.
+  older than they look), on the selected row while a write started on it is in flight (the
+  footer repeats that write's progress line, `marking #N ready…`), and in Merge queue and
+  Deployed (`S manages My PRs and Main builds`). Every other row opens the popup, so several
+  pull requests can each have a write running. `App::writes` holds one `Write` per write in
+  flight (`src/app/actions/writes.rs`): the row key it was started on (`subject`), the stage
+  and the kind, which owns the footer `progress` and the card `word`; each result removes its
+  own entry, a pull request result by number and kind, a rerun by its run ids. Each kind still
+  has one worker thread in `main`, so two writes of the same kind run one after the other, each
+  row busy until its own answer. The same pull request number in two repositories shares a key:
+  one blocks the other. `X`, `M` and `U` were removed in v0.21.0; `S` replaced them.
   A letter re-derives the menu: a different title (another row selected) or a different offer
   under the letter says `the pull request changed; press S again` (`the run changed` in Main
   builds), and an offer that turned into a refusal says its reason. A refresh that lands while
@@ -60,7 +68,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
     `CLEAN`, `HAS_HOOKS` or `UNSTABLE`, which would merge without the `y` a merge asks for, and
     `--disable-auto` exits 0 without disabling anything on a pull request that just joined the
     queue. A queued pull request cannot become a draft, and neither can one whose merge just
-    landed (`merge_landing`), since it may be queued already. `a` follows GitHub, not a guess: `viewerCanDisableAutoMerge` offers
+    landed (that pull request is in `merge_landing`), since it may be queued already. `a` follows GitHub, not a guess: `viewerCanDisableAutoMerge` offers
     disable, else `viewerCanEnableAutoMerge` offers enable, else it is refused (`GitHub does not
     allow it for #N`: a draft, or the repository has auto-merge off). On a merge-queue repo,
     enabling auto-merge enqueues (gh), so a success sets `merge_landing` like a merge. The card's
@@ -110,7 +118,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   fast-forward` means HEAD did move (read in gh's source, not reproduced). `Input::CheckedOut`
   puts `#N checked out in <path as configured>` (or `in the current directory`) or `#N:
   <reason>` in the footer and refreshes nothing, since a checkout changes nothing on GitHub.
-  `App::checking_out` holds `S` back while it runs. The e2e test puts a `git` shim next to the
+  `S` stays refused on that pull request while it runs. The e2e test puts a `git` shim next to the
   `gh` one and logs `pr checkout …` argv with its working directory.
 - **`f` reruns failed jobs.** It reruns failed jobs with
   `gh run rerun <run> --failed -R <repo>`: in Main builds the selected run, only when it is the
@@ -168,9 +176,11 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   are allowed. `y` re-derives the target like `m` (`the pull request changed; press S again`).
   A merge that just queued the pull request has no `queue_position`
   until the next refresh, and the push would drop it from the queue. For that reason a
-  successful merge, or enabling auto-merge, sets `App::merge_landing` and `u` and `t` (to draft)
-  are refused with `waiting for My PRs to catch up with #N` until a My PRs fetch that started after the merge (`Input::Fetching`) has
-  landed; a fetch already in flight when the merge came back does not count. The worker runs `gh pr update-branch <N>
+  successful merge, or enabling auto-merge, adds the pull request to `App::merge_landing` and `u`
+  and `t` (to draft) on that pull request are refused with `waiting for My PRs to catch up with
+  #N` until a My PRs fetch that started after the merge (`Input::Fetching`) has landed; a fetch
+  already in flight when the merge came back does not count. Other pull requests are not held
+  back, and a refused merge leaves the list as it was. The worker runs `gh pr update-branch <N>
   -R <repo> [--rebase]`. Checked in gh v2.103.3 source: success prints `PR branch updated` or
   `PR branch already up-to-date` on stdout and exits 0; conflicts print `Cannot update PR branch
   due to conflicts` on stderr and exit 1, both when GitHub already reports the PR conflicting and
@@ -186,6 +196,25 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   `Request::Refresh(Stage::Prs)` and clears it. A second action before then moves the due time.
   `UpToDate`, `Conflicts`, errors and a Main builds rerun schedule nothing. `app.now` only
   moves on a tick, which only comes while no key is pressed, so a held key delays it.
+- **A failed write marks the card it was started from.** The footer shows only the latest
+  notice, and since several writes can run at once a later result (or the key that answers a
+  prompt) used to wipe a failure before anyone read it. So every `receive_*` hands the `Write`
+  that `finish_write` removed to `fail`, which keeps a `Failure { stage, subject, action,
+  message, at }` in `App::failures` (`src/app/actions/failures.rs`), `action` from
+  `Write::action` (`mark ready`, `merge`, `update`, `check out`, `rerun`, …). What marks: any
+  `Err`, `BranchUpdate::Conflicts` (`has conflicts with its base; resolve them locally`) and a
+  rerun where any run failed (`run <id>: <reason>` joined with `; `, prefixed `k of n runs
+  failed: ` when some went through). Already up to date, merge sent and every other success
+  mark nothing. A rerun marks the row it was started on: the pull request from My PRs, the
+  build from Main builds. A result for a row its column no longer holds (a refresh dropped it
+  while the write was in flight) marks nothing, since no card could show or clear it; the
+  footer still says it. A mark is per row key and stage, like the busy spinner. It clears
+  when (1) `start_write` starts a new write on that row, (2) `Esc` is pressed with the marked
+  card selected, or (3) a successful fetch of its column no longer holds the row
+  (`prune_failures` after `receive`, asking `Listing::holds`, all rows, not just the filtered
+  ones). A failed fetch and a fetch that still holds the row keep it: clearing on refresh
+  would bring the lost failure back on the refresh interval. How it is drawn: see
+  `src/ui/AGENTS.md`.
 - **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
   the deploy repo (`Context::deploy_repo`: the `[[repo]]` with a deploy, else `BuildsStage::repo`).
 - **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by

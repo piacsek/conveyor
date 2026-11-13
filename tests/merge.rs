@@ -239,6 +239,31 @@ fn while_a_merge_is_in_flight_s_says_so_instead_of_opening() {
 }
 
 #[test]
+fn while_a_merge_is_in_flight_s_opens_on_another_pull_request() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(vec![mergeable(1, "a"), mergeable(2, "b")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    assert_eq!(h.requests.len(), 2, "{:?}", h.requests);
+    assert_eq!(h.requests[1], target(2, "b"));
+
+    h.run(vec![key(KeyCode::Char('k')), key(KeyCode::Char('S'))])
+        .unwrap();
+
+    assert!(h.screen().contains("merging #1…"), "{}", h.screen());
+}
+
+#[test]
 fn an_accepted_merge_says_so_and_refreshes_my_prs_and_the_queue() {
     let mut h = Harness::new();
 

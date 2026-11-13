@@ -12,7 +12,7 @@ use crate::model::deployed::{Deployment, Pod, Rollout};
 use crate::model::jobs::Job;
 use crate::model::prs::PullRequest;
 use crate::model::queue::QueueEntry;
-use crate::text::{age, clock, duration, elapsed};
+use crate::text::{age, clock, duration, elapsed, wrap};
 use crate::ui::rows::build_label;
 use crate::ui::style::{build_glyph, check_word, conclusion_glyph, dim, sha8, status_word};
 
@@ -72,6 +72,8 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
         }
         None => (area, None),
     };
+    let width = usize::from(details_area.width.saturating_sub(2));
+    let lines: Vec<Line<'static>> = failure_lines(app, width).into_iter().chain(lines).collect();
     let (page, scroll) = scrolled(details_area, lines.len(), app.details_scroll);
     app.details_page = page;
     app.details_scroll = scroll.0;
@@ -92,6 +94,22 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
             log_area,
         );
     }
+}
+
+fn failure_lines(app: &App, width: usize) -> Vec<Line<'static>> {
+    let Some(failure) = app.selected_failure() else {
+        return Vec::new();
+    };
+    let text = format!(
+        "{} failed at {}: {}",
+        failure.action,
+        clock(failure.at, app.utc_offset_secs),
+        failure.message
+    );
+    wrap(&text, width, usize::MAX)
+        .into_iter()
+        .map(|line| Line::styled(line, Style::default().fg(Color::Red)))
+        .collect()
 }
 
 /// Clamp a pane's scroll to its content and say which way there is more: (page, (scroll, arrows)).

@@ -174,6 +174,94 @@ fn a_rerun_that_failed_for_every_run_schedules_no_reload() {
     );
 }
 
+#[test]
+fn two_reruns_on_their_way_each_land_with_their_own_label_and_column() {
+    use conveyor::app::{Request, Stage};
+    use conveyor::model::builds::BuildStatus;
+    let mut h = Harness::with_size(160, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![failing_in("test", 70), failing_in("e2e", 80)];
+
+    h.run(vec![
+        prs(vec![failing]),
+        support::builds(vec![support::build(25, BuildStatus::Failure, None)]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('f')),
+        key(KeyCode::Char('3')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('f')),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        h.requests.last(),
+        Some(&Request::Rerun {
+            repo: "acme/webapp".to_string(),
+            run_ids: vec![1025],
+        })
+    );
+
+    h.run(vec![support::rerun_done(vec![(1025, Ok(()))])])
+        .unwrap();
+
+    let footer = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(footer.contains("rerun requested: run 25"), "{footer}");
+    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Builds)));
+
+    h.run(vec![support::rerun_done(vec![(70, Ok(())), (80, Ok(()))])])
+        .unwrap();
+
+    let footer = h.screen().lines().last().unwrap_or_default().to_string();
+    assert!(
+        footer.contains("rerun requested: #4821 (2 runs)"),
+        "{footer}"
+    );
+    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Prs)));
+}
+
+#[test]
+fn a_failed_rerun_from_my_prs_marks_the_pull_request_card() {
+    let screen = rerun_from_my_prs(vec![(70, Err("HTTP 403")), (80, Err("HTTP 403"))]);
+
+    assert!(
+        line_after(&screen, "#4821 Retry hooks").contains("! rerun failed: run 70: HTTP 403"),
+        "{screen}"
+    );
+}
+
+#[test]
+fn a_rerun_that_failed_for_some_runs_says_how_many_on_the_card() {
+    let screen = rerun_from_my_prs(vec![(70, Ok(())), (80, Err("HTTP 403"))]);
+
+    assert!(
+        line_after(&screen, "#4821 Retry hooks").contains("! rerun failed: 1 of 2 runs"),
+        "{screen}"
+    );
+}
+
+fn rerun_from_my_prs(results: Vec<(u64, Result<(), &str>)>) -> String {
+    let mut h = Harness::with_size(160, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![failing_in("test", 70), failing_in("e2e", 80)];
+    h.run(vec![
+        prs(vec![failing]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('f')),
+        support::rerun_done(results),
+    ])
+    .unwrap();
+    h.screen()
+}
+
+fn line_after(screen: &str, needle: &str) -> String {
+    let lines: Vec<&str> = screen.lines().collect();
+    let at = lines
+        .iter()
+        .position(|line| line.contains(needle))
+        .unwrap_or_else(|| panic!("{needle} is not on screen: {screen}"));
+    lines[at + 1].to_string()
+}
+
 fn failing_in(name: &str, run_id: u64) -> conveyor::model::prs::Check {
     conveyor::model::prs::Check {
         name: name.to_string(),

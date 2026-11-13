@@ -18,7 +18,7 @@ pub const KEYS: [(&str, &str); 14] = [
     ("L", "log of the failed step"),
     ("S", "manage: merge, update, rerun, status, checkout"),
     ("z", "zoom the column"),
-    ("Esc", "close details / zoom / filter"),
+    ("Esc", "close details / zoom / mark / filter"),
     ("/", "filter (Enter keeps, Esc clears)"),
     ("r/R", "refresh focused / all"),
     ("?/c", "help / changelog"),
