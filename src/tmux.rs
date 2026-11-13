@@ -7,14 +7,31 @@ const DEADLINE: Duration = Duration::from_secs(1);
 pub fn links_notice(answer: &str) -> Option<String> {
     let mut fields = answer.trim_end_matches('\n').split('\t');
     let term = fields.next().filter(|term| !term.is_empty())?;
-    let _version = fields.next()?;
+    let version = fields.next()?;
     let features = fields.next().unwrap_or_default();
+    if older_than_3_4(version) {
+        return Some(format!(
+            "tmux {version} drops the #N links: tmux 3.4 or later passes them through"
+        ));
+    }
     if features.split(',').any(|feature| feature == "hyperlinks") {
         return None;
     }
     Some(format!(
         "tmux drops the #N links: add set -as terminal-features ',{term}:hyperlinks' to tmux.conf and reattach"
     ))
+}
+
+fn older_than_3_4(version: &str) -> bool {
+    let number = version.strip_prefix("next-").unwrap_or(version);
+    let mut parts = number.split('.').map(|part| {
+        let digits: String = part.chars().take_while(char::is_ascii_digit).collect();
+        digits.parse::<u32>().ok()
+    });
+    match (parts.next().flatten(), parts.next().flatten()) {
+        (Some(major), Some(minor)) => (major, minor) < (3, 4),
+        _ => false,
+    }
 }
 
 pub fn ask() -> Option<String> {

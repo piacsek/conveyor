@@ -42,6 +42,6 @@ tmux 3.3 drops the #N links: tmux 3.4 or later passes them through
 ## Tasks (each starts red, each shipped with `scripts/ship.sh`)
 1. e2e: inside tmux, a client without `hyperlinks` gets the notice naming its `TERM`; with
    `hyperlinks` it gets none (a `tmux` shim on the pane's `PATH`, like the `gh` one).
-2. Pure rules in `src/tmux.rs`: no client, an old tmux, an unparsable version, a config error
-   winning.
+2. Pure rules in `src/tmux.rs`: no client, an old tmux, an unparsable version, a `next-`
+   build from master.
 3. Docs: `AGENTS.md` layout, `src/ui/AGENTS.md` link bullet, fragment.
