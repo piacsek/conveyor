@@ -38,3 +38,8 @@ fn a_version_that_does_not_parse_gets_the_line_to_add() {
         Some(ADD)
     );
 }
+
+#[test]
+fn a_term_holding_a_control_character_is_never_echoed() {
+    assert_eq!(links_notice("xterm\u{1b}]8;;x\t3.4\ttitle\n"), None);
+}

@@ -6,8 +6,8 @@ const DEADLINE: Duration = Duration::from_secs(1);
 
 pub fn links_notice(answer: &str) -> Option<String> {
     let mut fields = answer.trim_end_matches('\n').split('\t');
-    let term = fields.next().filter(|term| !term.is_empty())?;
-    let version = fields.next()?;
+    let term = fields.next().filter(|term| printable(term))?;
+    let version = fields.next().filter(|version| printable(version))?;
     let features = fields.next().unwrap_or_default();
     if older_than_3_4(version) {
         return Some(format!(
@@ -20,6 +20,10 @@ pub fn links_notice(answer: &str) -> Option<String> {
     Some(format!(
         "tmux drops the #N links: add set -as terminal-features ',{term}:hyperlinks' to tmux.conf and reattach"
     ))
+}
+
+fn printable(text: &str) -> bool {
+    !text.is_empty() && text.bytes().all(|byte| byte.is_ascii_graphic())
 }
 
 fn older_than_3_4(version: &str) -> bool {
