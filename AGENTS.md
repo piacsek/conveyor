@@ -86,6 +86,7 @@ scripts/scrub-check.sh        denylist grep over tracked files (see "This reposi
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
 scripts/ship.sh               gates + dev-install (unless skippable) + commit + push, aborts on any failure; the first push of a branch opens the draft PR (commit subject as title, the template as body)
 scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
+scripts/script-tests-skippable.sh exit 0 with the reason when `gates.sh` may leave out the `scripts` test target, else 1 with the first path that needs it
 scripts/feeds-binary.sh       reads paths on stdin, prints the ones that feed the binary; the one list of what does not (`tests/`, `docs/`, `changes/`, …)
 scripts/fragments.sh          sourced, not run: reads the pending fragments and refuses a malformed or repeated one, at the commit its caller names
 scripts/version-check.sh      `<base> <head>`: the `version` job of `version.yml`; reads the head as git objects, runs nothing from it
@@ -324,6 +325,19 @@ cargo test -- --include-ignored   # one pass; the ignored ones are e2e: real bin
 ```
 
 Without tmux the last gate is a plain `cargo test` and a notice that the e2e tests were skipped.
+
+Outside CI (`CI` unset), `gates.sh` leaves out the `scripts` test target (`tests/scripts/`,
+about half of a warm run: 50 s against 23 s for the test step, measured 2026-11-12) when
+`scripts/script-tests-skippable.sh` finds nothing between the merge base with `origin/main` and
+the working tree, untracked files included, under `scripts/`, `tests/scripts/`,
+`tests/fixtures/`, `.github/`, `changes/`, or in `Cargo.toml`, `Cargo.lock` or `CHANGELOG.md`:
+the paths those tests read from this repository. It then runs `cargo test --lib --bins` with a
+`--test` for every other target it finds as `tests/*.rs` or `tests/*/main.rs`, and
+`cargo test --doc`, and prints `==> skipping the script tests: <reason>; CI runs them`. No
+repository, no `origin/main` or no merge base runs everything. The skip is safe because the
+`check` job of `ci.yml` calls `cargo test --locked -- --include-ignored` itself, not `gates.sh`,
+and `check` is required to merge into `main`. A script test that starts reading another path of
+this repository puts that path on the list in the script.
 `tests/scripts/` runs the scripts themselves in a scratch directory and a scratch git
 repository, with `cargo`, `gh` and the scripts they call replaced by symlinks to
 `tests/fixtures/record-call.sh`, which appends its name and argv to `$CALLS_LOG` and exits 1 for a call whose argv starts with `$FAILING_CALL` (how a ship test says the branch has no pull request yet). Where a
