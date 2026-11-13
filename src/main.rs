@@ -20,6 +20,7 @@ use conveyor::sources::fetch::{
 };
 use conveyor::sources::github::{CliGh, Github};
 use conveyor::sources::kube::CliKubectl;
+use conveyor::tmux;
 use ratatui::crossterm::event::{self, Event};
 
 fn main() -> ExitCode {
@@ -125,8 +126,9 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
     let statuses = spawn_status_changer(&log, tx.clone());
     let checkouts = spawn_checkout_worker(&log, tx.clone());
     spawn_terminal_events(tx);
+    let links = tmux::ask().as_deref().and_then(tmux::links_notice);
     let mut app = App::new(config);
-    app.notice = config_error;
+    app.notice = config_error.or(links);
     app.utc_offset_secs = chrono::Local::now().offset().local_minus_utc();
     let mut terminal = ratatui::init();
     let result = run(
