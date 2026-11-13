@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.26.1 (2026-11-13)
+- v0.26.1: internal changes only.
+
+## v0.26.0 (2026-11-12)
+- A failed action (merge, update, status change, checkout or rerun) leaves a red `! <action> failed: <reason>` line under the title of the card it was started from, so a later result can no longer wipe it from the footer before you read it. An update that hit conflicts and a rerun where any run failed count as failures.
+- `d` on a marked card starts with the whole reason and the time it landed.
+- The column title counts the marked cards (`My PRs (5) !1`), in the tabs of a narrow terminal too.
+- A mark goes away when you start a new action on that card, press `Esc` with the card selected (after the details pane and zoom, before the filter), or when the card leaves its column.
+
+## v0.25.0 (2026-11-12)
+- `S` works on another pull request while an action on the first one is still running; only the pull request with an action on its way refuses it.
+- A pull request card with an action on its way shows a spinner in place of its check mark and names the action (`marking ready…`, `merging…`) on its second line until the result lands.
+
+## v0.24.2 (2026-11-12)
+- Main builds appears much sooner on the first load: the pull requests of all its runs are asked for in one request instead of one request per run (about 4 s instead of 27 s for 30 builds).
+- The Deployed column asks for the pull requests of all its environments in one request as well.
+
 ## v0.24.1 (2026-11-11)
 - In the `S` popup of My PRs the close action reads `x  close PR` instead of `x  close`.
 
