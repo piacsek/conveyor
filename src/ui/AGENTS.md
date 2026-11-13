@@ -68,17 +68,29 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   the `#N` in the details pane, dialogs and footer.
 - **Inside tmux the link reaches the terminal only when tmux passes it on.** tmux (3.4 and
   later) keeps OSC 8 in its own grid and writes it out only to a client with the `hyperlinks`
-  terminal feature. tmux turns that on by itself for iTerm2, foot, WezTerm and kitty, and for
-  Ghostty only from 3.8, so the same binary links in tmux + iTerm2 and not in tmux + Ghostty
-  (issue #76). At start, with `$TMUX` set, `tmux::ask` runs `tmux display-message -p` once (a
-  1 s deadline, nothing inherited) for the client's `TERM`, the version and the client's
-  features, and `tmux::links_notice` puts the line to add in the footer notice, naming that
-  `TERM`, or says a tmux older than 3.4 cannot pass links at all. A config error wins the
-  notice. Nothing is said with no client attached (a detached server, as in the e2e tests),
-  when the client has `hyperlinks`, or when tmux does not answer. conveyor never sets the tmux
-  option itself: tmux reads `terminal-features` only when a client attaches, and it would
-  change every other program's terminal. The DCS passthrough was not taken: it needs
-  `allow-passthrough on`, off by default, and tmux drops it on every redraw.
+  terminal feature. tmux turns that on by itself for iTerm2 from 3.4, foot from 3.7, WezTerm and
+  Ghostty from 3.8 (kitty only on master), so the same binary links in tmux + iTerm2 and not in
+  tmux + Ghostty before 3.8 (issue #76). At start, with `$TMUX` set, `tmux::ask` runs
+  `tmux display-message -p` once for the client's `TERM`, the version and the client's
+  features: spawned under `sources::spawning()` like `gh` and `kubectl`, nothing inherited, and
+  the whole call, reading the answer included, bounded by a 1 s deadline (a tmux that answers
+  but leaves its output open to a child held the TUI back before). Without `-c`, tmux answers
+  for its most recent client, so with two terminals attached the answer can describe the other
+  one. `tmux::links_fix` turns the answer into the lines the help pane (`?`) shows under the
+  keys and the call log keeps: the `tmux set -as terminal-features ',<TERM>:hyperlinks'`
+  command, then detach and reattach, the same line in `tmux.conf` to keep it (tmux reads
+  `tmux.conf` only when its server starts and `terminal-features` only when a client attaches,
+  so the line in `tmux.conf` alone did nothing until the server restarted); or, below 3.4, that
+  tmux cannot pass links at all. The footer notice only points there
+  (`tmux::LINKS_NOTICE`, `tmux drops the #N links: ? says how to keep them`), short enough
+  for a narrow footer; a config error wins it. On a terminal shorter than the keys the help
+  pane clips these lines (see the next bullets). Nothing is said with no client attached (a
+  detached server, as in the e2e tests), when the client has `hyperlinks`, when tmux does not
+  answer in time, or when the `TERM` holds anything but letters, digits and `._+-` (it is
+  printed into a quoted command). conveyor never sets the tmux option itself: it would not
+  reach the running client, and it would change every other program's terminal. The DCS
+  passthrough was not taken: it needs `allow-passthrough on`, off by default, and tmux drops
+  it on every redraw.
 - **A busy PR card spins.** While a write started on a pull request is in flight
   (`App::write_on`), its card draws the footer's braille frame (`App::spinner`) in yellow in
   place of the check glyph, and its meta line starts with the action word (`Write::word`:
