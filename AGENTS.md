@@ -22,80 +22,83 @@ check is skipped where the file is absent, so CI does not enforce it).
 
 ## Layout
 
+The layout names what each file or directory is for; read its types, functions and variants
+from the code, and its rules from the `AGENTS.md` of its directory.
+
 ```
 src/main.rs      CLI dispatch, config load, wiring
-src/cli.rs       `conveyor` (TUI) | `config` | `log` | `--help` | `--version`; hand-rolled, no clap
-src/config.rs    Config (serde + toml, deny_unknown_fields), XDG path, `CONVEYOR_CONFIG` override, `expand_home`
+src/cli.rs       the subcommands and flags; hand-rolled, no clap
+src/config.rs    the config: its tables, defaults, path and `CONVEYOR_CONFIG` override
 src/sources/     everything that reaches out to an external service, and nothing else
-src/sources/github.rs Github trait (`graphql`, `rest`, `current_repo`, `log_failed`, `rerun_failed`, `merge`, `update_branch`, `change_status`, `checkout`), CliGh spawns `gh api …` / `gh repo view` / `gh run view --log-failed` / `gh run rerun --failed` / `gh pr merge|update-branch|ready|close|checkout` and `git remote -v` (the checkout guard), error mapping
-src/sources/kube.rs   Kube trait (`deployment(env)`, `pods(env, selector)`), CliKubectl (`kubectl --context … get deploy|pods … -o json`, a 10 s request timeout and a 15 s `DEADLINE` that kills the process)
-src/sources/fetch.rs  repos() (config or cwd), fetch_prs, fetch_queue (+ merge-group runs via REST), fetch_jobs, fetch_log (LOG_TAIL lines), Pulls (sha→PR: `prefetch` asks for all the shas of a fetch in one GraphQL call, `for_sha` reads the cache and asks REST for the rest), BuildsSource (caches workflow id and sha→PR), DeploySource (kubectl per env on parallel threads + cached sha→PR)
+src/sources/github.rs the Github trait and CliGh, which spawns `gh` (and `git` for the checkout guard), error mapping
+src/sources/kube.rs   the Kube trait and CliKubectl, which spawns `kubectl` under a deadline that kills it
+src/sources/fetch.rs  what each stage fetches, the sha → pull request cache, Deployed read per environment on parallel threads
 src/sources/queries/  GraphQL documents, `include_str!`ed
 src/sources/AGENTS.md GitHub and kubectl facts: API shapes and queries, the sha → pull request lookup, the spawn lock, call logging, the kubectl deadline
-src/model/prs.rs PullRequest, CheckState, Check, ReviewDecision, MergeState; lenient `parse` of gh JSON
-src/model/queue.rs Queue, QueueEntry, QueueState, MergeGroupRun; `parse`, `parse_merge_group_runs`, `attach_runs`
-src/model/builds.rs Build, BuildStatus, PullRef, Builds; `parse_runs`, `pr_number_from_title`, `parse_pull_numbers`, `parse_commit_pulls` (the batched GraphQL answer)
-src/model/deployed.rs Deployment, Deployed, Rollout, Condition, Pod, Health; `sha_from_image` (40-hex tag or `-<sha>` suffix), `parse_deployment`, `parse_pods` (problems first), `health`
-src/model/jobs.rs Job, `parse_jobs` (failures first), `failed_step`
-src/model/log.rs  `tail`: the failed step's log as gh prints it, minus job/step/timestamp prefixes and ANSI
+src/model/prs.rs My PRs: pull requests and their checks, review and merge state; lenient parse of gh JSON
+src/model/queue.rs Merge queue: entries and the merge-group runs attached to them
+src/model/builds.rs Main builds: runs and the pull requests they came from
+src/model/deployed.rs Deployed: deployments, the sha in an image tag, pods (problems first), health
+src/model/jobs.rs the jobs of a run and the failed step
+src/model/log.rs  the failed step's log as gh prints it, minus job/step/timestamp prefixes and ANSI
 src/model/AGENTS.md check dedup, merge-group run attach rules, deploy health rules, jobs parsing, lenient parsing
-src/app/mod.rs   App (one stage type per stage, focus, Mode, query, jobs, logs, log_open, log_scroll/log_page), Mode::{Normal, Filter, Help, Changelog, Confirm, Manage}, Input::{Key, Fetching, Data, Jobs, Log, Merged, Rerun, BranchUpdated, StatusChanged, CheckedOut, Tick}, Action, Request::{Refresh, Jobs, Log, Rerun, Merge, UpdateBranch, ChangeStatus, Checkout}; `behind_main`, `deploy_configured`, `follow_up_*`; re-exports everything below as `app::X`
+src/app/mod.rs   App, its modes, inputs, actions and requests; re-exports everything below as `app::X`
 src/app/stages/  one type per stage behind the StageView trait: `mod.rs` is the trait and the dispatch, one file per stage for everything that stage does
-src/app/stages/mod.rs Stage, Rows, StageView (`listing`, `receive`, `error`, `pull_target`, `build_url`, `selected_run`, `runs`, `menu`, `changed`), Context (what a stage may read from the rest of App: config, Main builds, `merge_landing`; `landing`, `behind_main`, `deploy_repo`), `App::stage`/`stage_mut` (the one match from a Stage to its field), `receive`, `fetching`, `any_refreshing`, `spinner`
-src/app/stages/prs.rs PrsStage: what My PRs offers (`menu`, `offers`, `merge_target`, `update_target`, `rerun_target`, `checkout_target`) and where its rows lead
-src/app/stages/queue.rs QueueStage (column, `repo`): its merge-group runs and where its rows lead
-src/app/stages/builds.rs BuildsStage (column, `repo`): its runs, what Main builds offers (`menu`, `rerun_target`) and where its rows lead
-src/app/stages/deployed.rs DeployedStage (column, `system`): a row's own error, where its rows lead, `keep_last_known`
-src/app/browser.rs where a row leads: `pull_target` and `build_url` of the focused stage, `open` and its `OPEN_DEBOUNCE`
-src/app/navigation.rs moving around: the `focused_*` readers, `refocus`, `with_focused`, the filter (`filter`, `sync_filter`) and the scroll helpers
-src/app/column.rs Column<T: Row> (state, error, list, filter), ColumnState, Row and its four impls, Order, `merge_keeping_order`, Navigable, Listing (what every column answers whatever its row type, `holds(key)` included)
-src/app/jobs.rs  JobsState, LogState, `age_jobs`, `jobs_needed` (selected, stale, then the first `EAGER_JOBS` failing builds), `selected_run`, `toggle_log`, `receive_jobs`, `receive_log`
+src/app/stages/mod.rs the trait, what a stage may read from the rest of App, and the one match from a Stage to its field
+src/app/stages/prs.rs My PRs: what it offers and where its rows lead
+src/app/stages/queue.rs Merge queue: its merge-group runs and where its rows lead
+src/app/stages/builds.rs Main builds: its runs, what it offers and where its rows lead
+src/app/stages/deployed.rs Deployed: a row's own error, where its rows lead, keeping the last known sha
+src/app/browser.rs where a row leads, and opening it with a debounce
+src/app/navigation.rs moving around: the focused readers, refocus, the filter and the scroll helpers
+src/app/column.rs the column every stage holds (state, error, list, filter), row order, what every column answers whatever its row type
+src/app/jobs.rs  the jobs and log state: which runs need their jobs, aging, the log pane
 src/app/actions/ the `S` popup: `mod.rs` is the machinery, one file per action for how it runs; what a column offers is its stage's `menu`
-src/app/actions/mod.rs Menu/Offer/Choice, Pending, `ask_to_manage`, `menu` (the focused stage's), `manage`, `confirm`, `reconfirm`, `write_in_flight`, `offer`
-src/app/actions/writes.rs Write, WriteKind (the writes in flight, one per row), `progress` (footer), `word` (card), `action` (the mark), `write_on`, `start_write`, `finish_write`
-src/app/actions/merge.rs MergeTarget, `confirm_merge`, `receive_merged`, `land` (adds to `merge_landing`)
-src/app/actions/update.rs UpdateTarget, `confirm_update`, `send_update`, `receive_branch_update`, `conflicts`
-src/app/actions/status.rs StatusTarget, `confirm_status`, `send_status`, `receive_status`, the `progress` and `done` wording
-src/app/actions/checkout.rs CheckoutTarget, `send_checkout`, `receive_checkout`
-src/app/actions/failures.rs Failure (the mark a failed write leaves), `failure_on`, `failure_count`, `selected_failure`, `fail`, `prune_failures`, `clear_failure`
-src/app/actions/rerun.rs Rerun, `rerun_offer`, `send_rerun`, `receive_rerun`
-src/app/keymap.rs `handle_key` and the Filter and Normal mode key handlers, `escape`
+src/app/actions/mod.rs the popup machinery: menus, offers, pending confirms, writes in flight
+src/app/actions/writes.rs the writes in flight, one per row, and their footer and card wording
+src/app/actions/merge.rs merge
+src/app/actions/update.rs update the branch, and its conflicts
+src/app/actions/status.rs the status changes (ready, draft, close, auto-merge, the merge queue) and their wording
+src/app/actions/checkout.rs check out locally
+src/app/actions/failures.rs the mark a failed write leaves on its card, and when it clears
+src/app/actions/rerun.rs rerun the failed jobs
+src/app/keymap.rs the key handlers per mode, `Esc`
 src/app/run.rs   run(): draw, read one Input, turn each Action into a Request
 src/app/AGENTS.md keys, `Esc`, the filter, the `S` popup and each action, failed write marks, jobs state, refresh and follow-up, row order, open debounce, zoom, scroll
 src/ui/mod.rs    draw: 4 columns or tabs below `4 × ui.min_column_width`
-src/ui/style.rs  the shared vocabulary: BAR, INDENT, dim(), glyphs and status words, short_repo, sha8
-src/ui/card.rs   card() and meta(): one title line plus indented span lines
-src/ui/columns.rs column titles, blocks and draw_list
-src/ui/rows.rs   one card builder per stage: pr_row, queue_row, build_row, deployed_row
+src/ui/style.rs  the shared vocabulary: bars, indents, dim, glyphs and status words, short repo and sha
+src/ui/card.rs   a card: one title line plus indented span lines
+src/ui/columns.rs column titles, blocks and lists
+src/ui/rows.rs   one card builder per stage
 src/ui/details.rs the `d` pane per stage, including the job list; no URLs
 src/ui/footer.rs footer text, the refresh spinner and the static logo
-src/ui/dialog.rs the `S` popup (`draw_manage`) and the confirm dialog (`draw_confirm`) for `m`, `x`, enabling auto-merge and a rebase
-src/ui/help.rs   KEYS is the generic table the README mirrors; `keys_for(stage)` swaps the `p`/`b` wording per column
+src/ui/dialog.rs the `S` popup and the confirm dialog
+src/ui/help.rs   KEYS is the generic table the README mirrors; the `p`/`b` wording swapped per column
 src/ui/AGENTS.md  cards, glyphs and icons, dialogs, the details, help and changelog panes, the footer, colours
-src/refresh.rs   `spawn`: one fetcher thread per stage; `wait` sleeps until the interval or a refresh, draining queued signals
-src/open.rs      Opener trait; SystemOpener (`open`/`xdg-open`, `pbcopy`/`xclip`): the OS seam, not a service, so it stays out of `sources/`
-src/changelog.rs CHANGELOG (the bundled CHANGELOG.md) and `check`, the rules a release entry must meet
+src/refresh.rs   one fetcher thread per stage, sleeping until the interval or a refresh
+src/open.rs      opening a URL and copying to the clipboard: the OS seam, not a service, so it stays out of `sources/`
+src/changelog.rs the bundled CHANGELOG.md and the rules a release entry must meet
 src/ui/changelog.rs the `c` pane: wrapped to its width (bullets hang), headings bold without their `#`, scrolled like the details pane
-src/log.rs       `path` (CONVEYOR_LOG, else XDG_STATE_HOME/conveyor/<program>.log), `program_name` (argv[0]), Log (`open` rotates to `.1`, `line`, `call`)
-src/text.rs      truncate/pad_right with `…`, age(), duration() (coarse, cards), elapsed() (seconds, details pane), strip_ansi()
+src/log.rs       the call log: its path, per program name, rotated on open
+src/text.rs      text helpers: truncation and wrapping with `…`, ages, durations and clock times, ANSI stripping
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
 scripts/ship.sh               gates + dev-install (unless skippable) + commit + push, aborts on any failure; the first push of a branch opens the draft PR (commit subject as title, the template as body)
 scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
 scripts/feeds-binary.sh       reads paths on stdin, prints the ones that feed the binary; the one list of what does not (`tests/`, `docs/`, `changes/`, …)
-scripts/fragments.sh          sourced, not run, reading the commit in `fragments_at` (`HEAD` unless the caller sets it): `last_tag`, `pending_fragments <tag>` (the `changes/*.md` at `HEAD` the tag's tree lacks), `fragment_kind` (refuses a malformed one by name), `fragment_bullets`, `refuse_repeats <tag> <pending>` (a pending bullet already in the tag's `CHANGELOG.md`, joined and trimmed as `changelog::check` reads it)
-scripts/version-check.sh      `<base> <head>`: the `version` job of `version.yml`; refuses a pull request that sets the version, edits `CHANGELOG.md` or a fragment, adds a malformed one, or feeds the binary without one; reads the head as git objects and asks `cargo metadata` for its version in a scratch copy, runs nothing from it; rehearses the release rewrite on that copy with a probe version drawn at random on every run
-scripts/next-version.sh       prints the version the pending fragments ask for (`feat` minor, `fix`/`internal` patch, never a major), nothing when none is pending
-scripts/release-commit.sh     `<version>`: writes it into `Cargo.toml` and the `conveyor` entry of `Cargo.lock`, and a `CHANGELOG.md` of the pending bullets above the last tag's; confirms that the release build's version line reads it, and with `cargo metadata` when cargo is on `PATH`; commits nothing
-scripts/release-rewrite.sh    sourced, not run: the release rewrite both `release-commit.sh` and `version-check.sh` use (`manifest_with_version`, `lock_with_version`, `manifest_reads`, `lock_reads`) and `root_package`, the reader of `cargo metadata` output
-scripts/releases.sh           sourced, not run: `release_state <tag>` prints `missing`, `draft`, `short` or `complete` (published with exactly the six assets); refuses an unreadable release or an unexpected asset
-scripts/release-unfinished.sh `<tag>`: prints `unfinished=true` unless the tag's release is `complete`; `build` and `publish` skip their steps on `false`, so a rerun never rebuilds a published release
-scripts/release-tag.sh        the `tag` job of `release.yml` (refuses outside GitHub Actions): prints `version=`/`tag=` of the newest tag when its release is not `complete` (a `::warning::` on stderr counts the fragments that wait for the next run), else commits and pushes the next release tag, else nothing
+scripts/fragments.sh          sourced, not run: reads the pending fragments and refuses a malformed or repeated one, at the commit its caller names
+scripts/version-check.sh      `<base> <head>`: the `version` job of `version.yml`; reads the head as git objects, runs nothing from it
+scripts/next-version.sh       prints the version the pending fragments ask for, nothing when none is pending
+scripts/release-commit.sh     `<version>`: writes the release into `Cargo.toml`, `Cargo.lock` and `CHANGELOG.md` and confirms it reads back; commits nothing
+scripts/release-rewrite.sh    sourced, not run: the release rewrite both `release-commit.sh` and `version-check.sh` use
+scripts/releases.sh           sourced, not run: the state of a tag's release
+scripts/release-unfinished.sh `<tag>`: whether `build` and `publish` still have work, so a rerun never rebuilds a published release
+scripts/release-tag.sh        the `tag` job of `release.yml` (refuses outside GitHub Actions): resume an unfinished tag, else tag what is pending, else nothing
 changes/                      one fragment per pull request that feeds the binary (`kind:` and the changelog bullets); add-only, see Releasing
 plans/                        one versioned plan file per phase (see Working agreements)
 scripts/homebrew-formula.sh   prints the tap formula for a released version
-scripts/formula-version.sh    the `tap` job's decision: prints `version=` of the newest published `complete` release when the tap formula names an older one (or none), else nothing; never a version below the formula's
+scripts/formula-version.sh    the `tap` job's decision; never a version below the formula's
 scripts/screenshots.sh        renders docs/details.png from a gh shim + synthetic fixture (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
