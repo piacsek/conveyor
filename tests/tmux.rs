@@ -4,7 +4,8 @@ fn add(term: &str) -> Vec<String> {
     vec![
         "tmux drops the #N links for this terminal. If it shows links, run".to_string(),
         format!("  tmux set -as terminal-features ',{term}:hyperlinks'"),
-        "then detach and reattach; add that line to tmux.conf to keep it.".to_string(),
+        "then detach and reattach. To keep it, put this line in tmux.conf:".to_string(),
+        format!("  set -as terminal-features ',{term}:hyperlinks'"),
     ]
 }
 

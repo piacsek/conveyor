@@ -25,7 +25,7 @@ fn inside_tmux_a_client_without_hyperlinks_is_told_how_to_turn_them_on() {
     let (server, home) =
         under_tmux_answering("nolinks", "xterm-ghostty\\t3.4\\tclipboard,focus,title");
 
-    server.wait_for_screen("tmux drops the #N links: ? says how to keep them");
+    server.wait_for_screen("tmux drops the #N links: ? says why");
     server.send_keys(&["?"]);
     server.wait_for_screen("tmux set -as terminal-features ',xterm-ghostty:hyperlinks'");
     wait_for_file_line(
