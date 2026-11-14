@@ -40,7 +40,8 @@ conveyor log       # print the path of the log file
 |---|---|
 | `q` | quit |
 | `j/k ↓/↑` | move |
-| `h/l Tab 1-4` | focus column |
+| `h/l` | focus column |
+| `Tab S-Tab 1-9` | next / previous / nth tab |
 | `p` | open pull request |
 | `b` | open build |
 | `y/Y` | copy pull request / build URL |

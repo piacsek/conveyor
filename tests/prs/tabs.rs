@@ -1,10 +1,10 @@
 use conveyor::app::{Request, Stage};
-use conveyor::config::{Config, PrsTab};
+use conveyor::config::{Config, Key, PrsTab};
 use ratatui::crossterm::event::KeyCode;
 use ratatui::style::Modifier;
 
 use crate::helpers::{highlighted_row, three};
-use crate::support::{Harness, failed_in, key, pr, prs_in};
+use crate::support::{Harness, ctrl, failed_in, key, pr, prs_in};
 
 #[test]
 fn tab_shows_the_second_tab_and_asks_for_its_rows() {
@@ -331,6 +331,67 @@ fn one_tab_draws_no_bar() {
     assert!(h.screen().lines().nth(1).unwrap().contains("#1 a"));
 }
 
+#[test]
+fn a_configured_next_tab_key_switches_tab() {
+    let mut h = Harness::with_config(160, 12, bracket_keys());
+    h.run(vec![prs_in(0, three())]).unwrap();
+
+    h.run(vec![key(KeyCode::Char(']'))]).unwrap();
+
+    assert_eq!(h.requests, vec![Request::Refresh(Stage::Prs, 1)]);
+}
+
+#[test]
+fn a_configured_previous_tab_key_switches_back() {
+    let mut h = Harness::with_config(160, 12, bracket_keys());
+    h.run(vec![prs_in(0, three()), key(KeyCode::Char(']'))])
+        .unwrap();
+
+    h.run(vec![key(KeyCode::Char('['))]).unwrap();
+
+    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Prs, 0)));
+}
+
+#[test]
+fn tab_does_nothing_once_another_key_switches_tabs() {
+    let mut h = Harness::with_config(160, 12, bracket_keys());
+    h.run(vec![prs_in(0, three())]).unwrap();
+
+    h.run(vec![key(KeyCode::Tab)]).unwrap();
+
+    assert!(h.requests.is_empty());
+}
+
+#[test]
+fn a_configured_control_chord_switches_tab() {
+    let mut config = two_tabs();
+    config.ui.keys.next_tab = Key::Ctrl('n');
+    let mut h = Harness::with_config(160, 12, config);
+    h.run(vec![prs_in(0, three())]).unwrap();
+
+    h.run(vec![ctrl('n')]).unwrap();
+
+    assert_eq!(h.requests, vec![Request::Refresh(Stage::Prs, 1)]);
+}
+
+#[test]
+fn the_help_shows_the_configured_tab_keys() {
+    let mut h = Harness::with_config(160, 20, bracket_keys());
+
+    h.run(vec![key(KeyCode::Char('?'))]).unwrap();
+
+    assert!(h.screen().contains("] [ 1-9"), "{}", h.screen());
+}
+
+#[test]
+fn the_help_shows_the_default_tab_keys() {
+    let mut h = Harness::with_size(160, 20);
+
+    h.run(vec![key(KeyCode::Char('?'))]).unwrap();
+
+    assert!(h.screen().contains("Tab S-Tab 1-9"), "{}", h.screen());
+}
+
 fn three_tabs() -> Config {
     let mut config = Config::default();
     config.prs.tab = vec![tab("mine"), tab("review"), tab("team")];
@@ -365,5 +426,12 @@ fn long_tabs() -> Config {
         tab("bravo-long-name"),
         tab("charlie-long-name"),
     ];
+    config
+}
+
+fn bracket_keys() -> Config {
+    let mut config = two_tabs();
+    config.ui.keys.next_tab = Key::Char(']');
+    config.ui.keys.previous_tab = Key::Char('[');
     config
 }

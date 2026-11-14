@@ -309,8 +309,8 @@ fn a_refused_merge_shows_what_gh_said_and_s_m_asks_again() {
 }
 
 #[test]
-fn the_help_lists_shift_s_and_still_fits_seventeen_rows() {
-    let mut h = Harness::with_size(160, 17);
+fn the_help_lists_shift_s_and_still_fits_eighteen_rows() {
+    let mut h = Harness::with_size(160, 18);
 
     h.run(vec![prs(vec![mergeable(1, "a")]), key(KeyCode::Char('?'))])
         .unwrap();

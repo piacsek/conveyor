@@ -56,7 +56,7 @@ fn the_help_names_the_focused_column_and_says_what_p_and_b_do_there() {
 
 #[test]
 fn question_mark_shows_the_key_help_and_any_key_returns() {
-    let mut h = Harness::with_size(160, 16);
+    let mut h = Harness::with_size(160, 18);
 
     h.run(vec![prs(three()), key(KeyCode::Char('?'))]).unwrap();
 
