@@ -78,7 +78,7 @@ min_column_width = 36
 details_percent = 40
 
 [ui.keys]
-next_tab = "tab"              # one character, "tab", "shift-tab" or "ctrl-<char>"
+next_tab = "tab"              # one character, "tab", "shift-tab" or "ctrl-a" to "ctrl-z"
 previous_tab = "shift-tab"
 
 [[repo]]                      # optional; default is the repository of the current directory

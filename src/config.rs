@@ -191,11 +191,19 @@ impl Key {
             "tab" => return Ok(Key::Tab),
             "shift-tab" => return Ok(Key::BackTab),
             _ => match (single(name), name.strip_prefix("ctrl-").and_then(single)) {
+                (Some(c), _) if c.is_whitespace() => {
+                    return Err(format!("\"{name}\" is blank; use a visible character"));
+                }
                 (Some(c), _) => (Key::Char(c), meaning(IN_USE, c)),
                 (None, Some(c)) => {
                     if let Some(sent) = meaning(CTRL_SENT_AS, c) {
                         return Err(format!(
                             "\"{name}\" reaches conveyor as {sent}: terminals send the same code for both"
+                        ));
+                    }
+                    if !c.is_ascii_lowercase() {
+                        return Err(format!(
+                            "\"{name}\" is not a control chord terminals send; use ctrl-a to ctrl-z"
                         ));
                     }
                     (Key::Ctrl(c), meaning(CTRL_IN_USE, c))
@@ -362,6 +370,9 @@ fn check_tabs(text: &str, prs: &Prs) -> Result<(), String> {
         return Err(
             "[prs].query and [[prs.tab]] are both set; move the query into a tab".to_string(),
         );
+    }
+    if prs.tab.iter().any(|tab| tab.name.trim().is_empty()) {
+        return Err("a [[prs.tab]] has a blank name".to_string());
     }
     for (i, tab) in prs.tab.iter().enumerate() {
         if prs.tab[..i].iter().any(|other| other.name == tab.name) {

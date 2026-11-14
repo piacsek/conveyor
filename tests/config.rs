@@ -413,3 +413,36 @@ fn ctrl_bracket_is_refused_since_the_terminal_sends_esc() {
 
     assert!(err.contains("Esc"), "{err}");
 }
+
+#[test]
+fn a_control_chord_outside_the_letters_is_refused() {
+    let err = Key::parse("ctrl-]").unwrap_err();
+
+    assert!(err.contains("ctrl-a"), "{err}");
+}
+
+#[test]
+fn an_upper_case_control_chord_is_refused() {
+    assert!(Key::parse("ctrl-N").is_err());
+}
+
+#[test]
+fn a_digit_control_chord_is_refused() {
+    assert!(Key::parse("ctrl-5").is_err());
+}
+
+#[test]
+fn the_space_is_refused_since_the_help_could_not_show_it() {
+    assert!(Key::parse(" ").is_err());
+}
+
+#[test]
+fn a_tab_with_a_blank_name_fails_naming_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[[prs.tab]]\nname = \" \"\nquery = \"x\"\n")).unwrap_err();
+
+    let text = err.to_string();
+    assert!(text.contains("config.toml"), "{text}");
+    assert!(text.contains("name"), "{text}");
+}

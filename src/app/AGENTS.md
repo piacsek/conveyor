@@ -22,7 +22,8 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   `config::Key`; `config::Key::parse` refuses any key conveyor already uses, naming what it
   does, so a rebind never shadows `S`, and `ctrl-i`, `ctrl-m`, `ctrl-j`, `ctrl-h` and `ctrl-[`,
   which terminals send as `Tab`, `Enter`, `Backspace` and `Esc`, so the binding would never
-  fire. While the filter is typed, `Tab`/`Shift-Tab` and control chords do nothing and a
+  fire. A chord is `ctrl-a` to `ctrl-z` only (crossterm reads other chords as other keys), and
+  a blank key or tab name is refused, since the help and the bar could not show it. While the filter is typed, `Tab`/`Shift-Tab` and control chords do nothing and a
   character (a digit, `]`) is typed into the query. `PrsStage` holds one `Column` per tab
   and the active index; `listing()` is the active tab, so everything that reads the focused
   column reads it. Each tab keeps its own rows, selection, scroll, error and fetch time. A
