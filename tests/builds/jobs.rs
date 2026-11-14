@@ -129,7 +129,8 @@ fn a_running_job_in_the_details_says_how_long_it_has_been_running() {
         builds(three()),
         jobs(1026, vec![running]),
         tick_at(NOW),
-        key(KeyCode::Char('3')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
         key(KeyCode::Char('d')),
     ])
     .unwrap();

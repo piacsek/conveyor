@@ -95,9 +95,9 @@ impl App {
         match key.code {
             KeyCode::Char('q') => return Action::Quit,
             KeyCode::Esc => self.escape(),
-            KeyCode::Char(digit @ '1'..='4') => {
+            KeyCode::Char(digit @ '1'..='9') => {
                 let index = digit as usize - '1' as usize;
-                self.refocus(|_| Stage::ALL[index]);
+                return self.switch_tab(|_, _| index);
             }
             KeyCode::Char('/') => {
                 let current = self.query.clone().unwrap_or_default();

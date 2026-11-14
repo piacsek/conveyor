@@ -187,7 +187,8 @@ fn two_reruns_on_their_way_each_land_with_their_own_label_and_column() {
         support::builds(vec![support::build(25, BuildStatus::Failure, None)]),
         key(KeyCode::Char('S')),
         key(KeyCode::Char('f')),
-        key(KeyCode::Char('3')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
         key(KeyCode::Char('S')),
         key(KeyCode::Char('f')),
     ])

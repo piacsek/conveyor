@@ -121,6 +121,85 @@ fn h_and_l_move_focus_and_keep_the_filter() {
     assert_eq!(h.app.query.as_deref(), Some("b"));
 }
 
+#[test]
+fn a_digit_shows_that_tab_and_asks_for_its_rows() {
+    let mut h = Harness::with_config(160, 12, three_tabs());
+    h.run(vec![prs_in(0, three())]).unwrap();
+
+    h.run(vec![key(KeyCode::Char('3'))]).unwrap();
+
+    assert_eq!(h.requests, vec![Request::Refresh(Stage::Prs, 2)]);
+    assert!(!h.screen().contains("#1 a"), "{}", h.screen());
+}
+
+#[test]
+fn one_returns_to_the_first_tab() {
+    let mut h = Harness::with_config(160, 12, three_tabs());
+    h.run(vec![prs_in(0, three()), key(KeyCode::Char('3'))])
+        .unwrap();
+
+    h.run(vec![key(KeyCode::Char('1'))]).unwrap();
+
+    assert!(h.screen().contains("#1 a"), "{}", h.screen());
+    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Prs, 0)));
+}
+
+#[test]
+fn a_digit_past_the_last_tab_does_nothing() {
+    let mut h = Harness::with_config(160, 12, three_tabs());
+    h.run(vec![prs_in(0, three())]).unwrap();
+
+    h.run(vec![key(KeyCode::Char('4'))]).unwrap();
+
+    assert!(h.requests.is_empty());
+    assert_eq!(h.app.focus, Stage::Prs);
+    assert!(h.screen().contains("#1 a"), "{}", h.screen());
+}
+
+#[test]
+fn the_active_tabs_digit_does_nothing() {
+    let mut h = Harness::with_config(160, 12, three_tabs());
+    h.run(vec![prs_in(0, three())]).unwrap();
+
+    h.run(vec![key(KeyCode::Char('1'))]).unwrap();
+
+    assert!(h.requests.is_empty());
+}
+
+#[test]
+fn a_digit_in_a_column_with_one_tab_keeps_the_focus() {
+    let mut h = Harness::with_config(160, 12, three_tabs());
+    h.run(vec![
+        prs_in(0, three()),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+    ])
+    .unwrap();
+
+    h.run(vec![key(KeyCode::Char('2'))]).unwrap();
+
+    assert_eq!(h.app.focus, Stage::Builds);
+    assert!(h.requests.is_empty());
+}
+
+#[test]
+fn a_digit_while_typing_a_filter_is_typed_into_it() {
+    let mut h = Harness::with_config(160, 12, three_tabs());
+    h.run(vec![prs_in(0, three()), key(KeyCode::Char('/'))])
+        .unwrap();
+
+    h.run(vec![key(KeyCode::Char('2'))]).unwrap();
+
+    assert_eq!(h.app.query.as_deref(), Some("2"));
+    assert!(h.requests.is_empty());
+}
+
+fn three_tabs() -> Config {
+    let mut config = Config::default();
+    config.prs.tab = vec![tab("mine"), tab("review"), tab("team")];
+    config
+}
+
 fn two_tabs() -> Config {
     let mut config = Config::default();
     config.prs.tab = vec![tab("mine"), tab("review")];

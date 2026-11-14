@@ -17,7 +17,8 @@ fn the_help_names_the_focused_column_and_says_what_p_and_b_do_there() {
 
     h.run(vec![
         key(KeyCode::Esc),
-        key(KeyCode::Char('3')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
         key(KeyCode::Char('?')),
     ])
     .unwrap();
@@ -28,7 +29,7 @@ fn the_help_names_the_focused_column_and_says_what_p_and_b_do_there() {
 
     h.run(vec![
         key(KeyCode::Esc),
-        key(KeyCode::Char('2')),
+        key(KeyCode::Char('h')),
         key(KeyCode::Char('?')),
     ])
     .unwrap();
@@ -40,7 +41,8 @@ fn the_help_names_the_focused_column_and_says_what_p_and_b_do_there() {
 
     h.run(vec![
         key(KeyCode::Esc),
-        key(KeyCode::Char('4')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
         key(KeyCode::Char('?')),
     ])
     .unwrap();

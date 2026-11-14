@@ -56,5 +56,9 @@ pub fn failing_newest() -> Vec<conveyor::model::builds::Build> {
 }
 
 pub fn focus_failing_newest() -> Vec<std::io::Result<conveyor::app::Input>> {
-    vec![builds(failing_newest()), key(KeyCode::Char('3'))]
+    vec![
+        builds(failing_newest()),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+    ]
 }
