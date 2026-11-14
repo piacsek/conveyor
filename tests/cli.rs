@@ -101,6 +101,81 @@ fn a_config_written_before_tabs_loads_and_prints_back_unchanged() {
 }
 
 #[test]
+fn config_prints_the_my_prs_tabs() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_config(&dir, TWO_TABS);
+
+    let out = config_command(&path);
+
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&out.stdout), PRINTED_TWO_TABS);
+}
+
+#[test]
+fn config_without_tabs_prints_no_tab_list() {
+    let out = binary(&["config"]);
+
+    assert!(!String::from_utf8_lossy(&out.stdout).contains("tab"));
+}
+
+#[test]
+fn a_query_beside_tabs_is_an_error_naming_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_config(&dir, &format!("[prs]\nquery = \"is:pr\"\n\n{TWO_TABS}"));
+
+    let out = config_command(&path);
+
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("config.toml"), "{stderr}");
+    assert!(stderr.contains("[prs].query"), "{stderr}");
+}
+
+#[test]
+fn a_tab_without_a_query_is_an_error_naming_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_config(&dir, "[[prs.tab]]\nname = \"mine\"\n");
+
+    let out = config_command(&path);
+
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("config.toml"), "{stderr}");
+    assert!(stderr.contains("missing field `query`"), "{stderr}");
+}
+
+#[test]
+fn a_tab_without_a_name_is_an_error_naming_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_config(&dir, "[[prs.tab]]\nquery = \"is:pr\"\n");
+
+    let out = config_command(&path);
+
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("config.toml"), "{stderr}");
+    assert!(stderr.contains("missing field `name`"), "{stderr}");
+}
+
+#[test]
+fn two_tabs_with_the_same_name_are_an_error_naming_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let repeated = TWO_TABS.replace("\"review\"", "\"mine\"");
+    let path = write_config(&dir, &repeated);
+
+    let out = config_command(&path);
+
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("config.toml"), "{stderr}");
+    assert!(stderr.contains("\"mine\""), "{stderr}");
+}
+
+#[test]
 fn log_prints_the_log_path_named_after_the_program() {
     let dir = tempfile::tempdir().unwrap();
 
@@ -157,4 +232,42 @@ fn config_command(path: &std::path::Path) -> std::process::Output {
         .env_remove("XDG_CONFIG_HOME")
         .output()
         .unwrap()
+}
+
+const TWO_TABS: &str = "[[prs.tab]]
+name = \"mine\"
+query = \"is:pr is:open author:@me\"
+
+[[prs.tab]]
+name = \"review\"
+query = \"is:pr is:open review-requested:@me\"
+limit = 10
+";
+
+const PRINTED_TWO_TABS: &str = "repo = []
+
+[prs]
+limit = 20
+refresh_secs = 60
+merge_method = \"squash\"
+update_method = \"merge\"
+
+[[prs.tab]]
+name = \"mine\"
+query = \"is:pr is:open author:@me\"
+
+[[prs.tab]]
+name = \"review\"
+query = \"is:pr is:open review-requested:@me\"
+limit = 10
+
+[ui]
+min_column_width = 36
+details_percent = 40
+";
+
+fn write_config(dir: &tempfile::TempDir, text: &str) -> std::path::PathBuf {
+    let path = dir.path().join("config.toml");
+    std::fs::write(&path, text).unwrap();
+    path
 }

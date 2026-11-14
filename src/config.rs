@@ -14,13 +14,48 @@ pub struct Config {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default, deny_unknown_fields, into = "PrsToml")]
 pub struct Prs {
     pub query: String,
     pub limit: usize,
     pub refresh_secs: u64,
     pub merge_method: MergeMethod,
     pub update_method: UpdateMethod,
+    pub tab: Vec<PrsTab>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PrsTab {
+    pub name: String,
+    pub query: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limit: Option<usize>,
+}
+
+#[derive(Serialize)]
+struct PrsToml {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    query: Option<String>,
+    limit: usize,
+    refresh_secs: u64,
+    merge_method: MergeMethod,
+    update_method: UpdateMethod,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    tab: Vec<PrsTab>,
+}
+
+impl From<Prs> for PrsToml {
+    fn from(prs: Prs) -> Self {
+        Self {
+            query: prs.tab.is_empty().then_some(prs.query),
+            limit: prs.limit,
+            refresh_secs: prs.refresh_secs,
+            merge_method: prs.merge_method,
+            update_method: prs.update_method,
+            tab: prs.tab,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -48,6 +83,7 @@ impl Default for Prs {
             refresh_secs: 60,
             merge_method: MergeMethod::default(),
             update_method: UpdateMethod::default(),
+            tab: Vec::new(),
         }
     }
 }
@@ -159,10 +195,32 @@ pub fn load(path: &Path) -> Result<Config, ConfigError> {
             });
         }
     };
-    toml::from_str(&text).map_err(|err| ConfigError {
+    let error = |message: String| ConfigError {
         path: path.to_path_buf(),
-        message: err.to_string().trim().to_string(),
-    })
+        message,
+    };
+    let config: Config =
+        toml::from_str(&text).map_err(|err| error(err.to_string().trim().to_string()))?;
+    check_tabs(&text, &config.prs).map_err(error)?;
+    Ok(config)
+}
+
+fn check_tabs(text: &str, prs: &Prs) -> Result<(), String> {
+    if prs.tab.is_empty() {
+        return Ok(());
+    }
+    let table: toml::Table = toml::from_str(text).map_err(|err| err.to_string())?;
+    if table.get("prs").and_then(|prs| prs.get("query")).is_some() {
+        return Err(
+            "[prs].query and [[prs.tab]] are both set; move the query into a tab".to_string(),
+        );
+    }
+    for (i, tab) in prs.tab.iter().enumerate() {
+        if prs.tab[..i].iter().any(|other| other.name == tab.name) {
+            return Err(format!("two [[prs.tab]] are named \"{}\"", tab.name));
+        }
+    }
+    Ok(())
 }
 
 pub fn path(
