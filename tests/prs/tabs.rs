@@ -1,6 +1,7 @@
 use conveyor::app::{Request, Stage};
 use conveyor::config::{Config, PrsTab};
 use ratatui::crossterm::event::KeyCode;
+use ratatui::style::Modifier;
 
 use crate::helpers::{highlighted_row, three};
 use crate::support::{Harness, failed_in, key, pr, prs_in};
@@ -246,6 +247,90 @@ fn a_fetch_started_for_a_tab_left_behind_does_not_mark_the_active_one_refreshing
     assert!(!h.app.prs.column().refreshing);
 }
 
+#[test]
+fn the_bar_lists_the_tabs_inside_the_column_above_the_cards() {
+    let mut h = Harness::with_config(160, 12, three_tabs());
+
+    h.run(vec![prs_in(0, three())]).unwrap();
+
+    let screen = h.screen();
+    let lines: Vec<&str> = screen.lines().collect();
+    assert!(lines[1].starts_with("│mine │ review │ team"), "{screen}");
+    assert!(lines[2].contains("#1 a"), "{screen}");
+}
+
+#[test]
+fn the_active_tab_is_bold_and_reversed() {
+    let mut h = Harness::with_config(160, 12, three_tabs());
+
+    h.run(vec![prs_in(0, three()), key(KeyCode::Char('2'))])
+        .unwrap();
+
+    let review = h.cell(8, 1).modifier;
+    assert!(review.contains(Modifier::REVERSED));
+    assert!(review.contains(Modifier::BOLD));
+}
+
+#[test]
+fn the_other_tabs_are_dim() {
+    let mut h = Harness::with_config(160, 12, three_tabs());
+
+    h.run(vec![prs_in(0, three()), key(KeyCode::Char('2'))])
+        .unwrap();
+
+    let mine = h.cell(1, 1).modifier;
+    assert!(mine.contains(Modifier::DIM));
+    assert!(!mine.contains(Modifier::REVERSED));
+}
+
+#[test]
+fn a_bar_too_wide_for_the_column_is_cut_after_the_active_tab() {
+    let mut h = Harness::with_config(160, 12, long_tabs());
+
+    h.run(vec![prs_in(0, three()), key(KeyCode::Char('2'))])
+        .unwrap();
+
+    let screen = h.screen();
+    let bar = screen.lines().nth(1).unwrap();
+    assert!(
+        bar.starts_with("│alpha-long-name │ bravo-long-name │ c…│"),
+        "{screen}"
+    );
+}
+
+#[test]
+fn a_bar_too_wide_for_the_column_drops_tabs_before_the_active_one() {
+    let mut h = Harness::with_config(160, 12, long_tabs());
+
+    h.run(vec![prs_in(0, three()), key(KeyCode::Char('3'))])
+        .unwrap();
+
+    let screen = h.screen();
+    let bar = screen.lines().nth(1).unwrap();
+    assert!(bar.starts_with("│… │ charlie-long-name "), "{screen}");
+}
+
+#[test]
+fn the_narrow_layout_draws_the_column_bar_then_the_tab_bar() {
+    let mut h = Harness::with_config(80, 12, two_tabs());
+
+    h.run(vec![prs_in(0, three())]).unwrap();
+
+    let screen = h.screen();
+    let lines: Vec<&str> = screen.lines().collect();
+    assert!(lines[0].starts_with("My PRs (3) │ Merge queue"), "{screen}");
+    assert!(lines[2].starts_with("│mine │ review"), "{screen}");
+}
+
+#[test]
+fn one_tab_draws_no_bar() {
+    let mut h = Harness::new();
+
+    h.run(vec![prs_in(0, three())]).unwrap();
+
+    assert!(h.screen().lines().nth(1).unwrap().contains("#1 a"));
+}
+
 fn three_tabs() -> Config {
     let mut config = Config::default();
     config.prs.tab = vec![tab("mine"), tab("review"), tab("team")];
@@ -271,4 +356,14 @@ fn filter(query: &str) -> Vec<std::io::Result<conveyor::app::Input>> {
     inputs.extend(query.chars().map(|c| key(KeyCode::Char(c))));
     inputs.push(key(KeyCode::Enter));
     inputs
+}
+
+fn long_tabs() -> Config {
+    let mut config = Config::default();
+    config.prs.tab = vec![
+        tab("alpha-long-name"),
+        tab("bravo-long-name"),
+        tab("charlie-long-name"),
+    ];
+    config
 }

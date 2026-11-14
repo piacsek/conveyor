@@ -53,6 +53,26 @@ fn queue_sample() -> Vec<conveyor::model::queue::QueueEntry> {
 }
 
 #[test]
+fn prs_tabs_layout() {
+    let mut config = conveyor::config::Config::default();
+    config.prs.tab = ["mine", "review", "team"]
+        .map(|name| conveyor::config::PrsTab {
+            name: name.to_string(),
+            query: format!("is:pr {name}"),
+            limit: None,
+        })
+        .to_vec();
+    let mut h = Harness::with_config(160, 12, config);
+    h.run(vec![
+        prs(sample()),
+        key(KeyCode::Tab),
+        support::prs_in(1, sample().into_iter().skip(1).collect()),
+    ])
+    .unwrap();
+    insta::assert_snapshot!(versionless(h.screen()));
+}
+
+#[test]
 fn list_layout() {
     let mut h = Harness::new();
     h.run(vec![
