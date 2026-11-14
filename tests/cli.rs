@@ -89,6 +89,18 @@ fn config_reads_the_file_named_by_conveyor_config_and_reports_errors() {
 }
 
 #[test]
+fn a_config_written_before_tabs_loads_and_prints_back_unchanged() {
+    let out = config_command(&fixture("config-v0.toml"));
+
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&out.stdout), CONFIG_V0);
+}
+
+#[test]
 fn log_prints_the_log_path_named_after_the_program() {
     let dir = tempfile::tempdir().unwrap();
 
@@ -126,4 +138,23 @@ fn log_without_an_absolute_home_says_so_and_exits_one() {
         stderr.contains("no log: HOME is not an absolute path"),
         "{stderr}"
     );
+}
+
+const CONFIG_V0: &str = include_str!("fixtures/config-v0.toml");
+
+fn fixture(name: &str) -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures")
+        .join(name)
+}
+
+fn config_command(path: &std::path::Path) -> std::process::Output {
+    let home = tempfile::tempdir().unwrap();
+    Command::new(env!("CARGO_BIN_EXE_conveyor"))
+        .arg("config")
+        .env("HOME", home.path())
+        .env("CONVEYOR_CONFIG", path)
+        .env_remove("XDG_CONFIG_HOME")
+        .output()
+        .unwrap()
 }
