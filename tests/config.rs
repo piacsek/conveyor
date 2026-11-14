@@ -1,4 +1,4 @@
-use conveyor::config::{Config, MergeMethod, PrsView, UpdateMethod, load};
+use conveyor::config::{Config, MergeMethod, PrsView, UpdateMethod, ViewKey, load};
 
 fn write(dir: &tempfile::TempDir, text: &str) -> std::path::PathBuf {
     let path = dir.path().join("config.toml");
@@ -299,7 +299,11 @@ fn without_views_the_printed_config_has_no_view_table() {
 
     assert_eq!(config.prs.name, "Mine");
     assert_eq!(config.prs.views().len(), 1);
-    assert!(!config.to_toml().contains("view"), "{}", config.to_toml());
+    assert!(
+        !config.to_toml().contains("prs.view"),
+        "{}",
+        config.to_toml()
+    );
 }
 
 #[test]
@@ -358,6 +362,97 @@ fn a_tenth_view_fails_naming_the_file() {
 
     assert!(err.contains("config.toml"), "{err}");
     assert!(err.contains("9"), "{err}");
+}
+
+#[test]
+fn the_next_view_key_defaults_to_tab() {
+    let config = Config::default();
+
+    assert_eq!(config.keys.next_view, ViewKey::Tab);
+    assert!(
+        config.to_toml().contains("[keys]\nnext_view = \"tab\""),
+        "{}",
+        config.to_toml()
+    );
+}
+
+#[test]
+fn the_next_view_key_accepts_tab() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let config = load(&write(&dir, "[keys]\nnext_view = \"tab\"\n")).unwrap();
+
+    assert_eq!(config.keys.next_view, ViewKey::Tab);
+}
+
+#[test]
+fn the_next_view_key_accepts_a_single_character() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let config = load(&write(&dir, "[keys]\nnext_view = \"]\"\n")).unwrap();
+
+    assert_eq!(config.keys.next_view, ViewKey::Char(']'));
+}
+
+#[test]
+fn a_configured_next_view_key_prints_back_and_loads_identically() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut config = Config::default();
+    config.keys.next_view = ViewKey::Char(']');
+
+    let text = config.to_toml();
+    let reloaded = load(&write(&dir, &text)).unwrap();
+
+    assert_eq!(reloaded, config);
+    assert!(text.contains("next_view = \"]\""), "{text}");
+}
+
+#[test]
+fn a_chord_as_next_view_key_fails_naming_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[keys]\nnext_view = \"ctrl-x\"\n"))
+        .unwrap_err()
+        .to_string();
+
+    assert!(err.contains("config.toml"), "{err}");
+    assert!(err.contains("ctrl-x"), "{err}");
+}
+
+#[test]
+fn an_empty_next_view_key_fails_naming_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[keys]\nnext_view = \"\"\n"))
+        .unwrap_err()
+        .to_string();
+
+    assert!(err.contains("config.toml"), "{err}");
+    assert!(err.contains("next_view"), "{err}");
+}
+
+#[test]
+fn two_characters_as_next_view_key_fail_naming_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[keys]\nnext_view = \"ab\"\n"))
+        .unwrap_err()
+        .to_string();
+
+    assert!(err.contains("config.toml"), "{err}");
+    assert!(err.contains("ab"), "{err}");
+}
+
+#[test]
+fn an_unknown_key_in_keys_fails_naming_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[keys]\nprev_view = \"x\"\n"))
+        .unwrap_err()
+        .to_string();
+
+    assert!(err.contains("config.toml"), "{err}");
+    assert!(err.contains("prev_view"), "{err}");
 }
 
 fn review_view() -> PrsView {

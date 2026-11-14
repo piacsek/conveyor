@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     pub prs: Prs,
     pub ui: Ui,
+    pub keys: Keys,
     pub repo: Vec<Repo>,
 }
 
@@ -95,6 +96,44 @@ impl Default for Ui {
         Self {
             min_column_width: 36,
             details_percent: 40,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Keys {
+    pub next_view: ViewKey,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub enum ViewKey {
+    #[default]
+    Tab,
+    Char(char),
+}
+
+impl TryFrom<String> for ViewKey {
+    type Error = String;
+
+    fn try_from(text: String) -> Result<Self, Self::Error> {
+        let mut chars = text.chars();
+        match (text.as_str(), chars.next(), chars.next()) {
+            ("tab", _, _) => Ok(Self::Tab),
+            (_, Some(c), None) => Ok(Self::Char(c)),
+            _ => Err(format!(
+                "next_view must be \"tab\" or a single character, found \"{text}\""
+            )),
+        }
+    }
+}
+
+impl From<ViewKey> for String {
+    fn from(key: ViewKey) -> Self {
+        match key {
+            ViewKey::Tab => "tab".to_string(),
+            ViewKey::Char(c) => c.to_string(),
         }
     }
 }
