@@ -75,12 +75,13 @@ pub fn ctrl(c: char) -> io::Result<Input> {
 }
 
 pub fn prs(prs: Vec<PullRequest>) -> io::Result<Input> {
-    Ok(Input::Data(Stage::Prs, Ok(Rows::Prs(prs))))
+    Ok(Input::Data(Stage::Prs, 0, Ok(Rows::Prs(prs))))
 }
 
 pub fn queue(entries: Vec<QueueEntry>) -> io::Result<Input> {
     Ok(Input::Data(
         Stage::Queue,
+        0,
         Ok(Rows::Queue(Queue {
             repo: "acme/webapp".to_string(),
             url: "https://github.com/acme/webapp/queue/main".to_string(),
@@ -92,6 +93,7 @@ pub fn queue(entries: Vec<QueueEntry>) -> io::Result<Input> {
 pub fn builds(builds: Vec<Build>) -> io::Result<Input> {
     Ok(Input::Data(
         Stage::Builds,
+        0,
         Ok(Rows::Builds(Builds {
             repo: "acme/webapp".to_string(),
             builds,
@@ -163,6 +165,7 @@ pub fn job(id: u64, name: &str, status: BuildStatus, failed_step: Option<&str>) 
 pub fn deployed(rows: Vec<Deployment>) -> io::Result<Input> {
     Ok(Input::Data(
         Stage::Deployed,
+        0,
         Ok(Rows::Deployed(Deployed {
             system: "api".to_string(),
             rows,
@@ -217,11 +220,11 @@ pub fn entry(position: u64, number: u64, author: &str, title: &str) -> QueueEntr
 }
 
 pub fn failed(stage: Stage, message: &str) -> io::Result<Input> {
-    Ok(Input::Data(stage, Err(message.to_string())))
+    Ok(Input::Data(stage, 0, Err(message.to_string())))
 }
 
 pub fn fetching(stage: Stage) -> io::Result<Input> {
-    Ok(Input::Fetching(stage))
+    Ok(Input::Fetching(stage, 0))
 }
 
 pub fn tick_at_ms(millis: u64) -> io::Result<Input> {

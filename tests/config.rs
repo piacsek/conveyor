@@ -351,3 +351,30 @@ fn the_printed_tab_keys_load_back() {
 
     assert_eq!(reloaded, config);
 }
+
+#[test]
+fn without_tabs_the_my_prs_query_is_the_one_tab() {
+    let mut config = Config::default();
+    config.prs.query = "is:pr involves:@me".to_string();
+    config.prs.limit = 4;
+
+    let tabs = config.prs.tabs();
+
+    assert_eq!(tabs.len(), 1);
+    assert_eq!(tabs[0].query, "is:pr involves:@me");
+    assert_eq!(tabs[0].limit, Some(4));
+}
+
+#[test]
+fn a_tab_without_a_limit_takes_the_my_prs_limit() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write(
+        &dir,
+        "[prs]\nlimit = 4\n\n[[prs.tab]]\nname = \"a\"\nquery = \"x\"\n\n[[prs.tab]]\nname = \"b\"\nquery = \"y\"\nlimit = 9\n",
+    );
+
+    let tabs = load(&path).unwrap().prs.tabs();
+
+    assert_eq!(tabs[0].limit, Some(4));
+    assert_eq!(tabs[1].limit, Some(9));
+}

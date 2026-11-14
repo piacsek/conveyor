@@ -101,7 +101,7 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
         log.line(&format!("config error: {err}"));
     }
     let (tx, rx) = mpsc::channel::<io::Result<Input>>();
-    let mut refreshers: HashMap<Stage, mpsc::Sender<()>> = HashMap::new();
+    let mut refreshers: HashMap<Stage, mpsc::Sender<usize>> = HashMap::new();
     refreshers.insert(
         Stage::Prs,
         spawn_prs_fetcher(&log, config.clone(), tx.clone()),
@@ -137,7 +137,7 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
         |request| match request {
             Request::Refresh(stage) => {
                 if let Some(refresh) = refreshers.get(&stage) {
-                    let _ = refresh.send(());
+                    let _ = refresh.send(0);
                 }
             }
             Request::Jobs { run_id } => {
@@ -333,19 +333,19 @@ fn spawn_terminal_events(tx: Inputs) {
     });
 }
 
-fn spawn_prs_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<()> {
+fn spawn_prs_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<usize> {
     let interval = Duration::from_secs(config.prs.refresh_secs);
     let gh = CliGh::default().with_log(log.clone());
-    refresh::spawn(Stage::Prs, interval, tx, move || {
-        fetch_prs(&gh, &config).map(Rows::Prs)
+    refresh::spawn(Stage::Prs, interval, tx, move |tab| {
+        fetch_prs(&gh, &config, tab).map(Rows::Prs)
     })
 }
 
-fn spawn_queue_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<()> {
+fn spawn_queue_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<usize> {
     let gh = CliGh::default().with_log(log.clone());
     let interval = Duration::from_secs(config.repo.first().map_or(30, |repo| repo.refresh_secs));
     let mut repo = None;
-    refresh::spawn(Stage::Queue, interval, tx, move || {
+    refresh::spawn(Stage::Queue, interval, tx, move |_| {
         if repo.is_none() {
             repo = repos(&gh, &config)?.into_iter().next();
         }
@@ -356,11 +356,11 @@ fn spawn_queue_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<()
     })
 }
 
-fn spawn_builds_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<()> {
+fn spawn_builds_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<usize> {
     let gh = CliGh::default().with_log(log.clone());
     let interval = Duration::from_secs(config.repo.first().map_or(30, |repo| repo.refresh_secs));
     let mut source: Option<BuildsSource> = None;
-    refresh::spawn(Stage::Builds, interval, tx, move || {
+    refresh::spawn(Stage::Builds, interval, tx, move |_| {
         if source.is_none() {
             let repo = repos(&gh, &config)?
                 .into_iter()
@@ -376,14 +376,14 @@ fn spawn_builds_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<(
     })
 }
 
-fn spawn_deploy_fetcher(log: &Log, config: Config, tx: Inputs) -> Option<mpsc::Sender<()>> {
+fn spawn_deploy_fetcher(log: &Log, config: Config, tx: Inputs) -> Option<mpsc::Sender<usize>> {
     let repo = config.repo.iter().find(|repo| !repo.deploy.is_empty())?;
     let deploy = repo.deploy.first()?.clone();
     let interval = Duration::from_secs(deploy.refresh_secs);
     let mut source = DeploySource::new(repo.name.clone(), deploy);
     let gh = CliGh::default().with_log(log.clone());
     let kube = CliKubectl::default().with_log(log.clone());
-    Some(refresh::spawn(Stage::Deployed, interval, tx, move || {
+    Some(refresh::spawn(Stage::Deployed, interval, tx, move |_| {
         Ok(Rows::Deployed(source.fetch(&gh, &kube, SystemTime::now())))
     }))
 }

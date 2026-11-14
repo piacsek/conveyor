@@ -34,8 +34,8 @@ pub use stages::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Input {
     Key(KeyEvent),
-    Fetching(Stage),
-    Data(Stage, Result<Rows, String>),
+    Fetching(Stage, usize),
+    Data(Stage, usize, Result<Rows, String>),
     Jobs(u64, Result<Vec<Job>, String>),
     /// The tail of one job's failed-step log, keyed by job id.
     Log(u64, Result<Vec<String>, String>),

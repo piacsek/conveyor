@@ -45,6 +45,25 @@ struct PrsToml {
     tab: Vec<PrsTab>,
 }
 
+impl Prs {
+    pub fn tabs(&self) -> Vec<PrsTab> {
+        if self.tab.is_empty() {
+            return vec![PrsTab {
+                name: String::new(),
+                query: self.query.clone(),
+                limit: Some(self.limit),
+            }];
+        }
+        self.tab
+            .iter()
+            .map(|tab| PrsTab {
+                limit: Some(tab.limit.unwrap_or(self.limit)),
+                ..tab.clone()
+            })
+            .collect()
+    }
+}
+
 impl From<Prs> for PrsToml {
     fn from(prs: Prs) -> Self {
         Self {
