@@ -224,7 +224,11 @@ pub fn entry(position: u64, number: u64, author: &str, title: &str) -> QueueEntr
 }
 
 pub fn failed(stage: Stage, message: &str) -> io::Result<Input> {
-    Ok(Input::Data(stage, 0, Err(message.to_string())))
+    failed_in(stage, 0, message)
+}
+
+pub fn failed_in(stage: Stage, tab: usize, message: &str) -> io::Result<Input> {
+    Ok(Input::Data(stage, tab, Err(message.to_string())))
 }
 
 pub fn fetching(stage: Stage) -> io::Result<Input> {

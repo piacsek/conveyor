@@ -3,7 +3,7 @@ use conveyor::config::{Config, PrsTab};
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::{highlighted_row, three};
-use crate::support::{Harness, key, pr, prs_in};
+use crate::support::{Harness, failed_in, key, pr, prs_in};
 
 #[test]
 fn tab_shows_the_second_tab_and_asks_for_its_rows() {
@@ -192,6 +192,58 @@ fn a_digit_while_typing_a_filter_is_typed_into_it() {
 
     assert_eq!(h.app.query.as_deref(), Some("2"));
     assert!(h.requests.is_empty());
+}
+
+#[test]
+fn rows_fetched_for_a_tab_left_behind_land_in_that_tab() {
+    let mut h = Harness::with_config(160, 12, two_tabs());
+    h.run(vec![
+        prs_in(0, three()),
+        key(KeyCode::Tab),
+        prs_in(1, vec![pr(7, "g")]),
+    ])
+    .unwrap();
+
+    h.run(vec![prs_in(0, vec![pr(9, "z")])]).unwrap();
+
+    assert!(!h.screen().contains("#9 z"), "{}", h.screen());
+    assert!(h.screen().contains("#7 g"), "{}", h.screen());
+    h.run(vec![key(KeyCode::BackTab)]).unwrap();
+    assert!(h.screen().contains("#9 z"), "{}", h.screen());
+}
+
+#[test]
+fn an_error_for_a_tab_left_behind_shows_once_you_switch_to_it() {
+    let mut h = Harness::with_config(160, 12, two_tabs());
+    h.run(vec![
+        prs_in(0, three()),
+        key(KeyCode::Tab),
+        prs_in(1, vec![pr(7, "g")]),
+    ])
+    .unwrap();
+
+    h.run(vec![failed_in(Stage::Prs, 0, "gh: HTTP 502")])
+        .unwrap();
+
+    assert!(!h.screen().contains("⚠"), "{}", h.screen());
+    h.run(vec![key(KeyCode::BackTab)]).unwrap();
+    assert!(h.screen().contains("My PRs (3) ⚠"), "{}", h.screen());
+}
+
+#[test]
+fn a_fetch_started_for_a_tab_left_behind_does_not_mark_the_active_one_refreshing() {
+    let mut h = Harness::with_config(160, 12, two_tabs());
+    h.run(vec![
+        prs_in(0, three()),
+        key(KeyCode::Tab),
+        prs_in(1, vec![pr(7, "g")]),
+    ])
+    .unwrap();
+
+    h.run(vec![Ok(conveyor::app::Input::Fetching(Stage::Prs, 0))])
+        .unwrap();
+
+    assert!(!h.app.prs.column().refreshing);
 }
 
 fn three_tabs() -> Config {

@@ -44,10 +44,16 @@ impl StageView for PrsStage {
         self.column_mut()
     }
 
-    fn receive(&mut self, rows: Rows, now: SystemTime) {
-        if let Rows::Prs(prs) = rows {
-            self.column_mut().receive(prs, now);
+    fn receive(&mut self, tab: usize, rows: Rows, now: SystemTime) {
+        if let (Rows::Prs(prs), Some(column)) = (rows, self.tabs.get_mut(tab)) {
+            column.receive(prs, now);
         }
+    }
+
+    fn listing_in_mut(&mut self, tab: usize) -> Option<&mut dyn Listing> {
+        self.tabs
+            .get_mut(tab)
+            .map(|column| column as &mut dyn Listing)
     }
 
     fn tab_names(&self) -> &[String] {

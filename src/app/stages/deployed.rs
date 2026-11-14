@@ -20,7 +20,7 @@ impl StageView for DeployedStage {
         &mut self.column
     }
 
-    fn receive(&mut self, rows: Rows, now: SystemTime) {
+    fn receive(&mut self, _: usize, rows: Rows, now: SystemTime) {
         if let Rows::Deployed(deployed) = rows {
             self.system = Some(deployed.system);
             let rows = keep_last_known(self.column.all(), deployed.rows);

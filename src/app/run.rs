@@ -43,8 +43,8 @@ where
                     request(app.refresh_request(Stage::Prs));
                 }
             }
-            Input::Fetching(stage, _) => app.fetching(stage),
-            Input::Data(stage, _, data) => app.receive(stage, data),
+            Input::Fetching(stage, tab) => app.fetching(stage, tab),
+            Input::Data(stage, tab, data) => app.receive(stage, tab, data),
             Input::Jobs(run_id, result) => app.receive_jobs(run_id, result),
             Input::Log(job_id, result) => app.receive_log(job_id, result),
             Input::BranchUpdated(number, result) => {
