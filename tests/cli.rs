@@ -97,7 +97,13 @@ fn a_config_written_before_tabs_loads_and_prints_back_unchanged() {
         "{}",
         String::from_utf8_lossy(&out.stderr)
     );
-    assert_eq!(String::from_utf8_lossy(&out.stdout), CONFIG_V0);
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout),
+        CONFIG_V0.replace(
+            "details_percent = 30\n",
+            &format!("details_percent = 30\n{KEYS}")
+        )
+    );
 }
 
 #[test]
@@ -119,7 +125,7 @@ fn config_prints_the_my_prs_tabs() {
 fn config_without_tabs_prints_no_tab_list() {
     let out = binary(&["config"]);
 
-    assert!(!String::from_utf8_lossy(&out.stdout).contains("tab"));
+    assert!(!String::from_utf8_lossy(&out.stdout).contains("prs.tab"));
 }
 
 #[test]
@@ -264,6 +270,16 @@ limit = 10
 [ui]
 min_column_width = 36
 details_percent = 40
+
+[ui.keys]
+next_tab = \"tab\"
+previous_tab = \"shift-tab\"
+";
+
+const KEYS: &str = "
+[ui.keys]
+next_tab = \"tab\"
+previous_tab = \"shift-tab\"
 ";
 
 fn write_config(dir: &tempfile::TempDir, text: &str) -> std::path::PathBuf {

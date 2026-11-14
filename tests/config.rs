@@ -1,4 +1,4 @@
-use conveyor::config::{Config, MergeMethod, UpdateMethod, load};
+use conveyor::config::{Config, Key, MergeMethod, UpdateMethod, load};
 
 fn write(dir: &tempfile::TempDir, text: &str) -> std::path::PathBuf {
     let path = dir.path().join("config.toml");
@@ -248,4 +248,106 @@ fn a_leading_tilde_in_a_path_is_the_home_directory() {
         expand_home(Path::new("~/webapp"), None),
         PathBuf::from("~/webapp")
     );
+}
+
+#[test]
+fn tab_names_the_tab_key() {
+    assert_eq!(Key::parse("tab"), Ok(Key::Tab));
+}
+
+#[test]
+fn shift_tab_names_the_back_tab_key() {
+    assert_eq!(Key::parse("shift-tab"), Ok(Key::BackTab));
+}
+
+#[test]
+fn a_single_character_names_that_character() {
+    assert_eq!(Key::parse("]"), Ok(Key::Char(']')));
+}
+
+#[test]
+fn ctrl_and_a_character_names_that_chord() {
+    assert_eq!(Key::parse("ctrl-n"), Ok(Key::Ctrl('n')));
+}
+
+#[test]
+fn an_unknown_key_name_is_refused() {
+    let err = Key::parse("bogus").unwrap_err();
+
+    assert!(err.contains("\"bogus\""), "{err}");
+}
+
+#[test]
+fn a_key_conveyor_already_uses_is_refused_naming_what_it_does() {
+    let err = Key::parse("j").unwrap_err();
+
+    assert!(err.contains("move"), "{err}");
+}
+
+#[test]
+fn a_digit_is_refused_since_it_picks_a_tab() {
+    let err = Key::parse("3").unwrap_err();
+
+    assert!(err.contains("tab"), "{err}");
+}
+
+#[test]
+fn a_control_chord_conveyor_already_uses_is_refused() {
+    let err = Key::parse("ctrl-d").unwrap_err();
+
+    assert!(err.contains("details"), "{err}");
+}
+
+#[test]
+fn the_tab_keys_default_to_tab_and_shift_tab() {
+    let config = Config::default();
+
+    assert_eq!(config.ui.keys.next_tab, Key::Tab);
+    assert_eq!(config.ui.keys.previous_tab, Key::BackTab);
+}
+
+#[test]
+fn the_tab_keys_read_from_ui_keys() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write(
+        &dir,
+        "[ui.keys]\nnext_tab = \"]\"\nprevious_tab = \"ctrl-p\"\n",
+    );
+
+    let config = load(&path).unwrap();
+
+    assert_eq!(config.ui.keys.next_tab, Key::Char(']'));
+    assert_eq!(config.ui.keys.previous_tab, Key::Ctrl('p'));
+}
+
+#[test]
+fn a_key_already_in_use_fails_naming_the_file_and_the_meaning() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[ui.keys]\nnext_tab = \"j\"\n")).unwrap_err();
+
+    let text = err.to_string();
+    assert!(text.contains("config.toml"), "{text}");
+    assert!(text.contains("move"), "{text}");
+}
+
+#[test]
+fn the_same_key_for_both_tab_keys_fails() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[ui.keys]\nprevious_tab = \"tab\"\n")).unwrap_err();
+
+    let text = err.to_string();
+    assert!(text.contains("next_tab"), "{text}");
+}
+
+#[test]
+fn the_printed_tab_keys_load_back() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut config = Config::default();
+    config.ui.keys.next_tab = Key::Ctrl('n');
+
+    let reloaded = load(&write(&dir, &config.to_toml())).unwrap();
+
+    assert_eq!(reloaded, config);
 }
