@@ -21,7 +21,7 @@ impl StageView for BuildsStage {
         &mut self.column
     }
 
-    fn receive(&mut self, rows: Rows, now: SystemTime) {
+    fn receive(&mut self, _: usize, rows: Rows, now: SystemTime) {
         if let Rows::Builds(builds) = rows {
             self.repo = Some(builds.repo);
             self.column.receive(builds.builds, now);

@@ -47,14 +47,14 @@ fn refreshes_asked_during_a_fetch_cost_one_more_fetch() {
             .unwrap()
     };
 
-    assert!(matches!(next(), Input::Fetching(Stage::Prs)));
+    assert!(matches!(next(), Input::Fetching(Stage::Prs, 0)));
     refresh.send(()).unwrap();
     refresh.send(()).unwrap();
     refresh.send(()).unwrap();
     release_tx.send(()).unwrap();
-    assert!(matches!(next(), Input::Data(Stage::Prs, _)));
-    assert!(matches!(next(), Input::Fetching(Stage::Prs)));
+    assert!(matches!(next(), Input::Data(Stage::Prs, 0, _)));
+    assert!(matches!(next(), Input::Fetching(Stage::Prs, 0)));
     release_tx.send(()).unwrap();
-    assert!(matches!(next(), Input::Data(Stage::Prs, _)));
+    assert!(matches!(next(), Input::Data(Stage::Prs, 0, _)));
     assert!(inputs.recv_timeout(Duration::from_millis(300)).is_err());
 }

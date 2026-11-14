@@ -328,7 +328,7 @@ fn a_landed_status_change_says_so_and_refreshes_my_prs() {
         "{}",
         h.screen()
     );
-    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs, 0));
     assert!(h.app.follow_up.is_some());
 }
 
@@ -354,8 +354,8 @@ fn leaving_the_queue_also_refreshes_the_merge_queue() {
         "{}",
         h.screen()
     );
-    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
-    assert_eq!(h.requests[2], Request::Refresh(Stage::Queue));
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs, 0));
+    assert_eq!(h.requests[2], Request::Refresh(Stage::Queue, 0));
 }
 
 #[test]
@@ -489,8 +489,8 @@ fn closing_also_refreshes_the_merge_queue() {
     .unwrap();
 
     assert!(h.screen().contains("#1 closed"), "{}", h.screen());
-    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
-    assert_eq!(h.requests[2], Request::Refresh(Stage::Queue));
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs, 0));
+    assert_eq!(h.requests[2], Request::Refresh(Stage::Queue, 0));
 }
 
 #[test]
@@ -547,7 +547,7 @@ fn marking_ready_refreshes_my_prs_but_not_the_merge_queue() {
     .unwrap();
 
     assert_eq!(h.requests.len(), 2, "{:?}", h.requests);
-    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs, 0));
 }
 
 #[test]
@@ -624,8 +624,8 @@ fn a_landed_enqueue_refreshes_both_columns_and_update_waits_for_my_prs() {
         "{}",
         h.screen()
     );
-    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
-    assert_eq!(h.requests[2], Request::Refresh(Stage::Queue));
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs, 0));
+    assert_eq!(h.requests[2], Request::Refresh(Stage::Queue, 0));
 
     h.run(vec![key(KeyCode::Char('S'))]).unwrap();
 

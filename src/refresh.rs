@@ -22,10 +22,10 @@ pub fn spawn(
     let (refresh_tx, refresh_rx) = mpsc::channel::<()>();
     thread::spawn(move || {
         loop {
-            if tx.send(Ok(Input::Fetching(stage))).is_err() {
+            if tx.send(Ok(Input::Fetching(stage, 0))).is_err() {
                 return;
             }
-            if tx.send(Ok(Input::Data(stage, fetch()))).is_err() {
+            if tx.send(Ok(Input::Data(stage, 0, fetch()))).is_err() {
                 return;
             }
             if !wait(&refresh_rx, interval.max(Duration::from_secs(1))) {

@@ -40,31 +40,31 @@ where
             Input::Tick(now) => {
                 app.now = now;
                 if app.follow_up_due() {
-                    request(Request::Refresh(Stage::Prs));
+                    request(Request::Refresh(Stage::Prs, 0));
                 }
             }
-            Input::Fetching(stage) => app.fetching(stage),
-            Input::Data(stage, data) => app.receive(stage, data),
+            Input::Fetching(stage, view) => app.fetching(stage, view),
+            Input::Data(stage, view, data) => app.receive(stage, view, data),
             Input::Jobs(run_id, result) => app.receive_jobs(run_id, result),
             Input::Log(job_id, result) => app.receive_log(job_id, result),
             Input::BranchUpdated(number, result) => {
                 if app.receive_branch_update(number, &result) {
-                    request(Request::Refresh(Stage::Prs));
+                    request(Request::Refresh(Stage::Prs, 0));
                     app.follow_up_prs();
                 }
             }
             Input::Merged(number, result) => {
                 app.receive_merged(number, &result);
                 if result.is_ok() {
-                    request(Request::Refresh(Stage::Prs));
-                    request(Request::Refresh(Stage::Queue));
+                    request(Request::Refresh(Stage::Prs, 0));
+                    request(Request::Refresh(Stage::Queue, 0));
                 }
             }
             Input::StatusChanged(number, change, result) => {
                 if app.receive_status(number, &change, &result) {
-                    request(Request::Refresh(Stage::Prs));
+                    request(Request::Refresh(Stage::Prs, 0));
                     if change != StatusChange::Ready {
-                        request(Request::Refresh(Stage::Queue));
+                        request(Request::Refresh(Stage::Queue, 0));
                     }
                     app.follow_up_prs();
                 }
@@ -72,7 +72,7 @@ where
             Input::CheckedOut(target, result) => app.receive_checkout(&target, &result),
             Input::Rerun(result) => {
                 if let Some(stage) = app.receive_rerun(result) {
-                    request(Request::Refresh(stage));
+                    request(Request::Refresh(stage, 0));
                     if stage == Stage::Prs {
                         app.follow_up_prs();
                     }
@@ -82,10 +82,10 @@ where
                 Action::Quit => return Ok(()),
                 Action::Open(url) => attempt(app, opener.open(&url)),
                 Action::Copy(text) => attempt(app, opener.copy(&text)),
-                Action::Refresh(stage) => request(Request::Refresh(stage)),
+                Action::Refresh(stage) => request(Request::Refresh(stage, 0)),
                 Action::RefreshAll => {
                     for stage in Stage::ALL {
-                        request(Request::Refresh(stage));
+                        request(Request::Refresh(stage, 0));
                     }
                 }
                 Action::Log { run_id, job_id } => request(Request::Log { run_id, job_id }),
