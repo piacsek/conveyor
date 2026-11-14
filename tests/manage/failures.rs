@@ -324,6 +324,54 @@ fn a_failure_for_a_row_that_already_left_its_column_leaves_no_mark() {
     assert!(h.screen().contains("┌My PRs (1)─"), "{}", h.screen());
 }
 
+#[test]
+fn a_mark_kept_while_another_view_is_shown_is_drawn_again_on_return() {
+    let mut h = marked_in_two_views();
+
+    h.run(vec![
+        prs_in(1, vec![draft(14, "Bump serde")]),
+        key(KeyCode::Tab),
+        key(KeyCode::Tab),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(
+        line_after(&screen, "#12 Retry webhooks").contains("! mark ready failed: HTTP 422"),
+        "{screen}"
+    );
+}
+
+#[test]
+fn the_column_title_counts_only_the_marks_of_the_view_shown() {
+    let mut h = marked_in_two_views();
+
+    h.run(vec![
+        prs_in(1, vec![draft(14, "Bump serde")]),
+        key(KeyCode::Tab),
+    ])
+    .unwrap();
+
+    assert!(h.screen().contains("┌My PRs (1)─"), "{}", h.screen());
+}
+
+#[test]
+fn a_failure_marks_a_row_that_only_a_view_not_shown_holds() {
+    let mut h = Harness::with_config(160, 20, two_views());
+
+    h.run(vec![
+        prs(vec![draft(12, "Retry webhooks")]),
+        prs_in(1, vec![draft(14, "Bump serde")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        key(KeyCode::Tab),
+        status_changed(12, StatusChange::Ready, Err("HTTP 422")),
+    ])
+    .unwrap();
+
+    assert!(h.app.failure_on(Stage::Prs, 12).is_some());
+}
+
 fn marked_next_to_another() -> Harness {
     let mut h = tall();
     h.run(vec![

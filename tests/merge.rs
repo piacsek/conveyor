@@ -469,3 +469,50 @@ fn y_refuses_when_a_refresh_of_my_prs_failed_while_the_dialog_was_open() {
     );
     assert!(h.requests.is_empty(), "{:?}", h.requests);
 }
+
+#[test]
+fn the_merge_wait_ends_on_a_fetch_of_another_view_that_started_after_the_merge() {
+    let mut h = merged_in_two_views(vec![]);
+
+    h.run(vec![
+        support::fetching_in(Stage::Prs, 1),
+        support::prs_in(1, vec![]),
+        key(KeyCode::Char('S')),
+    ])
+    .unwrap();
+
+    assert!(!h.screen().contains("waiting for My PRs"), "{}", h.screen());
+}
+
+#[test]
+fn the_merge_wait_outlasts_a_fetch_of_another_view_that_started_before_the_merge() {
+    let mut h = merged_in_two_views(vec![support::fetching_in(Stage::Prs, 1)]);
+
+    h.run(vec![
+        support::fetching_in(Stage::Prs, 0),
+        support::prs_in(1, vec![]),
+        key(KeyCode::Char('S')),
+    ])
+    .unwrap();
+
+    assert!(
+        h.screen()
+            .contains("t  convert to draft · waiting for My PRs to catch up"),
+        "{}",
+        h.screen()
+    );
+}
+
+fn merged_in_two_views(before: Vec<std::io::Result<Input>>) -> Harness {
+    let mut h = Harness::with_config(160, 20, support::two_views());
+    let mut inputs = vec![
+        prs(vec![mergeable(1, "a")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+    ];
+    inputs.extend(before);
+    inputs.push(merged(1, Ok(())));
+    h.run(inputs).unwrap();
+    h
+}

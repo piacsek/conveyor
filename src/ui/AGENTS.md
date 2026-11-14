@@ -84,7 +84,7 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   marked card selected, the details pane starts with `<action> failed at HH:MM:SS: <reason>`
   in red, wrapped over the pane's width with nothing cut (`App::selected_failure`, `text::clock`
   with `utc_offset_secs`). The column title counts marks after the row count, before the
-  `⚠`: `My PRs (5) !1`. The count covers every row of the column, rows hidden by the filter
+  `⚠`: `My PRs (5) !1`. The count covers every row of the active view, rows hidden by the filter
   included, like the `/total` half of the title. `column_title` feeds the tabs of the narrow layout too, so a mark
   behind a tab still shows. No mark, no suffix. What marks and what clears: see
   `src/app/AGENTS.md`.

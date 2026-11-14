@@ -1,8 +1,8 @@
 use conveyor::model::prs::StatusChange;
 use ratatui::crossterm::event::KeyCode;
 
-use crate::helpers::{draft, status, status_changed, tall};
-use crate::support::{key, prs};
+use crate::helpers::{draft, line_after, status, status_changed, tall};
+use crate::support::{Harness, key, prs, prs_in, two_views};
 
 #[test]
 fn s_opens_on_another_pull_request_while_a_status_change_is_on_its_way() {
@@ -66,4 +66,27 @@ fn a_landed_status_change_frees_only_its_own_pull_request() {
         .unwrap();
 
     assert!(h.screen().contains("Manage #1"), "{}", h.screen());
+}
+
+#[test]
+fn a_write_in_flight_spins_on_its_pull_request_in_every_view_that_lists_it() {
+    let mut h = Harness::with_config(160, 20, two_views());
+
+    h.run(vec![
+        prs(vec![draft(12, "Retry webhooks")]),
+        prs_in(
+            1,
+            vec![draft(14, "Bump serde"), draft(12, "Retry webhooks")],
+        ),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        key(KeyCode::Tab),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(
+        line_after(&screen, "#12 Retry webhooks").contains("marking ready…"),
+        "{screen}"
+    );
 }

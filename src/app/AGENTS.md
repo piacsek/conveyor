@@ -184,8 +184,8 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   until the next refresh, and the push would drop it from the queue. For that reason a
   successful merge, or enabling auto-merge, adds the pull request to `App::merge_landing` and `u`
   and `t` (to draft) on that pull request are refused with `waiting for My PRs to catch up with
-  #N` until a My PRs fetch that started after the merge (`Input::Fetching`) has landed; a fetch
-  already in flight when the merge came back does not count. Other pull requests are not held
+  #N` until a My PRs fetch that started after the merge (`Input::Fetching`) has landed, in any view; a
+  fetch of a view already in flight when the merge came back does not count. Other pull requests are not held
   back, and a refused merge leaves the list as it was. The worker runs `gh pr update-branch <N>
   -R <repo> [--rebase]`. Checked in gh v2.103.3 source: success prints `PR branch updated` or
   `PR branch already up-to-date` on stdout and exits 0; conflicts print `Cannot update PR branch
@@ -212,7 +212,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   rerun where any run failed (`run <id>: <reason>` joined with `; `, prefixed `k of n runs
   failed: ` when some went through). Already up to date, merge sent and every other success
   mark nothing. A rerun marks the row it was started on: the pull request from My PRs, the
-  build from Main builds. A result for a row its column no longer holds (a refresh dropped it
+  build from Main builds. A result for a row no view of its column holds any more (a refresh dropped it
   while the write was in flight) marks nothing, since no card could show or clear it; the
   footer still says it. A mark is per row key and stage, like the busy spinner. It clears
   when (1) `start_write` starts a new write on that row, (2) `Esc` is pressed with the marked

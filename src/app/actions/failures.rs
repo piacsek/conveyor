@@ -28,9 +28,10 @@ impl App {
     }
 
     pub fn failure_count(&self, stage: Stage) -> usize {
+        let shown = self.stage(stage).listing();
         self.failures
             .iter()
-            .filter(|failure| failure.stage == stage)
+            .filter(|failure| failure.stage == stage && shown.holds(failure.subject))
             .count()
     }
 
@@ -40,14 +41,15 @@ impl App {
 
     pub(in crate::app) fn prune_failures(&mut self, stage: Stage) {
         let failures = std::mem::take(&mut self.failures);
-        let view = self.stage(stage);
         self.failures = failures
             .into_iter()
-            .filter(|failure| {
-                failure.stage != stage
-                    || (0..view.views()).any(|index| view.view(index).holds(failure.subject))
-            })
+            .filter(|failure| failure.stage != stage || self.held(stage, failure.subject))
             .collect();
+    }
+
+    fn held(&self, stage: Stage, subject: u64) -> bool {
+        let view = self.stage(stage);
+        (0..view.views()).any(|index| view.view(index).holds(subject))
     }
 
     pub(in crate::app) fn clear_failure(&mut self, stage: Stage, subject: u64) {
@@ -59,7 +61,7 @@ impl App {
         let Some(write) = write else {
             return;
         };
-        if !self.stage(write.stage).listing().holds(write.subject) {
+        if !self.held(write.stage, write.subject) {
             return;
         }
         self.failures.push(Failure {

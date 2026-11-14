@@ -98,7 +98,7 @@ pub struct App {
     pub utc_offset_secs: i32,
     pub notice: Option<String>,
     pub follow_up: Option<SystemTime>,
-    pub merge_landing: Vec<(u64, bool)>,
+    pub merge_landing: Vec<(u64, Vec<usize>)>,
     pub details: bool,
     pub details_scroll: u16,
     pub details_page: u16,

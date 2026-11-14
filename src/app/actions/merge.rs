@@ -40,6 +40,6 @@ impl App {
 
     pub(super) fn land(&mut self, number: u64) {
         self.merge_landing.retain(|(landing, _)| *landing != number);
-        self.merge_landing.push((number, false));
+        self.merge_landing.push((number, Vec::new()));
     }
 }

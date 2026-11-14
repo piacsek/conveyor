@@ -68,7 +68,7 @@ impl Rows {
 pub struct Context<'a> {
     pub config: &'a Config,
     pub builds: &'a BuildsStage,
-    pub merge_landing: &'a [(u64, bool)],
+    pub merge_landing: &'a [(u64, Vec<usize>)],
 }
 
 impl Context<'_> {
@@ -189,7 +189,8 @@ impl App {
             return;
         }
         if stage == Stage::Prs {
-            self.merge_landing.retain(|(_, started)| !started);
+            self.merge_landing
+                .retain(|(_, started)| !started.contains(&view));
         }
         let selected = self.selected_key();
         self.receive_rows(stage, view, data);
@@ -221,7 +222,7 @@ impl App {
         }
         if stage == Stage::Prs {
             for (_, started) in &mut self.merge_landing {
-                *started = true;
+                started.push(view);
             }
         }
         self.stage_mut(stage).view_mut(view).set_refreshing(true);
