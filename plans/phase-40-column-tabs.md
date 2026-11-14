@@ -4,6 +4,8 @@
 Each column shows one fixed view taken from its config. The user wants several views per
 column, cycled with a key that defaults to `Tab`, shown as tabs at the top of the column
 with the current one highlighted. Breaking today's `Tab` (focus the next column) is accepted.
+Not implemented yet: once this plan is final it is logged as a GitHub issue, and the phase
+starts from that issue.
 
 Decided with the user on 2026-11-14:
 - **My PRs only, this phase.** A tab is a named search query. Merge queue, Main builds and
@@ -13,6 +15,10 @@ Decided with the user on 2026-11-14:
   at once and starts a refresh. The number of `gh` calls does not grow with the tabs.
 - **The key is configurable**, defaulting to `Tab` (next) and `Shift-Tab` (previous). This
   is the first key conveyor lets you rebind.
+- **`1`-`9` pick a tab** in the focused column, and stop focusing columns. Columns are
+  reached with `h`/`l` only. The digits are built in, not configurable.
+- **The filter resets when the tab changes.** Moving between columns keeps it, as it does
+  today.
 - **One tab, no bar.** The bar appears only when a column has two tabs or more, so an
   existing config looks exactly as it does today.
 
@@ -24,7 +30,8 @@ moved or made required. `[prs].query` and `[prs].limit` keep their meaning: with
 `conveyor config` on a config without tabs prints no `tab = []` (`skip_serializing_if`
 empty); it does gain the `[ui.keys]` defaults, since it is the reference for defaults. The
 only new errors are for the new keys (both `[prs].query` and `[[prs.tab]]`, a bad key name).
-What does change on purpose is the `Tab` key: it no longer moves focus.
+What does change on purpose is keys, not config: `Tab`/`Shift-Tab` and `1`-`4` no longer move
+focus between columns; `h`/`l` still do.
 
 ## Design
 
@@ -62,21 +69,24 @@ previous_tab = "shift-tab"
 - **Keys.** `[ui.keys] next_tab` and `previous_tab` take a key name: a single character
   (`"]"`), `"tab"`, `"shift-tab"`, or `"ctrl-<char>"`. An unknown name is a config error. So
   is a key conveyor already uses (`j`, `S`, `/`, …), with the error naming what that key
-  does: a rebind that silently shadowed `S` would hide the action popup. `h`/`l`/`1-4` still
-  move focus between columns. `Tab` no longer does.
+  does: a rebind that silently shadowed `S` would hide the action popup; the digits count as
+  in use. `1`-`9` jump to that tab of the focused column: a digit past the last tab, or the
+  tab already active, does nothing. `h`/`l` move focus between columns; `Tab` and `1`-`4`
+  no longer do.
 - **The bar.** It takes one line inside the column block, above the cards. Tab names are
   separated by ` │ `. The active tab is bold and reversed, like the narrow layout's column
   bar, and the others are dim. When the names do not fit, the active one stays visible and
   the bar is cut with `…`. In the narrow layout, the column bar stays on top and the tab bar
   sits inside the column below it.
 - **Each tab is its own column state.** Each tab keeps its own rows, selection, scroll,
-  filter, error and fetch time, so switching back returns you to where you were. The column
-  title (`My PRs (5) !1`) counts the active tab.
+  error and fetch time, so switching back returns you to where you were. The filter is not
+  kept: changing tab clears it (a live one and a kept one alike). The column title
+  (`My PRs (5) !1`) counts the active tab.
 - **Fetching.** The My PRs fetcher fetches the active tab on its interval. Switching sends a
   refresh that names the new tab. Every result carries the index of the tab it was fetched
   for and lands in that tab, never in whichever tab is active when it arrives.
-- **Help and README.** `KEYS` gains `Tab S-Tab` → `next / previous tab`, and the focus row
-  becomes `h/l 1-4`. The README mirrors the defaults. The help view (`?`) shows the keys
+- **Help and README.** `KEYS` gains `Tab S-Tab 1-9` → `next / previous / nth tab`, and the
+  focus row becomes `h/l` → `focus column`. The README mirrors the defaults. The help view (`?`) shows the keys
   that are actually configured.
 
 ### States and what the column shows (review before any code)
@@ -86,7 +96,8 @@ previous_tab = "shift-tab"
 | One tab (no `[[prs.tab]]`, or a single one) | none | as today | `My PRs (N)` |
 | Active tab never fetched, fetch running | active highlighted | empty, spinner in the footer | `My PRs` |
 | Active tab fetched, refresh running | active highlighted | last rows | `My PRs (N)` |
-| Switch to a tab fetched before | new tab highlighted | that tab's last rows, its selection and filter; a refresh starts | its count |
+| Switch to a tab fetched before | new tab highlighted | that tab's last rows and selection, no filter; a refresh starts | its count |
+| Filter kept (`/` … `Enter`), user switches tab | new tab highlighted | unfiltered rows of the new tab; switching back shows the old tab unfiltered too | its count |
 | Switch to a tab that failed last time | highlighted | its last rows (if any) and its error, as a column error shows today | its count, `⚠` as today |
 | Result lands for an inactive tab (switched mid-fetch) | unchanged | unchanged; the rows are stored in that tab for later | unchanged |
 | Error lands for an inactive tab | unchanged | unchanged; shown when you switch to it | unchanged |
@@ -96,8 +107,10 @@ previous_tab = "shift-tab"
 | Merge of #12 waiting for My PRs to catch up | — | the wait ends on the first My PRs fetch that started after the merge, whatever its tab (unchanged rule) | — |
 | Details pane open, user switches tab | — | pane shows the new tab's selected row, scroll reset | — |
 | Zoomed on My PRs, user switches tab | bar drawn in the zoomed column | new tab | — |
-| `Tab` pressed in a column with one tab | — | nothing happens | — |
-| Filter being typed (`/`), tab key pressed | — | nothing happens: the filter belongs to the tab, so switching under it would strand it. Today `Tab` falls through `handle_filter_key` to the normal keys and moves focus; a character key such as `]` is typed into the filter | — |
+| `Tab` or a digit pressed in a column with one tab | — | nothing happens | — |
+| Digit past the last tab, or the active tab's digit | — | nothing happens, no refresh | — |
+| Filter being typed (`/`), `Tab` pressed | — | nothing happens. Today `Tab` falls through `handle_filter_key` to the normal keys and moves focus. Digits and a character key such as `]` are typed into the filter, as any character is today | — |
+| Moving to another column with a filter kept | — | unchanged from today: the filter stays | — |
 
 ## Verified facts (read on `main` at 83e0063, 2026-11-14)
 - `Config.prs: Prs { query, limit, refresh_secs, merge_method, update_method }`. Every table
@@ -108,6 +121,8 @@ previous_tab = "shift-tab"
   channel is `Sender<()>` and whose results are `Input::Data(Stage, Result<Rows, String>)`
   with no tab.
 - `KeyCode::Tab`/`BackTab` call `refocus(Stage::next/previous)` (`src/app/keymap.rs:145`).
+  `KeyCode::Char('1'..='4')` focuses the column at that index (`src/app/keymap.rs:97`). Neither
+  `refocus` nor `reset_scroll` touches the filter (`src/app/navigation.rs:26`).
   `KEYS[2]` reads `("h/l Tab 1-4", "focus column")` (`src/ui/help.rs`).
 - The narrow layout already draws a bar of column names (`draw_tabs`, `src/ui/mod.rs:83`),
   bold and reversed for the focused one. The new bar reuses that style. `draw_tabs` is
@@ -139,8 +154,12 @@ previous_tab = "shift-tab"
    tab 1 through the `Github` fake and checks the query and limit it sends.
 4. **`Tab` cycles My PRs tabs.** TUI test (`tests/prs/tabs.rs`): two tabs, `Tab` shows the
    second tab's rows and sends a refresh for tab 1; `Shift-Tab` comes back to the first tab
-   with its selection intact; `Tab` on Main builds does nothing; `h`/`l` still move focus.
-   `PrsStage` holds one `Column` per tab plus the active index.
+   with its selection intact and its filter cleared; `Tab` on Main builds does nothing; `h`/`l`
+   still move focus and keep the filter, as today. `PrsStage` holds one `Column` per tab plus
+   the active index.
+4b. **Digits pick a tab.** Three tabs: `3` shows the third, `1` the first; `4` and the active
+   tab's digit do nothing and send no refresh; `2` on Main builds does nothing and focus stays
+   (today it would focus Merge queue); while typing a filter, `2` is typed into it.
 5. **A late result lands in its own tab.** Switch mid-fetch; tab 0's result arrives and is
    stored in tab 0, not shown in tab 1. Same for an error.
 6. **The bar draws.** Snapshot `prs_tabs_layout`: three tabs, the second active; one-tab
@@ -167,7 +186,7 @@ second tab fills after one fetch, and `gh` calls in the log name only the active
 each interval; `Shift-Tab` returns to the first tab with the same row selected. Set
 `next_tab = "j"`: `conveyor config` exits 1 naming the conflict with `move`.
 
-## Open questions (defaults assumed above; say if any should change)
-- Should the filter stay with each tab (assumed) or follow the column across switches?
-- When a tab is first opened it fetches once; should inactive tabs also show a "stale since"
-  age in the bar? Assumed no, the footer's fetch time covers the active tab.
+## Left out on purpose
+- Inactive tabs show no "stale since" age in the bar; the footer's fetch time covers the
+  active tab, and switching starts a refresh.
+- Tabs for Merge queue, Main builds and Deployed: a later phase (backlog, task 9).
