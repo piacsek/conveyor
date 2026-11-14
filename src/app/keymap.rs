@@ -1,6 +1,7 @@
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::{Action, App, Mode, Stage};
+use crate::config::ViewKey;
 
 impl App {
     pub fn handle_key(&mut self, key: KeyEvent) -> Action {
@@ -58,6 +59,7 @@ impl App {
                 self.clear_filter();
                 Action::Continue
             }
+            KeyCode::Tab | KeyCode::BackTab => Action::Continue,
             _ => self.handle_normal_key(key),
         }
     }
@@ -91,13 +93,18 @@ impl App {
 
     fn handle_normal_key(&mut self, key: KeyEvent) -> Action {
         let pending_g = std::mem::take(&mut self.pending_g);
+        let next_view = match self.config.keys.next_view {
+            ViewKey::Tab => KeyCode::Tab,
+            ViewKey::Char(c) => KeyCode::Char(c),
+        };
         match key.code {
+            code if code == next_view => return self.step_view(true),
+            KeyCode::BackTab if next_view == KeyCode::Tab => return self.step_view(false),
+            KeyCode::Char(digit @ '1'..='9') => {
+                return self.switch_view(digit as usize - '1' as usize);
+            }
             KeyCode::Char('q') => return Action::Quit,
             KeyCode::Esc => self.escape(),
-            KeyCode::Char(digit @ '1'..='4') => {
-                let index = digit as usize - '1' as usize;
-                self.refocus(|_| Stage::ALL[index]);
-            }
             KeyCode::Char('/') => {
                 let current = self.query.clone().unwrap_or_default();
                 self.query = Some(current.clone());
@@ -142,8 +149,6 @@ impl App {
             KeyCode::Char('z') => self.zoom = !self.zoom,
             KeyCode::Char('l') if self.focus != Stage::Deployed => self.refocus(Stage::next),
             KeyCode::Char('h') if self.focus != Stage::Prs => self.refocus(Stage::previous),
-            KeyCode::Tab => self.refocus(Stage::next),
-            KeyCode::BackTab => self.refocus(Stage::previous),
             KeyCode::Char('j') | KeyCode::Down => self.with_focused(|c| c.next()),
             KeyCode::Char('k') | KeyCode::Up => self.with_focused(|c| c.previous()),
             KeyCode::Char('G') => self.with_focused(|c| c.last()),

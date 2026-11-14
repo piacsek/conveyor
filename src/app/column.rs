@@ -294,6 +294,7 @@ pub trait Listing: Navigable {
     fn holds(&self, key: u64) -> bool;
     fn is_refreshing(&self) -> bool;
     fn set_refreshing(&mut self, refreshing: bool);
+    fn filter(&self) -> Option<&str>;
     fn set_filter(&mut self, filter: Option<String>);
     fn fail(&mut self, message: String);
 }
@@ -325,6 +326,10 @@ impl<T: Row> Listing for Column<T> {
 
     fn set_refreshing(&mut self, refreshing: bool) {
         self.refreshing = refreshing;
+    }
+
+    fn filter(&self) -> Option<&str> {
+        self.filter.as_deref()
     }
 
     fn set_filter(&mut self, filter: Option<String>) {

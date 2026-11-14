@@ -41,6 +41,10 @@ impl StageView for PrsStage {
         &mut self.views[view]
     }
 
+    fn set_active_view(&mut self, view: usize) {
+        self.active = view;
+    }
+
     fn receive(&mut self, view: usize, rows: Rows, now: SystemTime) {
         if let Rows::Prs(prs) = rows {
             self.views[view].receive(prs, now);

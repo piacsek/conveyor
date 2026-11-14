@@ -380,7 +380,8 @@ fn s_on_main_builds_offers_only_the_rerun() {
 
     h.run(vec![
         builds(vec![build(3, BuildStatus::Failure, None)]),
-        key(KeyCode::Char('3')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
         key(KeyCode::Char('S')),
     ])
     .unwrap();
@@ -395,7 +396,7 @@ fn s_on_main_builds_offers_only_the_rerun() {
 fn s_in_the_merge_queue_and_deployed_says_there_is_nothing_to_manage() {
     let mut h = tall();
 
-    h.run(vec![key(KeyCode::Char('2')), key(KeyCode::Char('S'))])
+    h.run(vec![key(KeyCode::Char('l')), key(KeyCode::Char('S'))])
         .unwrap();
 
     assert!(

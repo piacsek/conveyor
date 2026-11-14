@@ -92,6 +92,16 @@ pub fn two_views() -> Config {
     config
 }
 
+pub fn three_views() -> Config {
+    let mut config = two_views();
+    config.prs.view.push(PrsView {
+        name: "Team".to_string(),
+        query: "is:open team-review-requested:acme/web".to_string(),
+        limit: None,
+    });
+    config
+}
+
 pub fn queue(entries: Vec<QueueEntry>) -> io::Result<Input> {
     Ok(Input::Data(
         Stage::Queue,

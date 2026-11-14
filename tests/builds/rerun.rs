@@ -186,7 +186,8 @@ fn a_landed_rerun_says_so_and_refreshes_the_column_it_came_from() {
     let mut inputs = focus_failing_newest();
     inputs.push(key(KeyCode::Char('S')));
     inputs.push(key(KeyCode::Char('f')));
-    inputs.push(key(KeyCode::Char('1')));
+    inputs.push(key(KeyCode::Char('h')));
+    inputs.push(key(KeyCode::Char('h')));
     inputs.push(rerun_done(vec![(1025, Ok(()))]));
     h.run(inputs).unwrap();
 
@@ -229,7 +230,8 @@ fn a_passing_run_lists_its_rerun_as_nothing_failed() {
     let mut h = Harness::with_size(160, 20);
     let mut inputs = vec![
         builds(vec![build(24, BuildStatus::Success, None)]),
-        key(KeyCode::Char('3')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
     ];
     inputs.push(key(KeyCode::Char('S')));
     h.run(inputs).unwrap();

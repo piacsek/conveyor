@@ -81,7 +81,7 @@ fn s_in_the_merge_queue_says_where_it_works() {
 
     h.run(vec![
         queue(vec![entry(1, 7, "alice", "a")]),
-        key(KeyCode::Char('2')),
+        key(KeyCode::Char('l')),
         key(KeyCode::Char('S')),
     ])
     .unwrap();

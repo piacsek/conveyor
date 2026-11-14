@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use super::{App, Listing, Mode, Stage};
+use super::{Action, App, Listing, Mode, Stage};
 
 impl App {
     pub fn filter(&self) -> Option<&str> {
@@ -61,12 +61,39 @@ impl App {
     }
 
     pub(super) fn sync_filter(&mut self) {
+        self.spread_filter();
+        self.with_focused(|column| column.select_index_clamped(0));
+    }
+
+    fn spread_filter(&mut self) {
         let filter = self.filter().map(str::to_string);
         for stage in Stage::ALL {
             self.stage_mut(stage)
                 .listing_mut()
                 .set_filter(filter.clone());
         }
-        self.with_focused(|column| column.select_index_clamped(0));
+    }
+
+    pub(super) fn step_view(&mut self, forward: bool) -> Action {
+        let stage = self.stage(self.focus);
+        let views = stage.views();
+        let step = if forward { 1 } else { views - 1 };
+        self.switch_view((stage.active_view() + step) % views)
+    }
+
+    pub(super) fn switch_view(&mut self, view: usize) -> Action {
+        let stage = self.stage(self.focus);
+        if stage.views() < 2 || view >= stage.views() || view == stage.active_view() {
+            return Action::Continue;
+        }
+        self.stage_mut(self.focus).set_active_view(view);
+        self.query = self
+            .stage(self.focus)
+            .listing()
+            .filter()
+            .map(str::to_string);
+        self.spread_filter();
+        self.reset_scroll();
+        Action::Refresh(self.focus)
     }
 }

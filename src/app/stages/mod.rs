@@ -128,6 +128,8 @@ pub trait StageView {
         self.listing_mut()
     }
 
+    fn set_active_view(&mut self, _: usize) {}
+
     fn receive(&mut self, view: usize, rows: Rows, now: SystemTime);
 
     fn error(&self) -> Option<&str> {

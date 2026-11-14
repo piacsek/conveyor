@@ -12,8 +12,14 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   and returns to Normal with the query kept, `Esc` while typing clears it, `/` reopens it.
   Every column title reads `(visible/total)` while a query is live.
 - **`Esc` closes one thing per press**, in order: details pane, zoom, the selected card's
-  mark (see the failed writes bullet), live filter; then it is a no-op. It never quits. `1`–`4`
-  focus a column in both layouts.
+  mark (see the failed writes bullet), live filter; then it is a no-op. It never quits. `h`/`l`
+  are the only column focus keys.
+- **Views switch only in a focused My PRs with more than one view.** `keys.next_view` (default
+  Tab) goes to the next view and wraps, `BackTab` to the previous one (only while it is Tab),
+  `1`-`9` jump to that view. Elsewhere, with one view, past the last view or on the active
+  view's digit nothing happens and no refresh is sent. A switch resets the scroll, sets
+  `App.query` to the new view's own filter, closes nothing and refreshes the new view. In
+  Filter mode Tab and `BackTab` do nothing and digits are typed.
 - **`L` is read-only, and the log has a pane of its own.** It asks `gh run view <run> --job
   <job> --log-failed` for the first failed job of the selected run (Main builds or Merge
   queue), keeps the last `LOG_TAIL` lines per job id in `App.logs`, and toggles `App.log_open`.

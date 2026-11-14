@@ -73,22 +73,21 @@ fn esc_closes_the_topmost_thing_details_then_zoom_then_the_filter_and_never_quit
 }
 
 #[test]
-fn digits_1_to_4_focus_a_column_in_both_layouts() {
+fn digits_no_longer_focus_a_column_in_either_layout() {
     use conveyor::app::Stage;
     let mut wide = Harness::new();
     wide.run(vec![prs(three()), key(KeyCode::Char('4'))])
         .unwrap();
-    assert_eq!(wide.app.focus, Stage::Deployed);
-    wide.run(vec![key(KeyCode::Char('2'))]).unwrap();
+    assert_eq!(wide.app.focus, Stage::Prs);
+    wide.run(vec![key(KeyCode::Char('l')), key(KeyCode::Char('1'))])
+        .unwrap();
     assert_eq!(wide.app.focus, Stage::Queue);
 
     let mut tabs = Harness::with_size(80, 18);
     tabs.run(vec![prs(three()), key(KeyCode::Char('3'))])
         .unwrap();
-    assert_eq!(tabs.app.focus, Stage::Builds);
-    assert!(tabs.screen().contains("Main builds"), "{}", tabs.screen());
-    tabs.run(vec![key(KeyCode::Char('1'))]).unwrap();
     assert_eq!(tabs.app.focus, Stage::Prs);
+    assert!(tabs.screen().contains("#1 a"), "{}", tabs.screen());
 }
 
 #[test]
@@ -113,14 +112,9 @@ fn narrow_terminals_collapse_the_columns_into_tabs_and_h_l_switch_them() {
         .unwrap();
     assert!(h.screen().contains("#1 a"), "clamps at the first column");
 
-    h.run(vec![
-        key(KeyCode::Tab),
-        key(KeyCode::Tab),
-        key(KeyCode::Tab),
-        key(KeyCode::Tab),
-    ])
-    .unwrap();
-    assert!(h.screen().contains("#1 a"), "Tab wraps around");
+    h.run(vec![key(KeyCode::Tab), key(KeyCode::BackTab)])
+        .unwrap();
+    assert!(h.screen().contains("#1 a"), "Tab no longer moves the focus");
 }
 
 #[test]
