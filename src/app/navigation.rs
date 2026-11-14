@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use super::{App, Listing, Mode, Stage};
+use super::{Action, App, Listing, Mode, Request, Stage};
 
 impl App {
     pub fn filter(&self) -> Option<&str> {
@@ -21,6 +21,30 @@ impl App {
 
     pub fn focused_counts(&self) -> (usize, usize) {
         self.stage(self.focus).listing().counts()
+    }
+
+    pub(super) fn switch_tab(&mut self, pick: impl Fn(usize, usize) -> usize) -> Action {
+        let stage = self.stage(self.focus);
+        let count = stage.tab_names().len();
+        let active = stage.active_tab();
+        if count < 2 {
+            return Action::Continue;
+        }
+        let tab = pick(active, count);
+        if tab >= count || tab == active {
+            return Action::Continue;
+        }
+        self.stage_mut(self.focus).select_tab(tab);
+        self.query = None;
+        for stage in Stage::ALL {
+            self.stage_mut(stage).listing_mut().set_filter(None);
+        }
+        self.reset_scroll();
+        Action::Refresh(self.focus)
+    }
+
+    pub fn refresh_request(&self, stage: Stage) -> Request {
+        Request::Refresh(stage, self.stage(stage).active_tab())
     }
 
     pub(super) fn refocus(&mut self, step: impl Fn(Stage) -> Stage) {

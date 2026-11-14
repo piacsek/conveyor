@@ -204,7 +204,7 @@ fn only_the_focused_column_highlights_its_selected_card() {
         "one bar per line of the one selected card: {screen}"
     );
 
-    h.run(vec![key(KeyCode::Tab)]).unwrap();
+    h.run(vec![key(KeyCode::Char('l'))]).unwrap();
 
     let screen = h.screen();
     assert!(

@@ -256,7 +256,9 @@ fn d_lists_the_target_the_replicas_the_failing_condition_and_every_pod() {
 
     h.run(vec![
         deployed(vec![staging]),
-        key(KeyCode::Char('4')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
         key(KeyCode::Char('d')),
     ])
     .unwrap();
@@ -309,7 +311,9 @@ fn d_marks_a_pod_that_is_only_starting_as_pending_not_failed() {
 
     h.run(vec![
         deployed(vec![staging]),
-        key(KeyCode::Char('4')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
         key(KeyCode::Char('d')),
     ])
     .unwrap();
@@ -337,7 +341,9 @@ fn d_lists_a_replica_failure_although_its_status_is_true() {
 
     h.run(vec![
         deployed(vec![staging]),
-        key(KeyCode::Char('4')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
         key(KeyCode::Char('d')),
     ])
     .unwrap();
@@ -366,7 +372,9 @@ fn d_draws_a_finished_pod_in_grey_below_the_running_ones() {
 
     h.run(vec![
         deployed(vec![staging]),
-        key(KeyCode::Char('4')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
         key(KeyCode::Char('d')),
     ])
     .unwrap();
@@ -391,7 +399,9 @@ fn d_paints_a_lost_available_condition_red_only_when_nothing_serves() {
 
     h.run(vec![
         deployed(vec![staging, prod]),
-        key(KeyCode::Char('4')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
         key(KeyCode::Char('d')),
     ])
     .unwrap();
@@ -412,7 +422,9 @@ fn d_says_why_the_pods_were_not_read() {
 
     h.run(vec![
         deployed(vec![staging]),
-        key(KeyCode::Char('4')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
         key(KeyCode::Char('d')),
     ])
     .unwrap();

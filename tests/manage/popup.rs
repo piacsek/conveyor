@@ -328,7 +328,7 @@ fn a_landed_status_change_says_so_and_refreshes_my_prs() {
         "{}",
         h.screen()
     );
-    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs, 0));
     assert!(h.app.follow_up.is_some());
 }
 
@@ -354,8 +354,8 @@ fn leaving_the_queue_also_refreshes_the_merge_queue() {
         "{}",
         h.screen()
     );
-    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
-    assert_eq!(h.requests[2], Request::Refresh(Stage::Queue));
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs, 0));
+    assert_eq!(h.requests[2], Request::Refresh(Stage::Queue, 0));
 }
 
 #[test]
@@ -380,7 +380,8 @@ fn s_on_main_builds_offers_only_the_rerun() {
 
     h.run(vec![
         builds(vec![build(3, BuildStatus::Failure, None)]),
-        key(KeyCode::Char('3')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
         key(KeyCode::Char('S')),
     ])
     .unwrap();
@@ -395,7 +396,7 @@ fn s_on_main_builds_offers_only_the_rerun() {
 fn s_in_the_merge_queue_and_deployed_says_there_is_nothing_to_manage() {
     let mut h = tall();
 
-    h.run(vec![key(KeyCode::Char('2')), key(KeyCode::Char('S'))])
+    h.run(vec![key(KeyCode::Char('l')), key(KeyCode::Char('S'))])
         .unwrap();
 
     assert!(
@@ -489,8 +490,8 @@ fn closing_also_refreshes_the_merge_queue() {
     .unwrap();
 
     assert!(h.screen().contains("#1 closed"), "{}", h.screen());
-    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
-    assert_eq!(h.requests[2], Request::Refresh(Stage::Queue));
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs, 0));
+    assert_eq!(h.requests[2], Request::Refresh(Stage::Queue, 0));
 }
 
 #[test]
@@ -547,7 +548,7 @@ fn marking_ready_refreshes_my_prs_but_not_the_merge_queue() {
     .unwrap();
 
     assert_eq!(h.requests.len(), 2, "{:?}", h.requests);
-    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs, 0));
 }
 
 #[test]
@@ -624,8 +625,8 @@ fn a_landed_enqueue_refreshes_both_columns_and_update_waits_for_my_prs() {
         "{}",
         h.screen()
     );
-    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
-    assert_eq!(h.requests[2], Request::Refresh(Stage::Queue));
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs, 0));
+    assert_eq!(h.requests[2], Request::Refresh(Stage::Queue, 0));
 
     h.run(vec![key(KeyCode::Char('S'))]).unwrap();
 

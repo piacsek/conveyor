@@ -118,6 +118,16 @@ pub trait StageView {
         self.listing().error()
     }
 
+    fn tab_names(&self) -> &[String] {
+        &[]
+    }
+
+    fn active_tab(&self) -> usize {
+        0
+    }
+
+    fn select_tab(&mut self, _: usize) {}
+
     fn pull_target(&self) -> Result<(u64, String), String>;
 
     fn build_url(&self, context: &Context) -> Result<String, String>;
