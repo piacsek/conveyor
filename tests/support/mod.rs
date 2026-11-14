@@ -75,7 +75,11 @@ pub fn ctrl(c: char) -> io::Result<Input> {
 }
 
 pub fn prs(prs: Vec<PullRequest>) -> io::Result<Input> {
-    Ok(Input::Data(Stage::Prs, 0, Ok(Rows::Prs(prs))))
+    prs_in(0, prs)
+}
+
+pub fn prs_in(tab: usize, prs: Vec<PullRequest>) -> io::Result<Input> {
+    Ok(Input::Data(Stage::Prs, tab, Ok(Rows::Prs(prs))))
 }
 
 pub fn queue(entries: Vec<QueueEntry>) -> io::Result<Input> {

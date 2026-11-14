@@ -262,7 +262,7 @@ fn an_updated_branch_says_so_and_refreshes_my_prs() {
         h.screen()
     );
     assert_eq!(h.requests.len(), 2);
-    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs));
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs, 0));
 }
 
 #[test]
@@ -496,7 +496,7 @@ fn s_waits_while_an_update_of_the_branch_is_in_flight() {
 fn prs_refreshes(requests: &[Request]) -> usize {
     requests
         .iter()
-        .filter(|request| **request == Request::Refresh(Stage::Prs))
+        .filter(|request| **request == Request::Refresh(Stage::Prs, 0))
         .count()
 }
 
@@ -519,7 +519,7 @@ fn an_updated_branch_reloads_my_prs_once_more_ten_seconds_later() {
     .unwrap();
 
     assert_eq!(prs_refreshes(&h.requests), 2);
-    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Prs)));
+    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Prs, 0)));
 }
 
 #[test]

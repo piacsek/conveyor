@@ -135,9 +135,9 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
         rx.into_iter(),
         &SystemOpener::default(),
         |request| match request {
-            Request::Refresh(stage) => {
+            Request::Refresh(stage, tab) => {
                 if let Some(refresh) = refreshers.get(&stage) {
-                    let _ = refresh.send(0);
+                    let _ = refresh.send(tab);
                 }
             }
             Request::Jobs { run_id } => {

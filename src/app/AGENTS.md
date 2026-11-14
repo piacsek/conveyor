@@ -193,7 +193,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   +2 s. So an `Updated` branch, a rerun from My PRs that went through and a status change that
   landed also set
   `App::follow_up` to `now + FOLLOW_UP` (10 s); the first `Tick` at or after it sends one more
-  `Request::Refresh(Stage::Prs)` and clears it. A second action before then moves the due time.
+  `Request::Refresh(Stage::Prs, 0)` and clears it. A second action before then moves the due time.
   `UpToDate`, `Conflicts`, errors and a Main builds rerun schedule nothing. `app.now` only
   moves on a tick, which only comes while no key is pressed, so a held key delays it.
 - **A failed write marks the card it was started from.** The footer shows only the latest

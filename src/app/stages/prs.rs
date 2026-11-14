@@ -10,35 +10,69 @@ use crate::model::prs::{MergeState, PullRequest, StatusChange};
 
 use super::{Context, Rows, StageView};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct PrsStage {
-    pub column: Column<PullRequest>,
+    names: Vec<String>,
+    tabs: Vec<Column<PullRequest>>,
+    active: usize,
+}
+
+impl PrsStage {
+    pub fn new(names: Vec<String>) -> Self {
+        Self {
+            tabs: names.iter().map(|_| Column::default()).collect(),
+            names,
+            active: 0,
+        }
+    }
+
+    pub fn column(&self) -> &Column<PullRequest> {
+        &self.tabs[self.active]
+    }
+
+    pub fn column_mut(&mut self) -> &mut Column<PullRequest> {
+        &mut self.tabs[self.active]
+    }
 }
 
 impl StageView for PrsStage {
     fn listing(&self) -> &dyn Listing {
-        &self.column
+        self.column()
     }
 
     fn listing_mut(&mut self) -> &mut dyn Listing {
-        &mut self.column
+        self.column_mut()
     }
 
     fn receive(&mut self, rows: Rows, now: SystemTime) {
         if let Rows::Prs(prs) = rows {
-            self.column.receive(prs, now);
+            self.column_mut().receive(prs, now);
         }
     }
 
+    fn tab_names(&self) -> &[String] {
+        &self.names
+    }
+
+    fn active_tab(&self) -> usize {
+        self.active
+    }
+
+    fn select_tab(&mut self, tab: usize) {
+        self.column_mut().clear_filter();
+        self.active = tab;
+        self.column_mut().clear_filter();
+    }
+
     fn pull_target(&self) -> Result<(u64, String), String> {
-        self.column
+        self.column()
             .selected()
             .map(|pr| (pr.key(), pr.url.clone()))
             .ok_or_else(|| "nothing selected".to_string())
     }
 
     fn build_url(&self, _: &Context) -> Result<String, String> {
-        self.column
+        self.column()
             .selected()
             .and_then(|pr| {
                 pr.checks_failures_first()
@@ -50,10 +84,10 @@ impl StageView for PrsStage {
     }
 
     fn menu(&self, context: &Context) -> Result<Menu, String> {
-        if self.column.error.is_some() {
+        if self.column().error.is_some() {
             return Err("the last refresh failed; press r and try again".to_string());
         }
-        let pr = self.column.selected().ok_or("nothing selected")?;
+        let pr = self.column().selected().ok_or("nothing selected")?;
         Ok(Menu {
             title: format!("Manage #{}", pr.number),
             offers: self.offers(pr, context),
@@ -153,7 +187,7 @@ impl PrsStage {
     }
 
     fn merge_target(&self) -> Result<MergeTarget, String> {
-        let pr = self.column.selected().ok_or("nothing selected")?;
+        let pr = self.column().selected().ok_or("nothing selected")?;
         if pr.is_draft {
             return Err(format!("#{} is a draft", pr.number));
         }
@@ -169,7 +203,7 @@ impl PrsStage {
     }
 
     fn update_target(&self, context: &Context) -> Result<UpdateTarget, String> {
-        let pr = self.column.selected().ok_or("nothing selected")?;
+        let pr = self.column().selected().ok_or("nothing selected")?;
         if context.landing(pr.number) {
             return Err(waiting(pr.number));
         }
@@ -192,7 +226,7 @@ impl PrsStage {
     }
 
     fn rerun_target(&self) -> Result<Rerun, String> {
-        let pr = self.column.selected().ok_or("nothing selected")?;
+        let pr = self.column().selected().ok_or("nothing selected")?;
         let run_ids = pr.rerunnable_runs();
         let label = match run_ids.len() {
             0 => return Err("no finished failing run to rerun".to_string()),

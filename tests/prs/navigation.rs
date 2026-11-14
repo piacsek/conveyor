@@ -112,15 +112,6 @@ fn narrow_terminals_collapse_the_columns_into_tabs_and_h_l_switch_them() {
     h.run(vec![key(KeyCode::Char('h')), key(KeyCode::Char('h'))])
         .unwrap();
     assert!(h.screen().contains("#1 a"), "clamps at the first column");
-
-    h.run(vec![
-        key(KeyCode::Tab),
-        key(KeyCode::Tab),
-        key(KeyCode::Tab),
-        key(KeyCode::Tab),
-    ])
-    .unwrap();
-    assert!(h.screen().contains("#1 a"), "Tab wraps around");
 }
 
 #[test]

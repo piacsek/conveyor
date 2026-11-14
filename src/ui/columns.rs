@@ -33,7 +33,7 @@ fn titled<T: Row>(base: &str, column: &Column<T>, marks: usize) -> String {
 pub(crate) fn column_title(app: &App, stage: Stage) -> String {
     let marks = app.failure_count(stage);
     match stage {
-        Stage::Prs => titled("My PRs", &app.prs.column, marks),
+        Stage::Prs => titled("My PRs", app.prs.column(), marks),
         Stage::Queue => match &app.queue.repo {
             Some(repo) => titled(
                 &format!("Queue {}", short_repo(repo)),
@@ -86,15 +86,15 @@ pub(crate) fn draw_column(
             let spinner = app.spinner();
             let busy: Vec<Option<String>> = app
                 .prs
-                .column
+                .column()
                 .visible()
                 .iter()
                 .map(|pr| app.write_on(Stage::Prs, pr.key()).map(Write::word))
                 .collect();
-            let failures = marks(app, Stage::Prs, &app.prs.column);
+            let failures = marks(app, Stage::Prs, app.prs.column());
             draw_list(
                 frame,
-                &mut app.prs.column,
+                app.prs.column_mut(),
                 area,
                 block,
                 focused,

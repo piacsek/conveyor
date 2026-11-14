@@ -40,7 +40,7 @@ where
             Input::Tick(now) => {
                 app.now = now;
                 if app.follow_up_due() {
-                    request(Request::Refresh(Stage::Prs));
+                    request(app.refresh_request(Stage::Prs));
                 }
             }
             Input::Fetching(stage, _) => app.fetching(stage),
@@ -49,22 +49,22 @@ where
             Input::Log(job_id, result) => app.receive_log(job_id, result),
             Input::BranchUpdated(number, result) => {
                 if app.receive_branch_update(number, &result) {
-                    request(Request::Refresh(Stage::Prs));
+                    request(app.refresh_request(Stage::Prs));
                     app.follow_up_prs();
                 }
             }
             Input::Merged(number, result) => {
                 app.receive_merged(number, &result);
                 if result.is_ok() {
-                    request(Request::Refresh(Stage::Prs));
-                    request(Request::Refresh(Stage::Queue));
+                    request(app.refresh_request(Stage::Prs));
+                    request(app.refresh_request(Stage::Queue));
                 }
             }
             Input::StatusChanged(number, change, result) => {
                 if app.receive_status(number, &change, &result) {
-                    request(Request::Refresh(Stage::Prs));
+                    request(app.refresh_request(Stage::Prs));
                     if change != StatusChange::Ready {
-                        request(Request::Refresh(Stage::Queue));
+                        request(app.refresh_request(Stage::Queue));
                     }
                     app.follow_up_prs();
                 }
@@ -72,7 +72,7 @@ where
             Input::CheckedOut(target, result) => app.receive_checkout(&target, &result),
             Input::Rerun(result) => {
                 if let Some(stage) = app.receive_rerun(result) {
-                    request(Request::Refresh(stage));
+                    request(app.refresh_request(stage));
                     if stage == Stage::Prs {
                         app.follow_up_prs();
                     }
@@ -82,10 +82,10 @@ where
                 Action::Quit => return Ok(()),
                 Action::Open(url) => attempt(app, opener.open(&url)),
                 Action::Copy(text) => attempt(app, opener.copy(&text)),
-                Action::Refresh(stage) => request(Request::Refresh(stage)),
+                Action::Refresh(stage) => request(app.refresh_request(stage)),
                 Action::RefreshAll => {
                     for stage in Stage::ALL {
-                        request(Request::Refresh(stage));
+                        request(app.refresh_request(stage));
                     }
                 }
                 Action::Log { run_id, job_id } => request(Request::Log { run_id, job_id }),

@@ -47,7 +47,7 @@ fn a_rerun_that_went_through_for_some_runs_says_which_failed_and_still_refreshes
         footer.contains("rerun requested for 1 of 2 runs; run 80: HTTP 403"),
         "{footer}"
     );
-    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Prs)));
+    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Prs, 0)));
 }
 
 #[test]
@@ -141,7 +141,7 @@ fn a_rerun_from_my_prs_reloads_them_once_more_ten_seconds_later() {
     let refreshes = |requests: &[Request]| {
         requests
             .iter()
-            .filter(|request| **request == Request::Refresh(Stage::Prs))
+            .filter(|request| **request == Request::Refresh(Stage::Prs, 0))
             .count()
     };
     assert_eq!(refreshes(&h.requests), 1);
@@ -168,7 +168,7 @@ fn a_rerun_that_failed_for_every_run_schedules_no_reload() {
     .unwrap();
 
     assert!(
-        !h.requests.contains(&Request::Refresh(Stage::Prs)),
+        !h.requests.contains(&Request::Refresh(Stage::Prs, 0)),
         "{:?}",
         h.requests
     );
@@ -206,7 +206,7 @@ fn two_reruns_on_their_way_each_land_with_their_own_label_and_column() {
 
     let footer = h.screen().lines().last().unwrap_or_default().to_string();
     assert!(footer.contains("rerun requested: run 25"), "{footer}");
-    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Builds)));
+    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Builds, 0)));
 
     h.run(vec![support::rerun_done(vec![(70, Ok(())), (80, Ok(()))])])
         .unwrap();
@@ -216,7 +216,7 @@ fn two_reruns_on_their_way_each_land_with_their_own_label_and_column() {
         footer.contains("rerun requested: #4821 (2 runs)"),
         "{footer}"
     );
-    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Prs)));
+    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Prs, 0)));
 }
 
 #[test]
