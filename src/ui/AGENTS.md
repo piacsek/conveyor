@@ -85,8 +85,8 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   in red, wrapped over the pane's width with nothing cut (`App::selected_failure`, `text::clock`
   with `utc_offset_secs`). The column title counts marks after the row count, before the
   `⚠`: `My PRs (5) !1`. The count covers every row of the column, rows hidden by the filter
-  included, like the `/total` half of the title. `column_title` feeds the tabs of the narrow layout too, so a mark
-  behind a tab still shows. No mark, no suffix. What marks and what clears: see
+  included, like the `/total` half of the title. `column_title` feeds the column bar of the narrow layout too, so
+  a mark behind it still shows. With My PRs tabs, `!N` counts the marked rows of the active tab. No mark, no suffix. What marks and what clears: see
   `src/app/AGENTS.md`.
 - **No URLs in the details pane.** Every line there is text a person reads: the checks, the
   jobs, the sha, the pull request. A URL is 60 columns of noise nobody retypes, and both keys
@@ -95,6 +95,16 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
 - The Deployed row glyphs (`✓`, `◐`, `○`, `✗`): see the Deployed bullet in `src/sources/AGENTS.md`.
 - The deploy health icons (`⚠`, `‼`, `?`) and the rules behind them: see `src/model/AGENTS.md`.
 - A queue card whose run speaks for the entry: see `src/model/AGENTS.md`.
+
+- **The tab bar.** A column with two tabs or more (`StageView::tab_names`, My PRs only for now)
+  takes one line inside its block, above the cards: the names joined by ` │ `, the active one
+  bold and reversed like the narrow layout's column bar, the others dim (`columns::tab_bar`).
+  `draw_column` draws the block, the bar on its first inner line, and the list below it in a
+  block with no top border, so the cards, widths and links work as in any column. When the
+  names do not fit, tabs before the active one are dropped behind a leading `… │ ` until it
+  fits, and the bar is cut after it with `…`. One tab draws no bar, so a config without
+  `[[prs.tab]]` looks as it did. In the narrow layout the column bar (`draw_column_bar`, named
+  so that "tab" means only this) stays on top and the tab bar sits inside the column below it.
 
 ## Dialogs, panes and the footer
 
@@ -114,8 +124,9 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   with a hint, so while `App::notice` is set (a merge, rerun or update result that landed while
   the pane was open) the footer shows the notice instead; the next key clears it as usual.
 - **The help pane does not scroll.** `draw_help` renders `KEYS` through a `Paragraph`, so a
-  list longer than the pane is silently clipped from the bottom: 14 keys plus two borders
-  exactly fills a 17-row terminal. `("q", "quit")` is therefore first in `KEYS`, so the one
+  list longer than the pane is silently clipped from the bottom: 15 keys plus two borders and
+  the footer exactly fill an 18-row terminal. The tab row shows the keys configured in
+  `[ui.keys]` (`] [ 1-9`, `C-n`), not the defaults (`help::keys_for`). `("q", "quit")` is therefore first in `KEYS`, so the one
   key that gets you out is never the line that disappears. Adding a key means checking the
   smallest terminal you care about, or paginating the pane.
 - **`c` shows the changelog, and every release writes one.** `CHANGELOG.md` is

@@ -141,6 +141,14 @@ KUBE
 chmod +x "$home/bin/kubectl"
 mkdir -p "$home/.config/conveyor"
 cat >"$home/.config/conveyor/config.toml" <<'TOML'
+[[prs.tab]]
+name = "mine"
+query = "is:pr is:open author:@me"
+
+[[prs.tab]]
+name = "review"
+query = "is:pr is:open review-requested:@me"
+
 [[repo]]
 name = "acme/webapp"
 

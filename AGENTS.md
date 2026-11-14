@@ -74,7 +74,7 @@ src/ui/rows.rs   one card builder per stage
 src/ui/details.rs the `d` pane per stage, including the job list; no URLs
 src/ui/footer.rs footer text, the refresh spinner and the static logo
 src/ui/dialog.rs the `S` popup and the confirm dialog
-src/ui/help.rs   KEYS is the generic table the README mirrors; the `p`/`b` wording swapped per column
+src/ui/help.rs   KEYS is the generic table the README mirrors; the `p`/`b` wording swapped per column, the tab keys as configured
 src/ui/AGENTS.md  cards, glyphs and icons, dialogs, the details, help and changelog panes, the footer, colours
 src/refresh.rs   one fetcher thread per stage, sleeping until the interval or a refresh
 src/open.rs      opening a URL and copying to the clipboard: the OS seam, not a service, so it stays out of `sources/`
