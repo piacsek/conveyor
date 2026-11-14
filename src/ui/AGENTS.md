@@ -88,6 +88,11 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   included, like the `/total` half of the title. `column_title` feeds the tabs of the narrow layout too, so a mark
   behind a tab still shows. No mark, no suffix. What marks and what clears: see
   `src/app/AGENTS.md`.
+- **My PRs draws its views as a strip** (`view_strip` in `columns.rs`) on the first row inside
+  its block, only with more than one view: `1 Mine │ 2 Review`, the active one in the narrow
+  column bar's `picked()` style, the rest dim; when it does not fit, the active name stays whole
+  and the rest is cut with `…`. The block gets a top padding of one row, so the list and the
+  links sit below it.
 - **No URLs in the details pane.** Every line there is text a person reads: the checks, the
   jobs, the sha, the pull request. A URL is 60 columns of noise nobody retypes, and both keys
   that need one (`b`, `p`) already hand it to the browser. `y`/`Y` copy them.

@@ -5,7 +5,9 @@ use conveyor::model::prs::{
     Check, CheckConclusion, CheckState, MergeState, PullRequest, ReviewDecision,
 };
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, build, builds, entry, failed, job, jobs, key, pr, prs, queue};
+use support::{
+    Harness, build, builds, entry, failed, job, jobs, key, pr, prs, prs_in, queue, three_views,
+};
 
 fn sample() -> Vec<PullRequest> {
     let mut failing = pr(4821, "Retry webhook delivery with backoff");
@@ -233,6 +235,29 @@ fn failed_card_layout() {
 }
 
 #[test]
+fn views_layout() {
+    let mut h = Harness::with_config(160, 12, three_views());
+    h.run(views_inputs()).unwrap();
+    insta::assert_snapshot!(versionless(h.screen()));
+}
+
+#[test]
+fn views_narrow_layout() {
+    let mut h = Harness::with_config(80, 12, three_views());
+    h.run(views_inputs()).unwrap();
+    insta::assert_snapshot!(versionless(h.screen()));
+}
+
+#[test]
+fn views_zoom_layout() {
+    let mut h = Harness::with_config(160, 12, three_views());
+    let mut inputs = views_inputs();
+    inputs.push(key(KeyCode::Char('z')));
+    h.run(inputs).unwrap();
+    insta::assert_snapshot!(versionless(h.screen()));
+}
+
+#[test]
 fn no_snapshot_carries_the_crate_version() {
     let versioned = format!("conveyor v{}", env!("CARGO_PKG_VERSION"));
     assert_eq!(snapshots_holding(&versioned), "");
@@ -264,4 +289,16 @@ fn snapshots_holding(text: &str) -> String {
         .collect();
     names.sort();
     names.join(" ")
+}
+
+fn views_inputs() -> Vec<std::io::Result<conveyor::app::Input>> {
+    let mut review = pr(4907, "Cache the session lookup");
+    review.repo = "acme/auth".to_string();
+    review.checks = CheckState::Pending;
+    vec![
+        prs(sample()),
+        prs_in(1, vec![review, pr(4912, "Drop the legacy export job")]),
+        queue(queue_sample()),
+        key(KeyCode::Char('2')),
+    ]
 }

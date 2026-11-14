@@ -12,6 +12,10 @@ pub(crate) fn dim() -> Style {
     Style::default().add_modifier(Modifier::DIM)
 }
 
+pub(crate) fn picked() -> Style {
+    Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED)
+}
+
 pub(crate) fn glyph(checks: CheckState) -> (char, Color) {
     match checks {
         CheckState::Success => ('✓', Color::Green),

@@ -11,7 +11,6 @@ mod style;
 
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
@@ -22,7 +21,7 @@ use crate::ui::details::draw_details;
 use crate::ui::dialog::{draw_confirm, draw_manage};
 use crate::ui::footer::draw_footer;
 use crate::ui::help::draw_help;
-use crate::ui::style::dim;
+use crate::ui::style::{dim, picked};
 
 pub use crate::ui::footer::logo;
 pub use crate::ui::help::KEYS;
@@ -87,11 +86,7 @@ fn draw_tabs(frame: &mut Frame, app: &mut App, area: Rect) {
         if i > 0 {
             spans.push(Span::raw(" │ "));
         }
-        let style = if stage == app.focus {
-            Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED)
-        } else {
-            dim()
-        };
+        let style = if stage == app.focus { picked() } else { dim() };
         spans.push(Span::styled(column_title(app, stage), style));
     }
     frame.render_widget(Paragraph::new(Line::from(spans)), bar);

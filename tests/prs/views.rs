@@ -1,6 +1,7 @@
 use conveyor::app::{Mode, Request, Stage};
 use conveyor::config::ViewKey;
 use ratatui::crossterm::event::KeyCode;
+use ratatui::style::Modifier;
 
 use crate::helpers::three;
 use crate::support::{self, Harness, ctrl, key, pr, prs, prs_in};
@@ -254,6 +255,42 @@ fn a_configured_character_switches_and_tab_then_does_nothing() {
     assert_eq!(h.app.prs.active, 1);
     assert_eq!(h.requests.len(), 1);
     assert_eq!(h.requests[0], Request::Refresh(Stage::Prs, 1));
+}
+
+#[test]
+fn one_view_draws_no_strip() {
+    let mut h = Harness::new();
+
+    h.run(vec![prs(three())]).unwrap();
+
+    let screen = h.screen();
+    let rows: Vec<&str> = screen.lines().collect();
+    assert!(rows[1].starts_with("│▌ ✓ \u{f407} #1 a"), "{screen}");
+    assert!(!screen.contains("1 Mine"), "{screen}");
+}
+
+#[test]
+fn several_views_draw_a_strip_above_the_cards() {
+    let h = two_filled();
+
+    let screen = h.screen();
+    let rows: Vec<&str> = screen.lines().collect();
+    assert!(rows[1].starts_with("│ 1 Mine │ 2 Review "), "{screen}");
+    assert!(rows[2].starts_with("│▌ ✓ \u{f407} #1 a"), "{screen}");
+    assert!(h.cell(2, 1).modifier.contains(Modifier::REVERSED));
+    assert!(h.cell(2, 1).modifier.contains(Modifier::BOLD));
+    assert!(h.cell(11, 1).modifier.contains(Modifier::DIM));
+}
+
+#[test]
+fn a_narrow_strip_keeps_the_active_name_whole_and_cuts_the_rest() {
+    let mut h = Harness::with_config(20, 12, support::three_views());
+
+    h.run(vec![prs(three()), key(KeyCode::Char('2'))]).unwrap();
+
+    let screen = h.screen();
+    let rows: Vec<&str> = screen.lines().collect();
+    assert_eq!(rows[2], "│ … │ 2 Review │ 3…│", "{screen}");
 }
 
 fn two_filled() -> Harness {

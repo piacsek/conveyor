@@ -2,12 +2,13 @@ use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, List, ListItem, Paragraph};
+use ratatui::widgets::{Block, List, ListItem, Padding, Paragraph};
 
 use crate::app::{App, Column, Failure, Row, Stage, Write};
+use crate::text::truncate;
 use crate::ui::link::link;
 use crate::ui::rows::{build_row, deployed_row, pr_row, queue_row};
-use crate::ui::style::{dim, short_repo};
+use crate::ui::style::{dim, picked, short_repo};
 
 type Pull = Option<(u64, String)>;
 
@@ -76,7 +77,12 @@ pub(crate) fn draw_column(
     area: Rect,
     titled: bool,
 ) {
-    let block = column_block(app, stage, titled);
+    let strip = view_strip(app, stage);
+    let block = match strip {
+        Some(_) => column_block(app, stage, titled).padding(Padding::top(1)),
+        None => column_block(app, stage, titled),
+    };
+    let inner = block.inner(area);
     let focused = stage == app.focus;
     let now = app.now;
     let jobs = std::mem::take(&mut app.jobs);
@@ -177,6 +183,64 @@ pub(crate) fn draw_column(
         }
     }
     app.jobs = jobs;
+    if let Some((names, active)) = strip {
+        let row = Rect::new(inner.x + 1, inner.y - 1, inner.width.saturating_sub(1), 1)
+            .intersection(area);
+        let line = strip_line(&names, active, usize::from(row.width));
+        frame.render_widget(Paragraph::new(line), row);
+    }
+}
+
+fn view_strip(app: &App, stage: Stage) -> Option<(Vec<String>, usize)> {
+    let views = app.config.prs.views();
+    if stage != Stage::Prs || views.len() < 2 {
+        return None;
+    }
+    let names = views
+        .into_iter()
+        .enumerate()
+        .map(|(i, view)| format!("{} {}", i + 1, view.name))
+        .collect();
+    Some((names, app.prs.active))
+}
+
+fn strip_line(names: &[String], active: usize, width: usize) -> Line<'static> {
+    let fits = |names: &[String]| strip_width(names) <= width;
+    let first = if fits(names) || strip_width(&names[..=active]) < width {
+        0
+    } else {
+        active
+    };
+    let mut spans = Vec::new();
+    if first > 0 {
+        spans.push(Span::styled("…", dim()));
+    }
+    for (i, name) in names.iter().enumerate().skip(first) {
+        if !spans.is_empty() {
+            spans.push(Span::raw(" │ "));
+        }
+        let style = if i == active { picked() } else { dim() };
+        spans.push(Span::styled(name.clone(), style));
+    }
+    let plain: String = spans.iter().map(|span| span.content.as_ref()).collect();
+    let shown = truncate(&plain, width);
+    let mut shown = shown.chars();
+    let cut: Vec<Span> = spans
+        .into_iter()
+        .map(|span| {
+            let text: String = shown.by_ref().take(span.content.chars().count()).collect();
+            Span::styled(text, span.style)
+        })
+        .collect();
+    Line::from(cut)
+}
+
+fn strip_width(names: &[String]) -> usize {
+    names
+        .iter()
+        .map(|name| name.chars().count() + 3)
+        .sum::<usize>()
+        - 3
 }
 
 fn marks<T: Row>(app: &App, stage: Stage, column: &Column<T>) -> Vec<Option<Failure>> {

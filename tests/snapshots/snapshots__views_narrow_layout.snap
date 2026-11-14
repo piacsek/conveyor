@@ -1,0 +1,16 @@
+---
+source: tests/snapshots.rs
+expression: versionless(h.screen())
+---
+My PRs (2) │ Queue webapp (2) │ Main builds │ Deployed                          
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 1 Mine │ 2 Review │ 3 Team                                                   │
+│▌ ●  #4907 Cache the session lookup                                        2h│
+│▌   auth                                                                      │
+│▌   checks: pending                                                           │
+│  ✓  #4912 Drop the legacy export job                                      2h│
+│    webapp                                                                    │
+│    checks: success                                                           │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+refreshed just now                                        ▪─▪─▪▸ conveyor vX.Y.Z

@@ -2,7 +2,9 @@ mod support;
 
 use conveyor::model::builds::BuildStatus;
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, build, builds, deployed, deployment, entry, key, pr, prs, queue};
+use support::{
+    Harness, build, builds, deployed, deployment, entry, key, pr, prs, prs_in, queue, two_views,
+};
 
 fn link(number: u64) -> (String, String) {
     (
@@ -66,6 +68,21 @@ fn the_numbers_in_the_queue_main_builds_and_deployed_link_too() {
     .unwrap();
 
     assert_eq!(h.links(), vec![link(1), link(4821), link(4822), link(4823)]);
+}
+
+#[test]
+fn the_links_land_on_the_cards_below_the_view_strip() {
+    let mut h = Harness::with_config(160, 12, two_views());
+
+    h.run(vec![
+        prs(vec![pr(1, "a"), pr(22, "b")]),
+        prs_in(1, vec![pr(7, "c")]),
+    ])
+    .unwrap();
+
+    assert_eq!(h.links(), vec![link(1), link(22)]);
+    assert!(h.cell(7, 2).symbol().contains("/pull/1\x1b\\#"));
+    assert!(h.cell(7, 5).symbol().contains("/pull/22\x1b\\#"));
 }
 
 #[test]

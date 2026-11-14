@@ -1,0 +1,16 @@
+---
+source: tests/snapshots.rs
+expression: versionless(h.screen())
+---
+┌My PRs (2)────────────────────────────┐┌Queue webapp (2)──────────────────────┐┌Main builds───────────────────────────┐┌Deployed──────────────────────────────┐
+│ 1 Mine │ 2 Review │ 3 Team           ││  ● #4821 Retry webhook delivery … 12m││fetching…                             ││no [[repo.deploy]] configured         │
+│▌ ●  #4907 Cache the session look… 2h││    alice · position 1 · enqueued 20m…││                                      ││                                      │
+│▌   auth                              ││    run 312 · running · 00000000      ││                                      ││                                      │
+│▌   checks: pending                   ││  ○ #4830 Add rate limit heade… queued││                                      ││                                      │
+│  ✓  #4912 Drop the legacy export… 2h││    carol · position 2 · enqueued 20m…││                                      ││                                      │
+│    webapp                            ││    no merge-group run yet · jump · 0…││                                      ││                                      │
+│    checks: success                   ││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘
+refreshed just now                                                                                                                        ▪─▪─▪▸ conveyor vX.Y.Z
