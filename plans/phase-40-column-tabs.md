@@ -16,6 +16,16 @@ Decided with the user on 2026-11-14:
 - **One tab, no bar.** The bar appears only when a column has two tabs or more, so an
   existing config looks exactly as it does today.
 
+## Compatibility: today's config keeps working
+Every config file that loads on `main` loads unchanged after this phase and shows the same
+columns. Only additions: `[[prs.tab]]` and `[ui.keys]`, both optional, nothing renamed,
+moved or made required. `[prs].query` and `[prs].limit` keep their meaning: with no
+`[[prs.tab]]` they are the single tab, and `limit` stays the default for every tab.
+`conveyor config` on a config without tabs prints no `tab = []` (`skip_serializing_if`
+empty); it does gain the `[ui.keys]` defaults, since it is the reference for defaults. The
+only new errors are for the new keys (both `[prs].query` and `[[prs.tab]]`, a bad key name).
+What does change on purpose is the `Tab` key: it no longer moves focus.
+
 ## Design
 
 ```toml
@@ -111,6 +121,12 @@ previous_tab = "shift-tab"
   700-line limit.
 
 ## Tasks (each starts red, each shipped with `scripts/ship.sh`)
+0. **Today's config is pinned first.** `tests/cli.rs`, before any config change: a fixture
+   `tests/fixtures/config-v0.toml` using every key that exists on `main` (`[prs]` with
+   `query` and `limit`, `[ui]`, `[[repo]]` with `[[repo.deploy]]` and `[[repo.deploy.env]]`,
+   invented `acme/*` values) loads, and `conveyor config` prints it back. That test stays
+   green, unedited, through every later task; only the `[ui.keys]` lines are added to the
+   expected output, in task 2.
 1. **Config reads tabs.** `tests/cli.rs`: `conveyor config` with two `[[prs.tab]]` prints
    them; with none it prints today's output; `[prs].query` together with `[[prs.tab]]`, a tab
    without a query, and a repeated name each exit 1 naming the file. Adds `PrsTab` and
