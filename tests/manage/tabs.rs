@@ -109,22 +109,30 @@ fn a_busy_row_spins_on_every_tab_that_lists_it() {
 }
 
 #[test]
-fn the_merge_wait_ends_on_a_fetch_of_another_tab_started_after_the_merge() {
+fn the_merge_wait_holds_through_a_fetch_of_another_tab() {
     let mut h = two_tabs();
-    h.run(vec![
-        prs_in(0, vec![behind(1, "a")]),
-        key(KeyCode::Char('S')),
-        key(KeyCode::Char('m')),
-        key(KeyCode::Char('y')),
-        Ok(Input::Merged(1, Ok(()))),
-        key(KeyCode::Tab),
-    ])
-    .unwrap();
+    h.run(merged_then_switched()).unwrap();
 
     h.run(vec![
         Ok(Input::Fetching(Stage::Prs, 1)),
         prs_in(1, vec![open(20, "Other")]),
         key(KeyCode::BackTab),
+        key(KeyCode::Char('S')),
+    ])
+    .unwrap();
+
+    assert!(h.screen().contains("waiting for My PRs"), "{}", h.screen());
+}
+
+#[test]
+fn the_merge_wait_ends_on_a_fetch_of_the_tab_it_was_merged_from() {
+    let mut h = two_tabs();
+    h.run(merged_then_switched()).unwrap();
+
+    h.run(vec![
+        key(KeyCode::BackTab),
+        Ok(Input::Fetching(Stage::Prs, 0)),
+        prs_in(0, vec![behind(1, "a")]),
         key(KeyCode::Char('S')),
     ])
     .unwrap();
@@ -153,6 +161,17 @@ fn marked_on_the_first_tab() -> Vec<std::io::Result<Input>> {
         key(KeyCode::Char('S')),
         key(KeyCode::Char('t')),
         status_changed(12, StatusChange::Ready, Err("HTTP 422")),
+    ]
+}
+
+fn merged_then_switched() -> Vec<std::io::Result<Input>> {
+    vec![
+        prs_in(0, vec![behind(1, "a")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+        Ok(Input::Merged(1, Ok(()))),
+        key(KeyCode::Tab),
     ]
 }
 

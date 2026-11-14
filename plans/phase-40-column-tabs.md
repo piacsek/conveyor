@@ -104,7 +104,7 @@ previous_tab = "shift-tab"
 | Write in flight on #12, user switches tab | - | #12 spins on every tab that lists it | - |
 | #12 marked failed, user switches to a tab without #12 | - | mark kept; shown again when #12 is drawn | `!N` counts the active tab's marked rows |
 | A successful refresh of a tab without #12 | - | #12's mark is dropped only when no tab's last rows hold #12 | - |
-| Merge of #12 waiting for My PRs to catch up | - | the wait ends on the first My PRs fetch that started after the merge, whatever its tab (unchanged rule) | - |
+| Merge of #12 waiting for My PRs to catch up | - | the wait ends on the first fetch of the tab active at the merge that started after it; a fetch of another tab does not end it (review round 1: that tab's cards would still offer `u` and `t` on the pull request) | - |
 | Details pane open, user switches tab | - | pane shows the new tab's selected row, scroll reset | - |
 | Zoomed on My PRs, user switches tab | bar drawn in the zoomed column | new tab | - |
 | `Tab` or a digit pressed in a column with one tab | - | nothing happens | - |
@@ -168,7 +168,7 @@ previous_tab = "shift-tab"
 7. **Marks, spinners and the merge wait across tabs.** Implements the rows of the state
    table: a mark survives a switch and a refresh of a tab without the row, and drops when no
    tab holds it; a busy row spins on both tabs; the merge wait ends on a post-merge fetch of
-   any tab.
+   the tab the merge was sent from.
 8. **A configured key works.** `next_tab = "]"`: `]` switches and `Tab` does nothing. The
    help view shows `]`.
 9. **Help, README, wrap-up.** `KEYS` and the README table (`tests/readme.rs` pins them), the

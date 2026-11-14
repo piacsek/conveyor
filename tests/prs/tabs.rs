@@ -375,6 +375,20 @@ fn a_configured_control_chord_switches_tab() {
 }
 
 #[test]
+fn a_control_chord_while_typing_a_filter_is_not_typed_into_it() {
+    let mut config = two_tabs();
+    config.ui.keys.next_tab = Key::Ctrl('n');
+    let mut h = Harness::with_config(160, 12, config);
+    h.run(vec![prs_in(0, three()), key(KeyCode::Char('/'))])
+        .unwrap();
+
+    h.run(vec![ctrl('n')]).unwrap();
+
+    assert_eq!(h.app.query.as_deref(), Some(""));
+    assert!(h.requests.is_empty());
+}
+
+#[test]
 fn the_help_shows_the_configured_tab_keys() {
     let mut h = Harness::with_config(160, 20, bracket_keys());
 

@@ -68,10 +68,10 @@ refresh_secs = 60
 merge_method = "squash"
 update_method = "merge"
 
-[[prs.tab]]                   # optional, instead of query; one My PRs tab each
-name = "review"
-query = "is:pr is:open review-requested:@me"
-limit = 10                    # optional; falls back to [prs].limit
+# [[prs.tab]]                 # optional, instead of query; one My PRs tab each
+# name = "review"
+# query = "is:pr is:open review-requested:@me"
+# limit = 10                  # optional; falls back to [prs].limit
 
 [ui]
 min_column_width = 36

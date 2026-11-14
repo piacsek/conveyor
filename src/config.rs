@@ -171,6 +171,13 @@ const IN_USE: &[(&str, &str)] = &[
 
 const CTRL_IN_USE: &[(&str, &str)] = &[("c", "quit"), ("du", "scroll the details")];
 
+const CTRL_SENT_AS: &[(&str, &str)] = &[
+    ("i", "Tab"),
+    ("mj", "Enter"),
+    ("h", "Backspace"),
+    ("[", "Esc"),
+];
+
 impl Key {
     pub fn parse(name: &str) -> Result<Key, String> {
         let single = |text: &str| {
@@ -185,7 +192,14 @@ impl Key {
             "shift-tab" => return Ok(Key::BackTab),
             _ => match (single(name), name.strip_prefix("ctrl-").and_then(single)) {
                 (Some(c), _) => (Key::Char(c), meaning(IN_USE, c)),
-                (None, Some(c)) => (Key::Ctrl(c), meaning(CTRL_IN_USE, c)),
+                (None, Some(c)) => {
+                    if let Some(sent) = meaning(CTRL_SENT_AS, c) {
+                        return Err(format!(
+                            "\"{name}\" reaches conveyor as {sent}: terminals send the same code for both"
+                        ));
+                    }
+                    (Key::Ctrl(c), meaning(CTRL_IN_USE, c))
+                }
                 (None, None) => {
                     return Err(format!(
                         "unknown key \"{name}\"; use one character, \"tab\", \"shift-tab\" or \"ctrl-<char>\""

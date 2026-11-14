@@ -68,7 +68,7 @@ impl Rows {
 pub struct Context<'a> {
     pub config: &'a Config,
     pub builds: &'a BuildsStage,
-    pub merge_landing: &'a [(u64, bool)],
+    pub merge_landing: &'a [(u64, usize, bool)],
 }
 
 impl Context<'_> {
@@ -83,7 +83,7 @@ impl Context<'_> {
     pub fn landing(&self, number: u64) -> bool {
         self.merge_landing
             .iter()
-            .any(|(landing, _)| *landing == number)
+            .any(|(landing, _, _)| *landing == number)
     }
 
     pub fn behind_main(&self, row: &Deployment) -> Option<usize> {
@@ -190,7 +190,8 @@ impl App {
 
     pub fn receive(&mut self, stage: Stage, tab: usize, data: Result<Rows, String>) {
         if stage == Stage::Prs {
-            self.merge_landing.retain(|(_, started)| !started);
+            self.merge_landing
+                .retain(|(_, landed_in, started)| *landed_in != tab || !started);
         }
         let selected = self.selected_key();
         self.receive_rows(stage, tab, data);
@@ -222,8 +223,8 @@ impl App {
 
     pub fn fetching(&mut self, stage: Stage, tab: usize) {
         if stage == Stage::Prs {
-            for (_, started) in &mut self.merge_landing {
-                *started = true;
+            for (_, landed_in, started) in &mut self.merge_landing {
+                *started |= *landed_in == tab;
             }
         }
         if let Some(listing) = self.stage_mut(stage).listing_in_mut(tab) {

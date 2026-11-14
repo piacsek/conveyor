@@ -43,6 +43,7 @@ impl App {
 
     fn handle_filter_key(&mut self, key: KeyEvent) -> Action {
         match key.code {
+            KeyCode::Char(_) if key.modifiers.contains(KeyModifiers::CONTROL) => Action::Continue,
             KeyCode::Char(c) => self.edit_filter(|q| q.push(c)),
             KeyCode::Backspace => self.edit_filter(|q| {
                 q.pop();

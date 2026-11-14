@@ -700,7 +700,11 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   and `1`-`9` pick one; columns are reached with `h`/`l` only. Only the active tab is fetched:
   the refresh channel and every result carry a tab index, so a late result lands in its own
   tab. Each tab keeps its rows and selection; a switch clears the filter. Marks are pruned only
-  when no tab holds the row. A config from before the phase loads and prints unchanged, plus
+  when no tab holds the row. Review round 1: the merge wait ends only on a fetch of the tab the
+  merge was sent from (the plan first said any tab, which offered `u` on a pull request that
+  had just joined the queue); `ctrl-i`, `ctrl-m`, `ctrl-j`, `ctrl-h` and `ctrl-[` are refused
+  as tab keys, since terminals send them as other keys; the README's config block loads
+  (`tests/readme.rs`). A config from before the phase loads and prints unchanged, plus
   the `[ui.keys]` defaults (`tests/fixtures/config-v0.toml`). Deviations: the help gained a row,
   so it needs an 18-row terminal (it was 17); `[ui.keys]` also refuses the same key for both
   tab keys; `Prs::tabs()` landed with the fetcher (task 3), not with the config (task 1), so no

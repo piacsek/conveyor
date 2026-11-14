@@ -378,3 +378,38 @@ fn a_tab_without_a_limit_takes_the_my_prs_limit() {
     assert_eq!(tabs[0].limit, Some(4));
     assert_eq!(tabs[1].limit, Some(9));
 }
+
+#[test]
+fn ctrl_i_is_refused_since_the_terminal_sends_tab() {
+    let err = Key::parse("ctrl-i").unwrap_err();
+
+    assert!(err.contains("Tab"), "{err}");
+}
+
+#[test]
+fn ctrl_m_is_refused_since_the_terminal_sends_enter() {
+    let err = Key::parse("ctrl-m").unwrap_err();
+
+    assert!(err.contains("Enter"), "{err}");
+}
+
+#[test]
+fn ctrl_j_is_refused_since_the_terminal_sends_enter() {
+    let err = Key::parse("ctrl-j").unwrap_err();
+
+    assert!(err.contains("Enter"), "{err}");
+}
+
+#[test]
+fn ctrl_h_is_refused_since_the_terminal_sends_backspace() {
+    let err = Key::parse("ctrl-h").unwrap_err();
+
+    assert!(err.contains("Backspace"), "{err}");
+}
+
+#[test]
+fn ctrl_bracket_is_refused_since_the_terminal_sends_esc() {
+    let err = Key::parse("ctrl-[").unwrap_err();
+
+    assert!(err.contains("Esc"), "{err}");
+}

@@ -20,8 +20,10 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   `1`-`9` pick one; in a column with one tab, past the last tab or on the active one they do
   nothing and send nothing. The digits are built in. `keymap::pressed` matches a configured
   `config::Key`; `config::Key::parse` refuses any key conveyor already uses, naming what it
-  does, so a rebind never shadows `S`. While the filter is typed, `Tab`/`Shift-Tab` do nothing
-  and a character (a digit, `]`) is typed into the query. `PrsStage` holds one `Column` per tab
+  does, so a rebind never shadows `S`, and `ctrl-i`, `ctrl-m`, `ctrl-j`, `ctrl-h` and `ctrl-[`,
+  which terminals send as `Tab`, `Enter`, `Backspace` and `Esc`, so the binding would never
+  fire. While the filter is typed, `Tab`/`Shift-Tab` and control chords do nothing and a
+  character (a digit, `]`) is typed into the query. `PrsStage` holds one `Column` per tab
   and the active index; `listing()` is the active tab, so everything that reads the focused
   column reads it. Each tab keeps its own rows, selection, scroll, error and fetch time. A
   switch clears the filter (`App.query`, on every column) and keeps the row selected on both
@@ -32,8 +34,10 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   active when they arrive. **Marks span the tabs**: `StageView::holds` asks every tab, so a mark
   is pruned only once no tab's last rows hold its row, and a write that fails after a switch
   still marks; the title's `!N` counts the active tab's rows. The busy spinner is per row key,
-  so it shows on every tab that lists the row. The merge wait (`merge_landing`) ends on the
-  first My PRs fetch that started after the merge, whatever its tab. Only the active tab is
+  so it shows on every tab that lists the row. The merge wait (`merge_landing`) keeps the tab
+  active at the merge and ends on the first fetch of that tab that started after the merge: a
+  fetch of another tab leaves the merged tab's cards as old as they were, so `u` and `t` stay
+  refused there. Only the active tab is
   fetched; the other tabs keep their last rows until you switch back.
 - **`L` is read-only, and the log has a pane of its own.** It asks `gh run view <run> --job
   <job> --log-failed` for the first failed job of the selected run (Main builds or Merge
