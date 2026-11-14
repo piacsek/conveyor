@@ -1,4 +1,4 @@
-use conveyor::config::{Config, MergeMethod, UpdateMethod, load};
+use conveyor::config::{Config, MergeMethod, PrsView, UpdateMethod, load};
 
 fn write(dir: &tempfile::TempDir, text: &str) -> std::path::PathBuf {
     let path = dir.path().join("config.toml");
@@ -248,4 +248,130 @@ fn a_leading_tilde_in_a_path_is_the_home_directory() {
         expand_home(Path::new("~/webapp"), None),
         PathBuf::from("~/webapp")
     );
+}
+
+#[test]
+fn the_first_view_is_built_from_prs_and_the_listed_ones_follow_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write(
+        &dir,
+        "[prs]\nquery = \"is:open author:@me\"\nlimit = 15\n\n[[prs.view]]\nname = \"Review\"\nquery = \"is:open review-requested:@me\"\nlimit = 10\n\n[[prs.view]]\nname = \"Team\"\nquery = \"is:open team:acme/web\"\n",
+    );
+
+    let views = load(&path).unwrap().prs.views();
+
+    assert_eq!(views.len(), 3);
+    assert_eq!(views[0].name, "Mine");
+    assert_eq!(views[0].query, "is:open author:@me");
+    assert_eq!(views[0].limit, Some(15));
+    assert_eq!(views[1].name, "Review");
+    assert_eq!(views[1].query, "is:open review-requested:@me");
+    assert_eq!(views[1].limit, Some(10));
+    assert_eq!(views[2].name, "Team");
+    assert_eq!(views[2].limit, Some(15));
+}
+
+#[test]
+fn the_first_view_takes_its_name_from_prs() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let config = load(&write(&dir, "[prs]\nname = \"Authored\"\n")).unwrap();
+
+    assert_eq!(config.prs.views()[0].name, "Authored");
+}
+
+#[test]
+fn views_print_back_and_load_identically() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut config = Config::default();
+    config.prs.view = vec![review_view()];
+
+    let text = config.to_toml();
+    let reloaded = load(&write(&dir, &text)).unwrap();
+
+    assert_eq!(reloaded, config);
+    assert!(text.contains("[[prs.view]]"), "{text}");
+}
+
+#[test]
+fn without_views_the_printed_config_has_no_view_table() {
+    let config = Config::default();
+
+    assert_eq!(config.prs.name, "Mine");
+    assert_eq!(config.prs.views().len(), 1);
+    assert!(!config.to_toml().contains("view"), "{}", config.to_toml());
+}
+
+#[test]
+fn a_repeated_view_name_fails_naming_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write(
+        &dir,
+        "[[prs.view]]\nname = \"Mine\"\nquery = \"is:open review-requested:@me\"\n",
+    );
+
+    let err = load(&path).unwrap_err().to_string();
+
+    assert!(err.contains("config.toml"), "{err}");
+    assert!(err.contains("Mine"), "{err}");
+}
+
+#[test]
+fn an_empty_view_name_fails_naming_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write(
+        &dir,
+        "[[prs.view]]\nname = \"\"\nquery = \"is:open review-requested:@me\"\n",
+    );
+
+    let err = load(&path).unwrap_err().to_string();
+
+    assert!(err.contains("config.toml"), "{err}");
+    assert!(err.contains("name"), "{err}");
+}
+
+#[test]
+fn an_empty_view_query_fails_naming_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write(&dir, "[[prs.view]]\nname = \"Review\"\nquery = \"\"\n");
+
+    let err = load(&path).unwrap_err().to_string();
+
+    assert!(err.contains("config.toml"), "{err}");
+    assert!(err.contains("Review"), "{err}");
+}
+
+#[test]
+fn nine_views_load() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let config = load(&write(&dir, &extra_views(8))).unwrap();
+
+    assert_eq!(config.prs.views().len(), 9);
+}
+
+#[test]
+fn a_tenth_view_fails_naming_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, &extra_views(9))).unwrap_err().to_string();
+
+    assert!(err.contains("config.toml"), "{err}");
+    assert!(err.contains("9"), "{err}");
+}
+
+fn review_view() -> PrsView {
+    PrsView {
+        name: "Review".to_string(),
+        query: "is:open review-requested:@me".to_string(),
+        limit: Some(10),
+    }
+}
+
+fn extra_views(count: usize) -> String {
+    (1..=count)
+        .map(|n| {
+            format!("[[prs.view]]\nname = \"View {n}\"\nquery = \"is:open repo:acme/app{n}\"\n\n")
+        })
+        .collect()
 }
