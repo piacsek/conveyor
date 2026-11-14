@@ -116,6 +116,14 @@ pub trait StageView {
         1
     }
 
+    fn active_view(&self) -> usize {
+        0
+    }
+
+    fn view(&self, _: usize) -> &dyn Listing {
+        self.listing()
+    }
+
     fn view_mut(&mut self, _: usize) -> &mut dyn Listing {
         self.listing_mut()
     }
@@ -218,9 +226,10 @@ impl App {
     }
 
     pub fn any_refreshing(&self) -> bool {
-        Stage::ALL
-            .into_iter()
-            .any(|stage| self.stage(stage).listing().is_refreshing())
+        Stage::ALL.into_iter().any(|stage| {
+            let stage = self.stage(stage);
+            (0..stage.views()).any(|view| stage.view(view).is_refreshing())
+        })
     }
 
     pub fn spinner(&self) -> char {

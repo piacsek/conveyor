@@ -570,6 +570,19 @@ fn a_second_update_before_the_follow_up_moves_it_to_ten_seconds_after_the_second
 }
 
 #[test]
+fn the_follow_up_reloads_every_my_prs_view() {
+    let mut h = Harness::with_config(160, 12, support::two_views());
+    let mut inputs = confirmed();
+    inputs.push(updated(1, Ok(BranchUpdate::Updated)));
+    inputs.push(tick_at(NOW + 10));
+
+    h.run(inputs).unwrap();
+
+    assert_eq!(prs_refreshes(&h.requests), 2);
+    assert_eq!(second_view_refreshes(&h.requests), 2);
+}
+
+#[test]
 fn y_refuses_a_rebase_when_a_refresh_of_my_prs_failed_while_the_dialog_was_open() {
     let mut h = Harness::with_config(160, 12, rebasing());
 
@@ -595,4 +608,11 @@ fn rebasing() -> Config {
     let mut config = Config::default();
     config.prs.update_method = UpdateMethod::Rebase;
     config
+}
+
+fn second_view_refreshes(requests: &[Request]) -> usize {
+    requests
+        .iter()
+        .filter(|request| **request == Request::Refresh(Stage::Prs, 1))
+        .count()
 }

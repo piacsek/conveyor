@@ -29,6 +29,14 @@ impl StageView for PrsStage {
         self.views.len()
     }
 
+    fn active_view(&self) -> usize {
+        self.active
+    }
+
+    fn view(&self, view: usize) -> &dyn Listing {
+        &self.views[view]
+    }
+
     fn view_mut(&mut self, view: usize) -> &mut dyn Listing {
         &mut self.views[view]
     }

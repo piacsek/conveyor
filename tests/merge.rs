@@ -284,6 +284,25 @@ fn an_accepted_merge_says_so_and_refreshes_my_prs_and_the_queue() {
 }
 
 #[test]
+fn an_accepted_merge_refreshes_every_my_prs_view() {
+    let mut h = Harness::with_config(160, 12, support::two_views());
+
+    h.run(vec![
+        prs(vec![mergeable(1, "a")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+        merged(1, Ok(())),
+    ])
+    .unwrap();
+
+    assert_eq!(h.requests.len(), 4);
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs, 0));
+    assert_eq!(h.requests[2], Request::Refresh(Stage::Prs, 1));
+    assert_eq!(h.requests[3], Request::Refresh(Stage::Queue, 0));
+}
+
+#[test]
 fn a_refused_merge_shows_what_gh_said_and_s_m_asks_again() {
     let mut h = Harness::new();
 

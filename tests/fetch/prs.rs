@@ -1,6 +1,6 @@
 use std::io;
 
-use conveyor::config::Config;
+use conveyor::config::{Config, PrsView};
 use conveyor::sources::fetch::fetch_prs;
 use conveyor::sources::github::Variable;
 
@@ -16,7 +16,7 @@ fn fetch_prs_runs_the_configured_search_and_parses_the_rows() {
     config.prs.query = "is:pr involves:@me".to_string();
     config.prs.limit = 7;
 
-    let prs = fetch_prs(&gh, &config).unwrap();
+    let prs = fetch_prs(&gh, &config.prs.views()[0]).unwrap();
 
     assert_eq!(prs.len(), 1);
     assert_eq!(prs[0].number, 1);
@@ -36,10 +36,59 @@ fn fetch_prs_runs_the_configured_search_and_parses_the_rows() {
 }
 
 #[test]
+fn a_second_view_sends_its_own_query_and_limit() {
+    let gh = FakeGithub::with_response(Ok(serde_json::from_str(include_str!(
+        "../fixtures/prs.json"
+    ))
+    .unwrap()));
+    let mut config = Config::default();
+    config.prs.view.push(PrsView {
+        name: "Review".to_string(),
+        query: "is:open review-requested:@me".to_string(),
+        limit: Some(10),
+    });
+
+    fetch_prs(&gh, &config.prs.views()[1]).unwrap();
+
+    let calls = gh.calls.borrow();
+    assert_eq!(
+        calls[0].1[0],
+        (
+            "q".to_string(),
+            Variable::from("is:open review-requested:@me")
+        )
+    );
+    assert_eq!(
+        calls[0].1[1],
+        ("first".to_string(), Variable::from(10usize))
+    );
+}
+
+#[test]
+fn a_view_without_a_limit_sends_the_limit_of_prs() {
+    let gh = FakeGithub::with_response(Ok(serde_json::from_str(include_str!(
+        "../fixtures/prs.json"
+    ))
+    .unwrap()));
+    let mut config = Config::default();
+    config.prs.limit = 7;
+    config.prs.view.push(PrsView {
+        name: "Review".to_string(),
+        query: "is:open review-requested:@me".to_string(),
+        limit: None,
+    });
+
+    fetch_prs(&gh, &config.prs.views()[1]).unwrap();
+
+    let calls = gh.calls.borrow();
+    assert_eq!(calls[0].1[1], ("first".to_string(), Variable::from(7usize)));
+}
+
+#[test]
 fn fetch_prs_turns_gh_errors_into_a_message() {
     let gh = FakeGithub::with_response(Err(io::Error::other("gh: HTTP 401: Bad credentials")));
 
-    let err = fetch_prs(&gh, &Config::default()).unwrap_err();
+    let err = fetch_prs(&gh, &mine()).unwrap_err();
 
     assert_eq!(err, "gh: HTTP 401: Bad credentials");
 }
@@ -51,7 +100,7 @@ fn fetch_prs_asks_which_workflow_run_each_check_came_from() {
     ))
     .unwrap()));
 
-    fetch_prs(&gh, &Config::default()).unwrap();
+    fetch_prs(&gh, &mine()).unwrap();
 
     let calls = gh.calls.borrow();
     assert!(
@@ -81,7 +130,7 @@ fn fetch_prs_reads_every_page_of_a_pull_requests_checks() {
             "nodes": [check(2, "IN_PROGRESS")]}}}}}),
     )];
 
-    let prs = fetch_prs(&gh, &Config::default()).unwrap();
+    let prs = fetch_prs(&gh, &mine()).unwrap();
 
     assert_eq!(prs[0].checks_detail.len(), 1);
     assert_eq!(
@@ -97,4 +146,8 @@ fn fetch_prs_reads_every_page_of_a_pull_requests_checks() {
             ("after".to_string(), Variable::from("c1")),
         ]
     );
+}
+
+fn mine() -> PrsView {
+    Config::default().prs.views().remove(0)
 }

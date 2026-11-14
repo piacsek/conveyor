@@ -193,7 +193,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   +2 s. So an `Updated` branch, a rerun from My PRs that went through and a status change that
   landed also set
   `App::follow_up` to `now + FOLLOW_UP` (10 s); the first `Tick` at or after it sends one more
-  `Request::Refresh(Stage::Prs)` and clears it. A second action before then moves the due time.
+  `Request::Refresh(Stage::Prs, view)` per view and clears it. A second action before then moves the due time.
   `UpToDate`, `Conflicts`, errors and a Main builds rerun schedule nothing. `app.now` only
   moves on a tick, which only comes while no key is pressed, so a held key delays it.
 - **A failed write marks the card it was started from.** The footer shows only the latest
@@ -210,9 +210,9 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   while the write was in flight) marks nothing, since no card could show or clear it; the
   footer still says it. A mark is per row key and stage, like the busy spinner. It clears
   when (1) `start_write` starts a new write on that row, (2) `Esc` is pressed with the marked
-  card selected, or (3) a successful fetch of its column no longer holds the row
-  (`prune_failures` after `receive`, asking `Listing::holds`, all rows, not just the filtered
-  ones). A failed fetch and a fetch that still holds the row keep it: clearing on refresh
+  card selected, or (3) after a successful fetch no view of its column holds the row
+  (`prune_failures` after `receive`, asking `Listing::holds` of every view, all rows, not just
+  the filtered ones). A failed fetch and a fetch that still holds the row keep it: clearing on refresh
   would bring the lost failure back on the refresh interval. How it is drawn: see
   `src/ui/AGENTS.md`.
 - **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
@@ -257,9 +257,10 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   from `BuildsStage::repo`; an `Err` message when neither exists, never the run itself),
   `b`/`Y` use `build_url`. `Enter` and `o` do nothing: opening a browser on `Enter` surprised
   the user, and the open UX is to be revisited.
-  `run()` reports work back through `FnMut(Request)`; `r` sends one `Request::Refresh`, `R`
-  one per `Stage::ALL`, and `main` looks each stage up in `refreshers` (a stage without a
-  thread is skipped). Adding a stage means one new
+  `run()` reports work back through `FnMut(Request)`; `r` sends one `Request::Refresh` for the
+  focused column's active view, `R` one per view of every `Stage::ALL`, and `main` looks each
+  `(stage, view)` up in `refreshers`, one fetcher per My PRs view (a stage without a thread
+  is skipped). Adding a stage means one new
   type in `src/app/stages/` that implements `StageView` (a stage that owns a run overrides
   `selected_run` and `runs`, one that offers actions overrides `menu`), a `Row` impl for its
   rows, a `Stage` and a `Rows` variant, a field on `App` and an arm in each of `App::stage`,

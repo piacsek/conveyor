@@ -182,7 +182,7 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   `pipe2(O_CLOEXEC)` and is immune, so CI cannot see it). The pipe then stays open for as long
   as the child that inherited it runs. Measured after the environments went parallel in
   v0.23.2: a healthy environment read `kubectl did not answer` in about 9 of 100 fetches while
-  another one hung, and a `gh` call started next to a hung one waited for it. The four fetcher
+  another one hung, and a `gh` call started next to a hung one waited for it. The fetcher
   threads all spawn at startup and on `R`, so `gh` had this race before the parallel read too.
   A new runner of an external program whose output is read must spawn under the same lock.
   `open`/`pbcopy` and the `kill` behind the deadline do not: they exit in milliseconds. Known

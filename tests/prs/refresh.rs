@@ -110,6 +110,45 @@ fn shift_r_refreshes_every_column() {
 }
 
 #[test]
+fn r_refreshes_only_the_active_view() {
+    use conveyor::app::{Request, Stage};
+    let mut h = Harness::with_config(160, 12, support::two_views());
+    h.run(vec![prs(three())]).unwrap();
+    h.app.prs.active = 1;
+
+    h.run(vec![key(KeyCode::Char('r'))]).unwrap();
+
+    assert_eq!(h.requests.len(), 1);
+    assert_eq!(h.requests[0], Request::Refresh(Stage::Prs, 1));
+}
+
+#[test]
+fn shift_r_refreshes_every_view_of_every_column() {
+    use conveyor::app::{Request, Stage};
+    let mut h = Harness::with_config(160, 12, support::two_views());
+
+    h.run(vec![prs(three()), key(KeyCode::Char('R'))]).unwrap();
+
+    assert_eq!(h.requests.len(), 5);
+    assert_eq!(h.requests[0], Request::Refresh(Stage::Prs, 0));
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs, 1));
+    assert_eq!(h.requests[2], Request::Refresh(Stage::Queue, 0));
+    assert_eq!(h.requests[3], Request::Refresh(Stage::Builds, 0));
+    assert_eq!(h.requests[4], Request::Refresh(Stage::Deployed, 0));
+}
+
+#[test]
+fn the_footer_spins_while_a_view_that_is_not_shown_refreshes() {
+    use conveyor::app::Stage;
+    let mut h = Harness::with_config(160, 12, support::two_views());
+
+    h.run(vec![prs(three()), support::fetching_in(Stage::Prs, 1)])
+        .unwrap();
+
+    assert!(h.app.any_refreshing());
+}
+
+#[test]
 fn a_result_for_the_second_view_is_stored_there_and_not_shown() {
     let mut h = Harness::with_config(160, 12, support::two_views());
 
