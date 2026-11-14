@@ -56,6 +56,10 @@ impl StageView for PrsStage {
             .map(|column| column as &mut dyn Listing)
     }
 
+    fn holds(&self, key: u64) -> bool {
+        self.tabs.iter().any(|column| column.holds(key))
+    }
+
     fn tab_names(&self) -> &[String] {
         &self.names
     }

@@ -126,6 +126,10 @@ pub trait StageView {
         self.listing().error()
     }
 
+    fn holds(&self, key: u64) -> bool {
+        self.listing().holds(key)
+    }
+
     fn tab_names(&self) -> &[String] {
         &[]
     }
