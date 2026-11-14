@@ -287,7 +287,8 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
 - Refresh feedback (the footer spinner and the `refreshed` wording): see `src/ui/AGENTS.md`.
 - **The keymap pairs the pull request and the build.** `p`/`b` open them, `y`/`Y` copy them,
   `d` is the details pane, `Ctrl-d`/`Ctrl-u` scroll it. `y/Y`, `r/R`, `?/c` and
-  `C-d/C-u` each share one line of `KEYS`; `L` and `S` have one each, so the help needs 17 rows.
+  `C-d/C-u` each share one line of `KEYS`; `L`, `S`, `h/l` and `Tab 1-9` have one each, so the
+  help needs 18 rows.
 - The help pane, the changelog pane and the cards: see `src/ui/AGENTS.md`.
 - The spawn lock, call logging and `gh` never inheriting the terminal: see `src/sources/AGENTS.md`.
 - Deployed rows keeping their last known sha (`keep_last_known`) and `behind_main`: see `src/sources/AGENTS.md`.

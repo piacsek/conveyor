@@ -1,7 +1,8 @@
+use conveyor::config::ViewKey;
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::three;
-use crate::support::{Harness, key, prs};
+use crate::support::{self, Harness, key, prs};
 
 #[test]
 fn the_help_names_the_focused_column_and_says_what_p_and_b_do_there() {
@@ -55,8 +56,22 @@ fn the_help_names_the_focused_column_and_says_what_p_and_b_do_there() {
 }
 
 #[test]
+fn the_help_shows_the_configured_key_that_switches_lists() {
+    let mut config = support::two_views();
+    config.keys.next_view = ViewKey::Char(']');
+    let mut h = Harness::with_config(160, 20, config);
+
+    h.run(vec![prs(three()), key(KeyCode::Char('?'))]).unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("] 1-9"), "{screen}");
+    assert!(screen.contains("switch list"), "{screen}");
+    assert!(!screen.contains("Tab"), "{screen}");
+}
+
+#[test]
 fn question_mark_shows_the_key_help_and_any_key_returns() {
-    let mut h = Harness::with_size(160, 16);
+    let mut h = Harness::with_size(160, 18);
 
     h.run(vec![prs(three()), key(KeyCode::Char('?'))]).unwrap();
 
@@ -86,6 +101,8 @@ fn question_mark_shows_the_key_help_and_any_key_returns() {
         "details / scroll them",
         "h/l",
         "column",
+        "Tab 1-9",
+        "switch list",
         "q",
         "quit",
     ] {

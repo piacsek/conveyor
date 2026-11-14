@@ -142,7 +142,7 @@ fn headings_are_bold_without_their_markdown() {
 
 #[test]
 fn the_help_names_the_changelog_key() {
-    let mut h = Harness::with_size(80, 17);
+    let mut h = Harness::with_size(80, 18);
 
     h.run(vec![prs(vec![]), key(KeyCode::Char('?'))]).unwrap();
 

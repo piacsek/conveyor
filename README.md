@@ -40,7 +40,8 @@ conveyor log       # print the path of the log file
 |---|---|
 | `q` | quit |
 | `j/k ↓/↑` | move |
-| `h/l Tab 1-4` | focus column |
+| `h/l` | focus column |
+| `Tab 1-9` | switch list |
 | `p` | open pull request |
 | `b` | open build |
 | `y/Y` | copy pull request / build URL |
@@ -61,15 +62,24 @@ are honoured). Every key is optional, unknown keys are an error, and these are t
 
 ```toml
 [prs]
+name = "Mine"                 # the first list in My PRs
 query = "is:pr is:open archived:false (author:@me OR assignee:@me)"
 limit = 20
 refresh_secs = 60
 merge_method = "squash"
 update_method = "merge"
 
+[[prs.view]]                  # optional; another list in My PRs, up to 9 in all
+name = "Review"
+query = "is:pr is:open review-requested:@me"
+limit = 10                    # optional; default is prs.limit
+
 [ui]
 min_column_width = 36
 details_percent = 40
+
+[keys]
+next_view = "tab"             # "tab" or one character; Shift-Tab goes back only with "tab"
 
 [[repo]]                      # optional; default is the repository of the current directory
 name = "owner/name"

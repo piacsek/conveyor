@@ -5,12 +5,14 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
 
 use crate::app::Stage;
+use crate::config::ViewKey;
 use crate::ui::style::dim;
 
-pub const KEYS: [(&str, &str); 14] = [
+pub const KEYS: [(&str, &str); 15] = [
     ("q", "quit"),
     ("j/k ↓/↑", "move"),
-    ("h/l Tab 1-4", "focus column"),
+    ("h/l", "focus column"),
+    ("Tab 1-9", "switch list"),
     ("p", "open pull request"),
     ("b", "open build"),
     ("y/Y", "copy pull request / build URL"),
@@ -35,10 +37,14 @@ pub fn column_name(stage: Stage) -> &'static str {
 
 /// `KEYS` with `p` and `b` saying what they do in the focused column: the keys are the same
 /// everywhere, their target is not.
-pub fn keys_for(stage: Stage) -> Vec<(&'static str, &'static str)> {
+pub fn keys_for(stage: Stage, next_view: ViewKey) -> Vec<(String, &'static str)> {
     KEYS.iter()
         .map(|(key, what)| {
-            let what = match (*key, stage) {
+            let key = match (*key, next_view) {
+                ("Tab 1-9", ViewKey::Char(c)) => format!("{c} 1-9"),
+                _ => key.to_string(),
+            };
+            let what = match (key.as_str(), stage) {
                 ("p", Stage::Builds | Stage::Deployed) => "open the merged pull request",
                 ("b", Stage::Prs) => "open the failing check, else the first",
                 ("b", Stage::Queue) => "open the merge-group run",
@@ -46,13 +52,13 @@ pub fn keys_for(stage: Stage) -> Vec<(&'static str, &'static str)> {
                 ("b", Stage::Deployed) => "open the main build for this sha",
                 _ => what,
             };
-            (*key, what)
+            (key, what)
         })
         .collect()
 }
 
-pub(crate) fn draw_help(frame: &mut Frame, area: Rect, stage: Stage) {
-    let keys = keys_for(stage);
+pub(crate) fn draw_help(frame: &mut Frame, area: Rect, stage: Stage, next_view: ViewKey) {
+    let keys = keys_for(stage, next_view);
     let width = keys
         .iter()
         .map(|(k, _)| k.chars().count())

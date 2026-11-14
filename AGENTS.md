@@ -28,11 +28,11 @@ from the code, and its rules from the `AGENTS.md` of its directory.
 ```
 src/main.rs      CLI dispatch, config load, wiring
 src/cli.rs       the subcommands and flags; hand-rolled, no clap
-src/config.rs    the config: its tables, defaults, path and `CONVEYOR_CONFIG` override
+src/config.rs    the config: its tables (`[prs]` and its `[[prs.view]]` lists, `[keys]`), defaults, path and `CONVEYOR_CONFIG` override
 src/sources/     everything that reaches out to an external service, and nothing else
 src/sources/github.rs the Github trait and CliGh, which spawns `gh` (and `git` for the checkout guard), error mapping
 src/sources/kube.rs   the Kube trait and CliKubectl, which spawns `kubectl` under a deadline that kills it
-src/sources/fetch.rs  what each stage fetches, the sha → pull request cache, Deployed read per environment on parallel threads
+src/sources/fetch.rs  what each stage fetches (one My PRs search per view), the sha → pull request cache, Deployed read per environment on parallel threads
 src/sources/queries/  GraphQL documents, `include_str!`ed
 src/sources/AGENTS.md GitHub and kubectl facts: API shapes and queries, the sha → pull request lookup, the spawn lock, call logging, the kubectl deadline
 src/model/prs.rs My PRs: pull requests and their checks, review and merge state; lenient parse of gh JSON
@@ -45,7 +45,7 @@ src/model/AGENTS.md check dedup, merge-group run attach rules, deploy health rul
 src/app/mod.rs   App, its modes, inputs, actions and requests; re-exports everything below as `app::X`
 src/app/stages/  one type per stage behind the StageView trait: `mod.rs` is the trait and the dispatch, one file per stage for everything that stage does
 src/app/stages/mod.rs the trait, what a stage may read from the rest of App, and the one match from a Stage to its field
-src/app/stages/prs.rs My PRs: what it offers and where its rows lead
+src/app/stages/prs.rs My PRs: one column per view and the active one, what it offers and where its rows lead
 src/app/stages/queue.rs Merge queue: its merge-group runs and where its rows lead
 src/app/stages/builds.rs Main builds: its runs, what it offers and where its rows lead
 src/app/stages/deployed.rs Deployed: a row's own error, where its rows lead, keeping the last known sha
@@ -68,7 +68,7 @@ src/app/AGENTS.md keys, `Esc`, the filter, the `S` popup and each action, failed
 src/ui/mod.rs    draw: 4 columns or tabs below `4 × ui.min_column_width`
 src/ui/style.rs  the shared vocabulary: bars, indents, dim, glyphs and status words, short repo and sha
 src/ui/card.rs   a card: one title line plus indented span lines
-src/ui/columns.rs column titles, blocks and lists
+src/ui/columns.rs column titles, blocks and lists, the My PRs view strip
 src/ui/link.rs   the `#N` of a drawn card as an OSC 8 terminal hyperlink
 src/ui/rows.rs   one card builder per stage
 src/ui/details.rs the `d` pane per stage, including the job list; no URLs
@@ -76,7 +76,7 @@ src/ui/footer.rs footer text, the refresh spinner and the static logo
 src/ui/dialog.rs the `S` popup and the confirm dialog
 src/ui/help.rs   KEYS is the generic table the README mirrors; the `p`/`b` wording swapped per column
 src/ui/AGENTS.md  cards, glyphs and icons, dialogs, the details, help and changelog panes, the footer, colours
-src/refresh.rs   one fetcher thread per stage, sleeping until the interval or a refresh
+src/refresh.rs   one fetcher thread per stage (per view in My PRs), sleeping until the interval or a refresh
 src/open.rs      opening a URL and copying to the clipboard: the OS seam, not a service, so it stays out of `sources/`
 src/changelog.rs the bundled CHANGELOG.md and the rules a release entry must meet
 src/ui/changelog.rs the `c` pane: wrapped to its width (bullets hang), headings bold without their `#`, scrolled like the details pane

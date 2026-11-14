@@ -4,7 +4,8 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
 
 ## Data sources (verified 2026-09-10, all through `gh`)
 
-- **My PRs**: GraphQL `search(query: <prs.query>, type: ISSUE_ADVANCED)`. Plain `ISSUE` search
+- **My PRs**: GraphQL `search(query: <view query>, type: ISSUE_ADVANCED)`, one search per view
+  (`fetch_prs`, `Prs::views()`: `[prs]` first, then each `[[prs.view]]`). Plain `ISSUE` search
   ignores `OR` and parentheses (the default `(author:@me OR assignee:@me)` returned 0 there); the
   advanced type supports them, dedupes server-side and still accepts plain queries. Useful fields:
   `number title isDraft reviewDecision mergeStateStatus statusCheckRollup{state contexts}`

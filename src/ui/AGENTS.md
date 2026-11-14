@@ -119,10 +119,11 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   with a hint, so while `App::notice` is set (a merge, rerun or update result that landed while
   the pane was open) the footer shows the notice instead; the next key clears it as usual.
 - **The help pane does not scroll.** `draw_help` renders `KEYS` through a `Paragraph`, so a
-  list longer than the pane is silently clipped from the bottom: 14 keys plus two borders
-  exactly fills a 17-row terminal. `("q", "quit")` is therefore first in `KEYS`, so the one
+  list longer than the pane is silently clipped from the bottom: 15 keys, two borders and the
+  footer exactly fill an 18-row terminal. `("q", "quit")` is therefore first in `KEYS`, so the one
   key that gets you out is never the line that disappears. Adding a key means checking the
-  smallest terminal you care about, or paginating the pane.
+  smallest terminal you care about, or paginating the pane. `keys_for` writes the configured
+  `keys.next_view` in place of `Tab` in the `Tab 1-9` row.
 - **`c` shows the changelog, and every release writes one.** `CHANGELOG.md` is
   `include_str!`ed, so the pane always matches the binary and needs no network. In the pane
   `j/k`/arrows move a line, `Ctrl-d`/`Ctrl-u` half a page, any other key returns (like the
