@@ -11,7 +11,7 @@ use conveyor::app::{
     App, CheckoutTarget, Input, MergeTarget, Request, Rows, Stage, StatusTarget, UpdateTarget, run,
 };
 use conveyor::cli::{self, Command};
-use conveyor::config::{self, Config, PrsView, expand_home};
+use conveyor::config::{self, Config, View, expand_home};
 use conveyor::log::{self, Log};
 use conveyor::open::SystemOpener;
 use conveyor::refresh;
@@ -339,7 +339,7 @@ fn spawn_prs_fetcher(
     log: &Log,
     config: &Config,
     index: usize,
-    view: PrsView,
+    view: View,
     tx: Inputs,
 ) -> mpsc::Sender<()> {
     let interval = Duration::from_secs(config.prs.refresh_secs);

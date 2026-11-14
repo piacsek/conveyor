@@ -263,12 +263,12 @@ fn the_first_view_is_built_from_prs_and_the_listed_ones_follow_it() {
     assert_eq!(views.len(), 3);
     assert_eq!(views[0].name, "Mine");
     assert_eq!(views[0].query, "is:open author:@me");
-    assert_eq!(views[0].limit, Some(15));
+    assert_eq!(views[0].limit, 15);
     assert_eq!(views[1].name, "Review");
     assert_eq!(views[1].query, "is:open review-requested:@me");
-    assert_eq!(views[1].limit, Some(10));
+    assert_eq!(views[1].limit, 10);
     assert_eq!(views[2].name, "Team");
-    assert_eq!(views[2].limit, Some(15));
+    assert_eq!(views[2].limit, 15);
 }
 
 #[test]
@@ -455,6 +455,65 @@ fn an_unknown_key_in_keys_fails_naming_the_file() {
     assert!(err.contains("prev_view"), "{err}");
 }
 
+#[test]
+fn a_normal_mode_key_as_next_view_fails_saying_what_it_does() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[keys]\nnext_view = \"q\"\n"))
+        .unwrap_err()
+        .to_string();
+
+    assert!(err.contains("config.toml"), "{err}");
+    assert!(
+        err.contains("next_view \"q\" is already used: quit"),
+        "{err}"
+    );
+}
+
+#[test]
+fn a_popup_letter_as_next_view_fails_saying_what_it_does() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[keys]\nnext_view = \"m\"\n"))
+        .unwrap_err()
+        .to_string();
+
+    assert!(err.contains("config.toml"), "{err}");
+    assert!(
+        err.contains("next_view \"m\" is already used: merge in the S popup"),
+        "{err}"
+    );
+}
+
+#[test]
+fn a_digit_as_next_view_fails_saying_what_it_does() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[keys]\nnext_view = \"1\"\n"))
+        .unwrap_err()
+        .to_string();
+
+    assert!(err.contains("config.toml"), "{err}");
+    assert!(
+        err.contains("next_view \"1\" is already used: jump to a view"),
+        "{err}"
+    );
+}
+
+#[test]
+fn an_unused_space_as_next_view_loads() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let config = load(&write(&dir, "[keys]\nnext_view = \" \"\n")).unwrap();
+
+    assert_eq!(config.keys.next_view, ViewKey::Char(' '));
+}
+
+#[test]
+fn every_key_the_keymap_or_a_popup_matches_is_refused_as_next_view() {
+    assert_eq!(keys_accepted_as_next_view(), "");
+}
+
 fn review_view() -> PrsView {
     PrsView {
         name: "Review".to_string(),
@@ -467,6 +526,50 @@ fn extra_views(count: usize) -> String {
     (1..=count)
         .map(|n| {
             format!("[[prs.view]]\nname = \"View {n}\"\nquery = \"is:open repo:acme/app{n}\"\n\n")
+        })
+        .collect()
+}
+
+fn keys_accepted_as_next_view() -> String {
+    let dir = tempfile::tempdir().unwrap();
+    let mut keys = Vec::new();
+    collect_keys(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/app"),
+        &mut keys,
+    );
+    keys.sort();
+    keys.dedup();
+    keys.into_iter()
+        .filter(|key| {
+            let toml = format!("[keys]\nnext_view = \"{}\"\n", key.escape_default());
+            load(&write(&dir, &toml)).is_ok()
+        })
+        .collect()
+}
+
+fn collect_keys(directory: &std::path::Path, keys: &mut Vec<char>) {
+    for entry in std::fs::read_dir(directory).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            collect_keys(&path, keys);
+        } else if path.extension().is_some_and(|extension| extension == "rs") {
+            let source = std::fs::read_to_string(&path).unwrap();
+            keys.extend(quoted_after(&source, "KeyCode::Char("));
+            keys.extend(quoted_after(&source, "offer("));
+        }
+    }
+}
+
+fn quoted_after(source: &str, marker: &str) -> Vec<char> {
+    source
+        .split(marker)
+        .skip(1)
+        .filter_map(|rest| {
+            let mut chars = rest.trim_start().chars();
+            match (chars.next(), chars.next(), chars.next()) {
+                (Some('\''), Some(key), Some('\'')) => Some(key),
+                _ => None,
+            }
         })
         .collect()
 }

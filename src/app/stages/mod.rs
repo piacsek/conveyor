@@ -6,7 +6,7 @@ use crate::model::deployed::{Deployed, Deployment};
 use crate::model::prs::PullRequest;
 use crate::model::queue::Queue;
 
-use super::{App, Listing, Menu};
+use super::{App, Landing, Listing, Menu};
 
 mod builds;
 mod deployed;
@@ -68,7 +68,7 @@ impl Rows {
 pub struct Context<'a> {
     pub config: &'a Config,
     pub builds: &'a BuildsStage,
-    pub merge_landing: &'a [(u64, Vec<usize>)],
+    pub merge_landing: &'a [Landing],
 }
 
 impl Context<'_> {
@@ -83,7 +83,7 @@ impl Context<'_> {
     pub fn landing(&self, number: u64) -> bool {
         self.merge_landing
             .iter()
-            .any(|(landing, _)| *landing == number)
+            .any(|landing| landing.number == number)
     }
 
     pub fn behind_main(&self, row: &Deployment) -> Option<usize> {
@@ -189,8 +189,14 @@ impl App {
             return;
         }
         if stage == Stage::Prs {
+            let views = self.prs.views();
+            for landing in &mut self.merge_landing {
+                if landing.started.contains(&view) && !landing.caught_up.contains(&view) {
+                    landing.caught_up.push(view);
+                }
+            }
             self.merge_landing
-                .retain(|(_, started)| !started.contains(&view));
+                .retain(|landing| landing.caught_up.len() < views);
         }
         let selected = self.selected_key();
         self.receive_rows(stage, view, data);
@@ -221,8 +227,8 @@ impl App {
             return;
         }
         if stage == Stage::Prs {
-            for (_, started) in &mut self.merge_landing {
-                started.push(view);
+            for landing in &mut self.merge_landing {
+                landing.started.push(view);
             }
         }
         self.stage_mut(stage).view_mut(view).set_refreshing(true);

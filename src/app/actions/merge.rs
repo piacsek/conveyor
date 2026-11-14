@@ -12,6 +12,13 @@ pub struct MergeTarget {
     pub head_oid: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Landing {
+    pub number: u64,
+    pub started: Vec<usize>,
+    pub caught_up: Vec<usize>,
+}
+
 impl App {
     pub(super) fn confirm_merge(&mut self, key: KeyEvent, target: MergeTarget) -> Action {
         if key.code != KeyCode::Char('y') || !key.modifiers.is_empty() {
@@ -39,7 +46,12 @@ impl App {
     }
 
     pub(super) fn land(&mut self, number: u64) {
-        self.merge_landing.retain(|(landing, _)| *landing != number);
-        self.merge_landing.push((number, Vec::new()));
+        self.merge_landing
+            .retain(|landing| landing.number != number);
+        self.merge_landing.push(Landing {
+            number,
+            started: Vec::new(),
+            caught_up: Vec::new(),
+        });
     }
 }

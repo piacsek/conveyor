@@ -471,17 +471,52 @@ fn y_refuses_when_a_refresh_of_my_prs_failed_while_the_dialog_was_open() {
 }
 
 #[test]
-fn the_merge_wait_ends_on_a_fetch_of_another_view_that_started_after_the_merge() {
+fn the_merge_wait_outlasts_a_fetch_of_another_view_that_started_after_the_merge() {
     let mut h = merged_in_two_views(vec![]);
 
     h.run(vec![
+        support::fetching_in(Stage::Prs, 0),
         support::fetching_in(Stage::Prs, 1),
         support::prs_in(1, vec![]),
         key(KeyCode::Char('S')),
+        key(KeyCode::Char('u')),
     ])
     .unwrap();
 
-    assert!(!h.screen().contains("waiting for My PRs"), "{}", h.screen());
+    assert!(
+        h.screen()
+            .contains("u  update branch · waiting for My PRs to catch up"),
+        "{}",
+        h.screen()
+    );
+    assert!(
+        !h.requests
+            .iter()
+            .any(|request| matches!(request, Request::UpdateBranch(_))),
+        "{:?}",
+        h.requests
+    );
+}
+
+#[test]
+fn the_merge_wait_ends_once_every_view_fetched_after_the_merge() {
+    let mut h = merged_in_two_views(vec![]);
+
+    h.run(vec![
+        support::fetching_in(Stage::Prs, 0),
+        support::fetching_in(Stage::Prs, 1),
+        support::prs_in(1, vec![]),
+        prs(vec![mergeable(1, "a")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('u')),
+    ])
+    .unwrap();
+
+    assert!(
+        matches!(h.requests.last(), Some(Request::UpdateBranch(_))),
+        "{:?}",
+        h.requests
+    );
 }
 
 #[test]

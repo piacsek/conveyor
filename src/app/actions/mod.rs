@@ -15,7 +15,7 @@ mod writes;
 
 pub use checkout::CheckoutTarget;
 pub use failures::Failure;
-pub use merge::MergeTarget;
+pub use merge::{Landing, MergeTarget};
 pub use rerun::Rerun;
 pub(super) use rerun::rerun_offer;
 pub use status::StatusTarget;

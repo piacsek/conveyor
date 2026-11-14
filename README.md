@@ -79,7 +79,7 @@ min_column_width = 36
 details_percent = 40
 
 [keys]
-next_view = "tab"             # "tab" or one character; Shift-Tab goes back only with "tab"
+next_view = "tab"             # "tab" or a character no other key uses; Shift-Tab goes back only with "tab"
 
 [[repo]]                      # optional; default is the repository of the current directory
 name = "owner/name"

@@ -699,12 +699,12 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   `[[prs.view]]` adds one with its own `name`, `query` and optional `limit`, up to 9 in all. Each
   view has its own fetcher, rows, selection, scroll, filter and error, so a switch is instant; `r`
   refreshes the active view and `R` and the follow-up refresh every view. `[keys].next_view`
-  (default Tab, or one character) goes to the next view, Shift-Tab to the previous one while it
+  (default Tab, or one character no other key uses) goes to the next view, Shift-Tab to the previous one while it
   is Tab, and `1`-`9` jump to one; Tab and `1`-`4` no longer move between columns, `h`/`l` do.
   With more than one view a strip on the first row of the column names them, the active one
   highlighted and kept whole when the strip is cut. Busy spinners and failure marks follow a pull
-  request across views, a mark clearing only once no view holds it, and the merge wait ends on a
-  My PRs fetch of any view. The help gained a `Tab 1-9  switch list` row showing the configured
+  request across views, a mark clearing only once no view holds it, and the merge wait ends once
+  every view has landed a fetch that started after the merge. The help gained a `Tab 1-9  switch list` row showing the configured
   key, so it now needs 18 rows. Not done: views in the other columns; `docs/details.png` was not
   regenerated, since `freeze` is not installed where the phase ran.
 

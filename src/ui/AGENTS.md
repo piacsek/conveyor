@@ -91,7 +91,8 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
 - **My PRs draws its views as a strip** (`view_strip` in `columns.rs`) on the first row inside
   its block, only with more than one view: `1 Mine │ 2 Review`, the active one in the narrow
   column bar's `picked()` style, the rest dim; when it does not fit, the active name stays whole
-  and the rest is cut with `…`. The block gets a top padding of one row, so the list and the
+  and the rest is cut with `…`; the leading `… │ ` is dropped when it would cut the active
+  name, and only a name wider than the strip is cut. The block gets a top padding of one row, so the list and the
   links sit below it.
 - **No URLs in the details pane.** Every line there is text a person reads: the checks, the
   jobs, the sha, the pull request. A URL is 60 columns of noise nobody retypes, and both keys

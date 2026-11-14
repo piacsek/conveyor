@@ -1,6 +1,6 @@
 use std::io;
 
-use conveyor::config::{Config, PrsView};
+use conveyor::config::{Config, PrsView, View};
 use conveyor::sources::fetch::fetch_prs;
 use conveyor::sources::github::Variable;
 
@@ -148,6 +148,6 @@ fn fetch_prs_reads_every_page_of_a_pull_requests_checks() {
     );
 }
 
-fn mine() -> PrsView {
+fn mine() -> View {
     Config::default().prs.views().remove(0)
 }

@@ -19,7 +19,11 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   `1`-`9` jump to that view. Elsewhere, with one view, past the last view or on the active
   view's digit nothing happens and no refresh is sent. A switch resets the scroll, sets
   `App.query` to the new view's own filter, closes nothing and refreshes the new view. In
-  Filter mode Tab and `BackTab` do nothing and digits are typed.
+  Filter mode Tab and `BackTab` do nothing and digits are typed. A digit, or a character
+  that `TAKEN_KEYS` (next to the keymap: Normal mode and the `S` popup letters) lists, is a
+  config error as `next_view` naming the file and what the key does (`next_view "q" is already
+  used: quit`); `tests/config.rs` fails when the keymap or a popup offer matches a character
+  that list lacks.
 - **`L` is read-only, and the log has a pane of its own.** It asks `gh run view <run> --job
   <job> --log-failed` for the first failed job of the selected run (Main builds or Merge
   queue), keeps the last `LOG_TAIL` lines per job id in `App.logs`, and toggles `App.log_open`.
@@ -184,8 +188,10 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   until the next refresh, and the push would drop it from the queue. For that reason a
   successful merge, or enabling auto-merge, adds the pull request to `App::merge_landing` and `u`
   and `t` (to draft) on that pull request are refused with `waiting for My PRs to catch up with
-  #N` until a My PRs fetch that started after the merge (`Input::Fetching`) has landed, in any view; a
-  fetch of a view already in flight when the merge came back does not count. Other pull requests are not held
+  #N` until every My PRs view has landed a fetch that started after the merge (`Input::Fetching`;
+  `Landing` keeps the views started and caught up); a fetch already in flight when the merge
+  came back does not count, and a view without the pull request still has to catch up, since
+  the view showing it may land last. Other pull requests are not held
   back, and a refused merge leaves the list as it was. The worker runs `gh pr update-branch <N>
   -R <repo> [--rebase]`. Checked in gh v2.103.3 source: success prints `PR branch updated` or
   `PR branch already up-to-date` on stdout and exits 0; conflicts print `Cannot update PR branch

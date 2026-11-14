@@ -293,6 +293,28 @@ fn a_narrow_strip_keeps_the_active_name_whole_and_cuts_the_rest() {
     assert_eq!(rows[2], "│ … │ 2 Review │ 3…│", "{screen}");
 }
 
+#[test]
+fn a_strip_too_narrow_for_the_cut_mark_still_shows_the_active_name_whole() {
+    let mut h = Harness::with_config(13, 12, support::two_views());
+
+    h.run(vec![prs(three()), key(KeyCode::Char('2'))]).unwrap();
+
+    let screen = h.screen();
+    let rows: Vec<&str> = screen.lines().collect();
+    assert_eq!(rows[2], "│ 2 Review  │", "{screen}");
+}
+
+#[test]
+fn a_strip_too_narrow_for_the_active_name_cuts_it() {
+    let mut h = Harness::with_config(10, 12, support::two_views());
+
+    h.run(vec![prs(three()), key(KeyCode::Char('2'))]).unwrap();
+
+    let screen = h.screen();
+    let rows: Vec<&str> = screen.lines().collect();
+    assert_eq!(rows[2], "│ 2 Revi…│", "{screen}");
+}
+
 fn two_filled() -> Harness {
     let mut h = Harness::with_config(160, 12, support::two_views());
     h.run(vec![prs(three()), prs_in(1, rows())]).unwrap();

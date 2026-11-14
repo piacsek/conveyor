@@ -3,6 +3,36 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use super::{Action, App, Mode, Stage};
 use crate::config::ViewKey;
 
+pub const TAKEN_KEYS: [(char, &str); 27] = [
+    ('q', "quit"),
+    ('j', "move down"),
+    ('k', "move up"),
+    ('g', "first row"),
+    ('G', "last row"),
+    ('h', "focus the column on the left"),
+    ('l', "focus the column on the right"),
+    ('p', "open pull request"),
+    ('b', "open build"),
+    ('y', "copy pull request URL, and confirm in a dialog"),
+    ('Y', "copy build URL"),
+    ('d', "details"),
+    ('L', "log of the failed step"),
+    ('S', "manage"),
+    ('z', "zoom the column"),
+    ('/', "filter"),
+    ('r', "refresh focused"),
+    ('R', "refresh all"),
+    ('?', "help"),
+    ('c', "changelog, and check out in the S popup"),
+    ('m', "merge in the S popup"),
+    ('u', "update branch in the S popup"),
+    ('f', "rerun failed jobs in the S popup"),
+    ('t', "mark ready or convert to draft in the S popup"),
+    ('a', "auto-merge in the S popup"),
+    ('e', "leave the merge queue in the S popup"),
+    ('x', "close PR in the S popup"),
+];
+
 impl App {
     pub fn handle_key(&mut self, key: KeyEvent) -> Action {
         self.notice = None;

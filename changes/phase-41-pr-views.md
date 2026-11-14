@@ -6,5 +6,5 @@ kind: feat
 - Tab and Shift-Tab go to the next and previous list in My PRs, and `1`-`9` jump to one. Each
   list keeps its own selection and filter.
 - `[keys].next_view` sets the key that goes to the next list: `"tab"` (the default) or one
-  character.
+  character no other key uses.
 - Tab and `1`-`4` no longer move between columns; use `h` and `l`.

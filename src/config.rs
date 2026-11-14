@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::app::TAKEN_KEYS;
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
@@ -36,19 +38,26 @@ pub struct PrsView {
     pub limit: Option<usize>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct View {
+    pub name: String,
+    pub query: String,
+    pub limit: usize,
+}
+
 impl Prs {
-    pub fn views(&self) -> Vec<PrsView> {
-        let first = PrsView {
+    pub fn views(&self) -> Vec<View> {
+        let first = View {
             name: self.name.clone(),
             query: self.query.clone(),
-            limit: None,
+            limit: self.limit,
         };
         std::iter::once(first)
-            .chain(self.view.iter().cloned())
-            .map(|view| PrsView {
-                limit: Some(view.limit.unwrap_or(self.limit)),
-                ..view
-            })
+            .chain(self.view.iter().map(|view| View {
+                name: view.name.clone(),
+                query: view.query.clone(),
+                limit: view.limit.unwrap_or(self.limit),
+            }))
             .collect()
     }
 }
@@ -233,14 +242,34 @@ pub fn load(path: &Path) -> Result<Config, ConfigError> {
         path: path.to_path_buf(),
         message: err.to_string().trim().to_string(),
     })?;
-    check_views(&config.prs.views()).map_err(|message| ConfigError {
-        path: path.to_path_buf(),
-        message,
-    })?;
+    check_views(&config.prs.views())
+        .and_then(|()| check_next_view(config.keys.next_view))
+        .map_err(|message| ConfigError {
+            path: path.to_path_buf(),
+            message,
+        })?;
     Ok(config)
 }
 
-fn check_views(views: &[PrsView]) -> Result<(), String> {
+fn check_next_view(key: ViewKey) -> Result<(), String> {
+    let ViewKey::Char(key) = key else {
+        return Ok(());
+    };
+    let used = if key.is_ascii_digit() {
+        Some("jump to a view")
+    } else {
+        TAKEN_KEYS
+            .iter()
+            .find(|(taken, _)| *taken == key)
+            .map(|(_, what)| *what)
+    };
+    match used {
+        Some(what) => Err(format!("next_view \"{key}\" is already used: {what}")),
+        None => Ok(()),
+    }
+}
+
+fn check_views(views: &[View]) -> Result<(), String> {
     if views.len() > 9 {
         return Err(format!("at most 9 views in [prs], found {}", views.len()));
     }

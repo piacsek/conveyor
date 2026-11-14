@@ -206,13 +206,13 @@ fn view_strip(app: &App, stage: Stage) -> Option<(Vec<String>, usize)> {
 
 fn strip_line(names: &[String], active: usize, width: usize) -> Line<'static> {
     let fits = |names: &[String]| strip_width(names) <= width;
-    let first = if fits(names) || strip_width(&names[..=active]) < width {
-        0
+    let (first, cut_mark) = if fits(names) || strip_width(&names[..=active]) < width {
+        (0, false)
     } else {
-        active
+        (active, names[active].chars().count() + 4 <= width)
     };
     let mut spans = Vec::new();
-    if first > 0 {
+    if cut_mark {
         spans.push(Span::styled("…", dim()));
     }
     for (i, name) in names.iter().enumerate().skip(first) {

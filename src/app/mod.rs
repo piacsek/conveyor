@@ -20,12 +20,13 @@ mod run;
 mod stages;
 
 pub use actions::{
-    CheckoutTarget, Choice, Failure, Menu, MergeTarget, Offer, Pending, Rerun, StatusTarget,
-    UpdateTarget, Write, WriteKind,
+    CheckoutTarget, Choice, Failure, Landing, Menu, MergeTarget, Offer, Pending, Rerun,
+    StatusTarget, UpdateTarget, Write, WriteKind,
 };
 pub use browser::OPEN_DEBOUNCE;
 pub use column::{Column, ColumnState, Listing, Navigable, Order, Row};
 pub use jobs::{JobsState, LogState};
+pub use keymap::TAKEN_KEYS;
 pub use run::run;
 pub use stages::{
     BuildsStage, Context, DeployedStage, PrsStage, QueueStage, Rows, Stage, StageView,
@@ -98,7 +99,7 @@ pub struct App {
     pub utc_offset_secs: i32,
     pub notice: Option<String>,
     pub follow_up: Option<SystemTime>,
-    pub merge_landing: Vec<(u64, Vec<usize>)>,
+    pub merge_landing: Vec<Landing>,
     pub details: bool,
     pub details_scroll: u16,
     pub details_page: u16,
