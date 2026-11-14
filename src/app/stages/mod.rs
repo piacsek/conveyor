@@ -112,7 +112,23 @@ pub trait StageView {
 
     fn listing_mut(&mut self) -> &mut dyn Listing;
 
-    fn receive(&mut self, rows: Rows, now: SystemTime);
+    fn views(&self) -> usize {
+        1
+    }
+
+    fn active_view(&self) -> usize {
+        0
+    }
+
+    fn view(&self, _: usize) -> &dyn Listing {
+        self.listing()
+    }
+
+    fn view_mut(&mut self, _: usize) -> &mut dyn Listing {
+        self.listing_mut()
+    }
+
+    fn receive(&mut self, view: usize, rows: Rows, now: SystemTime);
 
     fn error(&self) -> Option<&str> {
         self.listing().error()
@@ -166,12 +182,15 @@ impl App {
         }
     }
 
-    pub fn receive(&mut self, stage: Stage, data: Result<Rows, String>) {
+    pub fn receive(&mut self, stage: Stage, view: usize, data: Result<Rows, String>) {
+        if view >= self.stage(stage).views() {
+            return;
+        }
         if stage == Stage::Prs {
             self.merge_landing.retain(|(_, started)| !started);
         }
         let selected = self.selected_key();
-        self.receive_rows(stage, data);
+        self.receive_rows(stage, view, data);
         if self.selected_key() != selected {
             self.reset_scroll();
         }
@@ -181,32 +200,36 @@ impl App {
         self.stage(self.focus).listing().selected_key()
     }
 
-    fn receive_rows(&mut self, stage: Stage, data: Result<Rows, String>) {
+    fn receive_rows(&mut self, stage: Stage, view: usize, data: Result<Rows, String>) {
         match data {
             Ok(rows) if rows.stage() == stage => {
                 let now = self.now;
-                self.stage_mut(stage).receive(rows, now);
+                self.stage_mut(stage).receive(view, rows, now);
                 self.age_jobs(stage);
                 self.prune_failures(stage);
             }
             Ok(_) => {}
-            Err(message) => self.stage_mut(stage).listing_mut().fail(message),
+            Err(message) => self.stage_mut(stage).view_mut(view).fail(message),
         }
     }
 
-    pub fn fetching(&mut self, stage: Stage) {
+    pub fn fetching(&mut self, stage: Stage, view: usize) {
+        if view >= self.stage(stage).views() {
+            return;
+        }
         if stage == Stage::Prs {
             for (_, started) in &mut self.merge_landing {
                 *started = true;
             }
         }
-        self.stage_mut(stage).listing_mut().set_refreshing(true);
+        self.stage_mut(stage).view_mut(view).set_refreshing(true);
     }
 
     pub fn any_refreshing(&self) -> bool {
-        Stage::ALL
-            .into_iter()
-            .any(|stage| self.stage(stage).listing().is_refreshing())
+        Stage::ALL.into_iter().any(|stage| {
+            let stage = self.stage(stage);
+            (0..stage.views()).any(|view| stage.view(view).is_refreshing())
+        })
     }
 
     pub fn spinner(&self) -> char {

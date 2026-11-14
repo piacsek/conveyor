@@ -6,7 +6,7 @@ use ratatui::crossterm::event::KeyCode;
 use ratatui::style::Color;
 
 use crate::helpers::{draft, line_after, open, status_changed, tall};
-use crate::support::{Harness, checkout_target, failed, key, prs};
+use crate::support::{Harness, checkout_target, failed, key, prs, prs_in, two_views};
 
 #[test]
 fn a_failed_status_change_stays_on_its_card_after_another_one_lands_and_a_refresh() {
@@ -265,6 +265,28 @@ fn a_refresh_without_the_marked_row_takes_its_mark_along() {
 }
 
 #[test]
+fn a_refresh_of_another_view_keeps_the_mark_while_its_own_view_holds_the_row() {
+    let mut h = marked_in_two_views();
+    h.app.prs.active = 1;
+
+    h.run(vec![prs_in(1, vec![draft(14, "Bump serde")])])
+        .unwrap();
+
+    assert!(h.app.failure_on(Stage::Prs, 12).is_some());
+}
+
+#[test]
+fn a_refresh_drops_the_mark_once_no_view_holds_the_row() {
+    let mut h = marked_in_two_views();
+
+    h.run(vec![prs_in(1, vec![draft(14, "Bump serde")])])
+        .unwrap();
+    h.run(vec![prs(vec![draft(14, "Bump serde")])]).unwrap();
+
+    assert!(h.app.failure_on(Stage::Prs, 12).is_none());
+}
+
+#[test]
 fn a_failed_refresh_keeps_the_mark() {
     let mut h = marked_next_to_another();
 
@@ -304,6 +326,18 @@ fn a_failure_for_a_row_that_already_left_its_column_leaves_no_mark() {
 
 fn marked_next_to_another() -> Harness {
     let mut h = tall();
+    h.run(vec![
+        prs(vec![draft(12, "Retry webhooks"), draft(14, "Bump serde")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        status_changed(12, StatusChange::Ready, Err("HTTP 422")),
+    ])
+    .unwrap();
+    h
+}
+
+fn marked_in_two_views() -> Harness {
+    let mut h = Harness::with_config(160, 20, two_views());
     h.run(vec![
         prs(vec![draft(12, "Retry webhooks"), draft(14, "Bump serde")]),
         key(KeyCode::Char('S')),

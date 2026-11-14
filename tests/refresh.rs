@@ -36,8 +36,39 @@ fn a_closed_channel_stops_the_fetcher() {
 fn refreshes_asked_during_a_fetch_cost_one_more_fetch() {
     let (inputs_tx, inputs) = mpsc::channel();
     let (release_tx, release) = mpsc::channel::<()>();
-    let refresh = spawn(Stage::Prs, Duration::from_secs(60), inputs_tx, move || {
-        release.recv().unwrap();
+    let refresh = spawn(
+        Stage::Prs,
+        0,
+        Duration::from_secs(60),
+        inputs_tx,
+        move || {
+            release.recv().unwrap();
+            Err("done".to_string())
+        },
+    );
+    let next = || {
+        inputs
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap()
+    };
+
+    assert!(matches!(next(), Input::Fetching(Stage::Prs, 0)));
+    refresh.send(()).unwrap();
+    refresh.send(()).unwrap();
+    refresh.send(()).unwrap();
+    release_tx.send(()).unwrap();
+    assert!(matches!(next(), Input::Data(Stage::Prs, 0, _)));
+    assert!(matches!(next(), Input::Fetching(Stage::Prs, 0)));
+    release_tx.send(()).unwrap();
+    assert!(matches!(next(), Input::Data(Stage::Prs, 0, _)));
+    assert!(inputs.recv_timeout(Duration::from_millis(300)).is_err());
+}
+
+#[test]
+fn a_fetcher_tags_what_it_sends_with_its_view() {
+    let (inputs_tx, inputs) = mpsc::channel();
+    let _refresh = spawn(Stage::Prs, 1, Duration::from_secs(60), inputs_tx, || {
         Err("done".to_string())
     });
     let next = || {
@@ -47,14 +78,6 @@ fn refreshes_asked_during_a_fetch_cost_one_more_fetch() {
             .unwrap()
     };
 
-    assert!(matches!(next(), Input::Fetching(Stage::Prs)));
-    refresh.send(()).unwrap();
-    refresh.send(()).unwrap();
-    refresh.send(()).unwrap();
-    release_tx.send(()).unwrap();
-    assert!(matches!(next(), Input::Data(Stage::Prs, _)));
-    assert!(matches!(next(), Input::Fetching(Stage::Prs)));
-    release_tx.send(()).unwrap();
-    assert!(matches!(next(), Input::Data(Stage::Prs, _)));
-    assert!(inputs.recv_timeout(Duration::from_millis(300)).is_err());
+    assert!(matches!(next(), Input::Fetching(Stage::Prs, 1)));
+    assert!(matches!(next(), Input::Data(Stage::Prs, 1, _)));
 }

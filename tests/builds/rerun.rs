@@ -197,7 +197,7 @@ fn a_landed_rerun_says_so_and_refreshes_the_column_it_came_from() {
     );
     assert_eq!(
         h.requests.last(),
-        Some(&Request::Refresh(Stage::Builds)),
+        Some(&Request::Refresh(Stage::Builds, 0)),
         "{:?}",
         h.requests
     );
@@ -218,7 +218,7 @@ fn a_failed_rerun_shows_what_gh_said() {
         h.screen()
     );
     assert!(
-        !h.requests.contains(&Request::Refresh(Stage::Builds)),
+        !h.requests.contains(&Request::Refresh(Stage::Builds, 0)),
         "{:?}",
         h.requests
     );
@@ -253,7 +253,7 @@ fn a_main_builds_rerun_schedules_no_my_prs_reload() {
     h.run(inputs).unwrap();
 
     assert!(
-        !h.requests.contains(&Request::Refresh(Stage::Prs)),
+        !h.requests.contains(&Request::Refresh(Stage::Prs, 0)),
         "{:?}",
         h.requests
     );

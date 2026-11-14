@@ -8,7 +8,7 @@ use std::time::{Duration, UNIX_EPOCH};
 use conveyor::app::{
     App, CheckoutTarget, Input, MergeTarget, Request, Rows, Stage, StatusTarget, UpdateTarget, run,
 };
-use conveyor::config::{Config, UpdateMethod};
+use conveyor::config::{Config, PrsView, UpdateMethod};
 use conveyor::model::builds::{Build, BuildStatus, Builds, PullRef};
 use conveyor::model::deployed::{Condition, Deployed, Deployment, Waiting};
 use conveyor::model::jobs::Job;
@@ -75,12 +75,27 @@ pub fn ctrl(c: char) -> io::Result<Input> {
 }
 
 pub fn prs(prs: Vec<PullRequest>) -> io::Result<Input> {
-    Ok(Input::Data(Stage::Prs, Ok(Rows::Prs(prs))))
+    prs_in(0, prs)
+}
+
+pub fn prs_in(view: usize, prs: Vec<PullRequest>) -> io::Result<Input> {
+    Ok(Input::Data(Stage::Prs, view, Ok(Rows::Prs(prs))))
+}
+
+pub fn two_views() -> Config {
+    let mut config = Config::default();
+    config.prs.view.push(PrsView {
+        name: "Review".to_string(),
+        query: "is:open review-requested:@me".to_string(),
+        limit: None,
+    });
+    config
 }
 
 pub fn queue(entries: Vec<QueueEntry>) -> io::Result<Input> {
     Ok(Input::Data(
         Stage::Queue,
+        0,
         Ok(Rows::Queue(Queue {
             repo: "acme/webapp".to_string(),
             url: "https://github.com/acme/webapp/queue/main".to_string(),
@@ -92,6 +107,7 @@ pub fn queue(entries: Vec<QueueEntry>) -> io::Result<Input> {
 pub fn builds(builds: Vec<Build>) -> io::Result<Input> {
     Ok(Input::Data(
         Stage::Builds,
+        0,
         Ok(Rows::Builds(Builds {
             repo: "acme/webapp".to_string(),
             builds,
@@ -163,6 +179,7 @@ pub fn job(id: u64, name: &str, status: BuildStatus, failed_step: Option<&str>) 
 pub fn deployed(rows: Vec<Deployment>) -> io::Result<Input> {
     Ok(Input::Data(
         Stage::Deployed,
+        0,
         Ok(Rows::Deployed(Deployed {
             system: "api".to_string(),
             rows,
@@ -217,11 +234,19 @@ pub fn entry(position: u64, number: u64, author: &str, title: &str) -> QueueEntr
 }
 
 pub fn failed(stage: Stage, message: &str) -> io::Result<Input> {
-    Ok(Input::Data(stage, Err(message.to_string())))
+    failed_in(stage, 0, message)
+}
+
+pub fn failed_in(stage: Stage, view: usize, message: &str) -> io::Result<Input> {
+    Ok(Input::Data(stage, view, Err(message.to_string())))
 }
 
 pub fn fetching(stage: Stage) -> io::Result<Input> {
-    Ok(Input::Fetching(stage))
+    fetching_in(stage, 0)
+}
+
+pub fn fetching_in(stage: Stage, view: usize) -> io::Result<Input> {
+    Ok(Input::Fetching(stage, view))
 }
 
 pub fn tick_at_ms(millis: u64) -> io::Result<Input> {

@@ -10,17 +10,47 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     pub prs: Prs,
     pub ui: Ui,
+    pub keys: Keys,
     pub repo: Vec<Repo>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Prs {
+    pub name: String,
     pub query: String,
     pub limit: usize,
     pub refresh_secs: u64,
     pub merge_method: MergeMethod,
     pub update_method: UpdateMethod,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub view: Vec<PrsView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct PrsView {
+    pub name: String,
+    pub query: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<usize>,
+}
+
+impl Prs {
+    pub fn views(&self) -> Vec<PrsView> {
+        let first = PrsView {
+            name: self.name.clone(),
+            query: self.query.clone(),
+            limit: None,
+        };
+        std::iter::once(first)
+            .chain(self.view.iter().cloned())
+            .map(|view| PrsView {
+                limit: Some(view.limit.unwrap_or(self.limit)),
+                ..view
+            })
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -43,11 +73,13 @@ pub enum UpdateMethod {
 impl Default for Prs {
     fn default() -> Self {
         Self {
+            name: "Mine".to_string(),
             query: "is:pr is:open archived:false (author:@me OR assignee:@me)".to_string(),
             limit: 20,
             refresh_secs: 60,
             merge_method: MergeMethod::default(),
             update_method: UpdateMethod::default(),
+            view: Vec::new(),
         }
     }
 }
@@ -64,6 +96,44 @@ impl Default for Ui {
         Self {
             min_column_width: 36,
             details_percent: 40,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Keys {
+    pub next_view: ViewKey,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub enum ViewKey {
+    #[default]
+    Tab,
+    Char(char),
+}
+
+impl TryFrom<String> for ViewKey {
+    type Error = String;
+
+    fn try_from(text: String) -> Result<Self, Self::Error> {
+        let mut chars = text.chars();
+        match (text.as_str(), chars.next(), chars.next()) {
+            ("tab", _, _) => Ok(Self::Tab),
+            (_, Some(c), None) => Ok(Self::Char(c)),
+            _ => Err(format!(
+                "next_view must be \"tab\" or a single character, found \"{text}\""
+            )),
+        }
+    }
+}
+
+impl From<ViewKey> for String {
+    fn from(key: ViewKey) -> Self {
+        match key {
+            ViewKey::Tab => "tab".to_string(),
+            ViewKey::Char(c) => c.to_string(),
         }
     }
 }
@@ -159,10 +229,33 @@ pub fn load(path: &Path) -> Result<Config, ConfigError> {
             });
         }
     };
-    toml::from_str(&text).map_err(|err| ConfigError {
+    let config: Config = toml::from_str(&text).map_err(|err| ConfigError {
         path: path.to_path_buf(),
         message: err.to_string().trim().to_string(),
-    })
+    })?;
+    check_views(&config.prs.views()).map_err(|message| ConfigError {
+        path: path.to_path_buf(),
+        message,
+    })?;
+    Ok(config)
+}
+
+fn check_views(views: &[PrsView]) -> Result<(), String> {
+    if views.len() > 9 {
+        return Err(format!("at most 9 views in [prs], found {}", views.len()));
+    }
+    for (index, view) in views.iter().enumerate() {
+        if view.name.is_empty() {
+            return Err("a view in [prs] has an empty name".to_string());
+        }
+        if view.query.is_empty() {
+            return Err(format!("view \"{}\" has an empty query", view.name));
+        }
+        if views[..index].iter().any(|other| other.name == view.name) {
+            return Err(format!("view name \"{}\" is repeated", view.name));
+        }
+    }
+    Ok(())
 }
 
 pub fn path(

@@ -1,7 +1,7 @@
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::{highlighted_row, three};
-use crate::support::{self, Harness, NOW, key, pr, prs, tick_at};
+use crate::support::{self, Harness, NOW, key, pr, prs, prs_in, tick_at};
 
 #[test]
 fn r_requests_a_refresh_and_the_footer_shows_the_data_age() {
@@ -18,7 +18,7 @@ fn r_requests_a_refresh_and_the_footer_shows_the_data_age() {
     h.run(vec![key(KeyCode::Char('r'))]).unwrap();
     assert_eq!(
         h.requests,
-        vec![conveyor::app::Request::Refresh(Stage::Prs)]
+        vec![conveyor::app::Request::Refresh(Stage::Prs, 0)]
     );
 }
 
@@ -104,7 +104,133 @@ fn shift_r_refreshes_every_column() {
 
     assert_eq!(
         h.requests,
-        Stage::ALL.map(Request::Refresh).to_vec(),
+        Stage::ALL.map(|stage| Request::Refresh(stage, 0)).to_vec(),
         "one request per column"
     );
+}
+
+#[test]
+fn r_refreshes_only_the_active_view() {
+    use conveyor::app::{Request, Stage};
+    let mut h = Harness::with_config(160, 12, support::two_views());
+    h.run(vec![prs(three())]).unwrap();
+    h.app.prs.active = 1;
+
+    h.run(vec![key(KeyCode::Char('r'))]).unwrap();
+
+    assert_eq!(h.requests.len(), 1);
+    assert_eq!(h.requests[0], Request::Refresh(Stage::Prs, 1));
+}
+
+#[test]
+fn shift_r_refreshes_every_view_of_every_column() {
+    use conveyor::app::{Request, Stage};
+    let mut h = Harness::with_config(160, 12, support::two_views());
+
+    h.run(vec![prs(three()), key(KeyCode::Char('R'))]).unwrap();
+
+    assert_eq!(h.requests.len(), 5);
+    assert_eq!(h.requests[0], Request::Refresh(Stage::Prs, 0));
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs, 1));
+    assert_eq!(h.requests[2], Request::Refresh(Stage::Queue, 0));
+    assert_eq!(h.requests[3], Request::Refresh(Stage::Builds, 0));
+    assert_eq!(h.requests[4], Request::Refresh(Stage::Deployed, 0));
+}
+
+#[test]
+fn the_footer_spins_while_a_view_that_is_not_shown_refreshes() {
+    use conveyor::app::Stage;
+    let mut h = Harness::with_config(160, 12, support::two_views());
+
+    h.run(vec![prs(three()), support::fetching_in(Stage::Prs, 1)])
+        .unwrap();
+
+    assert!(h.app.any_refreshing());
+}
+
+#[test]
+fn a_result_for_the_second_view_is_stored_there_and_not_shown() {
+    let mut h = Harness::with_config(160, 12, support::two_views());
+
+    h.run(vec![prs(three()), prs_in(1, vec![pr(7, "review me")])])
+        .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("My PRs (3)"), "{screen}");
+    assert!(screen.contains("#1 a"), "{screen}");
+    assert!(!screen.contains("#7 review me"), "{screen}");
+    assert_eq!(h.app.prs.active, 0);
+    assert_eq!(h.app.prs.views[0].all().len(), 3);
+    assert_eq!(h.app.prs.views[1].all().len(), 1);
+    assert_eq!(h.app.prs.views[1].all()[0].number, 7);
+}
+
+#[test]
+fn an_error_for_the_second_view_does_not_flag_the_active_one() {
+    use conveyor::app::Stage;
+    let mut h = Harness::with_config(160, 12, support::two_views());
+
+    h.run(vec![
+        prs(three()),
+        support::failed_in(Stage::Prs, 1, "gh: HTTP 401: Bad credentials"),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(!screen.contains("⚠"), "{screen}");
+    assert!(!screen.contains("Bad credentials"), "{screen}");
+    assert_eq!(h.app.prs.views[0].error, None);
+    assert_eq!(
+        h.app.prs.views[1].error.as_deref(),
+        Some("gh: HTTP 401: Bad credentials")
+    );
+}
+
+#[test]
+fn a_result_for_an_unknown_view_is_dropped() {
+    let mut h = Harness::with_config(160, 12, support::two_views());
+
+    h.run(vec![prs(three()), prs_in(2, vec![pr(7, "nowhere")])])
+        .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("My PRs (3)"), "{screen}");
+    assert!(!screen.contains("#7 nowhere"), "{screen}");
+    assert_eq!(h.app.prs.views.len(), 2);
+    assert_eq!(h.app.prs.views[1].all().len(), 0);
+}
+
+#[test]
+fn a_result_for_a_second_view_is_dropped_when_only_one_is_configured() {
+    let mut h = Harness::new();
+
+    h.run(vec![prs_in(1, vec![pr(7, "nowhere")])]).unwrap();
+
+    let screen = h.screen();
+    assert!(!screen.contains("#7 nowhere"), "{screen}");
+    assert_eq!(h.app.prs.views.len(), 1);
+    assert_eq!(h.app.prs.views[0].all().len(), 0);
+}
+
+#[test]
+fn fetching_for_an_unknown_view_is_dropped() {
+    use conveyor::app::Stage;
+    let mut h = Harness::with_config(160, 12, support::two_views());
+
+    h.run(vec![prs(three()), support::fetching_in(Stage::Prs, 2)])
+        .unwrap();
+
+    assert!(!h.app.any_refreshing());
+}
+
+#[test]
+fn fetching_for_the_second_view_marks_only_that_view_refreshing() {
+    use conveyor::app::{Listing, Stage};
+    let mut h = Harness::with_config(160, 12, support::two_views());
+
+    h.run(vec![prs(three()), support::fetching_in(Stage::Prs, 1)])
+        .unwrap();
+
+    assert!(!h.app.prs.views[0].is_refreshing());
+    assert!(h.app.prs.views[1].is_refreshing());
 }

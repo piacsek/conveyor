@@ -1,4 +1,4 @@
-use crate::config::{Config, Repo};
+use crate::config::{Config, Prs, PrsView, Repo};
 use crate::model::builds::Builds;
 use crate::model::prs::PullRequest;
 use crate::model::queue::{Queue, parse_merge_group_runs};
@@ -10,13 +10,13 @@ const MAX_CHECK_PAGES: usize = 10;
 pub const QUEUE_QUERY: &str = include_str!("queries/queue.graphql");
 const QUEUE_LIMIT: usize = 20;
 
-pub fn fetch_prs(gh: &impl Github, config: &Config) -> Result<Vec<PullRequest>, String> {
+pub fn fetch_prs(gh: &impl Github, view: &PrsView) -> Result<Vec<PullRequest>, String> {
     let mut value = gh
         .graphql(
             PRS_QUERY,
             &[
-                ("q", config.prs.query.as_str().into()),
-                ("first", config.prs.limit.into()),
+                ("q", view.query.as_str().into()),
+                ("first", view.limit.unwrap_or(Prs::default().limit).into()),
             ],
         )
         .map_err(|err| err.to_string())?;
