@@ -23,7 +23,6 @@ use crate::ui::dialog::{draw_confirm, draw_manage};
 use crate::ui::footer::draw_footer;
 use crate::ui::help::draw_help;
 use crate::ui::style::dim;
-pub(crate) use crate::ui::style::short_repo;
 
 pub use crate::ui::footer::logo;
 pub use crate::ui::help::KEYS;

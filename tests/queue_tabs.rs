@@ -191,6 +191,24 @@ fn l_on_an_infra_merge_group_run_asks_for_the_log_in_the_infra_repository() {
     );
 }
 
+#[test]
+fn a_monorepo_refresh_does_not_ask_again_for_the_jobs_of_a_hidden_infra_run() {
+    let mut h = Harness::with_config(160, 24, two_repos());
+    h.run(vec![
+        key(KeyCode::Char('l')),
+        key(KeyCode::Tab),
+        queue_in(1, "acme/infra", running_infra_run()),
+        jobs(4242, vec![job(7, "check", BuildStatus::Running, None)]),
+        key(KeyCode::BackTab),
+    ])
+    .unwrap();
+    h.requests.clear();
+
+    h.run(vec![queue_in(0, "acme/monorepo", vec![])]).unwrap();
+
+    assert!(h.requests.is_empty(), "{:?}", h.requests);
+}
+
 fn two_repos() -> Config {
     Config {
         repo: vec![repo("acme/monorepo"), repo("acme/infra")],
@@ -212,4 +230,12 @@ fn infra_run() -> Vec<QueueEntry> {
     let mut first = entry(1, 40, "bob", "Bump nodes");
     first.run = Some(run);
     vec![first]
+}
+
+fn running_infra_run() -> Vec<QueueEntry> {
+    let mut entries = infra_run();
+    if let Some(run) = entries[0].run.as_mut() {
+        run.status = BuildStatus::Running;
+    }
+    entries
 }

@@ -205,6 +205,6 @@ fn repo_tabs(config: &Config) -> Vec<String> {
     config
         .repo
         .iter()
-        .map(|repo| crate::ui::short_repo(&repo.name).to_string())
+        .map(|repo| crate::text::short_repo(&repo.name).to_string())
         .collect()
 }

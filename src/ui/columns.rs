@@ -5,10 +5,11 @@ use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 
 use crate::app::{App, Column, Failure, Row, Stage, Write};
+use crate::text::short_repo;
 use crate::ui::help::{column_name, custom_title};
 use crate::ui::link::link;
 use crate::ui::rows::{build_row, deployed_row, pr_row, queue_row};
-use crate::ui::style::{dim, short_repo};
+use crate::ui::style::dim;
 
 type Pull = Option<(u64, String)>;
 
