@@ -30,6 +30,15 @@ fn a_quiet_terminal_ticks_every_250_ms() {
 }
 
 #[test]
+fn a_resize_is_forwarded_so_run_draws_at_the_new_size() {
+    let inputs = forwarded(vec![(10, Event::Resize(100, 30))]);
+
+    assert_eq!(inputs.len(), 2);
+    assert!(matches!(&inputs[0], Ok(Input::Resize)));
+    assert!(inputs[1].is_err());
+}
+
+#[test]
 fn a_failed_read_is_forwarded_and_ends_the_loop() {
     let inputs = forwarded(vec![]);
 

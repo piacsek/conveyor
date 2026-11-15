@@ -47,6 +47,7 @@ pub fn forward(source: &mut impl EventSource, clock: &impl Clock, tx: &Sender<io
         let input = match source.poll(TICK) {
             Ok(true) => match source.read() {
                 Ok(Event::Key(key)) if key.is_press() => Input::Key(key),
+                Ok(Event::Resize(..)) => Input::Resize,
                 Ok(_) => continue,
                 Err(err) => {
                     let _ = tx.send(Err(err));
