@@ -16,8 +16,14 @@ fn d_on_a_build_asks_for_its_jobs_and_lists_them_failures_first() {
     assert_eq!(
         h.requests,
         vec![
-            Request::Jobs { run_id: 1025 },
-            Request::Jobs { run_id: 1026 },
+            Request::Jobs {
+                repo: "acme/webapp".to_string(),
+                run_id: 1025
+            },
+            Request::Jobs {
+                repo: "acme/webapp".to_string(),
+                run_id: 1026
+            },
         ],
         "the failing run is asked for without being selected, then the selected one"
     );
@@ -59,8 +65,14 @@ fn moving_the_selection_asks_for_each_runs_jobs_once() {
     assert_eq!(
         h.requests,
         vec![
-            Request::Jobs { run_id: 1025 },
-            Request::Jobs { run_id: 1026 },
+            Request::Jobs {
+                repo: "acme/webapp".to_string(),
+                run_id: 1025
+            },
+            Request::Jobs {
+                repo: "acme/webapp".to_string(),
+                run_id: 1026
+            },
         ],
         "each run is asked for once"
     );

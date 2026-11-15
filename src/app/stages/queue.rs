@@ -101,9 +101,9 @@ impl StageView for QueueStage {
     }
 
     fn runs(&self) -> Vec<&Build> {
-        self.column()
-            .all()
+        self.tabs
             .iter()
+            .flat_map(|tab| tab.column.all())
             .filter_map(|entry| entry.run.as_ref())
             .collect()
     }

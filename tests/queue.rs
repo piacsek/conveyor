@@ -212,7 +212,10 @@ fn the_pane_shows_the_merge_group_run_of_the_selected_entry_and_its_jobs() {
 
     assert_eq!(
         h.requests,
-        vec![Request::Jobs { run_id: 4242 }],
+        vec![Request::Jobs {
+            repo: "acme/webapp".to_string(),
+            run_id: 4242
+        }],
         "the selected entry's run is asked for"
     );
     let screen = h.screen();
@@ -268,8 +271,14 @@ fn selecting_a_queue_entry_asks_for_its_runs_jobs_pane_or_no_pane() {
     assert_eq!(
         h.requests,
         vec![
-            Request::Jobs { run_id: 4242 },
-            Request::Jobs { run_id: 4343 },
+            Request::Jobs {
+                repo: "acme/webapp".to_string(),
+                run_id: 4242
+            },
+            Request::Jobs {
+                repo: "acme/webapp".to_string(),
+                run_id: 4343
+            },
         ]
     );
 }
@@ -320,9 +329,18 @@ fn a_queue_refresh_asks_again_for_an_unsettled_run_and_keeps_a_settled_one() {
     assert_eq!(
         h.requests,
         vec![
-            Request::Jobs { run_id: 4242 },
-            Request::Jobs { run_id: 4343 },
-            Request::Jobs { run_id: 4343 },
+            Request::Jobs {
+                repo: "acme/webapp".to_string(),
+                run_id: 4242
+            },
+            Request::Jobs {
+                repo: "acme/webapp".to_string(),
+                run_id: 4343
+            },
+            Request::Jobs {
+                repo: "acme/webapp".to_string(),
+                run_id: 4343
+            },
         ],
         "only the run still in flight is asked again"
     );
@@ -346,7 +364,10 @@ fn a_refresh_while_the_jobs_are_in_flight_does_not_ask_twice() {
 
     assert_eq!(
         h.requests,
-        vec![Request::Jobs { run_id: 4343 }],
+        vec![Request::Jobs {
+            repo: "acme/webapp".to_string(),
+            run_id: 4343
+        }],
         "the answer is still on its way"
     );
 }

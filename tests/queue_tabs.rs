@@ -2,8 +2,10 @@ mod support;
 
 use conveyor::app::{Request, Stage};
 use conveyor::config::{Config, Repo};
+use conveyor::model::builds::BuildStatus;
+use conveyor::model::queue::QueueEntry;
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, entry, failed_in, key, queue_in};
+use support::{Harness, build, entry, failed_in, job, jobs, key, queue_in};
 
 #[test]
 fn tab_on_merge_queue_asks_for_the_second_repository() {
@@ -139,6 +141,56 @@ fn a_monorepo_error_landing_after_the_switch_shows_only_on_the_monorepo_tab() {
     assert!(h.screen().contains("HTTP 502"), "{}", h.screen());
 }
 
+#[test]
+fn an_infra_merge_group_run_asks_for_its_jobs_in_the_infra_repository() {
+    let mut h = Harness::with_config(160, 24, two_repos());
+    h.run(vec![key(KeyCode::Char('l')), key(KeyCode::Tab)])
+        .unwrap();
+    h.requests.clear();
+
+    h.run(vec![queue_in(1, "acme/infra", infra_run())]).unwrap();
+
+    assert_eq!(
+        h.requests,
+        vec![Request::Jobs {
+            repo: "acme/infra".to_string(),
+            run_id: 4242
+        }]
+    );
+}
+
+#[test]
+fn l_on_an_infra_merge_group_run_asks_for_the_log_in_the_infra_repository() {
+    let mut h = Harness::with_config(160, 24, two_repos());
+    h.run(vec![
+        key(KeyCode::Char('l')),
+        key(KeyCode::Tab),
+        queue_in(1, "acme/infra", infra_run()),
+        jobs(
+            4242,
+            vec![job(
+                7,
+                "check",
+                BuildStatus::Failure,
+                Some("Run cargo test"),
+            )],
+        ),
+    ])
+    .unwrap();
+
+    h.run(vec![key(KeyCode::Char('L'))]).unwrap();
+
+    assert!(
+        h.requests.contains(&Request::Log {
+            repo: "acme/infra".to_string(),
+            run_id: 4242,
+            job_id: 7
+        }),
+        "{:?}",
+        h.requests
+    );
+}
+
 fn two_repos() -> Config {
     Config {
         repo: vec![repo("acme/monorepo"), repo("acme/infra")],
@@ -151,4 +203,13 @@ fn repo(name: &str) -> Repo {
         name: name.to_string(),
         ..Repo::default()
     }
+}
+
+fn infra_run() -> Vec<QueueEntry> {
+    let mut run = build(312, BuildStatus::Failure, None);
+    run.id = 4242;
+    run.url = "https://github.com/acme/infra/actions/runs/4242".to_string();
+    let mut first = entry(1, 40, "bob", "Bump nodes");
+    first.run = Some(run);
+    vec![first]
 }

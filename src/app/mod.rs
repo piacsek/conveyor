@@ -55,8 +55,15 @@ pub enum Action {
     Copy(String),
     Refresh(Stage),
     RefreshAll,
-    Log { run_id: u64, job_id: u64 },
-    Rerun { repo: String, run_ids: Vec<u64> },
+    Log {
+        repo: String,
+        run_id: u64,
+        job_id: u64,
+    },
+    Rerun {
+        repo: String,
+        run_ids: Vec<u64>,
+    },
     Merge(MergeTarget),
     UpdateBranch(UpdateTarget),
     ChangeStatus(StatusTarget),
@@ -66,9 +73,19 @@ pub enum Action {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
     Refresh(Stage, usize),
-    Jobs { run_id: u64 },
-    Log { run_id: u64, job_id: u64 },
-    Rerun { repo: String, run_ids: Vec<u64> },
+    Jobs {
+        repo: String,
+        run_id: u64,
+    },
+    Log {
+        repo: String,
+        run_id: u64,
+        job_id: u64,
+    },
+    Rerun {
+        repo: String,
+        run_ids: Vec<u64>,
+    },
     Merge(MergeTarget),
     UpdateBranch(UpdateTarget),
     ChangeStatus(StatusTarget),

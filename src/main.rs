@@ -117,8 +117,8 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
     if let Some(refresh) = spawn_deploy_fetcher(&log, config.clone(), tx.clone()) {
         refreshers.insert(Stage::Deployed, refresh);
     }
-    let jobs = spawn_jobs_fetcher(&log, config.clone(), tx.clone());
-    let logs = spawn_log_fetcher(&log, config.clone(), tx.clone());
+    let jobs = spawn_jobs_fetcher(&log, tx.clone());
+    let logs = spawn_log_fetcher(&log, tx.clone());
     let reruns = spawn_rerun_worker(&log, tx.clone());
     let merges = spawn_merger(&log, config.clone(), tx.clone());
     let updates = spawn_branch_updater(&log, tx.clone());
@@ -140,11 +140,15 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
                     let _ = refresh.send(tab);
                 }
             }
-            Request::Jobs { run_id } => {
-                let _ = jobs.send(run_id);
+            Request::Jobs { repo, run_id } => {
+                let _ = jobs.send((repo, run_id));
             }
-            Request::Log { run_id, job_id } => {
-                let _ = logs.send((run_id, job_id));
+            Request::Log {
+                repo,
+                run_id,
+                job_id,
+            } => {
+                let _ = logs.send((repo, run_id, job_id));
             }
             Request::Merge(target) => {
                 let _ = merges.send(target);
@@ -168,22 +172,12 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
     result
 }
 
-fn spawn_jobs_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<u64> {
-    let (jobs_tx, jobs_rx) = mpsc::channel::<u64>();
+fn spawn_jobs_fetcher(log: &Log, tx: Inputs) -> mpsc::Sender<(String, u64)> {
+    let (jobs_tx, jobs_rx) = mpsc::channel::<(String, u64)>();
     let gh = CliGh::default().with_log(log.clone());
     thread::spawn(move || {
-        let mut repo: Option<String> = None;
-        while let Ok(run_id) = jobs_rx.recv() {
-            if repo.is_none() {
-                repo = repos(&gh, &config)
-                    .ok()
-                    .and_then(|repos| repos.into_iter().next())
-                    .map(|repo| repo.name);
-            }
-            let result = match &repo {
-                Some(name) => fetch_jobs(&gh, name, run_id),
-                None => Err("no repository to watch".to_string()),
-            };
+        while let Ok((repo, run_id)) = jobs_rx.recv() {
+            let result = fetch_jobs(&gh, &repo, run_id);
             if tx.send(Ok(Input::Jobs(run_id, result))).is_err() {
                 return;
             }
@@ -192,22 +186,12 @@ fn spawn_jobs_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<u64
     jobs_tx
 }
 
-fn spawn_log_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<(u64, u64)> {
-    let (log_tx, log_rx) = mpsc::channel::<(u64, u64)>();
+fn spawn_log_fetcher(log: &Log, tx: Inputs) -> mpsc::Sender<(String, u64, u64)> {
+    let (log_tx, log_rx) = mpsc::channel::<(String, u64, u64)>();
     let gh = CliGh::default().with_log(log.clone());
     thread::spawn(move || {
-        let mut repo: Option<String> = None;
-        while let Ok((run_id, job_id)) = log_rx.recv() {
-            if repo.is_none() {
-                repo = repos(&gh, &config)
-                    .ok()
-                    .and_then(|repos| repos.into_iter().next())
-                    .map(|repo| repo.name);
-            }
-            let result = match &repo {
-                Some(name) => fetch_log(&gh, name, run_id, job_id),
-                None => Err("no repository to watch".to_string()),
-            };
+        while let Ok((repo, run_id, job_id)) = log_rx.recv() {
+            let result = fetch_log(&gh, &repo, run_id, job_id);
             if tx.send(Ok(Input::Log(job_id, result))).is_err() {
                 return;
             }

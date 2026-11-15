@@ -66,18 +66,27 @@ impl App {
         self.stage(self.focus).selected_run()
     }
 
-    pub fn jobs_needed(&mut self) -> Option<u64> {
+    pub fn jobs_needed(&mut self) -> Option<(String, u64)> {
         let selected = self.selected_run().map(|run| run.id);
         let run_id = selected
             .filter(|run_id| matches!(self.jobs.get(run_id), None | Some(JobsState::Stale(_))))
             .or_else(|| self.stale_run())
             .or_else(|| self.failing_run_without_jobs())?;
+        let repo = self.run_repo(run_id)?;
         let state = match self.jobs.remove(&run_id) {
             Some(JobsState::Stale(jobs)) => JobsState::Refreshing(jobs),
             _ => JobsState::Loading,
         };
         self.jobs.insert(run_id, state);
-        Some(run_id)
+        Some((repo, run_id))
+    }
+
+    fn run_repo(&self, run_id: u64) -> Option<String> {
+        Stage::ALL
+            .into_iter()
+            .flat_map(|stage| self.stage(stage).runs())
+            .find(|run| run.id == run_id)?
+            .repo()
     }
 
     fn run_is_settled(&self, run_id: u64) -> bool {
@@ -92,6 +101,7 @@ impl App {
             .iter()
             .filter(|(_, state)| matches!(state, JobsState::Stale(_)))
             .map(|(run_id, _)| *run_id)
+            .filter(|run_id| self.run_repo(*run_id).is_some())
             .min()
     }
 
@@ -134,7 +144,10 @@ impl App {
             self.log_open = false;
             return Action::Continue;
         }
-        let Some(run_id) = self.selected_run().map(|run| run.id) else {
+        let Some((repo, run_id)) = self
+            .selected_run()
+            .and_then(|run| Some((run.repo()?, run.id)))
+        else {
             self.notice = Some("nothing selected".to_string());
             return Action::Continue;
         };
@@ -153,7 +166,11 @@ impl App {
             return Action::Continue;
         }
         self.logs.insert(job_id, LogState::Loading);
-        Action::Log { run_id, job_id }
+        Action::Log {
+            repo,
+            run_id,
+            job_id,
+        }
     }
 
     pub fn receive_log(&mut self, job_id: u64, result: Result<Vec<String>, String>) {
