@@ -73,6 +73,40 @@ fn prs_tabs_layout() {
 }
 
 #[test]
+fn queue_tabs_layout() {
+    let mut h = Harness::with_config(160, 12, two_repos());
+    h.run(vec![
+        support::queue_in(0, "acme/monorepo", queue_sample()),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Tab),
+        support::queue_in(
+            1,
+            "acme/infra",
+            queue_sample().into_iter().skip(1).collect(),
+        ),
+    ])
+    .unwrap();
+    insta::assert_snapshot!(versionless(h.screen()));
+}
+
+#[test]
+fn queue_tabs_narrow_layout() {
+    let mut h = Harness::with_config(80, 12, two_repos());
+    h.run(vec![
+        support::queue_in(0, "acme/monorepo", queue_sample()),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Tab),
+        support::queue_in(
+            1,
+            "acme/infra",
+            queue_sample().into_iter().skip(1).collect(),
+        ),
+    ])
+    .unwrap();
+    insta::assert_snapshot!(versionless(h.screen()));
+}
+
+#[test]
 fn list_layout() {
     let mut h = Harness::new();
     h.run(vec![
@@ -284,4 +318,16 @@ fn snapshots_holding(text: &str) -> String {
         .collect();
     names.sort();
     names.join(" ")
+}
+
+fn two_repos() -> conveyor::config::Config {
+    conveyor::config::Config {
+        repo: ["acme/monorepo", "acme/infra"]
+            .map(|name| conveyor::config::Repo {
+                name: name.to_string(),
+                ..conveyor::config::Repo::default()
+            })
+            .to_vec(),
+        ..conveyor::config::Config::default()
+    }
 }

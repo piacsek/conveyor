@@ -88,7 +88,15 @@ where
                         request(app.refresh_request(stage));
                     }
                 }
-                Action::Log { run_id, job_id } => request(Request::Log { run_id, job_id }),
+                Action::Log {
+                    repo,
+                    run_id,
+                    job_id,
+                } => request(Request::Log {
+                    repo,
+                    run_id,
+                    job_id,
+                }),
                 Action::Merge(target) => request(Request::Merge(target)),
                 Action::UpdateBranch(target) => request(Request::UpdateBranch(target)),
                 Action::Rerun { repo, run_ids } => request(Request::Rerun { repo, run_ids }),
@@ -97,8 +105,8 @@ where
                 Action::Continue => {}
             },
         }
-        if let Some(run_id) = app.jobs_needed() {
-            request(Request::Jobs { run_id });
+        if let Some((repo, run_id)) = app.jobs_needed() {
+            request(Request::Jobs { repo, run_id });
         }
     }
 }

@@ -74,10 +74,6 @@ pub(crate) fn check_word(checks: CheckState) -> &'static str {
     }
 }
 
-pub(crate) fn short_repo(repo: &str) -> &str {
-    repo.rsplit('/').next().unwrap_or(repo)
-}
-
 pub(crate) fn sha8(sha: &str) -> String {
     sha.chars().take(8).collect()
 }

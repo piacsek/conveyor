@@ -40,6 +40,13 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   fetch of another tab leaves the merged tab's cards as old as they were, so `u` and `t` stay
   refused there. Only the active tab is
   fetched; the other tabs keep their last rows until you switch back.
+- **Merge queue has tabs, one per `[[repo]]`,** in config order, named by the short repo name;
+  no `[[repo]]` is one tab, the current directory's repository. Same keys and per-tab state as
+  My PRs (`QueueStage` holds a `Column` and a `repo` per tab); the queue fetcher fetches
+  `config.repo[tab]` on the first `[[repo]]`'s `refresh_secs`. The title names the active
+  tab's repository. A write's follow-up refresh asks for the queue's active tab only. Columns
+  switch independently: Main builds reads the first `[[repo]]`, Deployed the first with a
+  `[[repo.deploy]]`, whatever the queue shows.
 - **`L` is read-only, and the log has a pane of its own.** It asks `gh run view <run> --job
   <job> --log-failed` for the first failed job of the selected run (Main builds or Merge
   queue), keeps the last `LOG_TAIL` lines per job id in `App.logs`, and toggles `App.log_open`.
@@ -317,14 +324,18 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
 - **Jobs**, for the selected run of whichever of Main builds and Merge queue is focused
   (`App::selected_run`) and eagerly for the first `EAGER_JOBS` failing main builds:
   `repos/{r}/actions/runs/{id}/jobs?per_page=100`
-  (`fetch::fetch_jobs`, `model::jobs::parse_jobs`, failures first). `run()` asks through
+  (`fetch::fetch_jobs`, `model::jobs::parse_jobs`, failures first). `{r}` is the run's own
+  repository, read from its URL (`Build::repo`) and carried by `Request::Jobs` and
+  `Request::Log`, so an infra merge-group run is asked of the infra repository; a `Stale` run
+  no column lists (a hidden queue tab's included) waits until it is listed again. `run()` asks through
   `App::jobs_needed()` after every input, so a selection move, a focus change and a refresh of
   either column all trigger it; results land as `Input::Jobs` in `App::jobs`
   (`Loading`/`Ready`/`Stale`/`Refreshing`/`Failed`). The pane being open is **not** a condition:
   both columns' cards render the failing job, which is the whole point of fetching it.
   **A refresh never blanks jobs already on screen.** `App::age_jobs` runs on each
-  `Data(Builds, …)` and `Data(Queue, …)`, over that column's runs only (aging both columns on
-  either refresh fetched every running run twice per interval): an unsettled run's `Ready` becomes `Stale` (still
+  `Data(Builds, …)` and `Data(Queue, …)`, over that column's runs only, and in Merge queue over the active tab's (aging both columns on
+  either refresh fetched every running run twice per interval; aging hidden queue tabs refetched
+  their running runs on every refresh): an unsettled run's `Ready` becomes `Stale` (still
   drawn, then `Refreshing` while in flight). Every `Stale` run is asked again, selected or not,
   the selected one first and one request per input: a running card nobody selected used to keep
   the job line of its last selection, so a job that failed mid-run still read `●`; dropping it instead made

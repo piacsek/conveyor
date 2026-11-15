@@ -55,8 +55,15 @@ pub enum Action {
     Copy(String),
     Refresh(Stage),
     RefreshAll,
-    Log { run_id: u64, job_id: u64 },
-    Rerun { repo: String, run_ids: Vec<u64> },
+    Log {
+        repo: String,
+        run_id: u64,
+        job_id: u64,
+    },
+    Rerun {
+        repo: String,
+        run_ids: Vec<u64>,
+    },
     Merge(MergeTarget),
     UpdateBranch(UpdateTarget),
     ChangeStatus(StatusTarget),
@@ -66,9 +73,19 @@ pub enum Action {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
     Refresh(Stage, usize),
-    Jobs { run_id: u64 },
-    Log { run_id: u64, job_id: u64 },
-    Rerun { repo: String, run_ids: Vec<u64> },
+    Jobs {
+        repo: String,
+        run_id: u64,
+    },
+    Log {
+        repo: String,
+        run_id: u64,
+        job_id: u64,
+    },
+    Rerun {
+        repo: String,
+        run_ids: Vec<u64>,
+    },
     Merge(MergeTarget),
     UpdateBranch(UpdateTarget),
     ChangeStatus(StatusTarget),
@@ -129,7 +146,7 @@ impl App {
     pub fn at(now: SystemTime, config: Config) -> Self {
         Self {
             prs: PrsStage::new(config.prs.tabs().into_iter().map(|tab| tab.name).collect()),
-            queue: QueueStage::default(),
+            queue: QueueStage::new(repo_tabs(&config)),
             builds: BuildsStage::default(),
             deployed: DeployedStage::default(),
             focus: Stage::Prs,
@@ -179,4 +196,15 @@ impl App {
         }
         due
     }
+}
+
+fn repo_tabs(config: &Config) -> Vec<String> {
+    if config.repo.is_empty() {
+        return vec![String::new()];
+    }
+    config
+        .repo
+        .iter()
+        .map(|repo| crate::text::short_repo(&repo.name).to_string())
+        .collect()
 }

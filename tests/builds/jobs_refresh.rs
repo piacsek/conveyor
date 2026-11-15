@@ -21,7 +21,13 @@ fn a_refresh_asks_again_for_an_unsettled_runs_jobs_and_keeps_the_settled_ones() 
     let asked = |run_id| {
         h.requests
             .iter()
-            .filter(|request| **request == Request::Jobs { run_id })
+            .filter(|request| {
+                **request
+                    == Request::Jobs {
+                        repo: "acme/webapp".to_string(),
+                        run_id,
+                    }
+            })
             .count()
     };
     assert_eq!(
@@ -51,7 +57,10 @@ fn a_refresh_keeps_a_running_runs_jobs_on_screen_while_it_asks_again() {
     assert!(screen.contains("● check  19s"), "the pane: {screen}");
     assert_eq!(
         h.requests.last(),
-        Some(&Request::Jobs { run_id: 1026 }),
+        Some(&Request::Jobs {
+            repo: "acme/webapp".to_string(),
+            run_id: 1026
+        }),
         "still asked again"
     );
 }
@@ -122,7 +131,13 @@ fn a_selected_run_that_settles_is_asked_for_its_final_jobs() {
     let asked = h
         .requests
         .iter()
-        .filter(|request| **request == Request::Jobs { run_id: 1026 })
+        .filter(|request| {
+            **request
+                == Request::Jobs {
+                    repo: "acme/webapp".to_string(),
+                    run_id: 1026,
+                }
+        })
         .count();
     assert_eq!(
         asked, 2,
@@ -164,7 +179,13 @@ fn a_re_run_that_passes_while_not_selected_drops_the_first_attempts_failure() {
     let asked = h
         .requests
         .iter()
-        .filter(|request| **request == Request::Jobs { run_id: 1025 })
+        .filter(|request| {
+            **request
+                == Request::Jobs {
+                    repo: "acme/webapp".to_string(),
+                    run_id: 1025,
+                }
+        })
         .count();
     assert_eq!(asked, 2, "{:?}", h.requests);
 
@@ -208,7 +229,13 @@ fn a_rerun_from_github_that_passes_between_two_polls_drops_the_old_failure() {
     let asked = h
         .requests
         .iter()
-        .filter(|request| **request == Request::Jobs { run_id: 1025 })
+        .filter(|request| {
+            **request
+                == Request::Jobs {
+                    repo: "acme/webapp".to_string(),
+                    run_id: 1025,
+                }
+        })
         .count();
     assert_eq!(asked, 2, "{:?}", h.requests);
     assert!(h.screen().contains("✗ lint"), "{}", h.screen());
@@ -238,7 +265,13 @@ fn a_settled_run_whose_jobs_are_from_its_current_attempt_is_not_asked_again() {
     let asked = h
         .requests
         .iter()
-        .filter(|request| **request == Request::Jobs { run_id: 1025 })
+        .filter(|request| {
+            **request
+                == Request::Jobs {
+                    repo: "acme/webapp".to_string(),
+                    run_id: 1025,
+                }
+        })
         .count();
     assert_eq!(asked, 1, "{:?}", h.requests);
 }
@@ -258,7 +291,13 @@ fn a_rerun_whose_jobs_came_back_empty_is_not_asked_on_every_refresh() {
     let asked = h
         .requests
         .iter()
-        .filter(|request| **request == Request::Jobs { run_id: 1025 })
+        .filter(|request| {
+            **request
+                == Request::Jobs {
+                    repo: "acme/webapp".to_string(),
+                    run_id: 1025,
+                }
+        })
         .count();
     assert_eq!(asked, 1, "{:?}", h.requests);
 }
@@ -280,7 +319,13 @@ fn a_refresh_asks_again_for_a_running_run_that_is_not_selected() {
     let asked = h
         .requests
         .iter()
-        .filter(|request| **request == Request::Jobs { run_id: 1026 })
+        .filter(|request| {
+            **request
+                == Request::Jobs {
+                    repo: "acme/webapp".to_string(),
+                    run_id: 1026,
+                }
+        })
         .count();
     assert_eq!(asked, 2, "{:?}", h.requests);
 }
@@ -304,7 +349,13 @@ fn a_run_that_passes_while_not_selected_is_asked_once_more_and_ends_on_its_jobs(
     let asked = h
         .requests
         .iter()
-        .filter(|request| **request == Request::Jobs { run_id: 1026 })
+        .filter(|request| {
+            **request
+                == Request::Jobs {
+                    repo: "acme/webapp".to_string(),
+                    run_id: 1026,
+                }
+        })
         .count();
     assert_eq!(asked, 2, "{:?}", h.requests);
 
@@ -333,7 +384,13 @@ fn a_queue_refresh_leaves_the_main_builds_jobs_alone() {
     let asked = h
         .requests
         .iter()
-        .filter(|request| **request == Request::Jobs { run_id: 1026 })
+        .filter(|request| {
+            **request
+                == Request::Jobs {
+                    repo: "acme/webapp".to_string(),
+                    run_id: 1026,
+                }
+        })
         .count();
     assert_eq!(asked, 1, "{:?}", h.requests);
 }
@@ -383,7 +440,11 @@ fn a_rerun_run_keeps_its_old_jobs_on_screen_until_the_new_attempt_lands() {
     assert!(
         h.requests
             .iter()
-            .filter(|request| **request == Request::Jobs { run_id: 1025 })
+            .filter(|request| **request
+                == Request::Jobs {
+                    repo: "acme/webapp".to_string(),
+                    run_id: 1025
+                })
             .count()
             == 2,
         "asked again for the new attempt: {:?}",

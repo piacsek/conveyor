@@ -9,11 +9,11 @@ use crate::model::deployed::{Deployment, Health};
 use crate::model::jobs::Job;
 use crate::model::prs::{Check, CheckConclusion, MergeState, PullRequest, ReviewDecision};
 use crate::model::queue::QueueEntry;
-use crate::text::{age, duration, truncate, wrap};
+use crate::text::{age, duration, short_repo, truncate, wrap};
 use crate::ui::card::{card, meta};
 use crate::ui::style::{
     INDENT, build_glyph, check_word, conclusion_glyph, dim, glyph, health_icon, pr_glyph, sha8,
-    short_repo, status_word,
+    status_word,
 };
 
 const DEPLOYED_TITLE_LINES: usize = 2;

@@ -178,6 +178,9 @@ name = "uat"
 context = "ctx-uat"
 namespace = "api"
 deployment = "api"
+
+[[repo]]
+name = "acme/infra"
 TOML
 
 shot_window="$(t new-session -d -s main -x 160 -y 14 -c "$home" -P -F '#{window_id}')"
