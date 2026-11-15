@@ -76,7 +76,7 @@ name = "acme/infra"
 | Merge of #12 into infra from My PRs while monorepo is the active queue tab | unchanged | monorepo tab refreshes (no change); infra refreshes when you switch to it | unchanged |
 | Same number #12 queued in both repos | - | known limit: the row key is the number, so a mark or spinner shows on both | - |
 | Details pane open, user switches tab | - | pane shows the new tab's selected entry, scroll reset | - |
-| Jobs of merge-group runs | - | only the active tab's runs ask for jobs | - |
+| Jobs and `L` log of a merge-group run on the infra tab | - | asked of the run's own repository (review round 1: they went to the first `[[repo]]`) | - |
 | `Tab` on Main builds or Deployed | - | nothing happens, as today | - |
 | Digit past the last tab, or the active tab's digit | - | nothing happens, no refresh | - |
 

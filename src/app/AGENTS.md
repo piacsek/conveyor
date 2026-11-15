@@ -324,13 +324,16 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
 - **Jobs**, for the selected run of whichever of Main builds and Merge queue is focused
   (`App::selected_run`) and eagerly for the first `EAGER_JOBS` failing main builds:
   `repos/{r}/actions/runs/{id}/jobs?per_page=100`
-  (`fetch::fetch_jobs`, `model::jobs::parse_jobs`, failures first). `run()` asks through
+  (`fetch::fetch_jobs`, `model::jobs::parse_jobs`, failures first). `{r}` is the run's own
+  repository, read from its URL (`Build::repo`) and carried by `Request::Jobs` and
+  `Request::Log`, so an infra merge-group run is asked of the infra repository; a `Stale` run
+  no column still lists is not asked again. `run()` asks through
   `App::jobs_needed()` after every input, so a selection move, a focus change and a refresh of
   either column all trigger it; results land as `Input::Jobs` in `App::jobs`
   (`Loading`/`Ready`/`Stale`/`Refreshing`/`Failed`). The pane being open is **not** a condition:
   both columns' cards render the failing job, which is the whole point of fetching it.
   **A refresh never blanks jobs already on screen.** `App::age_jobs` runs on each
-  `Data(Builds, …)` and `Data(Queue, …)`, over that column's runs only (aging both columns on
+  `Data(Builds, …)` and `Data(Queue, …)`, over that column's runs only (every queue tab's) (aging both columns on
   either refresh fetched every running run twice per interval): an unsettled run's `Ready` becomes `Stale` (still
   drawn, then `Refreshing` while in flight). Every `Stale` run is asked again, selected or not,
   the selected one first and one request per input: a running card nobody selected used to keep
