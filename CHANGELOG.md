@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.30.1 (2026-11-15)
+- The screen redraws at the new size as soon as the terminal is resized.
+- Ages, the refresh spinner and the follow-up reload of My PRs keep moving while a key is held.
+
+## v0.30.0 (2026-11-15)
+- Merge queue shows one tab per configured repository, switched with Tab, Shift-Tab or 1-9.
+
+## v0.29.0 (2026-11-15)
+- The column titles can be renamed in a new `[ui.titles]` table (`prs`, `queue`, `builds`, `deployed`), each optional. The new name shows on the column, in the tabs of a narrow terminal and in the `?` help, followed by the repository or system when one is configured.
+
+## v0.28.0 (2026-11-15)
+- My PRs can hold several tabs, each a named search set with `[[prs.tab]]`, shown as a bar at the top of the column.
+- `Tab` and `Shift-Tab` switch the My PRs tabs and `1` to `9` pick one; `h` and `l` move between columns. The tab keys can be changed in `[ui.keys]`.
+
+## v0.27.0 (2026-11-13)
+- A pull request number on a card is a link: in a terminal that supports hyperlinks, hover it and click (Cmd-click in iTerm2) to open the pull request in the browser. Works in all four columns.
+
+## v0.26.1 (2026-11-13)
+- v0.26.1: internal changes only.
+
+## v0.26.0 (2026-11-12)
+- A failed action (merge, update, status change, checkout or rerun) leaves a red `! <action> failed: <reason>` line under the title of the card it was started from, so a later result can no longer wipe it from the footer before you read it. An update that hit conflicts and a rerun where any run failed count as failures.
+- `d` on a marked card starts with the whole reason and the time it landed.
+- The column title counts the marked cards (`My PRs (5) !1`), in the tabs of a narrow terminal too.
+- A mark goes away when you start a new action on that card, press `Esc` with the card selected (after the details pane and zoom, before the filter), or when the card leaves its column.
+
+## v0.25.0 (2026-11-12)
+- `S` works on another pull request while an action on the first one is still running; only the pull request with an action on its way refuses it.
+- A pull request card with an action on its way shows a spinner in place of its check mark and names the action (`marking ready…`, `merging…`) on its second line until the result lands.
+
+## v0.24.2 (2026-11-12)
+- Main builds appears much sooner on the first load: the pull requests of all its runs are asked for in one request instead of one request per run (about 4 s instead of 27 s for 30 builds).
+- The Deployed column asks for the pull requests of all its environments in one request as well.
+
 ## v0.24.1 (2026-11-11)
 - In the `S` popup of My PRs the close action reads `x  close PR` instead of `x  close`.
 
