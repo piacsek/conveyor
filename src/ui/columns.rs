@@ -5,6 +5,7 @@ use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 
 use crate::app::{App, Column, Failure, Row, Stage, Write};
+use crate::ui::help::{column_name, custom_title};
 use crate::ui::link::link;
 use crate::ui::rows::{build_row, deployed_row, pr_row, queue_row};
 use crate::ui::style::{dim, short_repo};
@@ -32,17 +33,17 @@ fn titled<T: Row>(base: &str, column: &Column<T>, marks: usize) -> String {
 
 pub(crate) fn column_title(app: &App, stage: Stage) -> String {
     let marks = app.failure_count(stage);
-    let titles = &app.config.ui.titles;
     match stage {
         Stage::Prs => titled(
-            &named(titles.prs.as_deref(), ("My PRs", "My PRs"), None),
+            column_name(stage, &app.config.ui.titles),
             app.prs.column(),
             marks,
         ),
         Stage::Queue => titled(
             &named(
-                titles.queue.as_deref(),
-                ("Queue", "Merge queue"),
+                app,
+                stage,
+                "Queue",
                 app.queue.repo.as_deref().map(short_repo),
             ),
             &app.queue.column,
@@ -50,29 +51,27 @@ pub(crate) fn column_title(app: &App, stage: Stage) -> String {
         ),
         Stage::Builds => titled(
             &named(
-                titles.builds.as_deref(),
-                ("Main", "Main builds"),
+                app,
+                stage,
+                "Main",
                 app.builds.repo.as_deref().map(short_repo),
             ),
             &app.builds.column,
             marks,
         ),
         Stage::Deployed => titled(
-            &named(
-                titles.deployed.as_deref(),
-                ("Deployed", "Deployed"),
-                app.deployed.system.as_deref(),
-            ),
+            &named(app, stage, "Deployed", app.deployed.system.as_deref()),
             &app.deployed.column,
             marks,
         ),
     }
 }
 
-fn named(custom: Option<&str>, (short, full): (&str, &str), suffix: Option<&str>) -> String {
+fn named(app: &App, stage: Stage, short: &str, suffix: Option<&str>) -> String {
+    let titles = &app.config.ui.titles;
     match suffix {
-        Some(suffix) => format!("{} {suffix}", custom.unwrap_or(short)),
-        None => custom.unwrap_or(full).to_string(),
+        Some(suffix) => format!("{} {suffix}", custom_title(stage, titles).unwrap_or(short)),
+        None => column_name(stage, titles).to_string(),
     }
 }
 

@@ -88,6 +88,10 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   included, like the `/total` half of the title. `column_title` feeds the column bar of the narrow layout too, so
   a mark behind it still shows. With My PRs tabs, `!N` counts the marked rows of the active tab. No mark, no suffix. What marks and what clears: see
   `src/app/AGENTS.md`.
+- **A column's name comes from `[ui.titles]`, else the fixed one.** `help::column_name` is the
+  one source for the column border, the narrow layout's bar and the help header; with a repo or
+  system known, `column_title` puts it after the custom name, or after the short fixed one
+  (`Queue`, `Main`, `Deployed`) when none is set.
 - **No URLs in the details pane.** Every line there is text a person reads: the checks, the
   jobs, the sha, the pull request. A URL is 60 columns of noise nobody retypes, and both keys
   that need one (`b`, `p`) already hand it to the browser. `y`/`Y` copy them.

@@ -3,7 +3,8 @@ mod support;
 use conveyor::app::Stage;
 use conveyor::config::Config;
 use conveyor::model::builds::BuildStatus;
-use support::{Harness, build, builds, deployed, deployment, entry, failed, pr, prs, queue};
+use ratatui::crossterm::event::KeyCode;
+use support::{Harness, build, builds, deployed, deployment, entry, failed, key, pr, prs, queue};
 
 #[test]
 fn a_custom_title_names_the_column_before_its_count_and_warning() {
@@ -58,6 +59,16 @@ fn the_column_bar_of_a_narrow_terminal_shows_the_custom_titles() {
     assert!(bar.contains("Line"), "{bar}");
     assert!(bar.contains("Trunk"), "{bar}");
     assert!(bar.contains("Envs"), "{bar}");
+}
+
+#[test]
+fn the_help_header_names_the_column_by_its_custom_title() {
+    let mut h = Harness::with_config(160, 20, titled());
+
+    h.run(vec![key(KeyCode::Char('l')), key(KeyCode::Char('?'))])
+        .unwrap();
+
+    assert!(h.screen().contains("Keys — Line"), "{}", h.screen());
 }
 
 fn titled() -> Config {
