@@ -44,6 +44,14 @@ pub struct Build {
 }
 
 impl Build {
+    pub fn repo(&self) -> Option<String> {
+        let (base, _) = self.url.split_once("/actions/runs/")?;
+        let mut parts = base.rsplitn(3, '/');
+        let name = parts.next()?;
+        let owner = parts.next()?;
+        Some(format!("{owner}/{name}"))
+    }
+
     pub fn pull_request(&self, repo: Option<&str>) -> Option<(u64, String)> {
         match (&self.pull, self.pr_number, repo) {
             (Some(pull), _, _) => Some((pull.number, pull.url.clone())),

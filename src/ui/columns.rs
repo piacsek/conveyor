@@ -5,10 +5,11 @@ use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 
 use crate::app::{App, Column, Failure, Row, Stage, Write};
+use crate::text::short_repo;
 use crate::ui::help::{column_name, custom_title};
 use crate::ui::link::link;
 use crate::ui::rows::{build_row, deployed_row, pr_row, queue_row};
-use crate::ui::style::{dim, short_repo};
+use crate::ui::style::dim;
 
 type Pull = Option<(u64, String)>;
 
@@ -40,13 +41,8 @@ pub(crate) fn column_title(app: &App, stage: Stage) -> String {
             marks,
         ),
         Stage::Queue => titled(
-            &named(
-                app,
-                stage,
-                "Queue",
-                app.queue.repo.as_deref().map(short_repo),
-            ),
-            &app.queue.column,
+            &named(app, stage, "Queue", app.queue.repo().map(short_repo)),
+            app.queue.column(),
             marks,
         ),
         Stage::Builds => titled(
@@ -147,7 +143,7 @@ pub(crate) fn draw_column(
         }
         Stage::Queue => draw_list(
             frame,
-            &mut app.queue.column,
+            app.queue.column_mut(),
             area,
             block,
             focused,

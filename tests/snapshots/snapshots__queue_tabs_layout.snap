@@ -1,0 +1,16 @@
+---
+source: tests/snapshots.rs
+expression: versionless(h.screen())
+---
+┌My PRs────────────────────────────────┐┌Queue infra (1)───────────────────────┐┌Main builds───────────────────────────┐┌Deployed──────────────────────────────┐
+│fetching…                             ││monorepo │ infra                      ││fetching…                             ││no [[repo.deploy]] configured         │
+│                                      ││▌ ○ #4830 Add rate limit heade… queued││                                      ││                                      │
+│                                      ││▌   carol · position 2 · enqueued 20m…││                                      ││                                      │
+│                                      ││▌   no merge-group run yet · jump · 0…││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘
+refreshed just now                                                                                                                        ▪─▪─▪▸ conveyor vX.Y.Z

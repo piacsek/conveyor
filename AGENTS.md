@@ -173,8 +173,12 @@ be installed and what each one is for, the Nerd Font included), `## Usage` (comm
 table, the default config), `## FAQ` (symptoms a user sees, each with its fix) and `## Development`. The key table mirrors `ui::help::KEYS` word
 for word; `tests/readme.rs` fails when the README and the help view drift, when a second
 screenshot, a subsection or another section appears, or when the description grows past two
-sentences (the help view is the single source: change `KEYS`, then the table). Feature depth, glyph meanings and data-source notes belong in the `AGENTS.md` files, not there. After
-any visible layout change run `scripts/screenshots.sh` (needs `brew install
+sentences (the help view is the single source: change `KEYS`, then the table). Feature depth, glyph meanings and data-source notes belong in the `AGENTS.md` files, not there.
+**Every visible change to the main interface shows in `docs/details.png`**: a new or changed
+card line, glyph, bar, title, column or footer element. Extend the fixture or the config in
+`scripts/screenshots.sh` until the change appears on screen, rerun it, and commit the image in
+the same pull request; a reviewer reports a missing or stale screenshot as a should. (The
+My PRs tabs of phase 40 shipped without one.) Run `scripts/screenshots.sh` (needs `brew install
 charmbracelet/tap/freeze`, Google Chrome, and the FiraCode Nerd Font in `~/Library/Fonts`) and
 commit the new images. Freeze lays out an SVG with the font embedded; headless Chrome
 rasterises it, because freeze's own PNG output cannot draw Nerd Font glyphs. The script adds

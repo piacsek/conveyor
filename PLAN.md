@@ -723,6 +723,15 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   footer and error messages still name the column by its fixed name (out of scope in #83); a
   long custom name can push later columns off the one-line bar of the narrow layout, as a
   long repo name already does.
+- Phase 42 (`plans/phase-42-queue-tabs.md`, #86): Merge queue has a tab per `[[repo]]`, named by
+  the short repo name, with the keys and per-tab state of the My PRs tabs; the fetcher fetches the
+  tab's repository. Main builds and Deployed still read the first `[[repo]]`. The plan's
+  `queue_repo` helper was not needed: an e2e test drives the real fetcher instead. Review round 1:
+  the jobs and failed-step log of a merge-group run went to the first `[[repo]]`; they now carry
+  the run's own repository (`Build::repo`, from its URL). Round 2 (unprimed) had no must or
+  should; its minors fixed: hidden queue tabs no longer age their runs (each refresh refetched
+  their running jobs), `short_repo` moved to `text.rs`. Left: two `[[repo]]` with the same short
+  name draw two identical tabs.
 
 ## Deferred / backlog (discuss at retros)
 
@@ -734,9 +743,9 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   success is still hidden); the footer cuts titles by characters, not display width.
 - Follow one PR across columns: `f` on a PR highlights its sha/number in queue, builds, deployed.
 - Desktop/tmux notification on queue state change or main build failure (tmux-agents `watch` pattern).
-- Tabs for Merge queue, Main builds and Deployed, one per `[[repo]]` (phase 40 gave My PRs
-  tabs; this also covers the repo switcher below).
-- Multiple `[[repo]]` entries → repeated column groups or a repo switcher.
+- Main builds tabs, one per `[[repo]]`, following the Merge queue's active tab (phase 42 gave
+  the queue its tabs; decided with the user on 2026-11-14).
+- Deployed tabs, one per application of the monorepo, switched independently of the queue.
 - Native GitHub client if `gh` latency becomes a problem (measure first; each call ~0.3–1 s).
 
 ## Verification

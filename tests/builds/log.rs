@@ -23,6 +23,7 @@ fn shift_l_shows_the_failed_steps_log_in_the_pane_and_again_hides_it() {
 
     assert!(
         h.requests.contains(&Request::Log {
+            repo: "acme/webapp".to_string(),
             run_id: 1025,
             job_id: 1
         }),
@@ -95,6 +96,7 @@ fn shift_l_opens_on_the_first_press_after_the_selection_moves_or_the_pane_closes
         .unwrap();
     assert!(
         h.requests.contains(&Request::Log {
+            repo: "acme/webapp".to_string(),
             run_id: 1024,
             job_id: 4
         }),

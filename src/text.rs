@@ -136,3 +136,7 @@ pub fn strip_ansi(text: &str) -> String {
     }
     out
 }
+
+pub(crate) fn short_repo(repo: &str) -> &str {
+    repo.rsplit('/').next().unwrap_or(repo)
+}
