@@ -100,3 +100,23 @@ fn the_readme_key_table_mirrors_the_in_app_help() {
         "one row per KEYS entry, same order, same words"
     );
 }
+
+#[test]
+fn the_readme_default_config_loads() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("config.toml");
+    std::fs::write(&path, toml_block()).unwrap();
+
+    let loaded = conveyor::config::load(&path);
+
+    assert!(loaded.is_ok(), "{:?}", loaded.err());
+}
+
+fn toml_block() -> String {
+    README
+        .split("```toml\n")
+        .nth(1)
+        .and_then(|rest| rest.split("```").next())
+        .expect("a ```toml block")
+        .to_string()
+}

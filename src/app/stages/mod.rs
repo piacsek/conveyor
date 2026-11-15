@@ -68,7 +68,7 @@ impl Rows {
 pub struct Context<'a> {
     pub config: &'a Config,
     pub builds: &'a BuildsStage,
-    pub merge_landing: &'a [(u64, bool)],
+    pub merge_landing: &'a [(u64, usize, bool)],
 }
 
 impl Context<'_> {
@@ -83,7 +83,7 @@ impl Context<'_> {
     pub fn landing(&self, number: u64) -> bool {
         self.merge_landing
             .iter()
-            .any(|(landing, _)| *landing == number)
+            .any(|(landing, _, _)| *landing == number)
     }
 
     pub fn behind_main(&self, row: &Deployment) -> Option<usize> {
@@ -112,11 +112,33 @@ pub trait StageView {
 
     fn listing_mut(&mut self) -> &mut dyn Listing;
 
-    fn receive(&mut self, rows: Rows, now: SystemTime);
+    fn receive(&mut self, tab: usize, rows: Rows, now: SystemTime);
+
+    fn listing_in_mut(&mut self, tab: usize) -> Option<&mut dyn Listing> {
+        if tab == 0 {
+            Some(self.listing_mut())
+        } else {
+            None
+        }
+    }
 
     fn error(&self) -> Option<&str> {
         self.listing().error()
     }
+
+    fn holds(&self, key: u64) -> bool {
+        self.listing().holds(key)
+    }
+
+    fn tab_names(&self) -> &[String] {
+        &[]
+    }
+
+    fn active_tab(&self) -> usize {
+        0
+    }
+
+    fn select_tab(&mut self, _: usize) {}
 
     fn pull_target(&self) -> Result<(u64, String), String>;
 
@@ -166,12 +188,13 @@ impl App {
         }
     }
 
-    pub fn receive(&mut self, stage: Stage, data: Result<Rows, String>) {
+    pub fn receive(&mut self, stage: Stage, tab: usize, data: Result<Rows, String>) {
         if stage == Stage::Prs {
-            self.merge_landing.retain(|(_, started)| !started);
+            self.merge_landing
+                .retain(|(_, landed_in, started)| *landed_in != tab || !started);
         }
         let selected = self.selected_key();
-        self.receive_rows(stage, data);
+        self.receive_rows(stage, tab, data);
         if self.selected_key() != selected {
             self.reset_scroll();
         }
@@ -181,26 +204,32 @@ impl App {
         self.stage(self.focus).listing().selected_key()
     }
 
-    fn receive_rows(&mut self, stage: Stage, data: Result<Rows, String>) {
+    fn receive_rows(&mut self, stage: Stage, tab: usize, data: Result<Rows, String>) {
         match data {
             Ok(rows) if rows.stage() == stage => {
                 let now = self.now;
-                self.stage_mut(stage).receive(rows, now);
+                self.stage_mut(stage).receive(tab, rows, now);
                 self.age_jobs(stage);
                 self.prune_failures(stage);
             }
             Ok(_) => {}
-            Err(message) => self.stage_mut(stage).listing_mut().fail(message),
+            Err(message) => {
+                if let Some(listing) = self.stage_mut(stage).listing_in_mut(tab) {
+                    listing.fail(message);
+                }
+            }
         }
     }
 
-    pub fn fetching(&mut self, stage: Stage) {
+    pub fn fetching(&mut self, stage: Stage, tab: usize) {
         if stage == Stage::Prs {
-            for (_, started) in &mut self.merge_landing {
-                *started = true;
+            for (_, landed_in, started) in &mut self.merge_landing {
+                *started |= *landed_in == tab;
             }
         }
-        self.stage_mut(stage).listing_mut().set_refreshing(true);
+        if let Some(listing) = self.stage_mut(stage).listing_in_mut(tab) {
+            listing.set_refreshing(true);
+        }
     }
 
     pub fn any_refreshing(&self) -> bool {

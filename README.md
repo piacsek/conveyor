@@ -40,7 +40,8 @@ conveyor log       # print the path of the log file
 |---|---|
 | `q` | quit |
 | `j/k ↓/↑` | move |
-| `h/l Tab 1-4` | focus column |
+| `h/l` | focus column |
+| `Tab S-Tab 1-9` | next / previous / nth tab |
 | `p` | open pull request |
 | `b` | open build |
 | `y/Y` | copy pull request / build URL |
@@ -54,7 +55,7 @@ conveyor log       # print the path of the log file
 | `?/c` | help / changelog |
 
 Keys act on the focused column; `?` shows what `p` and `b` open there. Narrow terminals
-collapse the columns into tabs.
+show one column at a time, named in a bar on top.
 
 Configuration is `~/.config/conveyor/config.toml` (`$XDG_CONFIG_HOME` and `CONVEYOR_CONFIG`
 are honoured). Every key is optional, unknown keys are an error, and these are the defaults:
@@ -67,9 +68,18 @@ refresh_secs = 60
 merge_method = "squash"
 update_method = "merge"
 
+# [[prs.tab]]                 # optional, instead of query; one My PRs tab each
+# name = "review"
+# query = "is:pr is:open review-requested:@me"
+# limit = 10                  # optional; falls back to [prs].limit
+
 [ui]
 min_column_width = 36
 details_percent = 40
+
+[ui.keys]
+next_tab = "tab"              # one character, "tab", "shift-tab" or "ctrl-a" to "ctrl-z"
+previous_tab = "shift-tab"
 
 [[repo]]                      # optional; default is the repository of the current directory
 name = "owner/name"

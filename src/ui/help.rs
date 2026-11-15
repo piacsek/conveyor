@@ -5,12 +5,14 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
 
 use crate::app::Stage;
+use crate::config::{Key, Keys};
 use crate::ui::style::dim;
 
-pub const KEYS: [(&str, &str); 14] = [
+pub const KEYS: [(&str, &str); 15] = [
     ("q", "quit"),
     ("j/k ↓/↑", "move"),
-    ("h/l Tab 1-4", "focus column"),
+    ("h/l", "focus column"),
+    (TAB_KEYS, "next / previous / nth tab"),
     ("p", "open pull request"),
     ("b", "open build"),
     ("y/Y", "copy pull request / build URL"),
@@ -35,9 +37,13 @@ pub fn column_name(stage: Stage) -> &'static str {
 
 /// `KEYS` with `p` and `b` saying what they do in the focused column: the keys are the same
 /// everywhere, their target is not.
-pub fn keys_for(stage: Stage) -> Vec<(&'static str, &'static str)> {
+pub fn keys_for(stage: Stage, keys: &Keys) -> Vec<(String, &'static str)> {
     KEYS.iter()
         .map(|(key, what)| {
+            let shown = match *key {
+                TAB_KEYS => format!("{} {} 1-9", label(keys.next_tab), label(keys.previous_tab)),
+                key => key.to_string(),
+            };
             let what = match (*key, stage) {
                 ("p", Stage::Builds | Stage::Deployed) => "open the merged pull request",
                 ("b", Stage::Prs) => "open the failing check, else the first",
@@ -46,13 +52,24 @@ pub fn keys_for(stage: Stage) -> Vec<(&'static str, &'static str)> {
                 ("b", Stage::Deployed) => "open the main build for this sha",
                 _ => what,
             };
-            (*key, what)
+            (shown, what)
         })
         .collect()
 }
 
-pub(crate) fn draw_help(frame: &mut Frame, area: Rect, stage: Stage) {
-    let keys = keys_for(stage);
+const TAB_KEYS: &str = "Tab S-Tab 1-9";
+
+fn label(key: Key) -> String {
+    match key {
+        Key::Char(c) => c.to_string(),
+        Key::Tab => "Tab".to_string(),
+        Key::BackTab => "S-Tab".to_string(),
+        Key::Ctrl(c) => format!("C-{c}"),
+    }
+}
+
+pub(crate) fn draw_help(frame: &mut Frame, area: Rect, stage: Stage, configured: &Keys) {
+    let keys = keys_for(stage, configured);
     let width = keys
         .iter()
         .map(|(k, _)| k.chars().count())

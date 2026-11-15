@@ -34,8 +34,8 @@ pub use stages::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Input {
     Key(KeyEvent),
-    Fetching(Stage),
-    Data(Stage, Result<Rows, String>),
+    Fetching(Stage, usize),
+    Data(Stage, usize, Result<Rows, String>),
     Jobs(u64, Result<Vec<Job>, String>),
     /// The tail of one job's failed-step log, keyed by job id.
     Log(u64, Result<Vec<String>, String>),
@@ -65,7 +65,7 @@ pub enum Action {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
-    Refresh(Stage),
+    Refresh(Stage, usize),
     Jobs { run_id: u64 },
     Log { run_id: u64, job_id: u64 },
     Rerun { repo: String, run_ids: Vec<u64> },
@@ -98,7 +98,7 @@ pub struct App {
     pub utc_offset_secs: i32,
     pub notice: Option<String>,
     pub follow_up: Option<SystemTime>,
-    pub merge_landing: Vec<(u64, bool)>,
+    pub merge_landing: Vec<(u64, usize, bool)>,
     pub details: bool,
     pub details_scroll: u16,
     pub details_page: u16,
@@ -128,7 +128,7 @@ impl App {
 
     pub fn at(now: SystemTime, config: Config) -> Self {
         Self {
-            prs: PrsStage::default(),
+            prs: PrsStage::new(config.prs.tabs().into_iter().map(|tab| tab.name).collect()),
             queue: QueueStage::default(),
             builds: BuildsStage::default(),
             deployed: DeployedStage::default(),

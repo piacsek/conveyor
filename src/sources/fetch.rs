@@ -10,13 +10,23 @@ const MAX_CHECK_PAGES: usize = 10;
 pub const QUEUE_QUERY: &str = include_str!("queries/queue.graphql");
 const QUEUE_LIMIT: usize = 20;
 
-pub fn fetch_prs(gh: &impl Github, config: &Config) -> Result<Vec<PullRequest>, String> {
+pub fn fetch_prs(
+    gh: &impl Github,
+    config: &Config,
+    tab: usize,
+) -> Result<Vec<PullRequest>, String> {
+    let tab = config
+        .prs
+        .tabs()
+        .into_iter()
+        .nth(tab)
+        .ok_or_else(|| format!("no My PRs tab {}", tab + 1))?;
     let mut value = gh
         .graphql(
             PRS_QUERY,
             &[
-                ("q", config.prs.query.as_str().into()),
-                ("first", config.prs.limit.into()),
+                ("q", tab.query.as_str().into()),
+                ("first", tab.limit.unwrap_or(config.prs.limit).into()),
             ],
         )
         .map_err(|err| err.to_string())?;

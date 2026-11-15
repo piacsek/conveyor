@@ -5,3 +5,4 @@ mod failures;
 mod helpers;
 mod parallel;
 mod popup;
+mod tabs;

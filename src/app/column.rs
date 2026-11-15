@@ -211,7 +211,17 @@ impl<T: Row> Column<T> {
         };
         self.error = None;
         self.refreshing = false;
-        let index = selected
+        self.reselect(selected);
+    }
+
+    pub fn clear_filter(&mut self) {
+        let selected = self.selected().map(Row::key);
+        self.filter = None;
+        self.reselect(selected);
+    }
+
+    fn reselect(&mut self, key: Option<u64>) {
+        let index = key
             .and_then(|key| self.visible().iter().position(|row| row.key() == key))
             .unwrap_or(0);
         self.list.select(Some(index));

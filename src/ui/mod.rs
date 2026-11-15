@@ -46,7 +46,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         return;
     }
     if app.mode == Mode::Help {
-        draw_help(frame, body, app.focus);
+        draw_help(frame, body, app.focus, &app.config.ui.keys);
         draw_overlay_footer(frame, app, "any key returns", footer);
         return;
     }
@@ -65,7 +65,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     if app.zoom {
         draw_column(frame, app, app.focus, body, true);
     } else if body.width < app.config.ui.min_column_width * Stage::ALL.len() as u16 {
-        draw_tabs(frame, app, body);
+        draw_column_bar(frame, app, body);
     } else {
         let columns = Layout::horizontal([Constraint::Fill(1); 4]).split(body);
         for (stage, area) in Stage::ALL.into_iter().zip(columns.iter()) {
@@ -80,7 +80,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     }
 }
 
-fn draw_tabs(frame: &mut Frame, app: &mut App, area: Rect) {
+fn draw_column_bar(frame: &mut Frame, app: &mut App, area: Rect) {
     let [bar, body] = Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(area);
     let mut spans = Vec::new();
     for (i, stage) in Stage::ALL.into_iter().enumerate() {

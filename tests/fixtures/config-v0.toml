@@ -1,0 +1,35 @@
+[prs]
+query = "is:pr is:open archived:false author:@me"
+limit = 15
+refresh_secs = 45
+merge_method = "rebase"
+update_method = "rebase"
+
+[ui]
+min_column_width = 40
+details_percent = 30
+
+[[repo]]
+name = "acme/webapp"
+path = "~/src/webapp"
+main_workflow = "Build and deploy"
+builds = 8
+refresh_secs = 20
+
+[[repo.deploy]]
+system = "argo"
+refresh_secs = 90
+
+[[repo.deploy.env]]
+name = "staging"
+fetcher = "kubectl"
+context = "acme-staging"
+namespace = "webapp"
+deployment = "webapp-web"
+
+[[repo.deploy.env]]
+name = "production"
+fetcher = "kubectl"
+context = "acme-production"
+namespace = "webapp"
+deployment = "webapp-web"

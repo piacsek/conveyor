@@ -21,7 +21,7 @@ impl StageView for QueueStage {
         &mut self.column
     }
 
-    fn receive(&mut self, rows: Rows, now: SystemTime) {
+    fn receive(&mut self, _: usize, rows: Rows, now: SystemTime) {
         if let Rows::Queue(queue) = rows {
             self.repo = Some(queue.repo);
             self.column.receive(queue.entries, now);

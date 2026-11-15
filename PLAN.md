@@ -694,6 +694,25 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   latest notice, and a success that lands under a prompt is still hidden by it;
   `docs/details.png` was not regenerated, since its fixture has no failed write.
 
+- Phase 40 (`plans/phase-40-column-tabs.md`, #79): My PRs has tabs, one per `[[prs.tab]]`
+  (a name, a query and an optional limit), drawn as a bar inside the column when there are two
+  or more. `Tab`/`Shift-Tab` (rebindable in `[ui.keys]`, the first rebindable keys) cycle them
+  and `1`-`9` pick one; columns are reached with `h`/`l` only. Only the active tab is fetched:
+  the refresh channel and every result carry a tab index, so a late result lands in its own
+  tab. Each tab keeps its rows and selection; a switch clears the filter. Marks are pruned only
+  when no tab holds the row. Review round 1: the merge wait ends only on a fetch of the tab the
+  merge was sent from (the plan first said any tab, which offered `u` on a pull request that
+  had just joined the queue); `ctrl-i`, `ctrl-m`, `ctrl-j`, `ctrl-h` and `ctrl-[` are refused
+  as tab keys, since terminals send them as other keys; the README's config block loads
+  (`tests/readme.rs`). A config from before the phase loads and prints unchanged, plus
+  the `[ui.keys]` defaults (`tests/fixtures/config-v0.toml`). Deviations: the help gained a row,
+  so it needs an 18-row terminal (it was 17); `[ui.keys]` also refuses the same key for both
+  tab keys; `Prs::tabs()` landed with the fetcher (task 3), not with the config (task 1), so no
+  item was ever unused; `conveyor config` leaves `[prs].query` out while tabs are set, so its
+  output loads back. Not done: `docs/details.png` was not regenerated (`freeze` is not
+  installed here); `scripts/screenshots.sh` now configures two tabs, so its next run shows the
+  bar.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
@@ -704,6 +723,8 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   success is still hidden); the footer cuts titles by characters, not display width.
 - Follow one PR across columns: `f` on a PR highlights its sha/number in queue, builds, deployed.
 - Desktop/tmux notification on queue state change or main build failure (tmux-agents `watch` pattern).
+- Tabs for Merge queue, Main builds and Deployed, one per `[[repo]]` (phase 40 gave My PRs
+  tabs; this also covers the repo switcher below).
 - Multiple `[[repo]]` entries → repeated column groups or a repo switcher.
 - Native GitHub client if `gh` latency becomes a problem (measure first; each call ~0.3–1 s).
 

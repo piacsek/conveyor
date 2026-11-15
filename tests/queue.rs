@@ -443,7 +443,7 @@ fn s_in_the_queue_says_where_it_works_and_requests_nothing() {
 
     h.run(vec![
         queue(two()),
-        key(KeyCode::Char('2')),
+        key(KeyCode::Char('l')),
         key(KeyCode::Char('S')),
     ])
     .unwrap();

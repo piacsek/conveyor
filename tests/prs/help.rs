@@ -17,7 +17,8 @@ fn the_help_names_the_focused_column_and_says_what_p_and_b_do_there() {
 
     h.run(vec![
         key(KeyCode::Esc),
-        key(KeyCode::Char('3')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
         key(KeyCode::Char('?')),
     ])
     .unwrap();
@@ -28,7 +29,7 @@ fn the_help_names_the_focused_column_and_says_what_p_and_b_do_there() {
 
     h.run(vec![
         key(KeyCode::Esc),
-        key(KeyCode::Char('2')),
+        key(KeyCode::Char('h')),
         key(KeyCode::Char('?')),
     ])
     .unwrap();
@@ -40,7 +41,8 @@ fn the_help_names_the_focused_column_and_says_what_p_and_b_do_there() {
 
     h.run(vec![
         key(KeyCode::Esc),
-        key(KeyCode::Char('4')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
         key(KeyCode::Char('?')),
     ])
     .unwrap();
@@ -54,7 +56,7 @@ fn the_help_names_the_focused_column_and_says_what_p_and_b_do_there() {
 
 #[test]
 fn question_mark_shows_the_key_help_and_any_key_returns() {
-    let mut h = Harness::with_size(160, 16);
+    let mut h = Harness::with_size(160, 18);
 
     h.run(vec![prs(three()), key(KeyCode::Char('?'))]).unwrap();
 

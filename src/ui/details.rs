@@ -18,7 +18,7 @@ use crate::ui::style::{build_glyph, check_word, conclusion_glyph, dim, sha8, sta
 
 pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
     let (title, lines) = match app.focus {
-        Stage::Prs => match app.prs.column.selected() {
+        Stage::Prs => match app.prs.column().selected() {
             Some(pr) => (
                 format!("#{} {}", pr.number, pr.title),
                 pr_details(pr, app.now),

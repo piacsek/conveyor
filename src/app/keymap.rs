@@ -1,5 +1,7 @@
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+use crate::config::Key;
+
 use super::{Action, App, Mode, Stage};
 
 impl App {
@@ -41,6 +43,7 @@ impl App {
 
     fn handle_filter_key(&mut self, key: KeyEvent) -> Action {
         match key.code {
+            KeyCode::Char(_) if key.modifiers.contains(KeyModifiers::CONTROL) => Action::Continue,
             KeyCode::Char(c) => self.edit_filter(|q| q.push(c)),
             KeyCode::Backspace => self.edit_filter(|q| {
                 q.pop();
@@ -58,6 +61,7 @@ impl App {
                 self.clear_filter();
                 Action::Continue
             }
+            KeyCode::Tab | KeyCode::BackTab => Action::Continue,
             _ => self.handle_normal_key(key),
         }
     }
@@ -91,12 +95,19 @@ impl App {
 
     fn handle_normal_key(&mut self, key: KeyEvent) -> Action {
         let pending_g = std::mem::take(&mut self.pending_g);
+        let keys = &self.config.ui.keys;
+        if pressed(keys.next_tab, key) {
+            return self.switch_tab(|tab, count| (tab + 1) % count);
+        }
+        if pressed(keys.previous_tab, key) {
+            return self.switch_tab(|tab, count| (tab + count - 1) % count);
+        }
         match key.code {
             KeyCode::Char('q') => return Action::Quit,
             KeyCode::Esc => self.escape(),
-            KeyCode::Char(digit @ '1'..='4') => {
+            KeyCode::Char(digit @ '1'..='9') => {
                 let index = digit as usize - '1' as usize;
-                self.refocus(|_| Stage::ALL[index]);
+                return self.switch_tab(|_, _| index);
             }
             KeyCode::Char('/') => {
                 let current = self.query.clone().unwrap_or_default();
@@ -142,8 +153,6 @@ impl App {
             KeyCode::Char('z') => self.zoom = !self.zoom,
             KeyCode::Char('l') if self.focus != Stage::Deployed => self.refocus(Stage::next),
             KeyCode::Char('h') if self.focus != Stage::Prs => self.refocus(Stage::previous),
-            KeyCode::Tab => self.refocus(Stage::next),
-            KeyCode::BackTab => self.refocus(Stage::previous),
             KeyCode::Char('j') | KeyCode::Down => self.with_focused(|c| c.next()),
             KeyCode::Char('k') | KeyCode::Up => self.with_focused(|c| c.previous()),
             KeyCode::Char('G') => self.with_focused(|c| c.last()),
@@ -152,5 +161,15 @@ impl App {
             _ => {}
         }
         Action::Continue
+    }
+}
+
+fn pressed(bound: Key, key: KeyEvent) -> bool {
+    let control = key.modifiers.contains(KeyModifiers::CONTROL);
+    match bound {
+        Key::Char(c) => key.code == KeyCode::Char(c) && !control,
+        Key::Tab => key.code == KeyCode::Tab,
+        Key::BackTab => key.code == KeyCode::BackTab,
+        Key::Ctrl(c) => key.code == KeyCode::Char(c) && control,
     }
 }

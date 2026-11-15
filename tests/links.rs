@@ -76,7 +76,8 @@ fn a_build_that_only_knows_its_number_links_to_the_pull_request_p_opens() {
 
     h.run(vec![
         builds(vec![squashed, build(24, BuildStatus::Success, None)]),
-        key(KeyCode::Char('3')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
         key(KeyCode::Char('p')),
     ])
     .unwrap();

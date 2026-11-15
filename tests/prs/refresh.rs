@@ -18,7 +18,7 @@ fn r_requests_a_refresh_and_the_footer_shows_the_data_age() {
     h.run(vec![key(KeyCode::Char('r'))]).unwrap();
     assert_eq!(
         h.requests,
-        vec![conveyor::app::Request::Refresh(Stage::Prs)]
+        vec![conveyor::app::Request::Refresh(Stage::Prs, 0)]
     );
 }
 
@@ -104,7 +104,7 @@ fn shift_r_refreshes_every_column() {
 
     assert_eq!(
         h.requests,
-        Stage::ALL.map(Request::Refresh).to_vec(),
+        Stage::ALL.map(|stage| Request::Refresh(stage, 0)).to_vec(),
         "one request per column"
     );
 }

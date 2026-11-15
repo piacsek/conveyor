@@ -2,7 +2,7 @@ use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, List, ListItem, Paragraph};
+use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 
 use crate::app::{App, Column, Failure, Row, Stage, Write};
 use crate::ui::link::link;
@@ -33,7 +33,7 @@ fn titled<T: Row>(base: &str, column: &Column<T>, marks: usize) -> String {
 pub(crate) fn column_title(app: &App, stage: Stage) -> String {
     let marks = app.failure_count(stage);
     match stage {
-        Stage::Prs => titled("My PRs", &app.prs.column, marks),
+        Stage::Prs => titled("My PRs", app.prs.column(), marks),
         Stage::Queue => match &app.queue.repo {
             Some(repo) => titled(
                 &format!("Queue {}", short_repo(repo)),
@@ -77,6 +77,25 @@ pub(crate) fn draw_column(
     titled: bool,
 ) {
     let block = column_block(app, stage, titled);
+    let view = app.stage(stage);
+    let (area, block) = match tab_bar(view.tab_names(), view.active_tab(), area.width) {
+        Some(bar) => {
+            frame.render_widget(block, area);
+            let line = Rect::new(area.x + 1, area.y + 1, area.width.saturating_sub(2), 1)
+                .intersection(area);
+            frame.render_widget(Paragraph::new(bar), line);
+            let below = Rect::new(
+                area.x,
+                area.y.saturating_add(2),
+                area.width,
+                area.height.saturating_sub(2),
+            )
+            .intersection(area);
+            let sides = Block::bordered().borders(Borders::LEFT | Borders::RIGHT | Borders::BOTTOM);
+            (below, sides)
+        }
+        None => (area, block),
+    };
     let focused = stage == app.focus;
     let now = app.now;
     let jobs = std::mem::take(&mut app.jobs);
@@ -86,15 +105,15 @@ pub(crate) fn draw_column(
             let spinner = app.spinner();
             let busy: Vec<Option<String>> = app
                 .prs
-                .column
+                .column()
                 .visible()
                 .iter()
                 .map(|pr| app.write_on(Stage::Prs, pr.key()).map(Write::word))
                 .collect();
-            let failures = marks(app, Stage::Prs, &app.prs.column);
+            let failures = marks(app, Stage::Prs, app.prs.column());
             draw_list(
                 frame,
-                &mut app.prs.column,
+                app.prs.column_mut(),
                 area,
                 block,
                 focused,
@@ -177,6 +196,57 @@ pub(crate) fn draw_column(
         }
     }
     app.jobs = jobs;
+}
+
+fn tab_bar(names: &[String], active: usize, width: u16) -> Option<Line<'static>> {
+    if names.len() < 2 {
+        return None;
+    }
+    let width = usize::from(width.saturating_sub(2));
+    const SEPARATOR: &str = " │ ";
+    let gap = SEPARATOR.chars().count();
+    let shown = |start: usize| {
+        let lead = if start > 0 { 1 + gap } else { 0 };
+        lead + names[start..=active]
+            .iter()
+            .map(|name| name.chars().count())
+            .sum::<usize>()
+            + (active - start) * gap
+    };
+    let start = (0..active)
+        .find(|&start| shown(start) < width)
+        .unwrap_or(active);
+    let mut parts: Vec<(String, Style)> = Vec::new();
+    if start > 0 {
+        parts.push(("…".to_string(), dim()));
+        parts.push((SEPARATOR.to_string(), Style::default()));
+    }
+    for (i, name) in names.iter().enumerate().skip(start) {
+        if i > start {
+            parts.push((SEPARATOR.to_string(), Style::default()));
+        }
+        let style = if i == active {
+            Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED)
+        } else {
+            dim()
+        };
+        parts.push((name.clone(), style));
+    }
+    let total: usize = parts.iter().map(|(text, _)| text.chars().count()).sum();
+    let mut used = 0;
+    let mut spans = Vec::new();
+    for (text, style) in parts {
+        let count = text.chars().count();
+        if total <= width || used + count < width {
+            used += count;
+            spans.push(Span::styled(text, style));
+        } else {
+            let cut: String = text.chars().take(width - used - 1).collect();
+            spans.push(Span::styled(format!("{cut}…"), style));
+            break;
+        }
+    }
+    Some(Line::from(spans))
 }
 
 fn marks<T: Row>(app: &App, stage: Stage, column: &Column<T>) -> Vec<Option<Failure>> {

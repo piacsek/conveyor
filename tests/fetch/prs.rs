@@ -1,6 +1,6 @@
 use std::io;
 
-use conveyor::config::Config;
+use conveyor::config::{Config, PrsTab};
 use conveyor::sources::fetch::fetch_prs;
 use conveyor::sources::github::Variable;
 
@@ -16,7 +16,7 @@ fn fetch_prs_runs_the_configured_search_and_parses_the_rows() {
     config.prs.query = "is:pr involves:@me".to_string();
     config.prs.limit = 7;
 
-    let prs = fetch_prs(&gh, &config).unwrap();
+    let prs = fetch_prs(&gh, &config, 0).unwrap();
 
     assert_eq!(prs.len(), 1);
     assert_eq!(prs[0].number, 1);
@@ -36,10 +36,64 @@ fn fetch_prs_runs_the_configured_search_and_parses_the_rows() {
 }
 
 #[test]
+fn fetch_prs_runs_the_search_of_the_tab_it_is_asked_for() {
+    let gh = FakeGithub::with_response(Ok(serde_json::from_str(include_str!(
+        "../fixtures/prs.json"
+    ))
+    .unwrap()));
+    let mut config = Config::default();
+    config.prs.limit = 7;
+    config.prs.tab = vec![
+        tab("mine", "is:pr author:@me", None),
+        tab("review", "is:pr review-requested:@me", Some(3)),
+    ];
+
+    fetch_prs(&gh, &config, 1).unwrap();
+
+    let calls = gh.calls.borrow();
+    assert_eq!(
+        calls[0].1,
+        vec![
+            (
+                "q".to_string(),
+                Variable::from("is:pr review-requested:@me")
+            ),
+            ("first".to_string(), Variable::from(3usize)),
+        ]
+    );
+}
+
+#[test]
+fn a_tab_without_a_limit_fetches_the_my_prs_limit() {
+    let gh = FakeGithub::with_response(Ok(serde_json::from_str(include_str!(
+        "../fixtures/prs.json"
+    ))
+    .unwrap()));
+    let mut config = Config::default();
+    config.prs.limit = 7;
+    config.prs.tab = vec![tab("mine", "is:pr author:@me", None)];
+
+    fetch_prs(&gh, &config, 0).unwrap();
+
+    let calls = gh.calls.borrow();
+    assert_eq!(calls[0].1[1], ("first".to_string(), Variable::from(7usize)));
+}
+
+#[test]
+fn a_tab_past_the_last_is_an_error_and_asks_nothing() {
+    let gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+
+    let err = fetch_prs(&gh, &Config::default(), 1).unwrap_err();
+
+    assert_eq!(err, "no My PRs tab 2");
+    assert!(gh.calls.borrow().is_empty());
+}
+
+#[test]
 fn fetch_prs_turns_gh_errors_into_a_message() {
     let gh = FakeGithub::with_response(Err(io::Error::other("gh: HTTP 401: Bad credentials")));
 
-    let err = fetch_prs(&gh, &Config::default()).unwrap_err();
+    let err = fetch_prs(&gh, &Config::default(), 0).unwrap_err();
 
     assert_eq!(err, "gh: HTTP 401: Bad credentials");
 }
@@ -51,7 +105,7 @@ fn fetch_prs_asks_which_workflow_run_each_check_came_from() {
     ))
     .unwrap()));
 
-    fetch_prs(&gh, &Config::default()).unwrap();
+    fetch_prs(&gh, &Config::default(), 0).unwrap();
 
     let calls = gh.calls.borrow();
     assert!(
@@ -81,7 +135,7 @@ fn fetch_prs_reads_every_page_of_a_pull_requests_checks() {
             "nodes": [check(2, "IN_PROGRESS")]}}}}}),
     )];
 
-    let prs = fetch_prs(&gh, &Config::default()).unwrap();
+    let prs = fetch_prs(&gh, &Config::default(), 0).unwrap();
 
     assert_eq!(prs[0].checks_detail.len(), 1);
     assert_eq!(
@@ -97,4 +151,12 @@ fn fetch_prs_reads_every_page_of_a_pull_requests_checks() {
             ("after".to_string(), Variable::from("c1")),
         ]
     );
+}
+
+fn tab(name: &str, query: &str, limit: Option<usize>) -> PrsTab {
+    PrsTab {
+        name: name.to_string(),
+        query: query.to_string(),
+        limit,
+    }
 }

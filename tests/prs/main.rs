@@ -11,4 +11,5 @@ mod helpers;
 mod navigation;
 mod refresh;
 mod rerun;
+mod tabs;
 mod zoom;

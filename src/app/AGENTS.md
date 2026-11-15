@@ -12,8 +12,34 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   and returns to Normal with the query kept, `Esc` while typing clears it, `/` reopens it.
   Every column title reads `(visible/total)` while a query is live.
 - **`Esc` closes one thing per press**, in order: details pane, zoom, the selected card's
-  mark (see the failed writes bullet), live filter; then it is a no-op. It never quits. `1`–`4`
-  focus a column in both layouts.
+  mark (see the failed writes bullet), live filter; then it is a no-op. It never quits. `h`/`l`
+  focus a column in both layouts; `Tab` and `1`-`4` no longer do (see the tabs bullet).
+- **My PRs has tabs, one per `[[prs.tab]]`.** A tab is a named search; with none,
+  `[prs].query` is the single tab and nothing about the column changes. `[ui.keys] next_tab`
+  and `previous_tab` (default `tab`, `shift-tab`) cycle the tabs of the focused column, and
+  `1`-`9` pick one; in a column with one tab, past the last tab or on the active one they do
+  nothing and send nothing. The digits are built in. `keymap::pressed` matches a configured
+  `config::Key`; `config::Key::parse` refuses any key conveyor already uses, naming what it
+  does, so a rebind never shadows `S`, and `ctrl-i`, `ctrl-m`, `ctrl-j`, `ctrl-h` and `ctrl-[`,
+  which terminals send as `Tab`, `Enter`, `Backspace` and `Esc`, so the binding would never
+  fire. A chord is `ctrl-a` to `ctrl-z` only (crossterm reads other chords as other keys), and
+  a blank key or tab name is refused, since the help and the bar could not show it. While the filter is typed, `Tab`/`Shift-Tab` and control chords do nothing and a
+  character (a digit, `]`) is typed into the query. `PrsStage` holds one `Column` per tab
+  and the active index; `listing()` is the active tab, so everything that reads the focused
+  column reads it. Each tab keeps its own rows, selection, scroll, error and fetch time. A
+  switch clears the filter (`App.query`, on every column) and keeps the row selected on both
+  tabs (`Column::clear_filter`), resets the panes' scroll, and sends
+  `Request::Refresh(Stage::Prs, tab)`. **Every refresh names a tab and every result carries
+  one**: `App::refresh_request` asks for the active tab, `Input::Fetching(stage, tab)` and
+  `Input::Data(stage, tab, …)` land in that tab (`StageView::listing_in_mut`), never in the one
+  active when they arrive. **Marks span the tabs**: `StageView::holds` asks every tab, so a mark
+  is pruned only once no tab's last rows hold its row, and a write that fails after a switch
+  still marks; the title's `!N` counts the active tab's rows. The busy spinner is per row key,
+  so it shows on every tab that lists the row. The merge wait (`merge_landing`) keeps the tab
+  active at the merge and ends on the first fetch of that tab that started after the merge: a
+  fetch of another tab leaves the merged tab's cards as old as they were, so `u` and `t` stay
+  refused there. Only the active tab is
+  fetched; the other tabs keep their last rows until you switch back.
 - **`L` is read-only, and the log has a pane of its own.** It asks `gh run view <run> --job
   <job> --log-failed` for the first failed job of the selected run (Main builds or Merge
   queue), keeps the last `LOG_TAIL` lines per job id in `App.logs`, and toggles `App.log_open`.
@@ -193,7 +219,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   +2 s. So an `Updated` branch, a rerun from My PRs that went through and a status change that
   landed also set
   `App::follow_up` to `now + FOLLOW_UP` (10 s); the first `Tick` at or after it sends one more
-  `Request::Refresh(Stage::Prs)` and clears it. A second action before then moves the due time.
+  `Request::Refresh(Stage::Prs, 0)` and clears it. A second action before then moves the due time.
   `UpToDate`, `Conflicts`, errors and a Main builds rerun schedule nothing. `app.now` only
   moves on a tick, which only comes while no key is pressed, so a held key delays it.
 - **A failed write marks the card it was started from.** The footer shows only the latest
@@ -223,7 +249,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   check; `App::open` applies it (footer notice, nothing spawned) and `SystemOpener::open`
   applies it again as the last line before the spawn.
 - **Zoom.** `z` toggles `App::zoom`; `ui::draw` then renders only `app.focus` across the whole
-  body and skips the tabs check, so the narrow layout is unaffected. Nothing else reads the flag.
+  body and skips the column bar check, so the narrow layout is unaffected. Nothing else reads the flag.
 - **The details pane scrolls, the columns do not.** `Ctrl-d`/`Ctrl-u` move `App::details_scroll`
   by half of `details_page` (the pane's inner height, written by `draw_details`); the title
   grows `↑`/`↓` while there is more in that direction. **`draw_details` owns the clamp**
@@ -280,7 +306,8 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
 - Refresh feedback (the footer spinner and the `refreshed` wording): see `src/ui/AGENTS.md`.
 - **The keymap pairs the pull request and the build.** `p`/`b` open them, `y`/`Y` copy them,
   `d` is the details pane, `Ctrl-d`/`Ctrl-u` scroll it. `y/Y`, `r/R`, `?/c` and
-  `C-d/C-u` each share one line of `KEYS`; `L` and `S` have one each, so the help needs 17 rows.
+  `C-d/C-u` each share one line of `KEYS`; `L` and `S` have one each, and the tab keys one more,
+  so the help needs 18 rows.
 - The help pane, the changelog pane and the cards: see `src/ui/AGENTS.md`.
 - The spawn lock, call logging and `gh` never inheriting the terminal: see `src/sources/AGENTS.md`.
 - Deployed rows keeping their last known sha (`keep_last_known`) and `behind_main`: see `src/sources/AGENTS.md`.

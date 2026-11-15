@@ -1,6 +1,6 @@
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
-use crate::app::{Action, App};
+use crate::app::{Action, App, Stage};
 
 use super::{Choice, WriteKind};
 
@@ -39,7 +39,9 @@ impl App {
     }
 
     pub(super) fn land(&mut self, number: u64) {
-        self.merge_landing.retain(|(landing, _)| *landing != number);
-        self.merge_landing.push((number, false));
+        let tab = self.stage(Stage::Prs).active_tab();
+        self.merge_landing
+            .retain(|(landing, _, _)| *landing != number);
+        self.merge_landing.push((number, tab, false));
     }
 }

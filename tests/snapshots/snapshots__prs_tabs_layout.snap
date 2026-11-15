@@ -1,0 +1,16 @@
+---
+source: tests/snapshots.rs
+expression: versionless(h.screen())
+---
+┌My PRs (2)────────────────────────────┐┌Merge queue───────────────────────────┐┌Main builds───────────────────────────┐┌Deployed──────────────────────────────┐
+│mine │ review │ team                  ││fetching…                             ││fetching…                             ││no [[repo.deploy]] configured         │
+│▌ ●  #4830 Add rate limit headers… 2h││                                      ││                                      ││                                      │
+│▌   auth                              ││                                      ││                                      ││                                      │
+│▌   checks: pending                   ││                                      ││                                      ││                                      │
+│  ○  #4790 Spike: parallel test r… 2h││                                      ││                                      ││                                      │
+│    webapp                            ││                                      ││                                      ││                                      │
+│    checks: none                      ││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+│                                      ││                                      ││                                      ││                                      │
+└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘
+refreshed just now                                                                                                                        ▪─▪─▪▸ conveyor vX.Y.Z
