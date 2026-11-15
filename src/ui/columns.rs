@@ -32,28 +32,47 @@ fn titled<T: Row>(base: &str, column: &Column<T>, marks: usize) -> String {
 
 pub(crate) fn column_title(app: &App, stage: Stage) -> String {
     let marks = app.failure_count(stage);
+    let titles = &app.config.ui.titles;
     match stage {
-        Stage::Prs => titled("My PRs", app.prs.column(), marks),
-        Stage::Queue => match &app.queue.repo {
-            Some(repo) => titled(
-                &format!("Queue {}", short_repo(repo)),
-                &app.queue.column,
-                marks,
+        Stage::Prs => titled(
+            &named(titles.prs.as_deref(), ("My PRs", "My PRs"), None),
+            app.prs.column(),
+            marks,
+        ),
+        Stage::Queue => titled(
+            &named(
+                titles.queue.as_deref(),
+                ("Queue", "Merge queue"),
+                app.queue.repo.as_deref().map(short_repo),
             ),
-            None => titled("Merge queue", &app.queue.column, marks),
-        },
-        Stage::Builds => match &app.builds.repo {
-            Some(repo) => titled(
-                &format!("Main {}", short_repo(repo)),
-                &app.builds.column,
-                marks,
+            &app.queue.column,
+            marks,
+        ),
+        Stage::Builds => titled(
+            &named(
+                titles.builds.as_deref(),
+                ("Main", "Main builds"),
+                app.builds.repo.as_deref().map(short_repo),
             ),
-            None => titled("Main builds", &app.builds.column, marks),
-        },
-        Stage::Deployed => match &app.deployed.system {
-            Some(system) => titled(&format!("Deployed {system}"), &app.deployed.column, marks),
-            None => titled("Deployed", &app.deployed.column, marks),
-        },
+            &app.builds.column,
+            marks,
+        ),
+        Stage::Deployed => titled(
+            &named(
+                titles.deployed.as_deref(),
+                ("Deployed", "Deployed"),
+                app.deployed.system.as_deref(),
+            ),
+            &app.deployed.column,
+            marks,
+        ),
+    }
+}
+
+fn named(custom: Option<&str>, (short, full): (&str, &str), suffix: Option<&str>) -> String {
+    match suffix {
+        Some(suffix) => format!("{} {suffix}", custom.unwrap_or(short)),
+        None => custom.unwrap_or(full).to_string(),
     }
 }
 
