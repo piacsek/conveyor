@@ -713,6 +713,17 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   installed here); `scripts/screenshots.sh` now configures two tabs, so its next run shows the
   bar.
 
+- Phase 41 (`plans/phase-41-column-titles.md`, #83): an optional `[ui.titles]` table (`prs`,
+  `queue`, `builds`, `deployed`) renames each column on its border, on the narrow layout's bar
+  and in the `?` help header; a known repo or system still follows the custom name
+  (`<name> <repo>`), and unset keys keep today's titles. `help::column_name` is the one source.
+  A blank title, one with spaces around it or a control character in it is a config error
+  naming the key; `conveyor config` prints only the keys that are set. Review: Codex is not
+  installed on this machine, so both rounds were Claude only (decided by the user). Not done:
+  footer and error messages still name the column by its fixed name (out of scope in #83); a
+  long custom name can push later columns off the one-line bar of the narrow layout, as a
+  long repo name already does.
+
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
