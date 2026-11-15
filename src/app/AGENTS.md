@@ -301,8 +301,10 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   rest of `App` only through the `Context` it is handed. The UI still draws by stage: arms in
   `column_title`, `draw_column`, `draw_details`, and in `column_name` and `keys_for` of the help.
 - **Opens are debounced.** `p`/`b` on the same URL within `OPEN_DEBOUNCE` (1 s of
-  `app.now`) is ignored: terminals send a key-repeat stream for a held key, which opened a tab
-  per repeat.
+  `app.now`) of the last `p`/`b` on it is ignored, and the ignored press restarts the window:
+  terminals send a key-repeat stream for a held key, which opened a tab per repeat. Ticks keep
+  `app.now` moving under a held key, so a window measured from the last open would open a tab
+  every second; a held key opens one, and the next press after 1 s of quiet opens again.
 - **Refreshes coalesce in the fetcher.** `r`/`R` always send a `Request::Refresh`; each
   fetcher thread wakes through `refresh::wait`, which takes one signal and drains the rest, so
   a burst costs at most one fetch beyond the one running, and a held `r` refetches back to back
