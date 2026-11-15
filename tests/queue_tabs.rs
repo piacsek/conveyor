@@ -3,7 +3,7 @@ mod support;
 use conveyor::app::{Request, Stage};
 use conveyor::config::{Config, Repo};
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, entry, key, queue_in};
+use support::{Harness, entry, failed_in, key, queue_in};
 
 #[test]
 fn tab_on_merge_queue_asks_for_the_second_repository() {
@@ -103,6 +103,40 @@ fn one_repository_draws_no_tab_bar() {
 
     assert!(!h.screen().contains("│ monorepo"), "{}", h.screen());
     assert!(h.screen().contains("Queue monorepo (0)"), "{}", h.screen());
+}
+
+#[test]
+fn a_monorepo_result_landing_after_the_switch_stays_in_the_monorepo_tab() {
+    let mut h = Harness::with_config(160, 12, two_repos());
+    h.run(vec![key(KeyCode::Char('l')), key(KeyCode::Tab)])
+        .unwrap();
+
+    h.run(vec![queue_in(
+        0,
+        "acme/monorepo",
+        vec![entry(1, 12, "alice", "Retry webhooks")],
+    )])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(!screen.contains("#12 Retry webhooks"), "{screen}");
+    assert!(!screen.contains("Queue monorepo"), "{screen}");
+    h.run(vec![key(KeyCode::BackTab)]).unwrap();
+    assert!(h.screen().contains("#12 Retry webhooks"), "{}", h.screen());
+}
+
+#[test]
+fn a_monorepo_error_landing_after_the_switch_shows_only_on_the_monorepo_tab() {
+    let mut h = Harness::with_config(160, 12, two_repos());
+    h.run(vec![key(KeyCode::Char('l')), key(KeyCode::Tab)])
+        .unwrap();
+
+    h.run(vec![failed_in(Stage::Queue, 0, "gh: HTTP 502")])
+        .unwrap();
+
+    assert!(!h.screen().contains("HTTP 502"), "{}", h.screen());
+    h.run(vec![key(KeyCode::BackTab)]).unwrap();
+    assert!(h.screen().contains("HTTP 502"), "{}", h.screen());
 }
 
 fn two_repos() -> Config {
