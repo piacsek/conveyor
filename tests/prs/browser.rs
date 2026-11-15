@@ -1,7 +1,7 @@
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::{highlighted_row, three};
-use crate::support::{Harness, NOW, key, pr, prs, tick_at};
+use crate::support::{Harness, NOW, key, pr, prs, tick_at, tick_at_ms};
 
 #[test]
 fn p_opens_the_selected_pull_request_and_enter_and_o_do_nothing() {
@@ -82,6 +82,34 @@ fn a_held_p_opens_the_same_row_only_once_per_second() {
             "https://github.com/acme/webapp/pull/2".to_string(),
         ]
     );
+}
+
+#[test]
+fn a_p_held_while_the_clock_ticks_opens_one_tab_until_it_is_released_for_a_second() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(three()),
+        key(KeyCode::Char('p')),
+        tick_at_ms(NOW * 1000 + 400),
+        key(KeyCode::Char('p')),
+        tick_at_ms(NOW * 1000 + 800),
+        key(KeyCode::Char('p')),
+        tick_at_ms(NOW * 1000 + 1200),
+        key(KeyCode::Char('p')),
+        tick_at_ms(NOW * 1000 + 1600),
+        key(KeyCode::Char('p')),
+        tick_at_ms(NOW * 1000 + 2000),
+        key(KeyCode::Char('p')),
+        tick_at_ms(NOW * 1000 + 3100),
+        key(KeyCode::Char('p')),
+    ])
+    .unwrap();
+
+    let opened = h.opener.opened();
+    assert_eq!(opened.len(), 2);
+    assert_eq!(opened[0], "https://github.com/acme/webapp/pull/1");
+    assert_eq!(opened[1], "https://github.com/acme/webapp/pull/1");
 }
 
 #[test]

@@ -43,6 +43,7 @@ where
                     request(app.refresh_request(Stage::Prs));
                 }
             }
+            Input::Resize => {}
             Input::Fetching(stage, tab) => app.fetching(stage, tab),
             Input::Data(stage, tab, data) => app.receive(stage, tab, data),
             Input::Jobs(run_id, result) => app.receive_jobs(run_id, result),

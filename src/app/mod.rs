@@ -45,6 +45,7 @@ pub enum Input {
     StatusChanged(u64, StatusChange, Result<(), String>),
     CheckedOut(CheckoutTarget, Result<(), String>),
     Tick(SystemTime),
+    Resize,
 }
 
 #[derive(Debug, PartialEq, Eq)]

@@ -18,10 +18,11 @@ impl App {
             self.notice = Some(err.to_string());
             return Action::Continue;
         }
-        if self.opened_recently(&url) {
+        let repeat = self.opened_recently(&url);
+        self.last_open = Some((url.clone(), self.now));
+        if repeat {
             return Action::Continue;
         }
-        self.last_open = Some((url.clone(), self.now));
         Action::Open(url)
     }
 

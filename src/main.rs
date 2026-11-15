@@ -12,6 +12,7 @@ use conveyor::app::{
 };
 use conveyor::cli::{self, Command};
 use conveyor::config::{self, Config, Repo, expand_home};
+use conveyor::events::{self, Crossterm, SystemClock};
 use conveyor::log::{self, Log};
 use conveyor::open::SystemOpener;
 use conveyor::refresh;
@@ -20,7 +21,6 @@ use conveyor::sources::fetch::{
 };
 use conveyor::sources::github::{CliGh, Github};
 use conveyor::sources::kube::CliKubectl;
-use ratatui::crossterm::event::{self, Event};
 
 fn main() -> ExitCode {
     let command = match cli::parse(env::args().skip(1)) {
@@ -293,28 +293,7 @@ fn spawn_merger(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<MergeTarg
 }
 
 fn spawn_terminal_events(tx: Inputs) {
-    thread::spawn(move || {
-        loop {
-            let input = match event::poll(Duration::from_millis(250)) {
-                Ok(true) => match event::read() {
-                    Ok(Event::Key(key)) if key.is_press() => Input::Key(key),
-                    Ok(_) => continue,
-                    Err(err) => {
-                        let _ = tx.send(Err(err));
-                        return;
-                    }
-                },
-                Ok(false) => Input::Tick(SystemTime::now()),
-                Err(err) => {
-                    let _ = tx.send(Err(err));
-                    return;
-                }
-            };
-            if tx.send(Ok(input)).is_err() {
-                return;
-            }
-        }
-    });
+    thread::spawn(move || events::forward(&mut Crossterm, &SystemClock, &tx));
 }
 
 fn spawn_prs_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<usize> {

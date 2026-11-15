@@ -1,7 +1,7 @@
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::{highlighted_row, three};
-use crate::support::{self, Harness, NOW, key, pr, prs, tick_at};
+use crate::support::{self, Harness, NOW, key, pr, prs, tick_at, tick_at_ms};
 
 #[test]
 fn r_requests_a_refresh_and_the_footer_shows_the_data_age() {
@@ -20,6 +20,29 @@ fn r_requests_a_refresh_and_the_footer_shows_the_data_age() {
         h.requests,
         vec![conveyor::app::Request::Refresh(Stage::Prs, 0)]
     );
+}
+
+#[test]
+fn an_r_held_while_the_clock_ticks_asks_one_refresh_per_repeat_and_nothing_more() {
+    use conveyor::app::{Request, Stage};
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(three()),
+        key(KeyCode::Char('r')),
+        tick_at_ms(NOW * 1000 + 250),
+        key(KeyCode::Char('r')),
+        tick_at_ms(NOW * 1000 + 500),
+        key(KeyCode::Char('r')),
+        tick_at_ms(NOW * 1000 + 750),
+        tick_at(NOW + 20),
+    ])
+    .unwrap();
+
+    assert_eq!(h.requests.len(), 3);
+    assert_eq!(h.requests[0], Request::Refresh(Stage::Prs, 0));
+    assert_eq!(h.requests[1], Request::Refresh(Stage::Prs, 0));
+    assert_eq!(h.requests[2], Request::Refresh(Stage::Prs, 0));
 }
 
 #[test]
