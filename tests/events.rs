@@ -30,6 +30,27 @@ fn a_quiet_terminal_ticks_every_250_ms() {
 }
 
 #[test]
+fn ticks_keep_coming_every_250_ms_while_keys_stream() {
+    let inputs = forwarded((0..20).map(|_| (50, press('j'))).collect());
+    let ticks: Vec<SystemTime> = inputs.iter().filter_map(tick).collect();
+
+    assert_eq!(ticks.len(), 4);
+    assert_eq!(ticks[0], at(250));
+    assert_eq!(ticks[1], at(500));
+    assert_eq!(ticks[2], at(750));
+    assert_eq!(ticks[3], at(1000));
+}
+
+#[test]
+fn ignored_events_do_not_hold_back_the_tick() {
+    let inputs = forwarded((0..10).map(|_| (30, release('j'))).collect());
+
+    assert_eq!(inputs.len(), 2);
+    assert_eq!(tick(&inputs[0]), Some(at(250)));
+    assert!(inputs[1].is_err());
+}
+
+#[test]
 fn a_resize_is_forwarded_so_run_draws_at_the_new_size() {
     let inputs = forwarded(vec![(10, Event::Resize(100, 30))]);
 

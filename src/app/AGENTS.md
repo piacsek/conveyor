@@ -227,8 +227,8 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   landed also set
   `App::follow_up` to `now + FOLLOW_UP` (10 s); the first `Tick` at or after it sends one more
   `Request::Refresh(Stage::Prs, 0)` and clears it. A second action before then moves the due time.
-  `UpToDate`, `Conflicts`, errors and a Main builds rerun schedule nothing. `app.now` only
-  moves on a tick, which only comes while no key is pressed, so a held key delays it.
+  `UpToDate`, `Conflicts`, errors and a Main builds rerun schedule nothing. `app.now` moves
+  on a tick, and `events::forward` sends one every 250 ms from a deadline, keys or not.
 - **A failed write marks the card it was started from.** The footer shows only the latest
   notice, and since several writes can run at once a later result (or the key that answers a
   prompt) used to wipe a failure before anyone read it. So every `receive_*` hands the `Write`
@@ -307,8 +307,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   fetcher thread wakes through `refresh::wait`, which takes one signal and drains the rest, so
   a burst costs at most one fetch beyond the one running, and a held `r` refetches back to back
   until released, with nothing left queued after. It used to queue a fetch per key repeat, which
-  kept running long after the key came up. A time window in `App` was rejected: `app.now` only
-  moves on a `Tick`, which never comes while keys arrive under 250 ms apart, and skipping a
+  kept running long after the key came up. A time window in `App` was rejected: skipping a
   column mid-fetch dropped an `r` meant to catch a change the running fetch predates.
 - Refresh feedback (the footer spinner and the `refreshed` wording): see `src/ui/AGENTS.md`.
 - **The keymap pairs the pull request and the build.** `p`/`b` open them, `y`/`Y` copy them,

@@ -43,21 +43,27 @@ impl Clock for SystemClock {
 }
 
 pub fn forward(source: &mut impl EventSource, clock: &impl Clock, tx: &Sender<io::Result<Input>>) {
+    let mut deadline = clock.instant() + TICK;
     loop {
-        let input = match source.poll(TICK) {
-            Ok(true) => match source.read() {
-                Ok(Event::Key(key)) if key.is_press() => Input::Key(key),
-                Ok(Event::Resize(..)) => Input::Resize,
+        let now = clock.instant();
+        let input = if now >= deadline {
+            deadline = now + TICK;
+            Input::Tick(clock.system())
+        } else {
+            match source.poll(deadline - now).and_then(|ready| {
+                if ready {
+                    source.read().map(Some)
+                } else {
+                    Ok(None)
+                }
+            }) {
+                Ok(Some(Event::Key(key))) if key.is_press() => Input::Key(key),
+                Ok(Some(Event::Resize(..))) => Input::Resize,
                 Ok(_) => continue,
                 Err(err) => {
                     let _ = tx.send(Err(err));
                     return;
                 }
-            },
-            Ok(false) => Input::Tick(clock.system()),
-            Err(err) => {
-                let _ = tx.send(Err(err));
-                return;
             }
         };
         if tx.send(Ok(input)).is_err() {
