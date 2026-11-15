@@ -101,7 +101,7 @@ changes/                      one fragment per pull request that feeds the binar
 plans/                        one versioned plan file per phase (see Working agreements)
 scripts/homebrew-formula.sh   prints the tap formula for a released version
 scripts/formula-version.sh    the `tap` job's decision; never a version below the formula's
-scripts/screenshots.sh        renders docs/details.png from a gh shim + synthetic fixture (truecolor.py converts ANSI)
+scripts/screenshots.sh        renders docs/details.png, plus one `shoot` per extra view, from a gh shim + synthetic fixture (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
                  `tests/source_size.rs` fails while any Rust file under `src/` or `tests/` is longer than 700 lines, naming it;
@@ -247,8 +247,13 @@ nearest the code the guideline is about.
   body. `## Summary` holds at most 3 sentences, split across 2 lines with a blank line between
   them; `## Changes` holds the rest. Before merging, re-read the PR title and body and fix
   what went stale without rewording the user's edits.
-- **Screenshots in PRs.** A PR with a visible change embeds `docs/details.png` in its body as
-  a commit-pinned `raw.githubusercontent.com` URL.
+- **Screenshots in PRs.** A PR with a visible change embeds a screenshot that shows that
+  change in its body, as a commit-pinned `raw.githubusercontent.com` URL. A change to the main
+  interface goes into `docs/details.png` (see "Documentation rule"); for a view that one cannot
+  show (another pane, a dialog, a narrow width, a key pressed), add a `shoot` line to
+  `scripts/screenshots.sh` for it, commit the image under `docs/` and embed it too. Before
+  `gh pr ready`, rerun `scripts/screenshots.sh`; when an image changed, commit it and pin its
+  URL to that commit.
 - **Diagrams in PRs.** A PR that reorganizes the codebase or introduces a new flow carries a
   Mermaid diagram in its body, in a fenced `mermaid` block that GitHub renders. Show the
   shape of the change: the modules and what moved between them, or the steps of the flow and
