@@ -124,7 +124,10 @@ pipeline went from ~3 min 20 s to 37 s:
   the check is proven on) refuses an unauthenticated fetch, and a public one takes the token
   as well. Draft pull requests are checked like any other. A pull request opened against
   another branch is not checked; retargeting it to `main` starts a run (`edited`), and so does
-  an edit of its title or body, which only repeats the check. What the script refuses is in
+  an edit of its title or body, which only repeats the check. The job runs only while the pull
+  request is open (`if: github.event.pull_request.state == 'open'`): after a merge, `main`
+  already holds the pull request's fragment, so an edit of a merged pull request's title or
+  body used to fail the check with "is taken on main". What the script refuses is in
   Releasing internals below; `tests/scripts/version_workflow.rs` pins the trigger, the
   job name, the token, where the token goes, the absence of a checkout of the pull request and
   the job's `timeout-minutes: 5`.
