@@ -1,0 +1,16 @@
+---
+source: tests/snapshots.rs
+expression: versionless(h.screen())
+---
+My PRs │ Queue infra (1) │ Main builds │ Deployed                               
+┌──────────────────────────────────────────────────────────────────────────────┐
+│monorepo │ infra                                                              │
+│▌ ○ #4830 Add rate limit headers to the API                             queued│
+│▌   carol · position 2 · enqueued 20m ago                                     │
+│▌   no merge-group run yet · jump · 00000000                                  │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+refreshed just now                                        ▪─▪─▪▸ conveyor vX.Y.Z
