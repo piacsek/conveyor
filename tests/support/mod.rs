@@ -83,12 +83,16 @@ pub fn prs_in(tab: usize, prs: Vec<PullRequest>) -> io::Result<Input> {
 }
 
 pub fn queue(entries: Vec<QueueEntry>) -> io::Result<Input> {
+    queue_in(0, "acme/webapp", entries)
+}
+
+pub fn queue_in(tab: usize, repo: &str, entries: Vec<QueueEntry>) -> io::Result<Input> {
     Ok(Input::Data(
         Stage::Queue,
-        0,
+        tab,
         Ok(Rows::Queue(Queue {
-            repo: "acme/webapp".to_string(),
-            url: "https://github.com/acme/webapp/queue/main".to_string(),
+            repo: repo.to_string(),
+            url: format!("https://github.com/{repo}/queue/main"),
             entries,
         })),
     ))

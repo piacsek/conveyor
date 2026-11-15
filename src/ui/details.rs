@@ -25,7 +25,7 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
             ),
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
         },
-        Stage::Queue => match app.queue.column.selected() {
+        Stage::Queue => match app.queue.column().selected() {
             Some(entry) => {
                 let mut lines = queue_details(entry, app.now);
                 match &entry.run {

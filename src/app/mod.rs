@@ -129,7 +129,7 @@ impl App {
     pub fn at(now: SystemTime, config: Config) -> Self {
         Self {
             prs: PrsStage::new(config.prs.tabs().into_iter().map(|tab| tab.name).collect()),
-            queue: QueueStage::default(),
+            queue: QueueStage::new(repo_tabs(&config)),
             builds: BuildsStage::default(),
             deployed: DeployedStage::default(),
             focus: Stage::Prs,
@@ -179,4 +179,15 @@ impl App {
         }
         due
     }
+}
+
+fn repo_tabs(config: &Config) -> Vec<String> {
+    if config.repo.is_empty() {
+        return vec![String::new()];
+    }
+    config
+        .repo
+        .iter()
+        .map(|repo| crate::ui::short_repo(&repo.name).to_string())
+        .collect()
 }

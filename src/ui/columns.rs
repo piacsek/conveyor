@@ -40,13 +40,8 @@ pub(crate) fn column_title(app: &App, stage: Stage) -> String {
             marks,
         ),
         Stage::Queue => titled(
-            &named(
-                app,
-                stage,
-                "Queue",
-                app.queue.repo.as_deref().map(short_repo),
-            ),
-            &app.queue.column,
+            &named(app, stage, "Queue", app.queue.repo().map(short_repo)),
+            app.queue.column(),
             marks,
         ),
         Stage::Builds => titled(
@@ -147,7 +142,7 @@ pub(crate) fn draw_column(
         }
         Stage::Queue => draw_list(
             frame,
-            &mut app.queue.column,
+            app.queue.column_mut(),
             area,
             block,
             focused,
