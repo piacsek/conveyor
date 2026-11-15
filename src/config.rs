@@ -113,6 +113,41 @@ pub struct Ui {
     pub min_column_width: u16,
     pub details_percent: u16,
     pub keys: Keys,
+    #[serde(skip_serializing_if = "Titles::is_unset")]
+    pub titles: Titles,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Titles {
+    pub prs: Option<String>,
+    pub queue: Option<String>,
+    pub builds: Option<String>,
+    pub deployed: Option<String>,
+}
+
+impl Titles {
+    fn is_unset(&self) -> bool {
+        *self == Titles::default()
+    }
+
+    fn check(&self) -> Result<(), String> {
+        let titles = [
+            ("prs", &self.prs),
+            ("queue", &self.queue),
+            ("builds", &self.builds),
+            ("deployed", &self.deployed),
+        ];
+        match titles
+            .iter()
+            .find(|(_, title)| title.as_deref().is_some_and(|t| t.trim().is_empty()))
+        {
+            Some((key, _)) => Err(format!(
+                "[ui.titles] {key} is blank; remove it or name the column"
+            )),
+            None => Ok(()),
+        }
+    }
 }
 
 impl Default for Ui {
@@ -121,6 +156,7 @@ impl Default for Ui {
             min_column_width: 36,
             details_percent: 40,
             keys: Keys::default(),
+            titles: Titles::default(),
         }
     }
 }
@@ -352,6 +388,7 @@ pub fn load(path: &Path) -> Result<Config, ConfigError> {
     let config: Config =
         toml::from_str(&text).map_err(|err| error(err.to_string().trim().to_string()))?;
     check_tabs(&text, &config.prs).map_err(error)?;
+    config.ui.titles.check().map_err(error)?;
     if config.ui.keys.next_tab == config.ui.keys.previous_tab {
         return Err(error(format!(
             "next_tab and previous_tab are both \"{}\"",
