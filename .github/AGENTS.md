@@ -129,7 +129,7 @@ pipeline went from ~3 min 20 s to 37 s:
   already holds the pull request's fragment, so an edit of a merged pull request's title or
   body used to fail the check with "is taken on main". What the script refuses is in
   Releasing internals below; `tests/scripts/version_workflow.rs` pins the trigger, the
-  job name, the token, where the token goes, the absence of a checkout of the pull request and
+  job name, its run only on an open pull request, the token, where the token goes, the absence of a checkout of the pull request and
   the job's `timeout-minutes: 5`.
   Known and left: a fragment whose file name git would quote (one holding a double quote, for
   example) is refused as not a fragment, by design; and a force-push landing between the event
