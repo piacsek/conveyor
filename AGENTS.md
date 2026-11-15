@@ -244,9 +244,9 @@ nearest the code the guideline is about.
   them; `## Changes` holds the rest. Before merging, re-read the PR title and body and fix
   what went stale without rewording the user's edits.
 - **Screenshots in PRs.** A PR with a visible change embeds a screenshot that shows that
-  change in its body, as a commit-pinned `raw.githubusercontent.com` URL. When
-  `docs/details.png` shows it, embed that one; when it does not (another pane, a dialog, a
-  narrow width, a key pressed), add a `shoot` line to `scripts/screenshots.sh` for the view that
+  change in its body, as a commit-pinned `raw.githubusercontent.com` URL. A change to
+  the main interface goes into `docs/details.png` (see "Documentation rule"); for a view that
+  one cannot show (another pane, a dialog, a narrow width, a key pressed), add a `shoot` line to `scripts/screenshots.sh` for the view that
   does, commit the image under `docs/` and embed it too. Before `gh pr ready`, check that the
   embedded images still show the head of the branch.
 - **Diagrams in PRs.** A PR that reorganizes the codebase or introduces a new flow carries a
