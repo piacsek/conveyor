@@ -726,7 +726,12 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
 - Phase 42 (`plans/phase-42-queue-tabs.md`, #86): Merge queue has a tab per `[[repo]]`, named by
   the short repo name, with the keys and per-tab state of the My PRs tabs; the fetcher fetches the
   tab's repository. Main builds and Deployed still read the first `[[repo]]`. The plan's
-  `queue_repo` helper was not needed: an e2e test drives the real fetcher instead.
+  `queue_repo` helper was not needed: an e2e test drives the real fetcher instead. Review round 1:
+  the jobs and failed-step log of a merge-group run went to the first `[[repo]]`; they now carry
+  the run's own repository (`Build::repo`, from its URL). Round 2 (unprimed) had no must or
+  should; its minors fixed: hidden queue tabs no longer age their runs (each refresh refetched
+  their running jobs), `short_repo` moved to `text.rs`. Left: two `[[repo]]` with the same short
+  name draw two identical tabs.
 
 ## Deferred / backlog (discuss at retros)
 
