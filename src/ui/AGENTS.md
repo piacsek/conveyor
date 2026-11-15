@@ -100,14 +100,14 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
 - The deploy health icons (`⚠`, `‼`, `?`) and the rules behind them: see `src/model/AGENTS.md`.
 - A queue card whose run speaks for the entry: see `src/model/AGENTS.md`.
 
-- **The tab bar.** A column with two tabs or more (`StageView::tab_names`, My PRs only for now)
+- **The tab bar.** A column with two tabs or more (`StageView::tab_names`: My PRs and Merge queue)
   takes one line inside its block, above the cards: the names joined by ` │ `, the active one
   bold and reversed like the narrow layout's column bar, the others dim (`columns::tab_bar`).
   `draw_column` draws the block, the bar on its first inner line, and the list below it in a
   block with no top border, so the cards, widths and links work as in any column. When the
   names do not fit, tabs before the active one are dropped behind a leading `… │ ` until it
   fits, and the bar is cut after it with `…`. One tab draws no bar, so a config without
-  `[[prs.tab]]` looks as it did. In the narrow layout the column bar (`draw_column_bar`, named
+  `[[prs.tab]]` and with at most one `[[repo]]` looks as it did. In the narrow layout the column bar (`draw_column_bar`, named
   so that "tab" means only this) stays on top and the tab bar sits inside the column below it.
 
 ## Dialogs, panes and the footer

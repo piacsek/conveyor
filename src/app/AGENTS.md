@@ -40,6 +40,13 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   fetch of another tab leaves the merged tab's cards as old as they were, so `u` and `t` stay
   refused there. Only the active tab is
   fetched; the other tabs keep their last rows until you switch back.
+- **Merge queue has tabs, one per `[[repo]]`,** in config order, named by the short repo name;
+  no `[[repo]]` is one tab, the current directory's repository. Same keys and per-tab state as
+  My PRs (`QueueStage` holds a `Column` and a `repo` per tab); the queue fetcher fetches
+  `config.repo[tab]` on the first `[[repo]]`'s `refresh_secs`. The title names the active
+  tab's repository. A write's follow-up refresh asks for the queue's active tab only. Columns
+  switch independently: Main builds reads the first `[[repo]]`, Deployed the first with a
+  `[[repo.deploy]]`, whatever the queue shows.
 - **`L` is read-only, and the log has a pane of its own.** It asks `gh run view <run> --job
   <job> --log-failed` for the first failed job of the selected run (Main builds or Merge
   queue), keeps the last `LOG_TAIL` lines per job id in `App.logs`, and toggles `App.log_open`.
