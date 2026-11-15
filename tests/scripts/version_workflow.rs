@@ -65,10 +65,18 @@ fn the_check_runs_with_workflow_commands_stopped_by_a_token_made_at_run_time() {
 fn the_version_job_gives_up_after_five_minutes() {
     let workflow = workflow();
 
-    assert!(
-        workflow
-            .contains("jobs:\n  version:\n    runs-on: ubuntu-latest\n    timeout-minutes: 5\n")
-    );
+    assert!(workflow.contains(
+        "jobs:\n  version:\n    if: github.event.pull_request.state == 'open'\n    runs-on: ubuntu-latest\n    timeout-minutes: 5\n"
+    ));
+}
+
+#[test]
+fn the_version_check_skips_a_pull_request_edited_after_it_closed() {
+    let workflow = workflow();
+
+    assert!(workflow.contains(
+        "jobs:\n  version:\n    if: github.event.pull_request.state == 'open'\n    runs-on: ubuntu-latest\n"
+    ));
 }
 
 #[test]
