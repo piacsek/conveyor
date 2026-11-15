@@ -347,7 +347,21 @@ Linux job; `macos-13` is retired and queues forever) checks out the tag, refuses
 `Cargo.toml` there reads another version, and packages one flat tarball per target
 (`conveyor-<target>.tar.gz` holding just the binary) plus `.sha256`; `publish` attests them
 (`gh attestation verify <tarball> --repo piacsek/conveyor`) and creates the release with
-generated notes. **What the attestation proves:** its subjects are the digests of the
+generated notes. **The notes name the previous tag.** Since v0.24.2 every tag sits on a release
+commit reachable only from that tag, so no release tag is an ancestor of the next one, and
+GitHub, left to pick the previous tag itself, takes the nearest ancestor tag: v0.24.1, the last
+tag made on `main`, so each release listed every pull request since then. `publish` therefore
+runs `scripts/previous-tag.sh <tag>` (when the tag is unfinished) and passes its answer to
+`softprops/action-gh-release` as `previous_tag`; `generate-notes` with an explicit previous tag
+compares the two tags whether or not one is an ancestor of the other. The script reads the
+repository's tag names with `gh api --paginate` (the job has only `scripts/` checked out, and
+no tags), keeps only names of the exact shape `vX.Y.Z`, and prints `previous_tag=` and the
+highest of them below `<tag>` in version order (`v0.10.0` above `v0.9.0`), ignoring higher
+tags and working whether or not `<tag>` itself is listed. For the lowest release tag it prints
+`previous_tag=` with nothing after it, which the action treats as unset, so GitHub picks as it
+did before. When `gh` fails it exits 1 naming the tag, before any release is created, and a
+rerun resumes. A pull request that feeds nothing into the binary still shows in the notes,
+since GitHub lists every pull request merged between the two tags. **What the attestation proves:** its subjects are the digests of the
 published tarballs, but the source commit it records is the commit of the event that started
 the run (a commit on `main`), not the release commit the tag points at, which is what was
 built. When the run was not queued behind later merges, the two trees differ only by the
