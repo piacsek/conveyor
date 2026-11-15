@@ -446,3 +446,81 @@ fn a_tab_with_a_blank_name_fails_naming_the_file() {
     assert!(text.contains("config.toml"), "{text}");
     assert!(text.contains("name"), "{text}");
 }
+
+#[test]
+fn the_column_titles_read_from_ui_titles() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write(
+        &dir,
+        "[ui.titles]\nprs = \"Mine\"\nqueue = \"Queue\"\nbuilds = \"Main\"\ndeployed = \"Envs\"\n",
+    );
+
+    let config = load(&path).unwrap();
+
+    assert_eq!(config.ui.titles.prs.as_deref(), Some("Mine"));
+    assert_eq!(config.ui.titles.queue.as_deref(), Some("Queue"));
+    assert_eq!(config.ui.titles.builds.as_deref(), Some("Main"));
+    assert_eq!(config.ui.titles.deployed.as_deref(), Some("Envs"));
+}
+
+#[test]
+fn unset_titles_stay_out_of_the_printed_config() {
+    let text = Config::default().to_toml();
+
+    assert!(!text.contains("titles"), "{text}");
+}
+
+#[test]
+fn a_set_title_prints_alone_and_loads_back() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut config = Config::default();
+    config.ui.titles.queue = Some("Queue".to_string());
+
+    let text = config.to_toml();
+    let reloaded = load(&write(&dir, &text)).unwrap();
+
+    assert_eq!(reloaded, config);
+    assert!(text.contains("queue = \"Queue\""), "{text}");
+    assert!(!text.contains("prs = "), "{text}");
+}
+
+#[test]
+fn a_blank_title_fails_naming_the_file_and_the_key() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[ui.titles]\nbuilds = \" \"\n")).unwrap_err();
+
+    let text = err.to_string();
+    assert!(text.contains("config.toml"), "{text}");
+    assert!(text.contains("[ui.titles] builds"), "{text}");
+}
+
+#[test]
+fn an_unknown_title_key_fails_naming_it() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[ui.titles]\nmine = \"x\"\n")).unwrap_err();
+
+    let text = err.to_string();
+    assert!(text.contains("mine"), "{text}");
+}
+
+#[test]
+fn a_title_with_spaces_around_it_fails_naming_the_key() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[ui.titles]\nqueue = \" Line \"\n")).unwrap_err();
+
+    let text = err.to_string();
+    assert!(text.contains("[ui.titles] queue"), "{text}");
+}
+
+#[test]
+fn a_title_with_a_control_character_fails_naming_the_key() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[ui.titles]\nprs = \"Mi\\tne\"\n")).unwrap_err();
+
+    let text = err.to_string();
+    assert!(text.contains("[ui.titles] prs"), "{text}");
+}

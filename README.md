@@ -81,6 +81,12 @@ details_percent = 40
 next_tab = "tab"              # one character, "tab", "shift-tab" or "ctrl-a" to "ctrl-z"
 previous_tab = "shift-tab"
 
+[ui.titles]                   # optional; each key renames its column, the repository or system still follows
+# prs = "Mine"
+# queue = "Queue"
+# builds = "Main"
+# deployed = "Envs"
+
 [[repo]]                      # optional; default is the repository of the current directory
 name = "owner/name"
 path = "~/projects/name"      # optional; the local clone `S` then `c` checks a pull request out in

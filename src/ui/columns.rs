@@ -5,6 +5,7 @@ use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 
 use crate::app::{App, Column, Failure, Row, Stage, Write};
+use crate::ui::help::{column_name, custom_title};
 use crate::ui::link::link;
 use crate::ui::rows::{build_row, deployed_row, pr_row, queue_row};
 use crate::ui::style::{dim, short_repo};
@@ -33,27 +34,44 @@ fn titled<T: Row>(base: &str, column: &Column<T>, marks: usize) -> String {
 pub(crate) fn column_title(app: &App, stage: Stage) -> String {
     let marks = app.failure_count(stage);
     match stage {
-        Stage::Prs => titled("My PRs", app.prs.column(), marks),
-        Stage::Queue => match &app.queue.repo {
-            Some(repo) => titled(
-                &format!("Queue {}", short_repo(repo)),
-                &app.queue.column,
-                marks,
+        Stage::Prs => titled(
+            column_name(stage, &app.config.ui.titles),
+            app.prs.column(),
+            marks,
+        ),
+        Stage::Queue => titled(
+            &named(
+                app,
+                stage,
+                "Queue",
+                app.queue.repo.as_deref().map(short_repo),
             ),
-            None => titled("Merge queue", &app.queue.column, marks),
-        },
-        Stage::Builds => match &app.builds.repo {
-            Some(repo) => titled(
-                &format!("Main {}", short_repo(repo)),
-                &app.builds.column,
-                marks,
+            &app.queue.column,
+            marks,
+        ),
+        Stage::Builds => titled(
+            &named(
+                app,
+                stage,
+                "Main",
+                app.builds.repo.as_deref().map(short_repo),
             ),
-            None => titled("Main builds", &app.builds.column, marks),
-        },
-        Stage::Deployed => match &app.deployed.system {
-            Some(system) => titled(&format!("Deployed {system}"), &app.deployed.column, marks),
-            None => titled("Deployed", &app.deployed.column, marks),
-        },
+            &app.builds.column,
+            marks,
+        ),
+        Stage::Deployed => titled(
+            &named(app, stage, "Deployed", app.deployed.system.as_deref()),
+            &app.deployed.column,
+            marks,
+        ),
+    }
+}
+
+fn named(app: &App, stage: Stage, short: &str, suffix: Option<&str>) -> String {
+    let titles = &app.config.ui.titles;
+    match suffix {
+        Some(suffix) => format!("{} {suffix}", custom_title(stage, titles).unwrap_or(short)),
+        None => column_name(stage, titles).to_string(),
     }
 }
 

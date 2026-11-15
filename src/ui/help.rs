@@ -5,7 +5,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
 
 use crate::app::Stage;
-use crate::config::{Key, Keys};
+use crate::config::{Key, Keys, Titles, Ui};
 use crate::ui::style::dim;
 
 pub const KEYS: [(&str, &str); 15] = [
@@ -26,12 +26,21 @@ pub const KEYS: [(&str, &str); 15] = [
     ("?/c", "help / changelog"),
 ];
 
-pub fn column_name(stage: Stage) -> &'static str {
-    match stage {
+pub fn column_name(stage: Stage, titles: &Titles) -> &str {
+    custom_title(stage, titles).unwrap_or(match stage {
         Stage::Prs => "My PRs",
         Stage::Queue => "Merge queue",
         Stage::Builds => "Main builds",
         Stage::Deployed => "Deployed",
+    })
+}
+
+pub fn custom_title(stage: Stage, titles: &Titles) -> Option<&str> {
+    match stage {
+        Stage::Prs => titles.prs.as_deref(),
+        Stage::Queue => titles.queue.as_deref(),
+        Stage::Builds => titles.builds.as_deref(),
+        Stage::Deployed => titles.deployed.as_deref(),
     }
 }
 
@@ -68,8 +77,8 @@ fn label(key: Key) -> String {
     }
 }
 
-pub(crate) fn draw_help(frame: &mut Frame, area: Rect, stage: Stage, configured: &Keys) {
-    let keys = keys_for(stage, configured);
+pub(crate) fn draw_help(frame: &mut Frame, area: Rect, stage: Stage, ui: &Ui) {
+    let keys = keys_for(stage, &ui.keys);
     let width = keys
         .iter()
         .map(|(k, _)| k.chars().count())
@@ -89,8 +98,9 @@ pub(crate) fn draw_help(frame: &mut Frame, area: Rect, stage: Stage, configured:
         })
         .collect();
     frame.render_widget(
-        Paragraph::new(lines)
-            .block(Block::bordered().title(format!("Keys \u{2014} {}", column_name(stage)))),
+        Paragraph::new(lines).block(
+            Block::bordered().title(format!("Keys \u{2014} {}", column_name(stage, &ui.titles))),
+        ),
         area,
     );
 }
