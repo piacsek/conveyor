@@ -114,6 +114,15 @@ fn tags_that_cannot_be_read_stop_the_job() {
     );
 }
 
+#[test]
+fn the_release_names_the_tag_before_it_for_its_notes() {
+    let publish = publish_job();
+
+    assert!(publish.contains(PREVIOUS_STEP), "{publish}");
+    assert!(publish.contains(PREVIOUS_INPUT), "{publish}");
+    assert!(publish.contains("          generate_release_notes: true\n"));
+}
+
 fn previous(root: &Path) -> Output {
     previous_of(root, "v0.3.1", "no call fails", "")
 }
@@ -148,3 +157,24 @@ fn sandbox(root: &Path) {
     )
     .unwrap();
 }
+
+fn publish_job() -> String {
+    let release = fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join(".github/workflows/release.yml"),
+    )
+    .unwrap();
+    let start = release.find("\n  publish:\n").unwrap();
+    let end = release.find("\n  tap:\n").unwrap();
+    release[start..end].to_string()
+}
+
+const PREVIOUS_STEP: &str = "      - name: Name the release before this one
+        id: previous
+        if: steps.state.outputs.unfinished == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.tag.outputs.tag }}
+        run: scripts/previous-tag.sh \"$TAG\" >> \"$GITHUB_OUTPUT\"
+";
+
+const PREVIOUS_INPUT: &str = "          previous_tag: ${{ steps.previous.outputs.previous_tag }}\n";
