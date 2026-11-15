@@ -77,6 +77,7 @@ src/ui/dialog.rs the `S` popup and the confirm dialog
 src/ui/help.rs   KEYS is the generic table the README mirrors; the `p`/`b` wording swapped per column, the tab keys as configured
 src/ui/AGENTS.md  cards, glyphs and icons, dialogs, the details, help and changelog panes, the footer, colours
 src/refresh.rs   one fetcher thread per stage, sleeping until the interval or a refresh
+src/events.rs    the terminal events thread: key presses and resizes as inputs, a tick every 250 ms by deadline
 src/open.rs      opening a URL and copying to the clipboard: the OS seam, not a service, so it stays out of `sources/`
 src/changelog.rs the bundled CHANGELOG.md and the rules a release entry must meet
 src/ui/changelog.rs the `c` pane: wrapped to its width (bullets hang), headings bold without their `#`, scrolled like the details pane
