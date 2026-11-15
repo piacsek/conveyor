@@ -138,15 +138,23 @@ impl Titles {
             ("builds", &self.builds),
             ("deployed", &self.deployed),
         ];
-        match titles
-            .iter()
-            .find(|(_, title)| title.as_deref().is_some_and(|t| t.trim().is_empty()))
-        {
-            Some((key, _)) => Err(format!(
-                "[ui.titles] {key} is blank; remove it or name the column"
-            )),
-            None => Ok(()),
+        for (key, title) in titles {
+            let Some(title) = title else { continue };
+            if title.trim().is_empty() {
+                return Err(format!(
+                    "[ui.titles] {key} is blank; remove it or name the column"
+                ));
+            }
+            if title.trim() != title {
+                return Err(format!("[ui.titles] {key} has spaces around it"));
+            }
+            if title.chars().any(char::is_control) {
+                return Err(format!(
+                    "[ui.titles] {key} holds a control character; use visible text"
+                ));
+            }
         }
+        Ok(())
     }
 }
 

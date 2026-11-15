@@ -504,3 +504,23 @@ fn an_unknown_title_key_fails_naming_it() {
     let text = err.to_string();
     assert!(text.contains("mine"), "{text}");
 }
+
+#[test]
+fn a_title_with_spaces_around_it_fails_naming_the_key() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[ui.titles]\nqueue = \" Line \"\n")).unwrap_err();
+
+    let text = err.to_string();
+    assert!(text.contains("[ui.titles] queue"), "{text}");
+}
+
+#[test]
+fn a_title_with_a_control_character_fails_naming_the_key() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(&dir, "[ui.titles]\nprs = \"Mi\\tne\"\n")).unwrap_err();
+
+    let text = err.to_string();
+    assert!(text.contains("[ui.titles] prs"), "{text}");
+}
