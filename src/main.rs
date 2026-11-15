@@ -11,7 +11,7 @@ use conveyor::app::{
     App, CheckoutTarget, Input, MergeTarget, Request, Rows, Stage, StatusTarget, UpdateTarget, run,
 };
 use conveyor::cli::{self, Command};
-use conveyor::config::{self, Config, expand_home};
+use conveyor::config::{self, Config, Repo, expand_home};
 use conveyor::log::{self, Log};
 use conveyor::open::SystemOpener;
 use conveyor::refresh;
@@ -344,13 +344,15 @@ fn spawn_prs_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<usiz
 fn spawn_queue_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<usize> {
     let gh = CliGh::default().with_log(log.clone());
     let interval = Duration::from_secs(config.repo.first().map_or(30, |repo| repo.refresh_secs));
-    let mut repo = None;
-    refresh::spawn(Stage::Queue, interval, tx, move |_| {
-        if repo.is_none() {
-            repo = repos(&gh, &config)?.into_iter().next();
+    let mut watched: Option<Vec<Repo>> = None;
+    refresh::spawn(Stage::Queue, interval, tx, move |tab| {
+        if watched.is_none() {
+            watched = Some(repos(&gh, &config)?);
         }
-        let repo = repo
-            .as_ref()
+        let repo = watched
+            .iter()
+            .flatten()
+            .nth(tab)
             .ok_or_else(|| "no repository to watch".to_string())?;
         fetch_queue(&gh, repo).map(Rows::Queue)
     })

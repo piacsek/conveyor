@@ -298,6 +298,33 @@ fn the_queue_column_fills_from_the_checked_out_repository() {
 
 #[test]
 #[ignore]
+fn tab_on_the_queue_column_fetches_the_second_configured_repository() {
+    let home = tempfile::tempdir().unwrap();
+    let path = dispatching_shim(home.path());
+    let config = home.path().join("conveyor.toml");
+    fs::write(
+        &config,
+        "[[repo]]\nname = \"acme/webapp\"\n\n[[repo]]\nname = \"acme/infra\"\n",
+    )
+    .unwrap();
+    let server = Server::start("queue-tabs");
+    server.respawn(
+        &[
+            ("HOME", &home.path().display().to_string()),
+            ("PATH", &path),
+            ("CONVEYOR_CONFIG", &config.display().to_string()),
+        ],
+        env!("CARGO_BIN_EXE_conveyor"),
+    );
+    server.wait_for_screen("Queue webapp (2)");
+
+    server.send_keys(&["l", "Tab"]);
+
+    server.wait_for_screen("Queue infra (2)");
+}
+
+#[test]
+#[ignore]
 fn the_binary_never_reads_a_config_from_the_callers_environment() {
     let home = tempfile::tempdir().unwrap();
     let path = dispatching_shim(home.path());
