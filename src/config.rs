@@ -21,6 +21,7 @@ pub struct Prs {
     pub refresh_secs: u64,
     pub merge_method: MergeMethod,
     pub update_method: UpdateMethod,
+    pub background_tabs: bool,
     pub tab: Vec<PrsTab>,
 }
 
@@ -41,6 +42,7 @@ struct PrsToml {
     refresh_secs: u64,
     merge_method: MergeMethod,
     update_method: UpdateMethod,
+    background_tabs: bool,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     tab: Vec<PrsTab>,
 }
@@ -72,6 +74,7 @@ impl From<Prs> for PrsToml {
             refresh_secs: prs.refresh_secs,
             merge_method: prs.merge_method,
             update_method: prs.update_method,
+            background_tabs: prs.background_tabs,
             tab: prs.tab,
         }
     }
@@ -102,6 +105,7 @@ impl Default for Prs {
             refresh_secs: 60,
             merge_method: MergeMethod::default(),
             update_method: UpdateMethod::default(),
+            background_tabs: true,
             tab: Vec::new(),
         }
     }
