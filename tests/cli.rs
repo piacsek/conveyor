@@ -58,6 +58,31 @@ fn config_prints_the_effective_defaults_as_toml() {
     assert!(stdout.contains("refresh_secs = 60"), "{stdout}");
     assert!(stdout.contains("merge_method = \"squash\""), "{stdout}");
     assert!(stdout.contains("update_method = \"merge\""), "{stdout}");
+    assert!(stdout.contains("background_tabs = true"), "{stdout}");
+}
+
+#[test]
+fn config_prints_background_tabs_off_when_set_off() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_config(&dir, "[prs]\nbackground_tabs = false\n");
+
+    let out = config_command(&path);
+
+    assert!(out.status.success(), "{out:?}");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("background_tabs = false"), "{stdout}");
+}
+
+#[test]
+fn config_refuses_a_misspelled_background_tabs() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_config(&dir, "[prs]\nbackground_tab = false\n");
+
+    let out = config_command(&path);
+
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("background_tab"), "{stderr}");
 }
 
 #[test]
@@ -99,10 +124,15 @@ fn a_config_written_before_tabs_loads_and_prints_back_unchanged() {
     );
     assert_eq!(
         String::from_utf8_lossy(&out.stdout),
-        CONFIG_V0.replace(
-            "details_percent = 30\n",
-            &format!("details_percent = 30\n{KEYS}")
-        )
+        CONFIG_V0
+            .replace(
+                "update_method = \"rebase\"\n",
+                "update_method = \"rebase\"\nbackground_tabs = true\n"
+            )
+            .replace(
+                "details_percent = 30\n",
+                &format!("details_percent = 30\n{KEYS}")
+            )
     );
 }
 
@@ -257,6 +287,7 @@ limit = 20
 refresh_secs = 60
 merge_method = \"squash\"
 update_method = \"merge\"
+background_tabs = true
 
 [[prs.tab]]
 name = \"mine\"
