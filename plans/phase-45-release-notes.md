@@ -1,4 +1,4 @@
-# Phase 44: each release lists only its own changes
+# Phase 45: each release lists only its own changes
 
 ## Context
 The release page of v0.30.1 lists every pull request since v0.24.1, and each release since

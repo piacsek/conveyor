@@ -5,6 +5,8 @@ use std::process::Command;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
+mod background_tabs;
+
 struct Server {
     socket: String,
 }
@@ -100,7 +102,7 @@ fn shim(home: &Path, script: &str) -> String {
 
 fn fixture_path(home: &Path) -> String {
     let path = home.join("prs.json");
-    fs::write(&path, include_str!("fixtures/prs.json")).unwrap();
+    fs::write(&path, include_str!("../fixtures/prs.json")).unwrap();
     path.display().to_string()
 }
 
@@ -139,7 +141,7 @@ fn kubectl_shim(home: &Path) {
     )
     .unwrap();
     let pods = home.join("pods.json");
-    fs::write(&pods, include_str!("fixtures/pods.json")).unwrap();
+    fs::write(&pods, include_str!("../fixtures/pods.json")).unwrap();
     let kubectl = home.join("bin").join("kubectl");
     fs::write(
         &kubectl,
@@ -154,15 +156,27 @@ fn kubectl_shim(home: &Path) {
 }
 
 fn dispatching_shim(home: &Path) -> String {
-    fs::write(home.join("prs.json"), include_str!("fixtures/prs.json")).unwrap();
-    fs::write(home.join("queue.json"), include_str!("fixtures/queue.json")).unwrap();
-    fs::write(home.join("runs.json"), include_str!("fixtures/runs.json")).unwrap();
+    fs::write(home.join("prs.json"), include_str!("../fixtures/prs.json")).unwrap();
     fs::write(
-        home.join("pulls.json"),
-        include_str!("fixtures/commit-pulls.json"),
+        home.join("queue.json"),
+        include_str!("../fixtures/queue.json"),
     )
     .unwrap();
-    fs::write(home.join("jobs.json"), include_str!("fixtures/jobs.json")).unwrap();
+    fs::write(
+        home.join("runs.json"),
+        include_str!("../fixtures/runs.json"),
+    )
+    .unwrap();
+    fs::write(
+        home.join("pulls.json"),
+        include_str!("../fixtures/commit-pulls.json"),
+    )
+    .unwrap();
+    fs::write(
+        home.join("jobs.json"),
+        include_str!("../fixtures/jobs.json"),
+    )
+    .unwrap();
     fs::write(
         home.join("commit.json"),
         r#"{"commit":{"message":"Phase 2: merge queue column (#3)"}}"#,

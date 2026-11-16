@@ -67,6 +67,7 @@ limit = 20
 refresh_secs = 60
 merge_method = "squash"
 update_method = "merge"
+background_tabs = true        # every My PRs tab refreshes on the interval, not only the one shown
 
 # [[prs.tab]]                 # optional, instead of query; one My PRs tab each
 # name = "review"
