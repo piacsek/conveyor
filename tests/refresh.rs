@@ -1,9 +1,8 @@
 use std::sync::mpsc;
-use std::thread;
 use std::time::{Duration, Instant};
 
 use conveyor::app::{Input, Stage};
-use conveyor::refresh::{Wake, spawn, wait};
+use conveyor::refresh::{Schedule, Wake, spawn, wait};
 
 #[test]
 fn a_burst_of_refresh_signals_wakes_the_fetcher_once() {
@@ -117,9 +116,9 @@ fn a_sweep_of_one_fetches_the_first_tab_only() {
 }
 
 #[test]
-fn a_request_between_sweeps_fetches_its_tab_only_and_leads_the_next_sweep_on_time() {
+fn a_request_between_sweeps_fetches_its_tab_only() {
     let (inputs_tx, inputs) = mpsc::channel();
-    let refresh = spawn(Stage::Prs, Duration::from_secs(2), 2, inputs_tx, |tab| {
+    let refresh = spawn(Stage::Prs, Duration::from_secs(60), 2, inputs_tx, |tab| {
         Err(format!("tab {tab}"))
     });
     let next = || {
@@ -132,43 +131,12 @@ fn a_request_between_sweeps_fetches_its_tab_only_and_leads_the_next_sweep_on_tim
     next();
     next();
     next();
-    let swept = Instant::now();
-    thread::sleep(Duration::from_secs(1));
 
     refresh.send(1).unwrap();
 
     assert_eq!(next(), Input::Fetching(Stage::Prs, 1));
     assert_eq!(next(), Input::Data(Stage::Prs, 1, Err("tab 1".to_string())));
-    assert_eq!(next(), Input::Fetching(Stage::Prs, 1));
-    assert!(swept.elapsed() < Duration::from_millis(2600));
-    assert_eq!(next(), Input::Data(Stage::Prs, 1, Err("tab 1".to_string())));
-    assert_eq!(next(), Input::Fetching(Stage::Prs, 0));
-}
-
-#[test]
-fn a_sweep_of_one_waits_the_whole_interval_after_a_request() {
-    let (inputs_tx, inputs) = mpsc::channel();
-    let refresh = spawn(Stage::Builds, Duration::from_secs(2), 1, inputs_tx, |tab| {
-        Err(format!("tab {tab}"))
-    });
-    let next = || {
-        inputs
-            .recv_timeout(Duration::from_secs(5))
-            .unwrap()
-            .unwrap()
-    };
-    next();
-    next();
-    thread::sleep(Duration::from_secs(1));
-
-    refresh.send(0).unwrap();
-
-    assert_eq!(next(), Input::Fetching(Stage::Builds, 0));
-    assert_eq!(
-        next(),
-        Input::Data(Stage::Builds, 0, Err("tab 0".to_string()))
-    );
-    assert!(inputs.recv_timeout(Duration::from_millis(1500)).is_err());
+    assert!(inputs.recv_timeout(Duration::from_millis(300)).is_err());
 }
 
 #[test]
@@ -206,6 +174,96 @@ fn a_request_during_a_sweep_is_fetched_before_the_tabs_the_sweep_has_left() {
 }
 
 #[test]
+fn a_request_between_sweeps_leaves_the_deadline_where_it_was() {
+    let start = Instant::now();
+    let mut schedule = swept(2, start);
+
+    assert_eq!(schedule.next(Wake::Asked(1), start + secs(1)), Some(1));
+    schedule.fetched(start + secs(1));
+
+    assert_eq!(schedule.timeout(start + secs(1)), Some(secs(1)));
+}
+
+#[test]
+fn the_sweep_after_a_request_starts_with_the_asked_tab() {
+    let start = Instant::now();
+    let mut schedule = swept(2, start);
+    schedule.next(Wake::Asked(1), start + secs(1));
+    schedule.fetched(start + secs(1));
+
+    assert_eq!(schedule.next(Wake::Due, start + secs(2)), Some(1));
+    schedule.fetched(start + secs(2));
+    assert_eq!(schedule.next(Wake::Due, start + secs(2)), Some(0));
+}
+
+#[test]
+fn a_sweep_of_one_restarts_the_interval_after_a_request() {
+    let start = Instant::now();
+    let mut schedule = swept(1, start);
+
+    assert_eq!(schedule.next(Wake::Asked(0), start + secs(1)), Some(0));
+    schedule.fetched(start + secs(1));
+
+    assert_eq!(schedule.timeout(start + secs(1)), Some(secs(2)));
+}
+
+#[test]
+fn after_a_request_during_a_sweep_the_next_tab_of_the_sweep_goes_before_any_other_request() {
+    let start = Instant::now();
+    let mut schedule = Schedule::new(3, secs(60), start);
+    schedule.next(Wake::Due, start);
+    schedule.fetched(start);
+
+    assert_eq!(schedule.next(Wake::Asked(0), start), Some(0));
+    schedule.fetched(start);
+
+    assert_eq!(schedule.timeout(start), None);
+    assert_eq!(schedule.next(Wake::Due, start), Some(1));
+}
+
+#[test]
+fn a_request_after_the_deadline_starts_the_sweep_it_leads() {
+    let start = Instant::now();
+    let mut schedule = swept(2, start);
+
+    assert_eq!(schedule.next(Wake::Asked(1), start + secs(3)), Some(1));
+    schedule.fetched(start + secs(3));
+
+    assert_eq!(schedule.timeout(start + secs(3)), None);
+    assert_eq!(schedule.next(Wake::Due, start + secs(3)), Some(0));
+}
+
+#[test]
+fn a_sweep_of_one_serves_every_request_back_to_back() {
+    let start = Instant::now();
+    let mut schedule = swept(1, start);
+    schedule.next(Wake::Asked(0), start + secs(1));
+    schedule.fetched(start + secs(1));
+
+    assert_eq!(schedule.timeout(start + secs(1)), Some(secs(2)));
+    assert_eq!(schedule.next(Wake::Asked(0), start + secs(1)), Some(0));
+}
+
+#[test]
+fn a_sweep_started_by_the_deadline_still_takes_a_request_before_its_next_tab() {
+    let start = Instant::now();
+    let mut schedule = swept(3, start);
+
+    assert_eq!(schedule.next(Wake::Due, start + secs(2)), Some(0));
+    schedule.fetched(start + secs(2));
+
+    assert_eq!(schedule.timeout(start + secs(2)), Some(Duration::ZERO));
+}
+
+#[test]
+fn a_closed_channel_ends_the_schedule() {
+    let start = Instant::now();
+    let mut schedule = swept(2, start);
+
+    assert_eq!(schedule.next(Wake::Closed, start), None);
+}
+
+#[test]
 fn a_refresh_naming_a_tab_fetches_that_tab_and_the_result_carries_it() {
     let (inputs_tx, inputs) = mpsc::channel();
     let refresh = spawn(Stage::Prs, Duration::from_secs(60), 1, inputs_tx, |tab| {
@@ -224,4 +282,17 @@ fn a_refresh_naming_a_tab_fetches_that_tab_and_the_result_carries_it() {
 
     assert_eq!(next(), Input::Fetching(Stage::Prs, 1));
     assert_eq!(next(), Input::Data(Stage::Prs, 1, Err("tab 1".to_string())));
+}
+
+fn secs(n: u64) -> Duration {
+    Duration::from_secs(n)
+}
+
+fn swept(tabs: usize, start: Instant) -> Schedule {
+    let mut schedule = Schedule::new(tabs, secs(2), start);
+    for _ in 0..tabs {
+        schedule.next(Wake::Due, start);
+        schedule.fetched(start);
+    }
+    schedule
 }

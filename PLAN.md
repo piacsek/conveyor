@@ -738,7 +738,11 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   `refresh::spawn` takes a sweep size: My PRs passes its tab count, the other columns one. A
   request fetches its tab only, is fetched before the tabs a running sweep has left, and leads
   the next sweep without moving its deadline; a sweep of one restarts the interval after a
-  request, as before. Deviations: the plan said the `config-v0.toml` test stays unedited; the
+  request, as before. Review round 1: the scheduling moved into `refresh::Schedule`, handed
+  the current `Instant`, so the deadline tests no longer sleep (two timing tests could flake on
+  CI); requests that kept arriving (a held `r`) starved the rest of a sweep and an overdue
+  deadline, so after a request the sweep's next tab goes first and an overdue request starts
+  the sweep. Deviations: the plan said the `config-v0.toml` test stays unedited; the
   fixture is, but its expected output gains `background_tabs = true`, as it gained the
   `[ui.keys]` defaults in phase 40. `tests/e2e.rs` became `tests/e2e/` (`main.rs` plus
   `background_tabs.rs`) to stay under 700 lines. `refresh::wait` now returns `Wake::{Asked,

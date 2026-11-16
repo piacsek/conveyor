@@ -24,6 +24,78 @@ pub fn wait(rx: &Receiver<usize>, timeout: Duration) -> Wake {
     Wake::Asked(tab)
 }
 
+pub struct Schedule {
+    tabs: usize,
+    interval: Duration,
+    first: usize,
+    left: Vec<usize>,
+    due: Instant,
+    sweeping: bool,
+    owed: bool,
+}
+
+impl Schedule {
+    pub fn new(tabs: usize, interval: Duration, now: Instant) -> Self {
+        Self {
+            tabs,
+            interval: interval.max(Duration::from_secs(1)),
+            first: 0,
+            left: sweep(0, tabs).collect(),
+            due: now,
+            sweeping: false,
+            owed: false,
+        }
+    }
+
+    pub fn timeout(&self, now: Instant) -> Option<Duration> {
+        if self.owed {
+            None
+        } else if self.left.is_empty() {
+            Some(self.due.saturating_duration_since(now))
+        } else {
+            Some(Duration::ZERO)
+        }
+    }
+
+    pub fn next(&mut self, wake: Wake, now: Instant) -> Option<usize> {
+        self.owed = false;
+        match wake {
+            Wake::Closed => None,
+            Wake::Asked(asked) => {
+                self.first = asked;
+                let tab = if self.left.is_empty() && now >= self.due {
+                    self.start_sweep()
+                } else {
+                    self.sweeping = !self.left.is_empty();
+                    self.left.retain(|tab| *tab != asked);
+                    asked
+                };
+                self.owed = !self.left.is_empty();
+                Some(tab)
+            }
+            Wake::Due => {
+                if self.left.is_empty() {
+                    return Some(self.start_sweep());
+                }
+                self.sweeping = true;
+                Some(self.left.remove(0))
+            }
+        }
+    }
+
+    fn start_sweep(&mut self) -> usize {
+        self.left = sweep(self.first, self.tabs).collect();
+        self.sweeping = true;
+        self.left.remove(0)
+    }
+
+    pub fn fetched(&mut self, now: Instant) {
+        if self.left.is_empty() && (self.sweeping || self.tabs <= 1) {
+            self.due = now + self.interval;
+        }
+    }
+}
+
 pub fn spawn(
     stage: Stage,
     interval: Duration,
@@ -32,31 +104,15 @@ pub fn spawn(
     mut fetch: impl FnMut(usize) -> Result<Rows, String> + Send + 'static,
 ) -> Sender<usize> {
     let (refresh_tx, refresh_rx) = mpsc::channel::<usize>();
-    let interval = interval.max(Duration::from_secs(1));
     thread::spawn(move || {
-        let mut first = 0;
-        let mut left: Vec<usize> = sweep(first, tabs).collect();
-        let mut due = Instant::now();
+        let mut schedule = Schedule::new(tabs, interval, Instant::now());
         loop {
-            let timeout = if left.is_empty() {
-                due.saturating_duration_since(Instant::now())
-            } else {
-                Duration::ZERO
+            let wake = match schedule.timeout(Instant::now()) {
+                Some(timeout) => wait(&refresh_rx, timeout),
+                None => Wake::Due,
             };
-            let (tab, sweeping) = match wait(&refresh_rx, timeout) {
-                Wake::Closed => return,
-                Wake::Asked(asked) => {
-                    let sweeping = !left.is_empty();
-                    first = asked;
-                    left.retain(|tab| *tab != asked);
-                    (asked, sweeping)
-                }
-                Wake::Due => {
-                    if left.is_empty() {
-                        left = sweep(first, tabs).collect();
-                    }
-                    (left.remove(0), true)
-                }
+            let Some(tab) = schedule.next(wake, Instant::now()) else {
+                return;
             };
             if tx.send(Ok(Input::Fetching(stage, tab))).is_err() {
                 return;
@@ -64,9 +120,7 @@ pub fn spawn(
             if tx.send(Ok(Input::Data(stage, tab, fetch(tab)))).is_err() {
                 return;
             }
-            if left.is_empty() && (sweeping || tabs <= 1) {
-                due = Instant::now() + interval;
-            }
+            schedule.fetched(Instant::now());
         }
     });
     refresh_tx
