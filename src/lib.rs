@@ -10,3 +10,4 @@ pub mod refresh;
 pub mod sources;
 pub mod text;
 pub mod ui;
+pub mod worker;
