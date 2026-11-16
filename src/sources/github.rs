@@ -256,7 +256,13 @@ impl CliGh {
             }
         });
         self.log.call(tool.name, args, started.elapsed(), &output);
-        let output = output.map_err(|err| Failure::from(err.to_string()))?;
+        let output = output.map_err(|err| {
+            if err.kind() == io::ErrorKind::NotFound {
+                Failure::program_missing(err.to_string())
+            } else {
+                Failure::from(err.to_string())
+            }
+        })?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
             let message = if stderr.is_empty() {

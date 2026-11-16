@@ -2,7 +2,10 @@ use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FailureKind {
+    ProgramMissing,
+    RateLimited,
     NotSignedIn,
+    Offline,
     Other,
 }
 
@@ -14,12 +17,23 @@ pub struct Failure {
 
 impl Failure {
     pub fn said_by_gh(message: String) -> Self {
-        let kind = if message.contains("gh auth login") {
+        let kind = if message.to_lowercase().contains("rate limit") {
+            FailureKind::RateLimited
+        } else if message.contains("gh auth login") || message.contains("HTTP 401") {
             FailureKind::NotSignedIn
+        } else if message.contains("error connecting to") || message.contains("dial tcp") {
+            FailureKind::Offline
         } else {
             FailureKind::Other
         };
         Self { kind, message }
+    }
+
+    pub fn program_missing(message: String) -> Self {
+        Self {
+            kind: FailureKind::ProgramMissing,
+            message,
+        }
     }
 
     pub fn kind(&self) -> FailureKind {
