@@ -756,6 +756,16 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   --paginate`). The generated notes (pull request titles) stay, as the user chose. No fragment:
   nothing feeds the binary, so the next release is the first to show it. Left, by hand and only
   on the user's yes: rewriting the notes of v0.24.2 to v0.30.1.
+- Phase 47 (`plans/phase-47-failure-kinds.md`, #103): a failure records what kind it is (#91).
+  `sources::failure::Failure` holds the message and a `FailureKind` (`ProgramMissing`,
+  `RateLimited`, `NotSignedIn`, `Offline`, `TimedOut`, `Other`); the `Github` and `Kube`
+  traits, `fetch.rs`, `refresh::spawn`, the `Input` variants, `Column::error`, the Deployed
+  row errors, the jobs and log state and a card's failure mark all carry it. Only `gh` is
+  classified by its text; `git` and `kubectl` exits read `Other`. No text changes, so it ships
+  as `kind: internal` and the snapshots stand. Deviations: jobs, log and rerun got their kind
+  in task 5 with the actions rather than in task 3; `From<io::Error>` replaced a dedicated
+  constructor for a missing program, and `Failure::timed_out`, `message` and `reworded` were
+  added. Left: kubectl's own connection errors read `Other`; what a card does with each kind.
 
 ## Deferred / backlog (discuss at retros)
 

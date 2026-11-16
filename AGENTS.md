@@ -32,6 +32,7 @@ src/config.rs    the config: its tables, defaults, path and `CONVEYOR_CONFIG` ov
 src/sources/     everything that reaches out to an external service, and nothing else
 src/sources/github.rs the Github trait and CliGh, which spawns `gh` (and `git` for the checkout guard), error mapping
 src/sources/kube.rs   the Kube trait and CliKubectl, which spawns `kubectl` under a deadline that kills it
+src/sources/failure.rs Failure: what a failed call said and which kind of failure it was
 src/sources/fetch.rs  what each stage fetches, the sha → pull request cache, Deployed read per environment on parallel threads
 src/sources/queries/  GraphQL documents, `include_str!`ed
 src/sources/AGENTS.md GitHub and kubectl facts: API shapes and queries, the sha → pull request lookup, the spawn lock, call logging, the kubectl deadline
