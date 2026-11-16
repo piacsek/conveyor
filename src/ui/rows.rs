@@ -295,7 +295,7 @@ pub(crate) fn deployed_row(
     }
     if let Some(error) = &row.error {
         below.push(vec![Span::styled(
-            truncate(error, width.saturating_sub(INDENT)),
+            truncate(error.message(), width.saturating_sub(INDENT)),
             dim().fg(Color::Red),
         )]);
     }

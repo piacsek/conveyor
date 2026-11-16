@@ -497,7 +497,7 @@ impl DeploySource {
                 row.sha = Some(sha);
                 row.fetched_at = Some(now);
             }
-            Err(err) => row.error = Some(err),
+            Err(err) => row.error = Some(err.into()),
         }
         match read.pods {
             Ok(pods) => row.pods = pods,
@@ -513,15 +513,14 @@ impl DeploySource {
 }
 
 struct Read {
-    rollout: Result<crate::model::deployed::Rollout, String>,
-    pods: Result<Vec<crate::model::deployed::Pod>, String>,
+    rollout: Result<crate::model::deployed::Rollout, Failure>,
+    pods: Result<Vec<crate::model::deployed::Pod>, Failure>,
 }
 
 fn read(kube: &impl crate::sources::kube::Kube, env: &crate::config::DeployEnv) -> Read {
     let rollout = kube
         .deployment(env)
-        .map_err(|err| err.to_string())
-        .and_then(|json| crate::model::deployed::parse_deployment(&json));
+        .and_then(|json| Ok(crate::model::deployed::parse_deployment(&json)?));
     let pods = match &rollout {
         Ok(rollout) => pods(kube, env, &rollout.selector),
         Err(_) => Ok(Vec::new()),
@@ -533,10 +532,12 @@ fn pods(
     kube: &impl crate::sources::kube::Kube,
     env: &crate::config::DeployEnv,
     selector: &str,
-) -> Result<Vec<crate::model::deployed::Pod>, String> {
+) -> Result<Vec<crate::model::deployed::Pod>, Failure> {
     if selector.is_empty() {
-        return Err("the deployment's selector has no matchLabels".to_string());
+        return Err("the deployment's selector has no matchLabels"
+            .to_string()
+            .into());
     }
-    let json = kube.pods(env, selector).map_err(|err| err.to_string())?;
-    crate::model::deployed::parse_pods(&json)
+    let json = kube.pods(env, selector)?;
+    Ok(crate::model::deployed::parse_pods(&json)?)
 }

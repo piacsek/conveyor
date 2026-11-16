@@ -172,17 +172,17 @@ impl FakeKube {
 }
 
 impl conveyor::sources::kube::Kube for FakeKube {
-    fn deployment(&self, env: &conveyor::config::DeployEnv) -> io::Result<String> {
+    fn deployment(&self, env: &conveyor::config::DeployEnv) -> Result<String, Failure> {
         match self.deployments.iter().find(|(name, _)| *name == env.name) {
             Some((_, Ok(json))) => Ok(json.clone()),
-            Some((_, Err(err))) => Err(io::Error::new(err.kind(), err.to_string())),
-            None => Err(io::Error::other("no such env")),
+            Some((_, Err(err))) => Err(err.to_string().into()),
+            None => Err("no such env".to_string().into()),
         }
     }
 
-    fn pods(&self, _env: &conveyor::config::DeployEnv, selector: &str) -> io::Result<String> {
+    fn pods(&self, _env: &conveyor::config::DeployEnv, selector: &str) -> Result<String, Failure> {
         self.selectors.lock().unwrap().push(selector.to_string());
-        self.pods.clone().map_err(io::Error::other)
+        self.pods.clone().map_err(Failure::from)
     }
 }
 

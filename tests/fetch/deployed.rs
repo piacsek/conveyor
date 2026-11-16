@@ -82,15 +82,20 @@ fn deploy_source_reads_each_environment_and_keeps_per_env_errors_on_the_row() {
     assert_eq!(deployed.rows[0].pull.as_ref().map(|p| p.number), Some(3));
     assert_eq!(deployed.rows[0].error, None);
     assert_eq!(
-        deployed.rows[1].error.as_deref(),
+        deployed.rows[1]
+            .error
+            .as_ref()
+            .map(ToString::to_string)
+            .as_deref(),
         Some("ERROR: Active profile expired.")
     );
     assert_eq!(deployed.rows[1].sha, None);
     assert!(
         deployed.rows[2]
             .error
-            .as_deref()
+            .as_ref()
             .unwrap()
+            .to_string()
             .contains("unexpected image tag")
     );
     assert_eq!(
@@ -168,7 +173,7 @@ fn pods_that_cannot_be_read_leave_the_row_unread_instead_of_failing_it() {
     assert_eq!(row.sha.as_deref(), Some(SHA));
     assert_eq!(row.health, Health::Unread);
     assert_eq!(
-        row.pods_error.as_deref(),
+        row.pods_error.as_ref().map(ToString::to_string).as_deref(),
         Some("Error from server (Forbidden): pods is forbidden")
     );
 }
@@ -191,7 +196,7 @@ fn a_deployment_without_match_labels_is_unread_and_asks_for_no_pods() {
     let row = &deployed.rows[0];
     assert_eq!(row.health, Health::Unread);
     assert_eq!(
-        row.pods_error.as_deref(),
+        row.pods_error.as_ref().map(ToString::to_string).as_deref(),
         Some("the deployment's selector has no matchLabels")
     );
     assert_eq!(kube.selectors.lock().unwrap().len(), 0);
@@ -205,7 +210,10 @@ struct OverlappingKube {
 }
 
 impl conveyor::sources::kube::Kube for OverlappingKube {
-    fn deployment(&self, _env: &conveyor::config::DeployEnv) -> io::Result<String> {
+    fn deployment(
+        &self,
+        _env: &conveyor::config::DeployEnv,
+    ) -> Result<String, conveyor::sources::failure::Failure> {
         let mut running = self.running.lock().unwrap();
         *running += 1;
         self.most_at_once.fetch_max(*running, Ordering::SeqCst);
@@ -217,10 +225,14 @@ impl conveyor::sources::kube::Kube for OverlappingKube {
             })
             .unwrap();
         *running -= 1;
-        Err(io::Error::other("unreachable"))
+        Err("unreachable".to_string().into())
     }
 
-    fn pods(&self, _env: &conveyor::config::DeployEnv, _selector: &str) -> io::Result<String> {
+    fn pods(
+        &self,
+        _env: &conveyor::config::DeployEnv,
+        _selector: &str,
+    ) -> Result<String, conveyor::sources::failure::Failure> {
         Ok(r#"{"items":[]}"#.to_string())
     }
 }

@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, io};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FailureKind {
@@ -6,6 +6,7 @@ pub enum FailureKind {
     RateLimited,
     NotSignedIn,
     Offline,
+    TimedOut,
     Other,
 }
 
@@ -29,9 +30,9 @@ impl Failure {
         Self { kind, message }
     }
 
-    pub fn program_missing(message: String) -> Self {
+    pub fn timed_out(message: String) -> Self {
         Self {
-            kind: FailureKind::ProgramMissing,
+            kind: FailureKind::TimedOut,
             message,
         }
     }
@@ -54,6 +55,20 @@ impl From<String> for Failure {
         Self {
             kind: FailureKind::Other,
             message,
+        }
+    }
+}
+
+impl From<io::Error> for Failure {
+    fn from(err: io::Error) -> Self {
+        let kind = if err.kind() == io::ErrorKind::NotFound {
+            FailureKind::ProgramMissing
+        } else {
+            FailureKind::Other
+        };
+        Self {
+            kind,
+            message: err.to_string(),
         }
     }
 }

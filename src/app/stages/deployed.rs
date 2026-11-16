@@ -34,7 +34,11 @@ impl StageView for DeployedStage {
             .error
             .as_ref()
             .map(Failure::message)
-            .or_else(|| self.column.selected().and_then(|row| row.error.as_deref()))
+            .or_else(|| {
+                self.column
+                    .selected()
+                    .and_then(|row| row.error.as_ref().map(Failure::message))
+            })
     }
 
     fn pull_target(&self) -> Result<(u64, String), String> {

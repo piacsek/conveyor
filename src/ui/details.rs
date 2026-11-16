@@ -241,7 +241,7 @@ fn deployed_details(row: &Deployment, now: SystemTime) -> Vec<Line<'static>> {
     ]));
     if let Some(error) = &row.error {
         lines.push(Line::from(Span::styled(
-            error.clone(),
+            error.to_string(),
             Style::default().fg(Color::Red),
         )));
     }
