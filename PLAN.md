@@ -772,7 +772,15 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   as `kind: internal` and the snapshots stand. Deviations: jobs, log and rerun got their kind
   in task 5 with the actions rather than in task 3; `From<io::Error>` replaced a dedicated
   constructor for a missing program, and `Failure::timed_out`, `message` and `reworded` were
-  added. Left: kubectl's own connection errors read `Other`; what a card does with each kind.
+  added. `main` gained the shared worker loop (#101) meanwhile: caught up by a merge, the
+  kind passes through `worker.rs` untouched. Review round 1 (unprimed) had no must or should;
+  its minors fixed, tests only: the pods deadline test ran its shim once before the 1 s
+  deadline applied, and tests now pin that the kind survives `without_warnings` and
+  `gits_reason` and that a rerun of several runs takes the first failure's kind. Rate limiting
+  was not triggered live; its rule rests on the words `rate limit` in what `gh` prints. Left:
+  kubectl's own connection errors read `Other`, as do git's `Could not resolve host`, `TLS
+  handshake timeout` and `connection reset by peer`; the `gh` rules read all of stderr, so
+  echoed text holding `rate limit` would read `RateLimited`; what a card does with each kind.
 
 ## Deferred / backlog (discuss at retros)
 
