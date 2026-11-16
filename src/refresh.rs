@@ -1,20 +1,27 @@
 use std::io;
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::app::{Input, Rows, Stage};
 
-pub fn wait(rx: &Receiver<usize>, interval: Duration, tab: usize) -> Option<usize> {
-    let mut tab = match rx.recv_timeout(interval) {
+#[derive(Debug, PartialEq, Eq)]
+pub enum Wake {
+    Asked(usize),
+    Due,
+    Closed,
+}
+
+pub fn wait(rx: &Receiver<usize>, timeout: Duration) -> Wake {
+    let mut tab = match rx.recv_timeout(timeout) {
         Ok(asked) => asked,
-        Err(RecvTimeoutError::Timeout) => tab,
-        Err(RecvTimeoutError::Disconnected) => return None,
+        Err(RecvTimeoutError::Timeout) => return Wake::Due,
+        Err(RecvTimeoutError::Disconnected) => return Wake::Closed,
     };
     while let Ok(asked) = rx.try_recv() {
         tab = asked;
     }
-    Some(tab)
+    Wake::Asked(tab)
 }
 
 pub fn spawn(
@@ -25,20 +32,40 @@ pub fn spawn(
     mut fetch: impl FnMut(usize) -> Result<Rows, String> + Send + 'static,
 ) -> Sender<usize> {
     let (refresh_tx, refresh_rx) = mpsc::channel::<usize>();
+    let interval = interval.max(Duration::from_secs(1));
     thread::spawn(move || {
         let mut first = 0;
+        let mut left: Vec<usize> = sweep(first, tabs).collect();
+        let mut due = Instant::now();
         loop {
-            for tab in sweep(first, tabs) {
-                if tx.send(Ok(Input::Fetching(stage, tab))).is_err() {
-                    return;
+            let timeout = if left.is_empty() {
+                due.saturating_duration_since(Instant::now())
+            } else {
+                Duration::ZERO
+            };
+            let (tab, sweeping) = match wait(&refresh_rx, timeout) {
+                Wake::Closed => return,
+                Wake::Asked(asked) => {
+                    let sweeping = !left.is_empty();
+                    first = asked;
+                    left.retain(|tab| *tab != asked);
+                    (asked, sweeping)
                 }
-                if tx.send(Ok(Input::Data(stage, tab, fetch(tab)))).is_err() {
-                    return;
+                Wake::Due => {
+                    if left.is_empty() {
+                        left = sweep(first, tabs).collect();
+                    }
+                    (left.remove(0), true)
                 }
+            };
+            if tx.send(Ok(Input::Fetching(stage, tab))).is_err() {
+                return;
             }
-            match wait(&refresh_rx, interval.max(Duration::from_secs(1)), first) {
-                Some(asked) => first = asked,
-                None => return,
+            if tx.send(Ok(Input::Data(stage, tab, fetch(tab)))).is_err() {
+                return;
+            }
+            if left.is_empty() && (sweeping || tabs <= 1) {
+                due = Instant::now() + interval;
             }
         }
     });

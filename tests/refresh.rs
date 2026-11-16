@@ -1,8 +1,9 @@
 use std::sync::mpsc;
+use std::thread;
 use std::time::{Duration, Instant};
 
 use conveyor::app::{Input, Stage};
-use conveyor::refresh::{spawn, wait};
+use conveyor::refresh::{Wake, spawn, wait};
 
 #[test]
 fn a_burst_of_refresh_signals_wakes_the_fetcher_once() {
@@ -11,7 +12,7 @@ fn a_burst_of_refresh_signals_wakes_the_fetcher_once() {
     tx.send(0).unwrap();
     tx.send(0).unwrap();
 
-    assert_eq!(wait(&rx, Duration::from_secs(1), 0), Some(0));
+    assert_eq!(wait(&rx, Duration::from_secs(1)), Wake::Asked(0));
     assert!(rx.try_recv().is_err());
 }
 
@@ -21,7 +22,7 @@ fn the_last_tab_of_a_burst_is_the_one_fetched() {
     tx.send(1).unwrap();
     tx.send(2).unwrap();
 
-    assert_eq!(wait(&rx, Duration::from_secs(1), 0), Some(2));
+    assert_eq!(wait(&rx, Duration::from_secs(1)), Wake::Asked(2));
 }
 
 #[test]
@@ -29,7 +30,7 @@ fn the_interval_wakes_the_fetcher_without_a_signal() {
     let (_tx, rx) = mpsc::channel::<usize>();
     let started = Instant::now();
 
-    assert_eq!(wait(&rx, Duration::from_millis(10), 1), Some(1));
+    assert_eq!(wait(&rx, Duration::from_millis(10)), Wake::Due);
     assert!(started.elapsed() >= Duration::from_millis(10));
 }
 
@@ -38,7 +39,7 @@ fn a_closed_channel_stops_the_fetcher() {
     let (tx, rx) = mpsc::channel::<usize>();
     drop(tx);
 
-    assert_eq!(wait(&rx, Duration::from_secs(1), 0), None);
+    assert_eq!(wait(&rx, Duration::from_secs(1)), Wake::Closed);
 }
 
 #[test]
@@ -112,6 +113,95 @@ fn a_sweep_of_one_fetches_the_first_tab_only() {
 
     assert_eq!(next(), Input::Fetching(Stage::Prs, 0));
     assert_eq!(next(), Input::Data(Stage::Prs, 0, Err("tab 0".to_string())));
+    assert!(inputs.recv_timeout(Duration::from_millis(300)).is_err());
+}
+
+#[test]
+fn a_request_between_sweeps_fetches_its_tab_only_and_leads_the_next_sweep_on_time() {
+    let (inputs_tx, inputs) = mpsc::channel();
+    let refresh = spawn(Stage::Prs, Duration::from_secs(2), 2, inputs_tx, |tab| {
+        Err(format!("tab {tab}"))
+    });
+    let next = || {
+        inputs
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap()
+    };
+    next();
+    next();
+    next();
+    next();
+    let swept = Instant::now();
+    thread::sleep(Duration::from_secs(1));
+
+    refresh.send(1).unwrap();
+
+    assert_eq!(next(), Input::Fetching(Stage::Prs, 1));
+    assert_eq!(next(), Input::Data(Stage::Prs, 1, Err("tab 1".to_string())));
+    assert_eq!(next(), Input::Fetching(Stage::Prs, 1));
+    assert!(swept.elapsed() < Duration::from_millis(2600));
+    assert_eq!(next(), Input::Data(Stage::Prs, 1, Err("tab 1".to_string())));
+    assert_eq!(next(), Input::Fetching(Stage::Prs, 0));
+}
+
+#[test]
+fn a_sweep_of_one_waits_the_whole_interval_after_a_request() {
+    let (inputs_tx, inputs) = mpsc::channel();
+    let refresh = spawn(Stage::Builds, Duration::from_secs(2), 1, inputs_tx, |tab| {
+        Err(format!("tab {tab}"))
+    });
+    let next = || {
+        inputs
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap()
+    };
+    next();
+    next();
+    thread::sleep(Duration::from_secs(1));
+
+    refresh.send(0).unwrap();
+
+    assert_eq!(next(), Input::Fetching(Stage::Builds, 0));
+    assert_eq!(
+        next(),
+        Input::Data(Stage::Builds, 0, Err("tab 0".to_string()))
+    );
+    assert!(inputs.recv_timeout(Duration::from_millis(1500)).is_err());
+}
+
+#[test]
+fn a_request_during_a_sweep_is_fetched_before_the_tabs_the_sweep_has_left() {
+    let (inputs_tx, inputs) = mpsc::channel();
+    let (release_tx, release) = mpsc::channel::<()>();
+    let refresh = spawn(
+        Stage::Prs,
+        Duration::from_secs(60),
+        3,
+        inputs_tx,
+        move |_| {
+            release.recv().unwrap();
+            Err("done".to_string())
+        },
+    );
+    let next = || {
+        inputs
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap()
+    };
+
+    assert_eq!(next(), Input::Fetching(Stage::Prs, 0));
+    refresh.send(2).unwrap();
+    release_tx.send(()).unwrap();
+    assert!(matches!(next(), Input::Data(Stage::Prs, 0, _)));
+    assert_eq!(next(), Input::Fetching(Stage::Prs, 2));
+    release_tx.send(()).unwrap();
+    assert!(matches!(next(), Input::Data(Stage::Prs, 2, _)));
+    assert_eq!(next(), Input::Fetching(Stage::Prs, 1));
+    release_tx.send(()).unwrap();
+    assert!(matches!(next(), Input::Data(Stage::Prs, 1, _)));
     assert!(inputs.recv_timeout(Duration::from_millis(300)).is_err());
 }
 
