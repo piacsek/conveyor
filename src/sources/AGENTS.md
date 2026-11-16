@@ -22,8 +22,8 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   of `config.prs.tabs()[tab]` (a tab without a `limit` takes `[prs].limit`; with no
   `[[prs.tab]]`, `[prs].query` is tab 0). `refresh::spawn` takes the number of tabs to sweep:
   My PRs passes every tab when `[prs] background_tabs` is on (the default), else one. Each
-  sweep fetches the tab last asked for, then the others in config order, so a search call per
-  tab per `refresh_secs`; with it off the number of `gh` calls does not grow with the tabs. The
+  sweep fetches the tab last asked for, then the others in config order, so one fetch per tab
+  per `refresh_secs` (a fetch can take more than one call, see the pages of checks above); with it off the number of `gh` calls does not grow with the tabs. The
   refresh channel carries a tab index and in a burst the last tab wins.
 - My PRs, how the checks are deduplicated and what the card's check state reads: see `src/model/AGENTS.md`.
 - **Merge queue**: one query per repo (`src/sources/queries/queue.graphql`) plus one REST call

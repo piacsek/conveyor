@@ -742,7 +742,9 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   the current `Instant`, so the deadline tests no longer sleep (two timing tests could flake on
   CI); requests that kept arriving (a held `r`) starved the rest of a sweep and an overdue
   deadline, so after a request the sweep's next tab goes first and an overdue request starts
-  the sweep. Deviations: the plan said the `config-v0.toml` test stays unedited; the
+  the sweep. The price, accepted: with three or more tabs, a second request that arrives while
+  the first is fetched waits for one background fetch. Review round 2 changed only docs: a tab
+  costs one fetch per sweep, which can be more than one call when checks are paged. Deviations: the plan said the `config-v0.toml` test stays unedited; the
   fixture is, but its expected output gains `background_tabs = true`, as it gained the
   `[ui.keys]` defaults in phase 40. `tests/e2e.rs` became `tests/e2e/` (`main.rs` plus
   `background_tabs.rs`) to stay under 700 lines. `refresh::wait` now returns `Wake::{Asked,

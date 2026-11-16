@@ -318,11 +318,12 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   `refresh::spawn` takes the number of tabs to sweep (My PRs all of them with
   `background_tabs`, every other column one); `refresh::Schedule` decides what to fetch next,
   handed the current `Instant`, so its deadlines are tested without sleeping. A request fetches
-  its tab only and leads the next sweep; it is checked between two tabs of a sweep, so it never
-  waits behind more than the running fetch, and the tab it fetched is dropped from that sweep.
-  After a request the sweep's next tab goes first, and a request that arrives once the deadline
-  has passed starts the sweep it leads, so a held `r` or quick switching never starves the
-  hidden tabs. The sweep keeps its own deadline, `refresh_secs` after the previous sweep ended.
+  its tab only and leads the next sweep; it is checked between two tabs of a sweep, and the tab
+  it fetched is dropped from that sweep. After a request the sweep's next tab goes first, and a
+  request that arrives once the deadline has passed starts the sweep it leads, so a held `r` or
+  quick switching never starves the hidden tabs. The price: with three or more tabs, a second
+  request that arrives while the first is fetched waits for one background fetch; with two tabs
+  nothing waits, since the owed tab is the only other one. The sweep keeps its own deadline, `refresh_secs` after the previous sweep ended.
   A sweep of one serves every request at once and restarts the interval after every fetch, the
   loop from before the sweep.
 - Refresh feedback (the footer spinner and the `refreshed` wording): see `src/ui/AGENTS.md`.
