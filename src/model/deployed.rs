@@ -2,6 +2,7 @@ use std::time::SystemTime;
 
 use crate::model::builds::PullRef;
 use crate::model::prs::parse_timestamp;
+use crate::sources::failure::Failure;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Deployment {
@@ -9,13 +10,13 @@ pub struct Deployment {
     pub image: Option<String>,
     pub sha: Option<String>,
     pub pull: Option<PullRef>,
-    pub error: Option<String>,
+    pub error: Option<Failure>,
     pub fetched_at: Option<SystemTime>,
     pub target: String,
     pub health: Health,
     pub rollout: Option<Rollout>,
     pub pods: Vec<Pod>,
-    pub pods_error: Option<String>,
+    pub pods_error: Option<Failure>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]

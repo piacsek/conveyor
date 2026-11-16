@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 
 use crate::config::DeployEnv;
 use crate::log::Log;
+use crate::sources::failure::Failure;
 
 pub const DEADLINE: Duration = Duration::from_secs(15);
 const POLL: Duration = Duration::from_millis(10);
@@ -15,8 +16,8 @@ const DRAIN: Duration = Duration::from_millis(500);
 pub const MISSING: &str = "kubectl not found on PATH; install kubectl and log in to the cluster";
 
 pub trait Kube {
-    fn deployment(&self, env: &DeployEnv) -> io::Result<String>;
-    fn pods(&self, env: &DeployEnv, selector: &str) -> io::Result<String>;
+    fn deployment(&self, env: &DeployEnv) -> Result<String, Failure>;
+    fn pods(&self, env: &DeployEnv, selector: &str) -> Result<String, Failure>;
 }
 
 pub struct CliKubectl {
@@ -71,7 +72,7 @@ impl CliKubectl {
         .collect()
     }
 
-    fn run(&self, args: &[String]) -> io::Result<String> {
+    fn run(&self, args: &[String]) -> Result<String, Failure> {
         let started = Instant::now();
         let ran = self.output(Command::new(&self.program).args(args).stdin(Stdio::null()));
         let output = match ran {
@@ -79,10 +80,10 @@ impl CliKubectl {
             Ok(Ran::TimedOut(stderr)) => {
                 self.log
                     .timed_out("kubectl", args, started.elapsed(), &stderr);
-                return Err(io::Error::new(
-                    io::ErrorKind::TimedOut,
-                    format!("kubectl did not answer within {}s", self.deadline.as_secs()),
-                ));
+                return Err(Failure::timed_out(format!(
+                    "kubectl did not answer within {}s",
+                    self.deadline.as_secs()
+                )));
             }
             Err(err) if err.kind() == io::ErrorKind::NotFound => {
                 Err(io::Error::new(io::ErrorKind::NotFound, MISSING))
@@ -98,7 +99,7 @@ impl CliKubectl {
             } else {
                 stderr
             };
-            return Err(io::Error::other(message));
+            return Err(Failure::from(message));
         }
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
     }
@@ -202,11 +203,11 @@ fn drain<R: Read + Send + 'static>(pipe: Option<R>) -> Receiver<Vec<u8>> {
 }
 
 impl Kube for CliKubectl {
-    fn deployment(&self, env: &DeployEnv) -> io::Result<String> {
+    fn deployment(&self, env: &DeployEnv) -> Result<String, Failure> {
         self.run(&Self::deployment_args(env))
     }
 
-    fn pods(&self, env: &DeployEnv, selector: &str) -> io::Result<String> {
+    fn pods(&self, env: &DeployEnv, selector: &str) -> Result<String, Failure> {
         self.run(&Self::pods_args(env, selector))
     }
 }

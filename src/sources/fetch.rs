@@ -2,6 +2,7 @@ use crate::config::{Config, Repo};
 use crate::model::builds::Builds;
 use crate::model::prs::PullRequest;
 use crate::model::queue::{Queue, parse_merge_group_runs};
+use crate::sources::failure::Failure;
 use crate::sources::github::Github;
 
 pub const PRS_QUERY: &str = include_str!("queries/prs.graphql");
@@ -14,22 +15,20 @@ pub fn fetch_prs(
     gh: &impl Github,
     config: &Config,
     tab: usize,
-) -> Result<Vec<PullRequest>, String> {
+) -> Result<Vec<PullRequest>, Failure> {
     let tab = config
         .prs
         .tabs()
         .into_iter()
         .nth(tab)
         .ok_or_else(|| format!("no My PRs tab {}", tab + 1))?;
-    let mut value = gh
-        .graphql(
-            PRS_QUERY,
-            &[
-                ("q", tab.query.as_str().into()),
-                ("first", tab.limit.unwrap_or(config.prs.limit).into()),
-            ],
-        )
-        .map_err(|err| err.to_string())?;
+    let mut value = gh.graphql(
+        PRS_QUERY,
+        &[
+            ("q", tab.query.as_str().into()),
+            ("first", tab.limit.unwrap_or(config.prs.limit).into()),
+        ],
+    )?;
     if let Some(prs) = value
         .pointer_mut("/data/search/nodes")
         .and_then(|v| v.as_array_mut())
@@ -38,10 +37,10 @@ pub fn fetch_prs(
             read_remaining_checks(gh, pr)?;
         }
     }
-    crate::model::prs::parse(&value)
+    Ok(crate::model::prs::parse(&value)?)
 }
 
-fn read_remaining_checks(gh: &impl Github, pr: &mut serde_json::Value) -> Result<(), String> {
+fn read_remaining_checks(gh: &impl Github, pr: &mut serde_json::Value) -> Result<(), Failure> {
     let Some(id) = pr.get("id").and_then(|v| v.as_str()).map(str::to_string) else {
         return Ok(());
     };
@@ -57,12 +56,10 @@ fn read_remaining_checks(gh: &impl Github, pr: &mut serde_json::Value) -> Result
                 .to_string(),
             _ => return Ok(()),
         };
-        let mut next = gh
-            .graphql(
-                PR_CHECKS_QUERY,
-                &[("id", id.as_str().into()), ("after", after.into())],
-            )
-            .map_err(|err| err.to_string())?;
+        let mut next = gh.graphql(
+            PR_CHECKS_QUERY,
+            &[("id", id.as_str().into()), ("after", after.into())],
+        )?;
         let Some(page) = next.pointer_mut("/data/node/statusCheckRollup/contexts") else {
             return Ok(());
         };
@@ -83,12 +80,10 @@ pub fn fetch_jobs(
     gh: &impl Github,
     repo: &str,
     run_id: u64,
-) -> Result<Vec<crate::model::jobs::Job>, String> {
-    let value = gh
-        .rest(&format!(
-            "repos/{repo}/actions/runs/{run_id}/jobs?per_page=100"
-        ))
-        .map_err(|err| err.to_string())?;
+) -> Result<Vec<crate::model::jobs::Job>, Failure> {
+    let value = gh.rest(&format!(
+        "repos/{repo}/actions/runs/{run_id}/jobs?per_page=100"
+    ))?;
     Ok(crate::model::jobs::parse_jobs(&value))
 }
 
@@ -100,10 +95,8 @@ pub fn fetch_log(
     repo: &str,
     run_id: u64,
     job_id: u64,
-) -> Result<Vec<String>, String> {
-    let text = gh
-        .log_failed(repo, run_id, job_id)
-        .map_err(|err| err.to_string())?;
+) -> Result<Vec<String>, Failure> {
+    let text = gh.log_failed(repo, run_id, job_id)?;
     Ok(crate::model::log::tail(&text, LOG_TAIL))
 }
 
@@ -111,25 +104,20 @@ pub fn rerun_failed(
     gh: &impl Github,
     repo: &str,
     run_ids: &[u64],
-) -> Vec<(u64, Result<(), String>)> {
+) -> Vec<(u64, Result<(), Failure>)> {
     run_ids
         .iter()
-        .map(|run_id| {
-            (
-                *run_id,
-                gh.rerun_failed(repo, *run_id)
-                    .map_err(|err| err.to_string()),
-            )
-        })
+        .map(|run_id| (*run_id, gh.rerun_failed(repo, *run_id)))
         .collect()
 }
 
-pub fn repos(gh: &impl Github, config: &Config) -> Result<Vec<Repo>, String> {
+pub fn repos(gh: &impl Github, config: &Config) -> Result<Vec<Repo>, Failure> {
     if !config.repo.is_empty() {
         return Ok(config.repo.clone());
     }
     let name = gh.current_repo().map_err(|err| {
-        format!("no [[repo]] configured and the current directory has none: {err}")
+        let message = format!("no [[repo]] configured and the current directory has none: {err}");
+        err.reworded(message)
     })?;
     Ok(vec![Repo {
         name,
@@ -137,21 +125,19 @@ pub fn repos(gh: &impl Github, config: &Config) -> Result<Vec<Repo>, String> {
     }])
 }
 
-pub fn fetch_queue(gh: &impl Github, repo: &Repo) -> Result<Queue, String> {
+pub fn fetch_queue(gh: &impl Github, repo: &Repo) -> Result<Queue, Failure> {
     let (owner, name) = repo
         .name
         .split_once('/')
         .ok_or_else(|| format!("repo `{}` must be owner/name", repo.name))?;
-    let value = gh
-        .graphql(
-            QUEUE_QUERY,
-            &[
-                ("owner", owner.into()),
-                ("name", name.into()),
-                ("first", QUEUE_LIMIT.into()),
-            ],
-        )
-        .map_err(|err| err.to_string())?;
+    let value = gh.graphql(
+        QUEUE_QUERY,
+        &[
+            ("owner", owner.into()),
+            ("name", name.into()),
+            ("first", QUEUE_LIMIT.into()),
+        ],
+    )?;
     let mut queue = crate::model::queue::parse(&value)?;
     queue.repo = repo.name.clone();
     if !queue.entries.is_empty()
@@ -362,14 +348,12 @@ impl BuildsSource {
         &mut self,
         gh: &impl Github,
         now: std::time::SystemTime,
-    ) -> Result<Vec<crate::model::builds::Build>, String> {
+    ) -> Result<Vec<crate::model::builds::Build>, Failure> {
         let workflow = self.workflow(gh)?;
-        let runs = gh
-            .rest(&format!(
-                "repos/{}/actions/workflows/{workflow}/runs?branch=main&event=push&per_page={}",
-                self.repo.name, self.repo.builds
-            ))
-            .map_err(|err| err.to_string())?;
+        let runs = gh.rest(&format!(
+            "repos/{}/actions/workflows/{workflow}/runs?branch=main&event=push&per_page={}",
+            self.repo.name, self.repo.builds
+        ))?;
         let mut builds = crate::model::builds::parse_runs(&runs);
         let commits: Vec<(&str, Option<u64>)> = builds
             .iter()
@@ -390,7 +374,7 @@ impl BuildsSource {
         }
     }
 
-    fn workflow(&mut self, gh: &impl Github) -> Result<String, String> {
+    fn workflow(&mut self, gh: &impl Github) -> Result<String, Failure> {
         if let Some(workflow) = &self.workflow {
             return Ok(workflow.clone());
         }
@@ -398,12 +382,10 @@ impl BuildsSource {
         let resolved = if wanted.ends_with(".yml") || wanted.ends_with(".yaml") {
             wanted.to_string()
         } else {
-            let list = gh
-                .rest(&format!(
-                    "repos/{}/actions/workflows?per_page=100",
-                    self.repo.name
-                ))
-                .map_err(|err| err.to_string())?;
+            let list = gh.rest(&format!(
+                "repos/{}/actions/workflows?per_page=100",
+                self.repo.name
+            ))?;
             let candidates: Vec<&str> = if wanted == Repo::default().main_workflow {
                 DEFAULT_WORKFLOWS.to_vec()
             } else {
@@ -515,7 +497,7 @@ impl DeploySource {
                 row.sha = Some(sha);
                 row.fetched_at = Some(now);
             }
-            Err(err) => row.error = Some(err),
+            Err(err) => row.error = Some(err.into()),
         }
         match read.pods {
             Ok(pods) => row.pods = pods,
@@ -531,15 +513,14 @@ impl DeploySource {
 }
 
 struct Read {
-    rollout: Result<crate::model::deployed::Rollout, String>,
-    pods: Result<Vec<crate::model::deployed::Pod>, String>,
+    rollout: Result<crate::model::deployed::Rollout, Failure>,
+    pods: Result<Vec<crate::model::deployed::Pod>, Failure>,
 }
 
 fn read(kube: &impl crate::sources::kube::Kube, env: &crate::config::DeployEnv) -> Read {
     let rollout = kube
         .deployment(env)
-        .map_err(|err| err.to_string())
-        .and_then(|json| crate::model::deployed::parse_deployment(&json));
+        .and_then(|json| Ok(crate::model::deployed::parse_deployment(&json)?));
     let pods = match &rollout {
         Ok(rollout) => pods(kube, env, &rollout.selector),
         Err(_) => Ok(Vec::new()),
@@ -551,10 +532,12 @@ fn pods(
     kube: &impl crate::sources::kube::Kube,
     env: &crate::config::DeployEnv,
     selector: &str,
-) -> Result<Vec<crate::model::deployed::Pod>, String> {
+) -> Result<Vec<crate::model::deployed::Pod>, Failure> {
     if selector.is_empty() {
-        return Err("the deployment's selector has no matchLabels".to_string());
+        return Err("the deployment's selector has no matchLabels"
+            .to_string()
+            .into());
     }
-    let json = kube.pods(env, selector).map_err(|err| err.to_string())?;
-    crate::model::deployed::parse_pods(&json)
+    let json = kube.pods(env, selector)?;
+    Ok(crate::model::deployed::parse_pods(&json)?)
 }

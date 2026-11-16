@@ -118,7 +118,7 @@ fn builds_source_uses_a_workflow_file_name_directly_and_reports_unknown_names() 
         main_workflow: "Nope".to_string(),
         ..Repo::default()
     });
-    let err = unknown.fetch(&gh, NOW).unwrap_err();
+    let err = unknown.fetch(&gh, NOW).unwrap_err().to_string();
     assert!(
         err.contains("Nope") && err.contains("main_workflow"),
         "{err}"

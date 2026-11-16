@@ -6,6 +6,7 @@ use crate::model::builds::Build;
 use crate::model::deployed::Deployment;
 use crate::model::prs::PullRequest;
 use crate::model::queue::QueueEntry;
+use crate::sources::failure::Failure;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Order {
@@ -145,7 +146,7 @@ impl<T> ColumnState<T> {
 #[derive(Debug, Clone)]
 pub struct Column<T> {
     pub state: ColumnState<T>,
-    pub error: Option<String>,
+    pub error: Option<Failure>,
     pub refreshing: bool,
     pub list: ListState,
     pub filter: Option<String>,
@@ -227,8 +228,8 @@ impl<T: Row> Column<T> {
         self.list.select(Some(index));
     }
 
-    pub fn fail(&mut self, message: String) {
-        self.error = Some(message);
+    pub fn fail(&mut self, failure: Failure) {
+        self.error = Some(failure);
         self.refreshing = false;
     }
 
@@ -305,12 +306,12 @@ pub trait Listing: Navigable {
     fn is_refreshing(&self) -> bool;
     fn set_refreshing(&mut self, refreshing: bool);
     fn set_filter(&mut self, filter: Option<String>);
-    fn fail(&mut self, message: String);
+    fn fail(&mut self, failure: Failure);
 }
 
 impl<T: Row> Listing for Column<T> {
     fn error(&self) -> Option<&str> {
-        self.error.as_deref()
+        self.error.as_ref().map(Failure::message)
     }
 
     fn fetched_at(&self) -> Option<SystemTime> {
@@ -341,7 +342,7 @@ impl<T: Row> Listing for Column<T> {
         self.filter = filter;
     }
 
-    fn fail(&mut self, message: String) {
-        Column::fail(self, message);
+    fn fail(&mut self, failure: Failure) {
+        Column::fail(self, failure);
     }
 }

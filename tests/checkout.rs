@@ -2,8 +2,10 @@ mod support;
 
 use std::path::PathBuf;
 
-use conveyor::app::{Input, Request};
+use conveyor::app::{Input, Request, Stage};
 use conveyor::config::{Config, Repo};
+use conveyor::sources::failure::FailureKind;
+use conveyor::sources::github::{CliGh, Github};
 use ratatui::crossterm::event::KeyCode;
 use support::{Harness, checkout_target, key, pr, prs};
 
@@ -190,6 +192,30 @@ fn a_refused_checkout_shows_why_and_lets_s_open_again() {
     assert!(h.screen().contains("Manage #1"), "{}", h.screen());
 }
 
+#[test]
+fn a_checkout_without_git_marks_the_card_as_a_missing_program_in_gits_words() {
+    let clone = tempfile::tempdir().unwrap();
+    let gh = CliGh::with_program("/nonexistent/gh".into()).with_git("/nonexistent/git".into());
+    let mut h = tall(with_path("acme/webapp", clone.path().to_str().unwrap()));
+    h.run(vec![
+        prs(vec![pr(1, "a")]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('c')),
+    ])
+    .unwrap();
+
+    let result = gh.checkout("acme/webapp", 1, Some(clone.path()));
+    h.run(vec![Ok(Input::CheckedOut(
+        checkout_target(1, clone.path().to_str()),
+        result,
+    ))])
+    .unwrap();
+
+    let mark = h.app.failure_on(Stage::Prs, 1).unwrap();
+    assert_eq!(mark.kind, FailureKind::ProgramMissing);
+    assert_eq!(mark.line(), "! check out failed: git not found on PATH");
+}
+
 fn tall(config: Config) -> Harness {
     Harness::with_config(160, 20, config)
 }
@@ -212,6 +238,6 @@ fn with_path(name: &str, path: &str) -> Config {
 fn checked_out(number: u64, dir: Option<&str>, result: Result<(), &str>) -> std::io::Result<Input> {
     Ok(Input::CheckedOut(
         checkout_target(number, dir),
-        result.map_err(str::to_string),
+        result.map_err(|err| err.to_string().into()),
     ))
 }

@@ -1,6 +1,7 @@
 use std::time::SystemTime;
 
 use crate::app::{App, Stage};
+use crate::sources::failure::FailureKind;
 
 use super::Write;
 
@@ -9,6 +10,7 @@ pub struct Failure {
     pub stage: Stage,
     pub subject: u64,
     pub action: String,
+    pub kind: FailureKind,
     pub message: String,
     pub at: SystemTime,
 }
@@ -53,7 +55,7 @@ impl App {
             .retain(|failure| failure.stage != stage || failure.subject != subject);
     }
 
-    pub(super) fn fail(&mut self, write: Option<Write>, message: &str) {
+    pub(super) fn fail(&mut self, write: Option<Write>, cause: &crate::sources::failure::Failure) {
         let Some(write) = write else {
             return;
         };
@@ -64,7 +66,8 @@ impl App {
             stage: write.stage,
             subject: write.subject,
             action: write.action(),
-            message: message.to_string(),
+            kind: cause.kind(),
+            message: cause.to_string(),
             at: self.now,
         });
     }

@@ -136,23 +136,17 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
     let gh = CliGh::default().with_log(log.clone());
     let merge_method = config.prs.merge_method;
     let merges = worker::spawn(tx.clone(), move |target: MergeTarget| {
-        let result = gh
-            .merge(&target.repo, target.number, merge_method, &target.head_oid)
-            .map_err(|err| err.to_string());
+        let result = gh.merge(&target.repo, target.number, merge_method, &target.head_oid);
         Input::Merged(target.number, result)
     });
     let gh = CliGh::default().with_log(log.clone());
     let updates = worker::spawn(tx.clone(), move |target: UpdateTarget| {
-        let result = gh
-            .update_branch(&target.repo, target.number, target.method)
-            .map_err(|err| err.to_string());
+        let result = gh.update_branch(&target.repo, target.number, target.method);
         Input::BranchUpdated(target.number, result)
     });
     let gh = CliGh::default().with_log(log.clone());
     let statuses = worker::spawn(tx.clone(), move |target: StatusTarget| {
-        let result = gh
-            .change_status(&target.repo, target.number, &target.change)
-            .map_err(|err| err.to_string());
+        let result = gh.change_status(&target.repo, target.number, &target.change);
         Input::StatusChanged(target.number, target.change, result)
     });
     let gh = CliGh::default().with_log(log.clone());
@@ -162,9 +156,7 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
             .dir
             .as_deref()
             .map(|dir| expand_home(dir, home.as_deref()));
-        let result = gh
-            .checkout(&target.repo, target.number, dir.as_deref())
-            .map_err(|err| err.to_string());
+        let result = gh.checkout(&target.repo, target.number, dir.as_deref());
         Input::CheckedOut(target, result)
     });
     spawn_terminal_events(tx);

@@ -31,7 +31,7 @@ fn repos_come_from_the_config_or_else_from_the_current_directory() {
 
     let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
     gh.cwd_repo = Err(io::Error::other("not a git repository"));
-    let err = repos(&gh, &Config::default()).unwrap_err();
+    let err = repos(&gh, &Config::default()).unwrap_err().to_string();
     assert!(err.contains("not a git repository"), "{err}");
     assert!(err.contains("[[repo]]"), "hints at the config: {err}");
 }

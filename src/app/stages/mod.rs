@@ -5,6 +5,7 @@ use crate::model::builds::{Build, Builds};
 use crate::model::deployed::{Deployed, Deployment};
 use crate::model::prs::PullRequest;
 use crate::model::queue::Queue;
+use crate::sources::failure::Failure;
 
 use super::{App, Listing, Menu};
 
@@ -188,7 +189,7 @@ impl App {
         }
     }
 
-    pub fn receive(&mut self, stage: Stage, tab: usize, data: Result<Rows, String>) {
+    pub fn receive(&mut self, stage: Stage, tab: usize, data: Result<Rows, Failure>) {
         if stage == Stage::Prs {
             self.merge_landing
                 .retain(|(_, landed_in, started)| *landed_in != tab || !started);
@@ -204,7 +205,7 @@ impl App {
         self.stage(self.focus).listing().selected_key()
     }
 
-    fn receive_rows(&mut self, stage: Stage, tab: usize, data: Result<Rows, String>) {
+    fn receive_rows(&mut self, stage: Stage, tab: usize, data: Result<Rows, Failure>) {
         match data {
             Ok(rows) if rows.stage() == stage => {
                 let now = self.now;
@@ -213,9 +214,9 @@ impl App {
                 self.prune_failures(stage);
             }
             Ok(_) => {}
-            Err(message) => {
+            Err(failure) => {
                 if let Some(listing) = self.stage_mut(stage).listing_in_mut(tab) {
-                    listing.fail(message);
+                    listing.fail(failure);
                 }
             }
         }

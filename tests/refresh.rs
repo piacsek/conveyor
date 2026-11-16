@@ -52,7 +52,7 @@ fn refreshes_asked_during_a_fetch_cost_one_more_fetch() {
         inputs_tx,
         move |_| {
             release.recv().unwrap();
-            Err("done".to_string())
+            Err("done".to_string().into())
         },
     );
     let next = || {
@@ -78,7 +78,7 @@ fn refreshes_asked_during_a_fetch_cost_one_more_fetch() {
 fn a_sweep_of_two_fetches_both_tabs_at_start_and_again_after_the_interval() {
     let (inputs_tx, inputs) = mpsc::channel();
     let _refresh = spawn(Stage::Prs, Duration::from_secs(1), 2, inputs_tx, |tab| {
-        Err(format!("tab {tab}"))
+        Err(format!("tab {tab}").into())
     });
     let next = || {
         inputs
@@ -88,20 +88,32 @@ fn a_sweep_of_two_fetches_both_tabs_at_start_and_again_after_the_interval() {
     };
 
     assert_eq!(next(), Input::Fetching(Stage::Prs, 0));
-    assert_eq!(next(), Input::Data(Stage::Prs, 0, Err("tab 0".to_string())));
+    assert_eq!(
+        next(),
+        Input::Data(Stage::Prs, 0, Err("tab 0".to_string().into()))
+    );
     assert_eq!(next(), Input::Fetching(Stage::Prs, 1));
-    assert_eq!(next(), Input::Data(Stage::Prs, 1, Err("tab 1".to_string())));
+    assert_eq!(
+        next(),
+        Input::Data(Stage::Prs, 1, Err("tab 1".to_string().into()))
+    );
     assert_eq!(next(), Input::Fetching(Stage::Prs, 0));
-    assert_eq!(next(), Input::Data(Stage::Prs, 0, Err("tab 0".to_string())));
+    assert_eq!(
+        next(),
+        Input::Data(Stage::Prs, 0, Err("tab 0".to_string().into()))
+    );
     assert_eq!(next(), Input::Fetching(Stage::Prs, 1));
-    assert_eq!(next(), Input::Data(Stage::Prs, 1, Err("tab 1".to_string())));
+    assert_eq!(
+        next(),
+        Input::Data(Stage::Prs, 1, Err("tab 1".to_string().into()))
+    );
 }
 
 #[test]
 fn a_sweep_of_one_fetches_the_first_tab_only() {
     let (inputs_tx, inputs) = mpsc::channel();
     let _refresh = spawn(Stage::Prs, Duration::from_secs(60), 1, inputs_tx, |tab| {
-        Err(format!("tab {tab}"))
+        Err(format!("tab {tab}").into())
     });
     let next = || {
         inputs
@@ -111,7 +123,10 @@ fn a_sweep_of_one_fetches_the_first_tab_only() {
     };
 
     assert_eq!(next(), Input::Fetching(Stage::Prs, 0));
-    assert_eq!(next(), Input::Data(Stage::Prs, 0, Err("tab 0".to_string())));
+    assert_eq!(
+        next(),
+        Input::Data(Stage::Prs, 0, Err("tab 0".to_string().into()))
+    );
     assert!(inputs.recv_timeout(Duration::from_millis(300)).is_err());
 }
 
@@ -119,7 +134,7 @@ fn a_sweep_of_one_fetches_the_first_tab_only() {
 fn a_request_between_sweeps_fetches_its_tab_only() {
     let (inputs_tx, inputs) = mpsc::channel();
     let refresh = spawn(Stage::Prs, Duration::from_secs(60), 2, inputs_tx, |tab| {
-        Err(format!("tab {tab}"))
+        Err(format!("tab {tab}").into())
     });
     let next = || {
         inputs
@@ -135,7 +150,10 @@ fn a_request_between_sweeps_fetches_its_tab_only() {
     refresh.send(1).unwrap();
 
     assert_eq!(next(), Input::Fetching(Stage::Prs, 1));
-    assert_eq!(next(), Input::Data(Stage::Prs, 1, Err("tab 1".to_string())));
+    assert_eq!(
+        next(),
+        Input::Data(Stage::Prs, 1, Err("tab 1".to_string().into()))
+    );
     assert!(inputs.recv_timeout(Duration::from_millis(300)).is_err());
 }
 
@@ -150,7 +168,7 @@ fn a_request_during_a_sweep_is_fetched_before_the_tabs_the_sweep_has_left() {
         inputs_tx,
         move |_| {
             release.recv().unwrap();
-            Err("done".to_string())
+            Err("done".to_string().into())
         },
     );
     let next = || {
@@ -267,7 +285,7 @@ fn a_closed_channel_ends_the_schedule() {
 fn a_refresh_naming_a_tab_fetches_that_tab_and_the_result_carries_it() {
     let (inputs_tx, inputs) = mpsc::channel();
     let refresh = spawn(Stage::Prs, Duration::from_secs(60), 1, inputs_tx, |tab| {
-        Err(format!("tab {tab}"))
+        Err(format!("tab {tab}").into())
     });
     let next = || {
         inputs
@@ -281,7 +299,10 @@ fn a_refresh_naming_a_tab_fetches_that_tab_and_the_result_carries_it() {
     refresh.send(1).unwrap();
 
     assert_eq!(next(), Input::Fetching(Stage::Prs, 1));
-    assert_eq!(next(), Input::Data(Stage::Prs, 1, Err("tab 1".to_string())));
+    assert_eq!(
+        next(),
+        Input::Data(Stage::Prs, 1, Err("tab 1".to_string().into()))
+    );
 }
 
 fn secs(n: u64) -> Duration {

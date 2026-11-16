@@ -196,6 +196,25 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   and left: `pbcopy` is fed through a pipe, so a `gh` or `kubectl` spawned in the same
   microseconds as a `y`/`Y` press inherits its write end and the copy blocks the UI until that
   child exits.
+- **A failure records its kind.** The `Github` and `Kube` traits and everything in `fetch.rs`
+  return `Result<_, Failure>` (`failure.rs`): the message, printed unchanged by `Display`, and
+  a `FailureKind`. The rules, tried in this order:
+
+  | Kind | Recognised by |
+  | --- | --- |
+  | `ProgramMissing` | spawning `gh`, `git` or `kubectl` fails with `NotFound` (`From<io::Error>`) |
+  | `RateLimited` | `gh` failed and its stderr holds `rate limit`, in any case |
+  | `NotSignedIn` | `gh` failed and its stderr holds `gh auth login` or `HTTP 401` |
+  | `Offline` | `gh` failed and its stderr holds `error connecting to` or `dial tcp` |
+  | `TimedOut` | the kubectl deadline killed the process (`Failure::timed_out`) |
+  | `Other` | anything else, and every `From<String>`: a parse error, a message conveyor wrote |
+
+  Only a failed `gh` is classified by its text (`Failure::said_by_gh`, through `Tool::said`);
+  `git` and `kubectl` exits read `Other`, kubectl's connection errors included (their wording
+  is in `plans/phase-47-failure-kinds.md`). A helper that rewrites a message calls
+  `Failure::reworded`, which keeps the kind. The status code is no key: a 403 is also a
+  permission error and GraphQL answers a rate limit with 200, so the rule reads the words.
+  Nothing draws a kind yet; every card, footer and log line reads the message as before.
 - **`gh` never inherits the terminal.** `CliGh::run` gives it a null stdin, so a `gh` that
   wants to prompt (no auth, `HOME` pointing elsewhere) fails fast instead of hanging the
   fetch thread behind `fetching…`.

@@ -25,7 +25,7 @@ fn envs() -> Vec<conveyor::model::deployed::Deployment> {
     let mut failing = deployment("uat", 0, None);
     failing.sha = None;
     failing.image = None;
-    failing.error = Some("ERROR: Active profile expired.".to_string());
+    failing.error = Some("ERROR: Active profile expired.".to_string().into());
     vec![
         deployment("staging", 26, Some((4840, "bob", "Speed up CI"))),
         prod,
@@ -105,7 +105,11 @@ fn an_unavailable_deployment_gets_a_red_alert_and_unread_pods_a_grey_question_ma
     staging.health = Health::Alert("0 of 2 available".to_string());
     let mut prod = deployment("prod", 24, Some((4790, "dave", "Spike tests")));
     prod.health = Health::Unread;
-    prod.pods_error = Some("Error from server (Forbidden): pods is forbidden".to_string());
+    prod.pods_error = Some(
+        "Error from server (Forbidden): pods is forbidden"
+            .to_string()
+            .into(),
+    );
 
     h.run(vec![builds(main_builds()), deployed(vec![staging, prod])])
         .unwrap();
@@ -129,7 +133,11 @@ fn unread_pods_stay_on_the_card_under_an_alert() {
     let mut h = Harness::with_size(160, 20);
     let mut staging = deployment("staging", 26, Some((4840, "bob", "Speed up CI")));
     staging.health = Health::Alert("0 of 2 available".to_string());
-    staging.pods_error = Some("Error from server (Forbidden): pods is forbidden".to_string());
+    staging.pods_error = Some(
+        "Error from server (Forbidden): pods is forbidden"
+            .to_string()
+            .into(),
+    );
 
     h.run(vec![builds(main_builds()), deployed(vec![staging])])
         .unwrap();
@@ -180,7 +188,7 @@ fn a_failed_env_keeps_its_last_known_sha_from_the_previous_fetch() {
     later[0].sha = None;
     later[0].image = None;
     later[0].pull = None;
-    later[0].error = Some("kubectl exited with exit status: 1".to_string());
+    later[0].error = Some("kubectl exited with exit status: 1".to_string().into());
 
     h.run(vec![
         deployed(envs()),
@@ -418,7 +426,11 @@ fn d_says_why_the_pods_were_not_read() {
     let mut h = Harness::with_size(160, 30);
     let mut staging = deployment("staging", 26, Some((4840, "bob", "Speed up CI")));
     staging.health = Health::Unread;
-    staging.pods_error = Some("Error from server (Forbidden): pods is forbidden".to_string());
+    staging.pods_error = Some(
+        "Error from server (Forbidden): pods is forbidden"
+            .to_string()
+            .into(),
+    );
 
     h.run(vec![
         deployed(vec![staging]),

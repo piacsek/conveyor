@@ -8,13 +8,15 @@ use conveyor::worker;
 fn a_request_comes_back_as_the_input_the_work_built() {
     let (inputs_tx, inputs) = mpsc::channel();
     let requests = worker::spawn(inputs_tx, |number: u64| {
-        Input::Merged(number, Err(format!("asked for {number}")))
+        Input::Merged(number, Err(format!("asked for {number}").into()))
     });
 
     requests.send(7).unwrap();
 
     let input = inputs.recv_timeout(WAIT).unwrap().unwrap();
-    assert!(matches!(input, Input::Merged(7, Err(ref reason)) if reason == "asked for 7"));
+    assert!(
+        matches!(input, Input::Merged(7, Err(ref reason)) if reason.to_string() == "asked for 7")
+    );
 }
 
 #[test]

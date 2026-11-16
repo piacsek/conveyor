@@ -1,4 +1,5 @@
 use conveyor::config::MergeMethod;
+use conveyor::sources::failure::FailureKind;
 use conveyor::sources::github::{CliGh, Github};
 
 use crate::shims::{serialized, shim};
@@ -71,5 +72,27 @@ fn a_refused_merge_on_a_queue_branch_reports_the_error_not_the_queue_warning() {
     assert_eq!(
         err.to_string(),
         "GraphQL: Required status checks have not passed"
+    );
+}
+
+#[test]
+fn a_merge_refused_for_a_rejected_token_keeps_its_kind_once_the_queue_warning_is_cut() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let gh = shim(
+        &dir,
+        "echo '! The merge strategy for main is set by the merge queue' >&2; \
+         echo 'HTTP 401: Bad credentials (https://api.github.com/graphql)' >&2; \
+         echo 'Try authenticating with:  gh auth login -h github.com' >&2; exit 1",
+    );
+
+    let err = gh
+        .merge("acme/webapp", 42, MergeMethod::Squash, "8c1f2a7d")
+        .unwrap_err();
+
+    assert_eq!(err.kind(), FailureKind::NotSignedIn);
+    assert_eq!(
+        err.to_string(),
+        "HTTP 401: Bad credentials (https://api.github.com/graphql)\nTry authenticating with:  gh auth login -h github.com"
     );
 }
