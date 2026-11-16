@@ -18,6 +18,20 @@ fn a_request_comes_back_as_the_input_the_work_built() {
 }
 
 #[test]
+fn two_requests_come_back_as_two_inputs_in_order() {
+    let (inputs_tx, inputs) = mpsc::channel();
+    let requests = worker::spawn(inputs_tx, |number: u64| Input::Merged(number, Ok(())));
+
+    requests.send(1).unwrap();
+    requests.send(2).unwrap();
+
+    let first = inputs.recv_timeout(WAIT).unwrap().unwrap();
+    let second = inputs.recv_timeout(WAIT).unwrap().unwrap();
+    assert!(matches!(first, Input::Merged(1, Ok(()))));
+    assert!(matches!(second, Input::Merged(2, Ok(()))));
+}
+
+#[test]
 fn the_worker_ends_once_nobody_reads_its_inputs() {
     let (inputs_tx, inputs) = mpsc::channel();
     let (ended_tx, ended) = mpsc::channel();

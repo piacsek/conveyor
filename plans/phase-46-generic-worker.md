@@ -25,7 +25,9 @@ where
     F: FnMut(T) -> Input + Send + 'static,
 ```
 
-The thread ends when the request sender is dropped or when the receiver of inputs is gone.
+The thread ends once every request sender is dropped, after finishing what is queued, or
+when sending a result fails because nobody reads the inputs any more; an idle worker keeps
+waiting.
 The terminal event thread and the stage fetchers (`refresh::spawn`) stay as they are: they are
 loops of a different shape.
 
