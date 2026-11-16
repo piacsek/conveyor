@@ -21,6 +21,7 @@ use conveyor::sources::fetch::{
 };
 use conveyor::sources::github::{CliGh, Github};
 use conveyor::sources::kube::CliKubectl;
+use conveyor::worker;
 
 fn main() -> ExitCode {
     let command = match cli::parse(env::args().skip(1)) {
@@ -117,13 +118,55 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
     if let Some(refresh) = spawn_deploy_fetcher(&log, config.clone(), tx.clone()) {
         refreshers.insert(Stage::Deployed, refresh);
     }
-    let jobs = spawn_jobs_fetcher(&log, tx.clone());
-    let logs = spawn_log_fetcher(&log, tx.clone());
-    let reruns = spawn_rerun_worker(&log, tx.clone());
-    let merges = spawn_merger(&log, config.clone(), tx.clone());
-    let updates = spawn_branch_updater(&log, tx.clone());
-    let statuses = spawn_status_changer(&log, tx.clone());
-    let checkouts = spawn_checkout_worker(&log, tx.clone());
+    let gh = CliGh::default().with_log(log.clone());
+    let jobs = worker::spawn(tx.clone(), move |(repo, run_id): (String, u64)| {
+        Input::Jobs(run_id, fetch_jobs(&gh, &repo, run_id))
+    });
+    let gh = CliGh::default().with_log(log.clone());
+    let logs = worker::spawn(
+        tx.clone(),
+        move |(repo, run_id, job_id): (String, u64, u64)| {
+            Input::Log(job_id, fetch_log(&gh, &repo, run_id, job_id))
+        },
+    );
+    let gh = CliGh::default().with_log(log.clone());
+    let reruns = worker::spawn(tx.clone(), move |(repo, run_ids): (String, Vec<u64>)| {
+        Input::Rerun(rerun_failed(&gh, &repo, &run_ids))
+    });
+    let gh = CliGh::default().with_log(log.clone());
+    let merge_method = config.prs.merge_method;
+    let merges = worker::spawn(tx.clone(), move |target: MergeTarget| {
+        let result = gh
+            .merge(&target.repo, target.number, merge_method, &target.head_oid)
+            .map_err(|err| err.to_string());
+        Input::Merged(target.number, result)
+    });
+    let gh = CliGh::default().with_log(log.clone());
+    let updates = worker::spawn(tx.clone(), move |target: UpdateTarget| {
+        let result = gh
+            .update_branch(&target.repo, target.number, target.method)
+            .map_err(|err| err.to_string());
+        Input::BranchUpdated(target.number, result)
+    });
+    let gh = CliGh::default().with_log(log.clone());
+    let statuses = worker::spawn(tx.clone(), move |target: StatusTarget| {
+        let result = gh
+            .change_status(&target.repo, target.number, &target.change)
+            .map_err(|err| err.to_string());
+        Input::StatusChanged(target.number, target.change, result)
+    });
+    let gh = CliGh::default().with_log(log.clone());
+    let home = env::var_os("HOME").map(PathBuf::from);
+    let checkouts = worker::spawn(tx.clone(), move |target: CheckoutTarget| {
+        let dir = target
+            .dir
+            .as_deref()
+            .map(|dir| expand_home(dir, home.as_deref()));
+        let result = gh
+            .checkout(&target.repo, target.number, dir.as_deref())
+            .map_err(|err| err.to_string());
+        Input::CheckedOut(target, result)
+    });
     spawn_terminal_events(tx);
     let mut app = App::new(config);
     app.notice = config_error;
@@ -170,126 +213,6 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
     ratatui::restore();
     log.line("conveyor quit");
     result
-}
-
-fn spawn_jobs_fetcher(log: &Log, tx: Inputs) -> mpsc::Sender<(String, u64)> {
-    let (jobs_tx, jobs_rx) = mpsc::channel::<(String, u64)>();
-    let gh = CliGh::default().with_log(log.clone());
-    thread::spawn(move || {
-        while let Ok((repo, run_id)) = jobs_rx.recv() {
-            let result = fetch_jobs(&gh, &repo, run_id);
-            if tx.send(Ok(Input::Jobs(run_id, result))).is_err() {
-                return;
-            }
-        }
-    });
-    jobs_tx
-}
-
-fn spawn_log_fetcher(log: &Log, tx: Inputs) -> mpsc::Sender<(String, u64, u64)> {
-    let (log_tx, log_rx) = mpsc::channel::<(String, u64, u64)>();
-    let gh = CliGh::default().with_log(log.clone());
-    thread::spawn(move || {
-        while let Ok((repo, run_id, job_id)) = log_rx.recv() {
-            let result = fetch_log(&gh, &repo, run_id, job_id);
-            if tx.send(Ok(Input::Log(job_id, result))).is_err() {
-                return;
-            }
-        }
-    });
-    log_tx
-}
-
-fn spawn_rerun_worker(log: &Log, tx: Inputs) -> mpsc::Sender<(String, Vec<u64>)> {
-    let (rerun_tx, rerun_rx) = mpsc::channel::<(String, Vec<u64>)>();
-    let gh = CliGh::default().with_log(log.clone());
-    thread::spawn(move || {
-        while let Ok((repo, run_ids)) = rerun_rx.recv() {
-            let result = rerun_failed(&gh, &repo, &run_ids);
-            if tx.send(Ok(Input::Rerun(result))).is_err() {
-                return;
-            }
-        }
-    });
-    rerun_tx
-}
-
-fn spawn_branch_updater(log: &Log, tx: Inputs) -> mpsc::Sender<UpdateTarget> {
-    let (update_tx, update_rx) = mpsc::channel::<UpdateTarget>();
-    let gh = CliGh::default().with_log(log.clone());
-    thread::spawn(move || {
-        while let Ok(target) = update_rx.recv() {
-            let result = gh
-                .update_branch(&target.repo, target.number, target.method)
-                .map_err(|err| err.to_string());
-            if tx
-                .send(Ok(Input::BranchUpdated(target.number, result)))
-                .is_err()
-            {
-                return;
-            }
-        }
-    });
-    update_tx
-}
-
-fn spawn_status_changer(log: &Log, tx: Inputs) -> mpsc::Sender<StatusTarget> {
-    let (status_tx, status_rx) = mpsc::channel::<StatusTarget>();
-    let gh = CliGh::default().with_log(log.clone());
-    thread::spawn(move || {
-        while let Ok(target) = status_rx.recv() {
-            let result = gh
-                .change_status(&target.repo, target.number, &target.change)
-                .map_err(|err| err.to_string());
-            let landed = Input::StatusChanged(target.number, target.change, result);
-            if tx.send(Ok(landed)).is_err() {
-                return;
-            }
-        }
-    });
-    status_tx
-}
-
-fn spawn_checkout_worker(log: &Log, tx: Inputs) -> mpsc::Sender<CheckoutTarget> {
-    let (checkout_tx, checkout_rx) = mpsc::channel::<CheckoutTarget>();
-    let gh = CliGh::default().with_log(log.clone());
-    let home = env::var_os("HOME").map(PathBuf::from);
-    thread::spawn(move || {
-        while let Ok(target) = checkout_rx.recv() {
-            let dir = target
-                .dir
-                .as_deref()
-                .map(|dir| expand_home(dir, home.as_deref()));
-            let result = gh
-                .checkout(&target.repo, target.number, dir.as_deref())
-                .map_err(|err| err.to_string());
-            if tx.send(Ok(Input::CheckedOut(target, result))).is_err() {
-                return;
-            }
-        }
-    });
-    checkout_tx
-}
-
-fn spawn_merger(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<MergeTarget> {
-    let (merge_tx, merge_rx) = mpsc::channel::<MergeTarget>();
-    let gh = CliGh::default().with_log(log.clone());
-    thread::spawn(move || {
-        while let Ok(target) = merge_rx.recv() {
-            let result = gh
-                .merge(
-                    &target.repo,
-                    target.number,
-                    config.prs.merge_method,
-                    &target.head_oid,
-                )
-                .map_err(|err| err.to_string());
-            if tx.send(Ok(Input::Merged(target.number, result))).is_err() {
-                return;
-            }
-        }
-    });
-    merge_tx
 }
 
 fn spawn_terminal_events(tx: Inputs) {

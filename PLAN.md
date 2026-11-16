@@ -756,6 +756,13 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   --paginate`). The generated notes (pull request titles) stay, as the user chose. No fragment:
   nothing feeds the binary, so the next release is the first to show it. Left, by hand and only
   on the user's yes: rewriting the notes of v0.24.2 to v0.30.1.
+- Phase 46 (`plans/phase-46-generic-worker.md`, #101): the seven request workers of
+  `src/main.rs` (jobs, log, rerun, merge, update, status, checkout) are seven closures over one
+  `worker::spawn` in `src/worker.rs`. Its thread ends once every request sender is dropped
+  (after finishing what is queued) or when sending a result fails because nobody reads the
+  inputs any more; an idle worker keeps waiting. `tests/worker.rs` covers it; nothing visible changed, no
+  snapshot moved, fragment `kind: internal`. The merge closure copies `merge_method` instead of
+  cloning the whole config. The terminal event thread and `refresh::spawn` stay as they were.
 
 ## Deferred / backlog (discuss at retros)
 
