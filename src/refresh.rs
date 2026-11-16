@@ -4,6 +4,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::app::{Input, Rows, Stage};
+use crate::sources::failure::Failure;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Wake {
@@ -101,7 +102,7 @@ pub fn spawn(
     interval: Duration,
     tabs: usize,
     tx: Sender<io::Result<Input>>,
-    mut fetch: impl FnMut(usize) -> Result<Rows, String> + Send + 'static,
+    mut fetch: impl FnMut(usize) -> Result<Rows, Failure> + Send + 'static,
 ) -> Sender<usize> {
     let (refresh_tx, refresh_rx) = mpsc::channel::<usize>();
     thread::spawn(move || {

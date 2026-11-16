@@ -35,7 +35,7 @@ pub use stages::{
 pub enum Input {
     Key(KeyEvent),
     Fetching(Stage, usize),
-    Data(Stage, usize, Result<Rows, String>),
+    Data(Stage, usize, Result<Rows, crate::sources::failure::Failure>),
     Jobs(u64, Result<Vec<Job>, String>),
     /// The tail of one job's failed-step log, keyed by job id.
     Log(u64, Result<Vec<String>, String>),

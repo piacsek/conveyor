@@ -3,6 +3,7 @@ use std::io;
 
 use conveyor::config::{MergeMethod, UpdateMethod};
 use conveyor::model::prs::{BranchUpdate, StatusChange};
+use conveyor::sources::failure::Failure;
 use conveyor::sources::github::{Github, Variable};
 
 pub const NOW: std::time::SystemTime = std::time::SystemTime::UNIX_EPOCH;
@@ -36,7 +37,11 @@ impl FakeGithub {
 }
 
 impl Github for FakeGithub {
-    fn graphql(&self, query: &str, vars: &[(&str, Variable)]) -> io::Result<serde_json::Value> {
+    fn graphql(
+        &self,
+        query: &str,
+        vars: &[(&str, Variable)],
+    ) -> Result<serde_json::Value, Failure> {
         self.calls.borrow_mut().push((
             query.to_string(),
             vars.iter()
@@ -52,11 +57,11 @@ impl Github for FakeGithub {
         }
         match &self.response {
             Ok(value) => Ok(value.clone()),
-            Err(err) => Err(io::Error::new(err.kind(), err.to_string())),
+            Err(err) => Err(err.to_string().into()),
         }
     }
 
-    fn rest(&self, path: &str) -> io::Result<serde_json::Value> {
+    fn rest(&self, path: &str) -> Result<serde_json::Value, Failure> {
         self.calls
             .borrow_mut()
             .push((format!("GET {path}"), Vec::new()));
@@ -69,33 +74,33 @@ impl Github for FakeGithub {
         }
         match &self.rest_response {
             Ok(value) => Ok(value.clone()),
-            Err(err) => Err(io::Error::new(err.kind(), err.to_string())),
+            Err(err) => Err(err.to_string().into()),
         }
     }
 
-    fn current_repo(&self) -> io::Result<String> {
+    fn current_repo(&self) -> Result<String, Failure> {
         match &self.cwd_repo {
             Ok(name) => Ok(name.clone()),
-            Err(err) => Err(io::Error::new(err.kind(), err.to_string())),
+            Err(err) => Err(err.to_string().into()),
         }
     }
 
-    fn log_failed(&self, repo: &str, run_id: u64, job_id: u64) -> io::Result<String> {
+    fn log_failed(&self, repo: &str, run_id: u64, job_id: u64) -> Result<String, Failure> {
         self.calls
             .borrow_mut()
             .push((format!("LOG {repo} {run_id} {job_id}"), Vec::new()));
         match &self.log_response {
             Ok(text) => Ok(text.clone()),
-            Err(err) => Err(io::Error::new(err.kind(), err.to_string())),
+            Err(err) => Err(err.to_string().into()),
         }
     }
 
-    fn rerun_failed(&self, repo: &str, run_id: u64) -> io::Result<()> {
+    fn rerun_failed(&self, repo: &str, run_id: u64) -> Result<(), Failure> {
         self.calls
             .borrow_mut()
             .push((format!("RERUN {repo} {run_id}"), Vec::new()));
         match self.rerun_failures.iter().find(|(id, _)| *id == run_id) {
-            Some((_, message)) => Err(io::Error::other(message.clone())),
+            Some((_, message)) => Err(message.clone().into()),
             None => Ok(()),
         }
     }
@@ -106,7 +111,7 @@ impl Github for FakeGithub {
         number: u64,
         method: MergeMethod,
         head_oid: &str,
-    ) -> io::Result<()> {
+    ) -> Result<(), Failure> {
         self.calls.borrow_mut().push((
             format!("MERGE {repo} {number} {method:?} {head_oid}"),
             Vec::new(),
@@ -119,21 +124,26 @@ impl Github for FakeGithub {
         repo: &str,
         number: u64,
         method: UpdateMethod,
-    ) -> io::Result<BranchUpdate> {
+    ) -> Result<BranchUpdate, Failure> {
         self.calls
             .borrow_mut()
             .push((format!("UPDATE {repo} {number} {method:?}"), Vec::new()));
         Ok(BranchUpdate::Updated)
     }
 
-    fn change_status(&self, repo: &str, number: u64, change: &StatusChange) -> io::Result<()> {
+    fn change_status(&self, repo: &str, number: u64, change: &StatusChange) -> Result<(), Failure> {
         self.calls
             .borrow_mut()
             .push((format!("STATUS {repo} {number} {change:?}"), Vec::new()));
         Ok(())
     }
 
-    fn checkout(&self, repo: &str, number: u64, _dir: Option<&std::path::Path>) -> io::Result<()> {
+    fn checkout(
+        &self,
+        repo: &str,
+        number: u64,
+        _dir: Option<&std::path::Path>,
+    ) -> Result<(), Failure> {
         self.calls
             .borrow_mut()
             .push((format!("CHECKOUT {repo} {number}"), Vec::new()));

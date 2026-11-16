@@ -2,6 +2,7 @@ use crate::config::{Config, Repo};
 use crate::model::builds::Builds;
 use crate::model::prs::PullRequest;
 use crate::model::queue::{Queue, parse_merge_group_runs};
+use crate::sources::failure::Failure;
 use crate::sources::github::Github;
 
 pub const PRS_QUERY: &str = include_str!("queries/prs.graphql");
@@ -14,22 +15,20 @@ pub fn fetch_prs(
     gh: &impl Github,
     config: &Config,
     tab: usize,
-) -> Result<Vec<PullRequest>, String> {
+) -> Result<Vec<PullRequest>, Failure> {
     let tab = config
         .prs
         .tabs()
         .into_iter()
         .nth(tab)
         .ok_or_else(|| format!("no My PRs tab {}", tab + 1))?;
-    let mut value = gh
-        .graphql(
-            PRS_QUERY,
-            &[
-                ("q", tab.query.as_str().into()),
-                ("first", tab.limit.unwrap_or(config.prs.limit).into()),
-            ],
-        )
-        .map_err(|err| err.to_string())?;
+    let mut value = gh.graphql(
+        PRS_QUERY,
+        &[
+            ("q", tab.query.as_str().into()),
+            ("first", tab.limit.unwrap_or(config.prs.limit).into()),
+        ],
+    )?;
     if let Some(prs) = value
         .pointer_mut("/data/search/nodes")
         .and_then(|v| v.as_array_mut())
@@ -38,10 +37,10 @@ pub fn fetch_prs(
             read_remaining_checks(gh, pr)?;
         }
     }
-    crate::model::prs::parse(&value)
+    Ok(crate::model::prs::parse(&value)?)
 }
 
-fn read_remaining_checks(gh: &impl Github, pr: &mut serde_json::Value) -> Result<(), String> {
+fn read_remaining_checks(gh: &impl Github, pr: &mut serde_json::Value) -> Result<(), Failure> {
     let Some(id) = pr.get("id").and_then(|v| v.as_str()).map(str::to_string) else {
         return Ok(());
     };
@@ -57,12 +56,10 @@ fn read_remaining_checks(gh: &impl Github, pr: &mut serde_json::Value) -> Result
                 .to_string(),
             _ => return Ok(()),
         };
-        let mut next = gh
-            .graphql(
-                PR_CHECKS_QUERY,
-                &[("id", id.as_str().into()), ("after", after.into())],
-            )
-            .map_err(|err| err.to_string())?;
+        let mut next = gh.graphql(
+            PR_CHECKS_QUERY,
+            &[("id", id.as_str().into()), ("after", after.into())],
+        )?;
         let Some(page) = next.pointer_mut("/data/node/statusCheckRollup/contexts") else {
             return Ok(());
         };

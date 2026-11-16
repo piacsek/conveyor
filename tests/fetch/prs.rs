@@ -85,7 +85,7 @@ fn a_tab_past_the_last_is_an_error_and_asks_nothing() {
 
     let err = fetch_prs(&gh, &Config::default(), 1).unwrap_err();
 
-    assert_eq!(err, "no My PRs tab 2");
+    assert_eq!(err.to_string(), "no My PRs tab 2");
     assert!(gh.calls.borrow().is_empty());
 }
 
@@ -95,7 +95,7 @@ fn fetch_prs_turns_gh_errors_into_a_message() {
 
     let err = fetch_prs(&gh, &Config::default(), 0).unwrap_err();
 
-    assert_eq!(err, "gh: HTTP 401: Bad credentials");
+    assert_eq!(err.to_string(), "gh: HTTP 401: Bad credentials");
 }
 
 #[test]

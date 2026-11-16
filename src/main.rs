@@ -322,7 +322,7 @@ fn spawn_queue_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<us
             .flatten()
             .nth(tab)
             .ok_or_else(|| "no repository to watch".to_string())?;
-        fetch_queue(&gh, repo).map(Rows::Queue)
+        Ok(fetch_queue(&gh, repo).map(Rows::Queue)?)
     })
 }
 

@@ -232,7 +232,7 @@ pub fn failed(stage: Stage, message: &str) -> io::Result<Input> {
 }
 
 pub fn failed_in(stage: Stage, tab: usize, message: &str) -> io::Result<Input> {
-    Ok(Input::Data(stage, tab, Err(message.to_string())))
+    Ok(Input::Data(stage, tab, Err(message.to_string().into())))
 }
 
 pub fn fetching(stage: Stage) -> io::Result<Input> {

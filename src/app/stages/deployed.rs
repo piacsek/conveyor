@@ -2,6 +2,7 @@ use std::time::SystemTime;
 
 use crate::app::{Column, Listing};
 use crate::model::deployed::Deployment;
+use crate::sources::failure::Failure;
 
 use super::{Context, Rows, StageView};
 
@@ -31,7 +32,8 @@ impl StageView for DeployedStage {
     fn error(&self) -> Option<&str> {
         self.column
             .error
-            .as_deref()
+            .as_ref()
+            .map(Failure::message)
             .or_else(|| self.column.selected().and_then(|row| row.error.as_deref()))
     }
 
