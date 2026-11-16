@@ -732,6 +732,17 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   should; its minors fixed: hidden queue tabs no longer age their runs (each refresh refetched
   their running jobs), `short_repo` moved to `text.rs`. Left: two `[[repo]]` with the same short
   name draw two identical tabs.
+- Phase 44 (`plans/phase-44-background-tabs.md`, #100): every My PRs tab loads at start and
+  refreshes every `refresh_secs`, active or not, so a tab shows fresh rows on the first switch.
+  `[prs] background_tabs` (default `true`) turns it off, back to the active tab only.
+  `refresh::spawn` takes a sweep size: My PRs passes its tab count, the other columns one. A
+  request fetches its tab only, is fetched before the tabs a running sweep has left, and leads
+  the next sweep without moving its deadline; a sweep of one restarts the interval after a
+  request, as before. Deviations: the plan said the `config-v0.toml` test stays unedited; the
+  fixture is, but its expected output gains `background_tabs = true`, as it gained the
+  `[ui.keys]` defaults in phase 40. `tests/e2e.rs` became `tests/e2e/` (`main.rs` plus
+  `background_tabs.rs`) to stay under 700 lines. `refresh::wait` now returns `Wake::{Asked,
+  Due, Closed}`, since the loop must tell a request from the deadline.
 
 ## Deferred / backlog (discuss at retros)
 

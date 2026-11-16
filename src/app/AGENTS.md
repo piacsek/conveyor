@@ -38,8 +38,12 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   so it shows on every tab that lists the row. The merge wait (`merge_landing`) keeps the tab
   active at the merge and ends on the first fetch of that tab that started after the merge: a
   fetch of another tab leaves the merged tab's cards as old as they were, so `u` and `t` stay
-  refused there. Only the active tab is
-  fetched; the other tabs keep their last rows until you switch back.
+  refused there. **Every tab is fetched in the background** while `[prs] background_tabs` is on
+  (the default): the fetcher sweeps all tabs at start and every `refresh_secs`, the tab last
+  asked for first, then the rest in config order, and a sweep fetch of the merged tab ends the
+  merge wait like any other. A hidden tab's error stays in that tab. The footer spinner reads
+  the active tab only, so a hidden tab's fetch does not spin it. With the key off only the
+  active tab is fetched, and the other tabs keep their last rows until you switch back.
 - **Merge queue has tabs, one per `[[repo]]`,** in config order, named by the short repo name;
   no `[[repo]]` is one tab, the current directory's repository. Same keys and per-tab state as
   My PRs (`QueueStage` holds a `Column` and a `repo` per tab); the queue fetcher fetches
@@ -226,7 +230,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   +2 s. So an `Updated` branch, a rerun from My PRs that went through and a status change that
   landed also set
   `App::follow_up` to `now + FOLLOW_UP` (10 s); the first `Tick` at or after it sends one more
-  `Request::Refresh(Stage::Prs, 0)` and clears it. A second action before then moves the due time.
+  refresh of My PRs' active tab (`App::refresh_request`) and clears it. A second action before then moves the due time.
   `UpToDate`, `Conflicts`, errors and a Main builds rerun schedule nothing. `app.now` moves
   on a tick, and `events::forward` sends one every 250 ms from a deadline, keys or not.
 - **A failed write marks the card it was started from.** The footer shows only the latest
@@ -311,6 +315,13 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   until released, with nothing left queued after. It used to queue a fetch per key repeat, which
   kept running long after the key came up. A time window in `App` was rejected: skipping a
   column mid-fetch dropped an `r` meant to catch a change the running fetch predates.
+  `refresh::spawn` takes the number of tabs to sweep (My PRs all of them with
+  `background_tabs`, every other column one). A request fetches its tab only and leads the next
+  sweep; it is checked between two tabs of a sweep, so it never waits behind more than the
+  running fetch, and the tab it fetched is dropped from that sweep. The sweep keeps its own
+  deadline, `refresh_secs` after the previous sweep ended, so switching tabs never starves the
+  hidden ones. A sweep of one restarts the interval after every fetch, the loop from before
+  the sweep.
 - Refresh feedback (the footer spinner and the `refreshed` wording): see `src/ui/AGENTS.md`.
 - **The keymap pairs the pull request and the build.** `p`/`b` open them, `y`/`Y` copy them,
   `d` is the details pane, `Ctrl-d`/`Ctrl-u` scroll it. `y/Y`, `r/R`, `?/c` and
