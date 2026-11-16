@@ -299,7 +299,12 @@ fn spawn_terminal_events(tx: Inputs) {
 fn spawn_prs_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<usize> {
     let interval = Duration::from_secs(config.prs.refresh_secs);
     let gh = CliGh::default().with_log(log.clone());
-    refresh::spawn(Stage::Prs, interval, 1, tx, move |tab| {
+    let tabs = if config.prs.background_tabs {
+        config.prs.tabs().len()
+    } else {
+        1
+    };
+    refresh::spawn(Stage::Prs, interval, tabs, tx, move |tab| {
         fetch_prs(&gh, &config, tab).map(Rows::Prs)
     })
 }

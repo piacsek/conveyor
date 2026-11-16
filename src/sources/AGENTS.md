@@ -20,9 +20,11 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   request, before parsing. A failed page fails the column, which keeps its last rows.
 - **My PRs fetches one tab at a time.** `fetch_prs(gh, config, tab)` runs the query and limit
   of `config.prs.tabs()[tab]` (a tab without a `limit` takes `[prs].limit`; with no
-  `[[prs.tab]]`, `[prs].query` is tab 0). The refresh channel of `refresh::spawn` carries a tab
-  index: the fetcher keeps the last one it was sent, refetches it on the interval, and in a
-  burst the last tab wins. So the number of `gh` calls does not grow with the tabs.
+  `[[prs.tab]]`, `[prs].query` is tab 0). `refresh::spawn` takes the number of tabs to sweep:
+  My PRs passes every tab when `[prs] background_tabs` is on (the default), else one. Each
+  sweep fetches the tab last asked for, then the others in config order, so a search call per
+  tab per `refresh_secs`; with it off the number of `gh` calls does not grow with the tabs. The
+  refresh channel carries a tab index and in a burst the last tab wins.
 - My PRs, how the checks are deduplicated and what the card's check state reads: see `src/model/AGENTS.md`.
 - **Merge queue**: one query per repo (`src/sources/queries/queue.graphql`) plus one REST call
   `repos/{r}/actions/runs?event=merge_group&per_page=30`; runs are matched to entries by the
