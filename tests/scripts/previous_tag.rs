@@ -35,12 +35,12 @@ fn the_tags_are_read_from_every_page_of_the_repository() {
 fn tags_are_compared_in_version_order_not_text_order() {
     let dir = tempfile::tempdir().unwrap();
     sandbox(dir.path());
-    tags(dir.path(), "v0.3.1\nv0.10.0\nv0.9.0\n");
+    tags(dir.path(), "v0.9.0\nv0.2.0\n");
 
-    let output = previous_of(dir.path(), "v0.11.0", "no call fails", "");
+    let output = previous_of(dir.path(), "v0.10.0", "no call fails", "");
 
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
-    assert_eq!(stdout(&output), "previous_tag=v0.10.0\n");
+    assert_eq!(stdout(&output), "previous_tag=v0.9.0\n");
 }
 
 #[test]
@@ -121,6 +121,16 @@ fn the_release_names_the_tag_before_it_for_its_notes() {
     assert!(publish.contains(PREVIOUS_STEP), "{publish}");
     assert!(publish.contains(PREVIOUS_INPUT), "{publish}");
     assert!(publish.contains("          generate_release_notes: true\n"));
+}
+
+#[test]
+fn the_previous_tag_is_named_before_the_release_is_created() {
+    let publish = publish_job();
+
+    let named = publish.find(PREVIOUS_STEP).unwrap();
+    let released = publish.find("softprops/action-gh-release").unwrap();
+
+    assert!(named < released, "{publish}");
 }
 
 fn previous(root: &Path) -> Output {
