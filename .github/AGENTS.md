@@ -152,8 +152,8 @@ pipeline went from ~3 min 20 s to 37 s:
   That is safe only because a run never releases "the commit that started me": the `tag` job
   checks out `main` at its head and releases every fragment pending since the newest tag
   (`scripts/release-commit.sh` confirms the version it wrote with the `build` job's
-  `grep -m1 '^version = '` line, and with `cargo metadata` of the pinned toolchain when the
-  runner image's rustup cargo is on `PATH`, before the tag exists). The
+  `grep -m1 '^version = '` line, and with `cargo metadata` (the runner image's `stable`, not
+  the pinned toolchain) when cargo is on `PATH`, before the tag exists). The
   decisions live in `scripts/release-tag.sh` (resume an unfinished tag, else tag what is
   pending, else nothing) with its tests in `tests/scripts/release_tag.rs`; the YAML only wires
   jobs. The `tag` job is the only one besides `publish` with `contents: write`, which it uses to
@@ -331,13 +331,15 @@ tag (release commits are reachable only from their tags) and runs `scripts/relea
    (`grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2`) and asks
    `cargo metadata --no-deps --offline` whether the package version now reads the release;
    on any other answer it puts `Cargo.toml` and `Cargo.lock` back and refuses, so no tag is
-   pushed. The `tag` job has no toolchain step: it calls the rustup `cargo` that GitHub's
-   `ubuntu-latest` image carries, and since the checkout holds `rust-toolchain.toml`, rustup
-   first downloads the pinned toolchain (with rustfmt and clippy) and runs that, not the
-   image's own version. A failed download makes the confirmation fail, so the job refuses and
-   no tag is pushed; rerun the job. The confirmation is skipped silently when cargo is not on
-   `PATH` (the `build` line is read either way) and the rehearsal in the `version` check is
-   then the only guard on what cargo reads. The job commits the release
+   pushed. The `tag` job installs no toolchain: it calls the rustup `cargo` that GitHub's
+   `ubuntu-latest` image carries, on the image's preinstalled `stable`, which the image lists
+   but nothing pins. The pin of `rust-toolchain.toml` is deliberately not applied there: the job
+   sets `RUSTUP_TOOLCHAIN: stable` (pinned by `tests/toolchain.rs`), because otherwise rustup
+   would download the pinned toolchain before `cargo metadata`, a new network step in the job
+   that pushes the tag, whose failure would stop the release. `cargo metadata --no-deps` only
+   reads the manifest, so any recent cargo answers the same. The confirmation is skipped
+   silently when cargo is not on `PATH` (the `build` line is read either way) and the rehearsal
+   in the `version` check is then the only guard on what cargo reads. The job commits the release
    as `github-actions[bot]` (`Release vX.Y.Z`) on top of `main` and pushes only the tag. `main`
    never moves; the tag push starts no other run.
 

@@ -11,6 +11,11 @@ fn the_release_builds_with_the_pinned_toolchain() {
 }
 
 #[test]
+fn the_tag_job_keeps_the_runner_image_toolchain() {
+    assert!(tag_job().contains(STABLE_FOR_THE_JOB));
+}
+
+#[test]
 fn rust_version_is_the_major_minor_of_the_pinned_toolchain() {
     assert_eq!(rust_version(), major_minor(&channel()));
 }
@@ -47,3 +52,12 @@ fn workflow_toolchain(name: &str) -> String {
     assert_eq!(pins.len(), 1, "{name} names {} toolchains", pins.len());
     pins[0].to_string()
 }
+
+fn tag_job() -> String {
+    let release = read(".github/workflows/release.yml");
+    let start = release.find("\n  tag:\n").unwrap();
+    let end = release.find("\n  build:\n").unwrap();
+    release[start..end].to_string()
+}
+
+const STABLE_FOR_THE_JOB: &str = "    env:\n      RUSTUP_TOOLCHAIN: stable\n";
