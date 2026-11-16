@@ -177,7 +177,7 @@ fn spawn_jobs_fetcher(log: &Log, tx: Inputs) -> mpsc::Sender<(String, u64)> {
     let gh = CliGh::default().with_log(log.clone());
     thread::spawn(move || {
         while let Ok((repo, run_id)) = jobs_rx.recv() {
-            let result = fetch_jobs(&gh, &repo, run_id);
+            let result = fetch_jobs(&gh, &repo, run_id).map_err(|err| err.to_string());
             if tx.send(Ok(Input::Jobs(run_id, result))).is_err() {
                 return;
             }
@@ -191,7 +191,7 @@ fn spawn_log_fetcher(log: &Log, tx: Inputs) -> mpsc::Sender<(String, u64, u64)> 
     let gh = CliGh::default().with_log(log.clone());
     thread::spawn(move || {
         while let Ok((repo, run_id, job_id)) = log_rx.recv() {
-            let result = fetch_log(&gh, &repo, run_id, job_id);
+            let result = fetch_log(&gh, &repo, run_id, job_id).map_err(|err| err.to_string());
             if tx.send(Ok(Input::Log(job_id, result))).is_err() {
                 return;
             }
@@ -205,7 +205,10 @@ fn spawn_rerun_worker(log: &Log, tx: Inputs) -> mpsc::Sender<(String, Vec<u64>)>
     let gh = CliGh::default().with_log(log.clone());
     thread::spawn(move || {
         while let Ok((repo, run_ids)) = rerun_rx.recv() {
-            let result = rerun_failed(&gh, &repo, &run_ids);
+            let result = rerun_failed(&gh, &repo, &run_ids)
+                .into_iter()
+                .map(|(run_id, result)| (run_id, result.map_err(|err| err.to_string())))
+                .collect();
             if tx.send(Ok(Input::Rerun(result))).is_err() {
                 return;
             }
@@ -322,7 +325,7 @@ fn spawn_queue_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<us
             .flatten()
             .nth(tab)
             .ok_or_else(|| "no repository to watch".to_string())?;
-        Ok(fetch_queue(&gh, repo).map(Rows::Queue)?)
+        fetch_queue(&gh, repo).map(Rows::Queue)
     })
 }
 

@@ -39,7 +39,8 @@ fn fetch_queue_asks_for_the_repo_and_labels_the_result_with_it() {
             ..Repo::default()
         },
     )
-    .unwrap_err();
+    .unwrap_err()
+    .to_string();
     assert!(err.contains("owner/name"), "{err}");
 }
 

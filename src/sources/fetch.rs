@@ -80,12 +80,10 @@ pub fn fetch_jobs(
     gh: &impl Github,
     repo: &str,
     run_id: u64,
-) -> Result<Vec<crate::model::jobs::Job>, String> {
-    let value = gh
-        .rest(&format!(
-            "repos/{repo}/actions/runs/{run_id}/jobs?per_page=100"
-        ))
-        .map_err(|err| err.to_string())?;
+) -> Result<Vec<crate::model::jobs::Job>, Failure> {
+    let value = gh.rest(&format!(
+        "repos/{repo}/actions/runs/{run_id}/jobs?per_page=100"
+    ))?;
     Ok(crate::model::jobs::parse_jobs(&value))
 }
 
@@ -97,10 +95,8 @@ pub fn fetch_log(
     repo: &str,
     run_id: u64,
     job_id: u64,
-) -> Result<Vec<String>, String> {
-    let text = gh
-        .log_failed(repo, run_id, job_id)
-        .map_err(|err| err.to_string())?;
+) -> Result<Vec<String>, Failure> {
+    let text = gh.log_failed(repo, run_id, job_id)?;
     Ok(crate::model::log::tail(&text, LOG_TAIL))
 }
 
@@ -108,25 +104,20 @@ pub fn rerun_failed(
     gh: &impl Github,
     repo: &str,
     run_ids: &[u64],
-) -> Vec<(u64, Result<(), String>)> {
+) -> Vec<(u64, Result<(), Failure>)> {
     run_ids
         .iter()
-        .map(|run_id| {
-            (
-                *run_id,
-                gh.rerun_failed(repo, *run_id)
-                    .map_err(|err| err.to_string()),
-            )
-        })
+        .map(|run_id| (*run_id, gh.rerun_failed(repo, *run_id)))
         .collect()
 }
 
-pub fn repos(gh: &impl Github, config: &Config) -> Result<Vec<Repo>, String> {
+pub fn repos(gh: &impl Github, config: &Config) -> Result<Vec<Repo>, Failure> {
     if !config.repo.is_empty() {
         return Ok(config.repo.clone());
     }
     let name = gh.current_repo().map_err(|err| {
-        format!("no [[repo]] configured and the current directory has none: {err}")
+        let message = format!("no [[repo]] configured and the current directory has none: {err}");
+        err.reworded(message)
     })?;
     Ok(vec![Repo {
         name,
@@ -134,21 +125,19 @@ pub fn repos(gh: &impl Github, config: &Config) -> Result<Vec<Repo>, String> {
     }])
 }
 
-pub fn fetch_queue(gh: &impl Github, repo: &Repo) -> Result<Queue, String> {
+pub fn fetch_queue(gh: &impl Github, repo: &Repo) -> Result<Queue, Failure> {
     let (owner, name) = repo
         .name
         .split_once('/')
         .ok_or_else(|| format!("repo `{}` must be owner/name", repo.name))?;
-    let value = gh
-        .graphql(
-            QUEUE_QUERY,
-            &[
-                ("owner", owner.into()),
-                ("name", name.into()),
-                ("first", QUEUE_LIMIT.into()),
-            ],
-        )
-        .map_err(|err| err.to_string())?;
+    let value = gh.graphql(
+        QUEUE_QUERY,
+        &[
+            ("owner", owner.into()),
+            ("name", name.into()),
+            ("first", QUEUE_LIMIT.into()),
+        ],
+    )?;
     let mut queue = crate::model::queue::parse(&value)?;
     queue.repo = repo.name.clone();
     if !queue.entries.is_empty()
@@ -359,14 +348,12 @@ impl BuildsSource {
         &mut self,
         gh: &impl Github,
         now: std::time::SystemTime,
-    ) -> Result<Vec<crate::model::builds::Build>, String> {
+    ) -> Result<Vec<crate::model::builds::Build>, Failure> {
         let workflow = self.workflow(gh)?;
-        let runs = gh
-            .rest(&format!(
-                "repos/{}/actions/workflows/{workflow}/runs?branch=main&event=push&per_page={}",
-                self.repo.name, self.repo.builds
-            ))
-            .map_err(|err| err.to_string())?;
+        let runs = gh.rest(&format!(
+            "repos/{}/actions/workflows/{workflow}/runs?branch=main&event=push&per_page={}",
+            self.repo.name, self.repo.builds
+        ))?;
         let mut builds = crate::model::builds::parse_runs(&runs);
         let commits: Vec<(&str, Option<u64>)> = builds
             .iter()
@@ -387,7 +374,7 @@ impl BuildsSource {
         }
     }
 
-    fn workflow(&mut self, gh: &impl Github) -> Result<String, String> {
+    fn workflow(&mut self, gh: &impl Github) -> Result<String, Failure> {
         if let Some(workflow) = &self.workflow {
             return Ok(workflow.clone());
         }
@@ -395,12 +382,10 @@ impl BuildsSource {
         let resolved = if wanted.ends_with(".yml") || wanted.ends_with(".yaml") {
             wanted.to_string()
         } else {
-            let list = gh
-                .rest(&format!(
-                    "repos/{}/actions/workflows?per_page=100",
-                    self.repo.name
-                ))
-                .map_err(|err| err.to_string())?;
+            let list = gh.rest(&format!(
+                "repos/{}/actions/workflows?per_page=100",
+                self.repo.name
+            ))?;
             let candidates: Vec<&str> = if wanted == Repo::default().main_workflow {
                 DEFAULT_WORKFLOWS.to_vec()
             } else {
