@@ -357,7 +357,7 @@ fn a_result_that_lands_while_the_changelog_is_open_shows_in_its_footer() {
     h.run(vec![
         prs(vec![]),
         key(KeyCode::Char('c')),
-        Ok(Input::Merged(7, Err("merge refused".to_string()))),
+        Ok(Input::Merged(7, Err("merge refused".to_string().into()))),
     ])
     .unwrap();
 
@@ -372,7 +372,7 @@ fn a_result_that_lands_while_the_help_is_open_shows_in_its_footer() {
     h.run(vec![
         prs(vec![]),
         key(KeyCode::Char('?')),
-        Ok(Input::Merged(7, Err("merge refused".to_string()))),
+        Ok(Input::Merged(7, Err("merge refused".to_string().into()))),
     ])
     .unwrap();
 

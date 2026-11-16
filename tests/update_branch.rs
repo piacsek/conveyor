@@ -237,7 +237,10 @@ fn while_an_update_is_in_flight_s_opens_on_another_pull_request() {
 }
 
 fn updated(number: u64, result: Result<BranchUpdate, &str>) -> std::io::Result<Input> {
-    Ok(Input::BranchUpdated(number, result.map_err(str::to_string)))
+    Ok(Input::BranchUpdated(
+        number,
+        result.map_err(|err| err.to_string().into()),
+    ))
 }
 
 fn confirmed() -> Vec<std::io::Result<Input>> {
@@ -437,7 +440,7 @@ fn after_a_refused_merge_u_updates_right_away() {
         key(KeyCode::Char('S')),
         key(KeyCode::Char('m')),
         key(KeyCode::Char('y')),
-        Ok(Input::Merged(1, Err("not mergeable".to_string()))),
+        Ok(Input::Merged(1, Err("not mergeable".to_string().into()))),
         key(KeyCode::Char('S')),
         key(KeyCode::Char('u')),
     ])
@@ -461,7 +464,7 @@ fn a_refused_merge_of_another_pull_request_keeps_the_landed_one_waiting() {
         key(KeyCode::Char('S')),
         key(KeyCode::Char('m')),
         key(KeyCode::Char('y')),
-        Ok(Input::Merged(2, Err("not mergeable".to_string()))),
+        Ok(Input::Merged(2, Err("not mergeable".to_string().into()))),
         key(KeyCode::Char('k')),
         key(KeyCode::Char('S')),
     ])

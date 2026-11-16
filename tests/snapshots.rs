@@ -276,7 +276,9 @@ fn failed_card_layout() {
         Ok(conveyor::app::Input::StatusChanged(
             4821,
             conveyor::model::prs::StatusChange::Draft,
-            Err("GraphQL: Pull request is in the merge queue".to_string()),
+            Err("GraphQL: Pull request is in the merge queue"
+                .to_string()
+                .into()),
         )),
         key(KeyCode::Char('j')),
         key(KeyCode::Char('S')),

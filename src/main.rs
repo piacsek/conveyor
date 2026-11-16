@@ -177,7 +177,7 @@ fn spawn_jobs_fetcher(log: &Log, tx: Inputs) -> mpsc::Sender<(String, u64)> {
     let gh = CliGh::default().with_log(log.clone());
     thread::spawn(move || {
         while let Ok((repo, run_id)) = jobs_rx.recv() {
-            let result = fetch_jobs(&gh, &repo, run_id).map_err(|err| err.to_string());
+            let result = fetch_jobs(&gh, &repo, run_id);
             if tx.send(Ok(Input::Jobs(run_id, result))).is_err() {
                 return;
             }
@@ -191,7 +191,7 @@ fn spawn_log_fetcher(log: &Log, tx: Inputs) -> mpsc::Sender<(String, u64, u64)> 
     let gh = CliGh::default().with_log(log.clone());
     thread::spawn(move || {
         while let Ok((repo, run_id, job_id)) = log_rx.recv() {
-            let result = fetch_log(&gh, &repo, run_id, job_id).map_err(|err| err.to_string());
+            let result = fetch_log(&gh, &repo, run_id, job_id);
             if tx.send(Ok(Input::Log(job_id, result))).is_err() {
                 return;
             }
@@ -205,10 +205,7 @@ fn spawn_rerun_worker(log: &Log, tx: Inputs) -> mpsc::Sender<(String, Vec<u64>)>
     let gh = CliGh::default().with_log(log.clone());
     thread::spawn(move || {
         while let Ok((repo, run_ids)) = rerun_rx.recv() {
-            let result = rerun_failed(&gh, &repo, &run_ids)
-                .into_iter()
-                .map(|(run_id, result)| (run_id, result.map_err(|err| err.to_string())))
-                .collect();
+            let result = rerun_failed(&gh, &repo, &run_ids);
             if tx.send(Ok(Input::Rerun(result))).is_err() {
                 return;
             }
@@ -222,9 +219,7 @@ fn spawn_branch_updater(log: &Log, tx: Inputs) -> mpsc::Sender<UpdateTarget> {
     let gh = CliGh::default().with_log(log.clone());
     thread::spawn(move || {
         while let Ok(target) = update_rx.recv() {
-            let result = gh
-                .update_branch(&target.repo, target.number, target.method)
-                .map_err(|err| err.to_string());
+            let result = gh.update_branch(&target.repo, target.number, target.method);
             if tx
                 .send(Ok(Input::BranchUpdated(target.number, result)))
                 .is_err()
@@ -241,9 +236,7 @@ fn spawn_status_changer(log: &Log, tx: Inputs) -> mpsc::Sender<StatusTarget> {
     let gh = CliGh::default().with_log(log.clone());
     thread::spawn(move || {
         while let Ok(target) = status_rx.recv() {
-            let result = gh
-                .change_status(&target.repo, target.number, &target.change)
-                .map_err(|err| err.to_string());
+            let result = gh.change_status(&target.repo, target.number, &target.change);
             let landed = Input::StatusChanged(target.number, target.change, result);
             if tx.send(Ok(landed)).is_err() {
                 return;
@@ -263,9 +256,7 @@ fn spawn_checkout_worker(log: &Log, tx: Inputs) -> mpsc::Sender<CheckoutTarget> 
                 .dir
                 .as_deref()
                 .map(|dir| expand_home(dir, home.as_deref()));
-            let result = gh
-                .checkout(&target.repo, target.number, dir.as_deref())
-                .map_err(|err| err.to_string());
+            let result = gh.checkout(&target.repo, target.number, dir.as_deref());
             if tx.send(Ok(Input::CheckedOut(target, result))).is_err() {
                 return;
             }
@@ -279,14 +270,12 @@ fn spawn_merger(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<MergeTarg
     let gh = CliGh::default().with_log(log.clone());
     thread::spawn(move || {
         while let Ok(target) = merge_rx.recv() {
-            let result = gh
-                .merge(
-                    &target.repo,
-                    target.number,
-                    config.prs.merge_method,
-                    &target.head_oid,
-                )
-                .map_err(|err| err.to_string());
+            let result = gh.merge(
+                &target.repo,
+                target.number,
+                config.prs.merge_method,
+                &target.head_oid,
+            );
             if tx.send(Ok(Input::Merged(target.number, result))).is_err() {
                 return;
             }

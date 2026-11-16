@@ -35,7 +35,10 @@ impl App {
         }
     }
 
-    pub fn receive_rerun(&mut self, results: Vec<(u64, Result<(), String>)>) -> Option<Stage> {
+    pub fn receive_rerun(
+        &mut self,
+        results: Vec<(u64, Result<(), crate::sources::failure::Failure>)>,
+    ) -> Option<Stage> {
         let index = self.writes.iter().position(|write| {
             matches!(&write.kind, WriteKind::Rerun { run_ids, .. }
                 if results.iter().any(|(run_id, _)| run_ids.contains(run_id)))
@@ -55,17 +58,18 @@ impl App {
             })
             .collect();
         let reran = results.len() - errors.len();
-        match (reran, errors.is_empty()) {
-            (_, true) => {}
-            (0, false) => self.fail(Some(write), &errors.join("; ")),
-            _ => self.fail(
+        let first = results.iter().find_map(|(_, result)| result.clone().err());
+        match (reran, first) {
+            (_, None) => {}
+            (0, Some(first)) => self.fail(Some(write), &first.reworded(errors.join("; "))),
+            (_, Some(first)) => self.fail(
                 Some(write),
-                &format!(
+                &first.reworded(format!(
                     "{} of {} runs failed: {}",
                     errors.len(),
                     results.len(),
                     errors.join("; ")
-                ),
+                )),
             ),
         }
         self.notice = Some(match (reran, errors.is_empty()) {

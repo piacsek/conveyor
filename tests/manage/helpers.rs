@@ -26,7 +26,7 @@ pub fn status_changed(
     Ok(Input::StatusChanged(
         number,
         change,
-        result.map_err(str::to_string),
+        result.map_err(|err| err.to_string().into()),
     ))
 }
 

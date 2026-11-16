@@ -379,7 +379,7 @@ fn log_body(state: &LogState) -> Vec<Line<'static>> {
     match state {
         LogState::Loading => vec![Line::from(Span::styled("loading…", dim()))],
         LogState::Failed(message) => vec![Line::from(Span::styled(
-            message.clone(),
+            message.to_string(),
             Style::default().fg(Color::Red),
         ))],
         LogState::Ready(lines) => lines.iter().map(|line| Line::from(line.clone())).collect(),

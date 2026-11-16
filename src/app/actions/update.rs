@@ -36,11 +36,11 @@ impl App {
     pub fn receive_branch_update(
         &mut self,
         number: u64,
-        result: &Result<BranchUpdate, String>,
+        result: &Result<BranchUpdate, crate::sources::failure::Failure>,
     ) -> bool {
         let write = self.finish_write(number, &WriteKind::Update);
         match result {
-            Ok(BranchUpdate::Conflicts) => self.fail(write, CONFLICTS),
+            Ok(BranchUpdate::Conflicts) => self.fail(write, &CONFLICTS.to_string().into()),
             Err(message) => self.fail(write, message),
             Ok(_) => {}
         }

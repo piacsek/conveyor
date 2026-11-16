@@ -26,7 +26,11 @@ impl App {
         Action::Merge(target)
     }
 
-    pub fn receive_merged(&mut self, number: u64, result: &Result<(), String>) {
+    pub fn receive_merged(
+        &mut self,
+        number: u64,
+        result: &Result<(), crate::sources::failure::Failure>,
+    ) {
         let write = self.finish_write(number, &WriteKind::Merge);
         match result {
             Ok(()) => self.land(number),

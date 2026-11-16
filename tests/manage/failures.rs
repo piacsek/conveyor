@@ -79,7 +79,7 @@ fn a_failure_that_lands_while_the_popup_is_open_on_another_card_stays_on_its_own
 fn a_failed_merge_marks_its_card() {
     let screen = after(
         &['m', 'y'],
-        Ok(Input::Merged(12, Err("HTTP 405".to_string()))),
+        Ok(Input::Merged(12, Err("HTTP 405".to_string().into()))),
     );
 
     assert!(
@@ -92,7 +92,10 @@ fn a_failed_merge_marks_its_card() {
 fn a_reason_of_several_lines_reads_as_one_line_on_the_card() {
     let screen = after(
         &['m', 'y'],
-        Ok(Input::Merged(12, Err("Blocked.\n  See rules".to_string()))),
+        Ok(Input::Merged(
+            12,
+            Err("Blocked.\n  See rules".to_string().into()),
+        )),
     );
 
     assert!(
@@ -356,13 +359,16 @@ fn after(letters: &[char], result: io::Result<Input>) -> String {
 }
 
 fn updated(result: Result<BranchUpdate, &str>) -> io::Result<Input> {
-    Ok(Input::BranchUpdated(12, result.map_err(str::to_string)))
+    Ok(Input::BranchUpdated(
+        12,
+        result.map_err(|err| err.to_string().into()),
+    ))
 }
 
 fn checked_out(result: Result<(), &str>) -> io::Result<Input> {
     Ok(Input::CheckedOut(
         checkout_target(12, None),
-        result.map_err(str::to_string),
+        result.map_err(|err| err.to_string().into()),
     ))
 }
 

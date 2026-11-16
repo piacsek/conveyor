@@ -130,7 +130,7 @@ fn a_failed_log_fetch_is_retried_on_the_next_shift_l() {
     inputs.push(key(KeyCode::Char('L')));
     inputs.push(Ok(conveyor::app::Input::Log(
         1,
-        Err("gh: HTTP 429".to_string()),
+        Err("gh: HTTP 429".to_string().into()),
     )));
     h.run(inputs).unwrap();
     assert!(h.screen().contains("gh: HTTP 429"), "{}", h.screen());

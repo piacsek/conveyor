@@ -42,7 +42,7 @@ impl App {
         &mut self,
         number: u64,
         change: &StatusChange,
-        result: &Result<(), String>,
+        result: &Result<(), crate::sources::failure::Failure>,
     ) -> bool {
         let write = self.finish_write(number, &WriteKind::Status(change.clone()));
         if let Err(message) = result {
