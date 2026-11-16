@@ -83,6 +83,7 @@ src/changelog.rs the bundled CHANGELOG.md and the rules a release entry must mee
 src/ui/changelog.rs the `c` pane: wrapped to its width (bullets hang), headings bold without their `#`, scrolled like the details pane
 src/log.rs       the call log: its path, per program name, rotated on open
 src/text.rs      text helpers: truncation and wrapping with `…`, ages, durations and clock times, ANSI stripping
+rust-toolchain.toml           the one Rust version (rustfmt and clippy with it) that local gates and CI run; see Development
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
@@ -107,6 +108,7 @@ scripts/screenshots.sh        renders docs/details.png, plus one `shoot` per ext
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
                  `tests/source_size.rs` fails while any Rust file under `src/` or `tests/` is longer than 700 lines, naming it;
+                 `tests/toolchain.rs` fails while the `toolchain:` of `ci.yml` or `release.yml` differs from the channel of `rust-toolchain.toml`, or `rust-version` in `Cargo.toml` from its `major.minor`;
                  `tests/stage_dispatch.rs` fails while a match arm on a `Stage` variant sits in `src/app/` outside `stages/mod.rs`, naming the line;
                  `tests/dead_code.rs` fails while a `pub` item under `src/` has its name nowhere else in `src/` (a name scan, not a resolver) and is not on its `SEAMS` list, while a seam on that list is no longer declared or used by a test, while a `pub fn` of `tests/support/mod.rs` is used by no test, or while a `dead_code` attribute sits outside `tests/support/mod.rs`, naming each;
                  a test file that outgrows the limit becomes a folder (`tests/<name>/main.rs` plus one file per topic), so it stays one binary
@@ -338,6 +340,12 @@ cargo test -- --include-ignored   # one pass; the ignored ones are e2e: real bin
 ```
 
 Without tmux the last gate is a plain `cargo test` and a notice that the e2e tests were skipped.
+
+The gates and CI run the same Rust: `rust-toolchain.toml` pins it for every `cargo` that
+rustup provides, and the workflows install the same version. A toolchain bump is one pull
+request that changes the channel there, the `toolchain:` of `ci.yml` and `release.yml`, and
+`rust-version` in `Cargo.toml` (its `major.minor`); `tests/toolchain.rs` fails while any of
+them differs.
 
 Outside CI (`CI` unset), `gates.sh` leaves out the `scripts` test target (`tests/scripts/`,
 about half of a warm run: 50 s against 23 s for the test step, measured 2026-11-12) when
