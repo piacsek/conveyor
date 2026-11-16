@@ -749,6 +749,13 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   `[ui.keys]` defaults in phase 40. `tests/e2e.rs` became `tests/e2e/` (`main.rs` plus
   `background_tabs.rs`) to stay under 700 lines. `refresh::wait` now returns `Wake::{Asked,
   Due, Closed}`, since the loop must tell a request from the deadline.
+- Phase 45 (`plans/phase-45-release-notes.md`): the release notes list only the pull requests
+  since the release before. GitHub picked the nearest ancestor tag, always v0.24.1, since
+  release tags sit on commits reachable only from their tag; `publish` now names the previous
+  tag, the highest `vX.Y.Z` below the new one (`scripts/previous-tag.sh`, read with `gh api
+  --paginate`). The generated notes (pull request titles) stay, as the user chose. No fragment:
+  nothing feeds the binary, so the next release is the first to show it. Left, by hand and only
+  on the user's yes: rewriting the notes of v0.24.2 to v0.30.1.
 
 ## Deferred / backlog (discuss at retros)
 

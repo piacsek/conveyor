@@ -97,6 +97,7 @@ scripts/release-commit.sh     `<version>`: writes the release into `Cargo.toml`,
 scripts/release-rewrite.sh    sourced, not run: the release rewrite both `release-commit.sh` and `version-check.sh` use
 scripts/releases.sh           sourced, not run: the state of a tag's release
 scripts/release-unfinished.sh `<tag>`: whether `build` and `publish` still have work, so a rerun never rebuilds a published release
+scripts/previous-tag.sh       `<tag>`: the highest `vX.Y.Z` tag below it, read with `gh`, which `publish` names as the previous release for the generated notes
 scripts/release-tag.sh        the `tag` job of `release.yml` (refuses outside GitHub Actions): resume an unfinished tag, else tag what is pending, else nothing
 changes/                      one fragment per pull request that feeds the binary (`kind:` and the changelog bullets); add-only, see Releasing
 plans/                        one versioned plan file per phase (see Working agreements)
@@ -353,7 +354,7 @@ this repository puts that path on the list in the script.
 `tests/scripts/` runs the scripts themselves in a scratch directory and a scratch git
 repository, with `cargo`, `gh` and the scripts they call replaced by symlinks to
 `tests/fixtures/record-call.sh`, which appends its name and argv to `$CALLS_LOG` and exits 1 for a call whose argv starts with `$FAILING_CALL` (how a ship test says the branch has no pull request yet). Where a
-script reads what `gh` prints (`release-tag.sh`, `release-unfinished.sh`, `formula-version.sh`), `gh` is a symlink to `tests/fixtures/reply-call.sh`
+script reads what `gh` prints (`release-tag.sh`, `release-unfinished.sh`, `formula-version.sh`, `previous-tag.sh`), `gh` is a symlink to `tests/fixtures/reply-call.sh`
 instead: it records the same line, exits 1 with `$FAILING_STDERR` on stderr for a call whose
 argv starts with `$FAILING_CALL`, else prints every file in `$REPLIES` whose name is part of
 its argv.

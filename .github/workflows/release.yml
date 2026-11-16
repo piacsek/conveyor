@@ -107,6 +107,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.tag.outputs.tag }}
         run: scripts/release-unfinished.sh "$TAG" >> "$GITHUB_OUTPUT"
+      - name: Name the release before this one
+        id: previous
+        if: steps.state.outputs.unfinished == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.tag.outputs.tag }}
+        run: scripts/previous-tag.sh "$TAG" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         if: steps.state.outputs.unfinished == 'true'
         with:
@@ -122,6 +129,7 @@ jobs:
           tag_name: ${{ needs.tag.outputs.tag }}
           files: dist/*
           generate_release_notes: true
+          previous_tag: ${{ steps.previous.outputs.previous_tag }}
 
   tap:
     needs: [tag, publish]
