@@ -416,10 +416,10 @@ fn pods_past_the_deadline_fail_the_rows_pods_as_timed_out_with_their_own_words()
             r#"case "$*" in *"get pods"*) exec sleep 5;; *) cat '{}/tests/fixtures/deployment.json';; esac"#,
             env!("CARGO_MANIFEST_DIR")
         ),
-    )
-    .with_deadline(Duration::from_secs(1));
+    );
+    kubectl.deployment(&env()).unwrap();
 
-    let app = deployed_by(kubectl);
+    let app = deployed_by(kubectl.with_deadline(Duration::from_secs(1)));
 
     let failure = app
         .deployed
