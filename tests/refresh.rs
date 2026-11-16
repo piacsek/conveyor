@@ -45,10 +45,16 @@ fn a_closed_channel_stops_the_fetcher() {
 fn refreshes_asked_during_a_fetch_cost_one_more_fetch() {
     let (inputs_tx, inputs) = mpsc::channel();
     let (release_tx, release) = mpsc::channel::<()>();
-    let refresh = spawn(Stage::Prs, Duration::from_secs(60), inputs_tx, move |_| {
-        release.recv().unwrap();
-        Err("done".to_string())
-    });
+    let refresh = spawn(
+        Stage::Prs,
+        Duration::from_secs(60),
+        1,
+        inputs_tx,
+        move |_| {
+            release.recv().unwrap();
+            Err("done".to_string())
+        },
+    );
     let next = || {
         inputs
             .recv_timeout(Duration::from_secs(5))
@@ -69,9 +75,50 @@ fn refreshes_asked_during_a_fetch_cost_one_more_fetch() {
 }
 
 #[test]
+fn a_sweep_of_two_fetches_both_tabs_at_start_and_again_after_the_interval() {
+    let (inputs_tx, inputs) = mpsc::channel();
+    let _refresh = spawn(Stage::Prs, Duration::from_secs(1), 2, inputs_tx, |tab| {
+        Err(format!("tab {tab}"))
+    });
+    let next = || {
+        inputs
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap()
+    };
+
+    assert_eq!(next(), Input::Fetching(Stage::Prs, 0));
+    assert_eq!(next(), Input::Data(Stage::Prs, 0, Err("tab 0".to_string())));
+    assert_eq!(next(), Input::Fetching(Stage::Prs, 1));
+    assert_eq!(next(), Input::Data(Stage::Prs, 1, Err("tab 1".to_string())));
+    assert_eq!(next(), Input::Fetching(Stage::Prs, 0));
+    assert_eq!(next(), Input::Data(Stage::Prs, 0, Err("tab 0".to_string())));
+    assert_eq!(next(), Input::Fetching(Stage::Prs, 1));
+    assert_eq!(next(), Input::Data(Stage::Prs, 1, Err("tab 1".to_string())));
+}
+
+#[test]
+fn a_sweep_of_one_fetches_the_first_tab_only() {
+    let (inputs_tx, inputs) = mpsc::channel();
+    let _refresh = spawn(Stage::Prs, Duration::from_secs(60), 1, inputs_tx, |tab| {
+        Err(format!("tab {tab}"))
+    });
+    let next = || {
+        inputs
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap()
+    };
+
+    assert_eq!(next(), Input::Fetching(Stage::Prs, 0));
+    assert_eq!(next(), Input::Data(Stage::Prs, 0, Err("tab 0".to_string())));
+    assert!(inputs.recv_timeout(Duration::from_millis(300)).is_err());
+}
+
+#[test]
 fn a_refresh_naming_a_tab_fetches_that_tab_and_the_result_carries_it() {
     let (inputs_tx, inputs) = mpsc::channel();
-    let refresh = spawn(Stage::Prs, Duration::from_secs(60), inputs_tx, |tab| {
+    let refresh = spawn(Stage::Prs, Duration::from_secs(60), 1, inputs_tx, |tab| {
         Err(format!("tab {tab}"))
     });
     let next = || {
