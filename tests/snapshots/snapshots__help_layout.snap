@@ -14,7 +14,7 @@ expression: versionless(h.screen())
 │L              log of the failed step                                                                                                                         │
 │S              manage: merge, update, rerun, status, checkout                                                                                                 │
 │z              zoom the column                                                                                                                                │
-│Esc            close details / zoom, dismiss a card's error, clear the filter                                                                                 │
+│Esc            close details / zoom, dismiss a failed action's error, clear the filter                                                                        │
 │/              filter (Enter keeps, Esc clears)                                                                                                               │
 │r/R            refresh focused / all                                                                                                                          │
 │?/c            help / changelog                                                                                                                               │

@@ -62,7 +62,7 @@ fn the_help_says_esc_dismisses_the_error_on_a_card() {
 
     let screen = h.screen();
     assert!(
-        screen.contains("close details / zoom, dismiss a card's error, clear the filter"),
+        screen.contains("close details / zoom, dismiss a failed action's error, clear the filter"),
         "{screen}"
     );
 }

@@ -8,7 +8,7 @@ is a word from the code, not from the screen.
 ## The wording
 `KEYS` in `src/ui/help.rs` and the README key table read:
 
-    Esc  close details / zoom, dismiss a card's error, clear the filter
+    Esc  close details / zoom, dismiss a failed action's error, clear the filter
 
 The order is what `Esc` does per press (`src/app/AGENTS.md`, the `Esc` bullet): details pane,
 zoom, the selected card's failure mark, the live filter. No behaviour changes.

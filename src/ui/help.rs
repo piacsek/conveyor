@@ -22,7 +22,7 @@ pub const KEYS: [(&str, &str); 15] = [
     ("z", "zoom the column"),
     (
         "Esc",
-        "close details / zoom, dismiss a card's error, clear the filter",
+        "close details / zoom, dismiss a failed action's error, clear the filter",
     ),
     ("/", "filter (Enter keeps, Esc clears)"),
     ("r/R", "refresh focused / all"),
