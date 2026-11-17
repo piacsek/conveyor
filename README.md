@@ -67,13 +67,14 @@ Keys act on the focused column; `?` shows what `p` and `b` open there. Narrow te
 show one column at a time, named in a bar on top.
 
 Configuration is `~/.config/conveyor/config.toml` (`$XDG_CONFIG_HOME` and `CONVEYOR_CONFIG`
-are honoured). Every key is optional, unknown keys are an error, and these are the defaults:
+are honoured). Every key is optional, unknown keys and values out of range are an error, and these
+are the defaults:
 
 ```toml
 [prs]
 query = "is:pr is:open archived:false (author:@me OR assignee:@me)"
-limit = 20
-refresh_secs = 60
+limit = 20                    # 1 to 100
+refresh_secs = 60             # 10 or more, like every refresh_secs
 merge_method = "squash"
 update_method = "merge"
 background_tabs = true        # every My PRs tab refreshes on the interval, not only the one shown
@@ -81,11 +82,11 @@ background_tabs = true        # every My PRs tab refreshes on the interval, not 
 # [[prs.tab]]                 # optional, instead of query; one My PRs tab each
 # name = "review"
 # query = "is:pr is:open review-requested:@me"
-# limit = 10                  # optional; falls back to [prs].limit
+# limit = 10                  # optional, 1 to 100; falls back to [prs].limit
 
 [ui]
-min_column_width = 36
-details_percent = 40
+min_column_width = 36         # 0 to 1000
+details_percent = 40          # 10 to 90
 icons = "plain"               # or "nerd": GitHub's pull request icons, needs a Nerd Font
 
 [ui.keys]
@@ -103,10 +104,10 @@ name = "owner/name"
 path = "~/projects/name"      # optional; the local clone `S` then `c` checks a pull request out in
 main_workflow = "CI/CD"       # workflow name or file, e.g. ci.yml
 # branch = "main"             # optional; the branch Main builds reads, default the repository's default branch
-builds = 10                   # runs shown in the Main builds column
+builds = 10                   # runs shown in the Main builds column, 1 to 100
 refresh_secs = 30
 
-[[repo.deploy]]               # optional; the Deployed column
+[[repo.deploy]]               # optional, one at most; the Deployed column
 system = "api"
 refresh_secs = 120
 
@@ -125,6 +126,10 @@ pull request icon of `icons = "nerd"`, a Nerd Font glyph, drawn by a terminal fo
 it. Set the terminal's font to a Nerd Font (for example
 `brew install --cask font-fira-code-nerd-font`, then pick "FiraCode Nerd Font"), or set
 `icons = "plain"` under `[ui]` (the default) to draw plain arrows instead.
+
+**conveyor ignores my config and the footer names the config file.** The config could not be
+used, so conveyor started on the defaults; the footer says which key or value is wrong.
+`conveyor config` prints the same message, and prints the config once it is fixed.
 
 ## Development
 
