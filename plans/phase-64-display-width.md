@@ -37,9 +37,10 @@ title too far, pushing its right-aligned figure out of the card. Listed under "K
 1. `truncate` cuts by display width (`tests/text.rs`).
 2. `wrap` fills and hard-cuts by display width.
 3. `pad_right` pads to the display width.
-4. The confirm dialog and the `S` popup are sized by display width: a wide title ends with
+4. The confirm dialog is sized by display width: a wide title ends with
    `?` before the border (TUI test).
-5. A card's unhappy checks line and the tab bar measure by display width.
+5. A card's unhappy checks line and the tab bar measure by display width. `draw_manage`
+   keeps its character count: its offers and title are fixed ASCII words and a `#N` label.
 6. Docs: the Known limits line and the `src/ui/AGENTS.md` sentence go, the backlog item is
    marked done, the fragment.
 

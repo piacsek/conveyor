@@ -76,7 +76,8 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 - Merge follow-ups from the phase 20 review: `merge_method` per `[[repo]]` (#112) (one global value cannot
   serve a squash-only and a merge-commit-only repo at once); a write result that lands while the other prompt is open is
   hidden by that prompt (the failure half is done in phase 39: a failure stays on its card; a
-  success is still hidden); the footer cuts titles by characters, not display width (#111).
+  success is still hidden). Done: widths are measured in terminal cells, not characters (#111,
+  phase 64).
 - A merge sent from one My PRs tab whose result lands after the user switched tabs is recorded
   against the tab now shown (`src/app/actions/merge.rs`, `land()`): that tab's refresh lifts the
   "waiting for My PRs to catch up" guard while the first tab still shows the stale pull request.

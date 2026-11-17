@@ -185,9 +185,6 @@ Pointing reviewers here is not priming, since the list is in the repo. A limit j
 review finding is declined for good; a reviewer may still report one as must when it shows new
 impact.
 
-- **Widths are counted in characters, not display width**: wide characters (CJK, emoji) can be
-  clipped at a dialog's border, and the footer cuts titles the same way (`src/ui/AGENTS.md`,
-  dialogs; `PLAN.md` backlog).
 - **The footer shows only the latest notice**: a success that lands under a prompt is hidden by
   it; a failure stays on its card (`src/app/AGENTS.md`, "A failed write marks the card";
   `plans/phase-39-failed-write-marks.md`).
