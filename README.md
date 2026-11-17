@@ -19,9 +19,16 @@ attestation), or build from source with Rust 1.98+:
 cargo install --git https://github.com/piacsek/conveyor --locked
 ```
 
+Or with Nix (Linux, Apple silicon), from the `stable` branch, which follows the newest release:
+
+```sh
+nix profile install github:piacsek/conveyor/stable
+```
+
 ## Dependencies
 
-- [`gh`](https://cli.github.com), logged in (`gh auth login`); Homebrew installs it.
+- [`gh`](https://cli.github.com), logged in (`gh auth login`); Homebrew installs it, the Nix flake
+  does not (nor `git` or `kubectl`).
 - `git`, to check a pull request out locally.
 - `kubectl` with a working context, for the Deployed column only.
 - `open`/`pbcopy` on macOS, `xdg-open`/`xclip` on Linux, to open links and copy URLs.
