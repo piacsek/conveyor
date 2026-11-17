@@ -24,7 +24,8 @@ without a word. Phases 60 and 65 are reserved, 64, 66 and 67 run in parallel, so
 - `fetch_queue` splits the repository name on `/` and fails per column with
   `repo ... must be owner/name`.
 - `DeployEnv` fields default to `""`, so an env table that leaves out `context`, `namespace`,
-  `deployment` or `name` loads, and kubectl later runs with an empty argument.
+  `deployment` or `name` loads. An empty `context` or `namespace` is kubectl's current one; an
+  empty `deployment` hands kubectl an empty name, and an empty `name` leaves the row unnamed.
 - `spawn_deploy_fetcher` (`src/main.rs`) reads the first `[[repo]]` with a deploy and only its
   first `[[repo.deploy]]`. `spawn_queue_fetcher` and `spawn_builds_fetcher` take their interval
   from the first `[[repo]]`. Two `[[repo]]` of one name and two envs of one name load; a
@@ -47,9 +48,14 @@ without a word. Phases 60 and 65 are reserved, 64, 66 and 67 run in parallel, so
   contexts are counted. One floor for all three tables keeps the rule one sentence.
 - `details_percent` 10 to 90, the issue's suggestion: 0 leaves an empty pane, 100 and above
   hide the columns.
-- `min_column_width` 0 to 1000: 0 (always four columns) and a width wider than any terminal
-  (always the column bar) are both choices that work; only the overflow is broken, and 1000
-  keeps `1000 * 4` inside `u16`, so the multiplication at `src/ui/mod.rs:63` stays as it is.
+- `min_column_width` 0 to 16383: 0 (always four columns) and a width wider than any terminal
+  (always the column bar) are both choices that work; only the overflow is broken, and 16383
+  (`u16::MAX / 4`) keeps `width * 4` inside `u16`, so the multiplication at `src/ui/mod.rs:63`
+  stays as it is.
+- `refresh_secs` at most 86400 (a day): `u64::MAX` overflowed `Instant` in `Schedule::fetched`
+  and killed that column's fetcher after its first fetch.
+- A blank `context` or `namespace` stays allowed: `kubectl --context "" -n ""` uses the current
+  context and its namespace (checked against a scratch kubeconfig), so leaving them out works.
 - Ignored settings are refused with what conveyor reads instead. Main builds reading only the
   first repository is #114 (phase 66), so a second repository's `builds`, `main_workflow`,
   `branch` and `refresh_secs` are left to it (`tests/config.rs` already sets a later
@@ -61,21 +67,22 @@ without a word. Phases 60 and 65 are reserved, 64, 66 and 67 run in parallel, so
 
 | Setting | Accepted | Refused with `<file>: …` |
 | --- | --- | --- |
-| `[prs] refresh_secs` | 10 or more | `[prs] refresh_secs is 0; use 10 or more` |
-| `[[repo]] refresh_secs` | 10 or more | `[[repo]] refresh_secs of acme/webapp is 0; use 10 or more` |
-| `[[repo.deploy]] refresh_secs` | 10 or more | `[[repo.deploy]] refresh_secs of acme/webapp is 0; use 10 or more` |
+| `[prs] refresh_secs` | 10 to 86400 | `[prs] refresh_secs is 0; use 10 to 86400` |
+| `[[repo]] refresh_secs` | 10 to 86400 | `[[repo]] refresh_secs of acme/webapp is 0; use 10 to 86400` |
+| `[[repo.deploy]] refresh_secs` | 10 to 86400 | `[[repo.deploy]] refresh_secs of acme/webapp is 0; use 10 to 86400` |
 | `[prs] limit` | 1 to 100 | `[prs] limit is 0; use 1 to 100` |
 | `[[prs.tab]] limit` | 1 to 100 | `[[prs.tab]] limit of "mine" is 500; use 1 to 100` |
 | `[[repo]] builds` | 1 to 100 | `[[repo]] builds of acme/webapp is 0; use 1 to 100` |
 | `[ui] details_percent` | 10 to 90 | `[ui] details_percent is 500; use 10 to 90` |
-| `[ui] min_column_width` | 0 to 1000 | `[ui] min_column_width is 16384; use 1000 or less` |
-| `[[repo]] name` | `owner/name`, both parts non-empty, no spaces | `[[repo]] name "not-a-repo" is not owner/name` |
+| `[ui] min_column_width` | 0 to 16383 | `[ui] min_column_width is 16384; use 16383 or less` |
+| `[[repo]] name` | `owner/name`, both parts non-empty, no spaces or control characters | `[[repo]] name "not-a-repo" is not owner/name` |
 | `[[repo.deploy.env]] name` | not blank | `a [[repo.deploy.env]] of acme/webapp has a blank name` |
-| `[[repo.deploy.env]] context`, `namespace`, `deployment` | not blank | `[[repo.deploy.env]] "prod" of acme/webapp has a blank context` |
+| `[[repo.deploy.env]] deployment` | not blank | `[[repo.deploy.env]] "prod" of acme/webapp has a blank deployment` |
+| `[[repo.deploy.env]] context`, `namespace` | anything; blank means kubectl's current context and its namespace | not refused |
 | two `[[repo]]` of one name, compared without case as GitHub does | refused | `two [[repo]] are named "acme/webapp"` |
 | two envs of one name in a deploy | refused | `two [[repo.deploy.env]] of acme/webapp are named "prod"` |
 | a second `[[repo.deploy]]` on a repository | refused | `acme/webapp has a second [[repo.deploy]]; conveyor reads only the first` |
-| a `[[repo.deploy]]` on a later repository | refused | `the [[repo.deploy]] of acme/infra is ignored: conveyor reads only the one of acme/webapp` |
+| a `[[repo.deploy]]` on more than one repository (one on the second repository alone loads) | refused | `the [[repo.deploy]] of acme/infra is ignored: conveyor reads only the one of acme/webapp` |
 
 The drawing site: a column 2 cells wide or less draws its tab bar without panicking
 (`saturating_sub` in `tab_bar`).
@@ -86,7 +93,7 @@ The drawing site: a column 2 cells wide or less draws its tab bar without panick
 3. `details_percent` and `min_column_width`.
 4. `[[repo]] name` shaped `owner/name`; no blank env field.
 5. Duplicate repository and env names.
-6. Ignored settings: a second deploy, a deploy on a later repository.
+6. Ignored settings: a second deploy, a deploy on more than one repository.
 7. `tab_bar` in a column 2 cells wide.
 8. Fragment, README and `AGENTS.md` facts.
 

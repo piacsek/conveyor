@@ -74,7 +74,7 @@ are the defaults:
 [prs]
 query = "is:pr is:open archived:false (author:@me OR assignee:@me)"
 limit = 20                    # 1 to 100
-refresh_secs = 60             # 10 or more, like every refresh_secs
+refresh_secs = 60             # 10 to 86400, like every refresh_secs
 merge_method = "squash"
 update_method = "merge"
 background_tabs = true        # every My PRs tab refreshes on the interval, not only the one shown
@@ -85,7 +85,7 @@ background_tabs = true        # every My PRs tab refreshes on the interval, not 
 # limit = 10                  # optional, 1 to 100; falls back to [prs].limit
 
 [ui]
-min_column_width = 36         # 0 to 1000
+min_column_width = 36         # 0 to 16383
 details_percent = 40          # 10 to 90
 icons = "plain"               # or "nerd": GitHub's pull request icons, needs a Nerd Font
 
@@ -114,8 +114,8 @@ refresh_secs = 120
 [[repo.deploy.env]]
 name = "staging"
 fetcher = "kubectl"           # the only fetcher so far
-context = "my-staging-context"
-namespace = "api"
+context = "my-staging-context" # optional; kubectl's current context
+namespace = "api"             # optional; the context's namespace
 deployment = "api"
 ```
 
@@ -127,9 +127,10 @@ it. Set the terminal's font to a Nerd Font (for example
 `brew install --cask font-fira-code-nerd-font`, then pick "FiraCode Nerd Font"), or set
 `icons = "plain"` under `[ui]` (the default) to draw plain arrows instead.
 
-**conveyor ignores my config and the footer names the config file.** The config could not be
-used, so conveyor started on the defaults; the footer says which key or value is wrong.
-`conveyor config` prints the same message, and prints the config once it is fixed.
+**conveyor ignores my config and the footer names the config file.** The config does not load,
+so conveyor started on the defaults; the footer says which key or value is wrong and what to
+write instead. A `refresh_secs` below 10, which earlier versions accepted, is one: write 10 or
+more. `conveyor config` prints the same message, and prints the config once it is fixed.
 
 ## Development
 

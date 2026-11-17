@@ -319,7 +319,7 @@ fn config_refuses_my_prs_refreshing_more_often_than_every_ten_seconds() {
 
     assert_eq!(code, Some(1));
     assert!(
-        stderr.contains("config.toml: [prs] refresh_secs is 0; use 10 or more"),
+        stderr.contains("config.toml: [prs] refresh_secs is 0; use 10 to 86400"),
         "{stderr}"
     );
 }
@@ -330,7 +330,7 @@ fn config_refuses_a_repository_refreshing_more_often_than_every_ten_seconds() {
 
     assert_eq!(code, Some(1));
     assert!(
-        stderr.contains("[[repo]] refresh_secs of acme/webapp is 9; use 10 or more"),
+        stderr.contains("[[repo]] refresh_secs of acme/webapp is 9; use 10 to 86400"),
         "{stderr}"
     );
 }
@@ -342,7 +342,7 @@ fn config_refuses_a_deploy_refreshing_more_often_than_every_ten_seconds() {
 
     assert_eq!(code, Some(1));
     assert!(
-        stderr.contains("[[repo.deploy]] refresh_secs of acme/webapp is 0; use 10 or more"),
+        stderr.contains("[[repo.deploy]] refresh_secs of acme/webapp is 0; use 10 to 86400"),
         "{stderr}"
     );
 }
@@ -397,7 +397,7 @@ fn config_refuses_a_column_width_too_wide_to_count() {
 
     assert_eq!(code, Some(1));
     assert!(
-        stderr.contains("[ui] min_column_width is 16384; use 1000 or less"),
+        stderr.contains("[ui] min_column_width is 16384; use 16383 or less"),
         "{stderr}"
     );
 }
@@ -414,14 +414,14 @@ fn config_refuses_a_repository_name_without_its_owner() {
 }
 
 #[test]
-fn config_refuses_an_environment_with_a_blank_context() {
+fn config_refuses_an_environment_with_a_blank_deployment() {
     let (code, stderr) = refusal(&format!(
-        "{ONE_DEPLOY}[[repo.deploy.env]]\nname = \"prod\"\nnamespace = \"api\"\ndeployment = \"api\"\n"
+        "{ONE_DEPLOY}[[repo.deploy.env]]\nname = \"prod\"\nnamespace = \"api\"\n"
     ));
 
     assert_eq!(code, Some(1));
     assert!(
-        stderr.contains("[[repo.deploy.env]] \"prod\" of acme/webapp has a blank context"),
+        stderr.contains("[[repo.deploy.env]] \"prod\" of acme/webapp has a blank deployment"),
         "{stderr}"
     );
 }
@@ -462,7 +462,7 @@ fn config_refuses_a_second_deploy_it_would_ignore() {
 }
 
 #[test]
-fn config_refuses_a_deploy_on_a_later_repository_it_would_ignore() {
+fn config_refuses_a_deploy_on_two_repositories() {
     let (code, stderr) = refusal(&format!(
         "{ONE_DEPLOY}[[repo]]\nname = \"acme/infra\"\n[[repo.deploy]]\n"
     ));

@@ -43,7 +43,7 @@ fn the_ends_of_the_page_range_load() {
 fn the_ends_of_the_layout_ranges_load() {
     let dir = tempfile::tempdir().unwrap();
     let narrow = "[ui]\ndetails_percent = 10\nmin_column_width = 0\n";
-    let wide = "[ui]\ndetails_percent = 90\nmin_column_width = 1000\n";
+    let wide = "[ui]\ndetails_percent = 90\nmin_column_width = 16383\n";
 
     let narrow = load(&write(&dir, narrow));
     let wide = load(&write(&dir, wide));
@@ -59,28 +59,60 @@ fn a_repository_name_needs_one_owner_and_one_name() {
     assert!(refused_repo("acme/web/app").contains("is not owner/name"));
     assert!(refused_repo("acme/web app").contains("is not owner/name"));
     assert!(refused_repo("").contains("[[repo]] name \"\" is not owner/name"));
+    assert!(refused_repo("acme/web\\u0007app").contains("is not owner/name"));
 }
 
 #[test]
-fn an_environment_needs_every_field() {
-    let full = "name = \"prod\"\ncontext = \"ctx\"\nnamespace = \"api\"\ndeployment = \"api\"\n";
+fn an_environment_needs_a_name_and_a_deployment() {
+    let full = "name = \"prod\"\ndeployment = \"api\"\n";
 
     assert!(
         refused_env(&full.replace("prod", " "))
             .contains("a [[repo.deploy.env]] of acme/webapp has a blank name")
     );
     assert!(
-        refused_env(&full.replace("\"ctx\"", "\"\""))
-            .contains("\"prod\" of acme/webapp has a blank context")
-    );
-    assert!(
-        refused_env(&full.replace("namespace = \"api\"", ""))
-            .contains("\"prod\" of acme/webapp has a blank namespace")
-    );
-    assert!(
         refused_env(&full.replace("deployment = \"api\"", "deployment = \" \""))
             .contains("\"prod\" of acme/webapp has a blank deployment")
     );
+}
+
+#[test]
+fn an_environment_without_context_and_namespace_loads_on_the_current_ones() {
+    let dir = tempfile::tempdir().unwrap();
+    let text = "[[repo]]\nname = \"acme/webapp\"\n[[repo.deploy]]\n[[repo.deploy.env]]\nname = \"prod\"\ndeployment = \"api\"\n";
+
+    let loaded = load(&write(&dir, text));
+
+    assert!(loaded.is_ok(), "{loaded:?}");
+}
+
+#[test]
+fn a_refresh_of_a_day_loads_and_longer_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let day = load(&write(&dir, "[prs]\nrefresh_secs = 86400\n"));
+    let longer = load(&write(
+        &dir,
+        "[[repo]]\nname = \"acme/webapp\"\nrefresh_secs = 18446744073709551615\n",
+    ));
+
+    assert!(day.is_ok(), "{day:?}");
+    assert!(
+        longer.unwrap_err().to_string().contains(
+            "[[repo]] refresh_secs of acme/webapp is 18446744073709551615; use 10 to 86400"
+        )
+    );
+}
+
+#[test]
+fn a_deploy_on_the_second_repository_alone_loads() {
+    let dir = tempfile::tempdir().unwrap();
+    let text =
+        "[[repo]]\nname = \"acme/webapp\"\n[[repo]]\nname = \"acme/infra\"\n[[repo.deploy]]\n";
+
+    let loaded = load(&write(&dir, text));
+
+    assert!(loaded.is_ok(), "{loaded:?}");
 }
 
 #[test]
