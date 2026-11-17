@@ -43,6 +43,36 @@ fn the_demo_says_so_in_the_footer() {
 
 #[test]
 #[ignore]
+fn the_demo_says_so_under_the_help_pane() {
+    let home = tempfile::tempdir().unwrap();
+    let server = Server::sized("demo-help", "30");
+    demo(&server, home.path());
+    server.wait_for_screen("#4821 Retry webhook");
+
+    server.send_keys(&["?"]);
+
+    let screen = server.wait_for_screen("any key returns");
+    assert!(screen.contains("demo"), "{screen}");
+}
+
+#[test]
+#[ignore]
+fn rerunning_the_failed_checks_of_a_demo_pull_request_changes_nothing() {
+    let home = tempfile::tempdir().unwrap();
+    let server = Server::sized("demo-rerun", "30");
+    demo(&server, home.path());
+    server.wait_for_screen("#4821 Retry webhook");
+    server.send_keys(&["j"]);
+
+    server.send_keys(&["S"]);
+    server.wait_for_screen("Manage #4821");
+    server.send_keys(&["f"]);
+
+    server.wait_for_screen("demo: nothing was changed");
+}
+
+#[test]
+#[ignore]
 fn opening_a_pull_request_in_the_demo_opens_nothing() {
     let home = tempfile::tempdir().unwrap();
     let server = Server::sized("demo-open", "30");

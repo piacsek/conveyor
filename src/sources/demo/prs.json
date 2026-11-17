@@ -1,13 +1,21 @@
-{"data":{"search":{"issueCount":3,"nodes":[
+{"data":{"search":{"issueCount":4,"nodes":[
  {"number":4821,"title":"Retry webhook delivery with backoff","url":"https://github.com/acme/webapp/pull/4821",
-  "isDraft":false,"updatedAt":"ago:7200","headRefName":"webhook-retry-backoff",
+  "isDraft":false,"updatedAt":"ago:300","headRefName":"webhook-retry-backoff",
   "repository":{"nameWithOwner":"acme/webapp"},"author":{"login":"me"},"reviewDecision":"APPROVED",
-  "mergeStateStatus":"BLOCKED","additions":12,"deletions":3,"mergeQueueEntry":null,
+  "mergeStateStatus":"BLOCKED","additions":12,"deletions":3,"mergeQueueEntry":null,"isMergeQueueEnabled":true,
   "statusCheckRollup":{"state":"FAILURE","contexts":{"totalCount":3,"nodes":[
-   {"name":"lint","status":"COMPLETED","conclusion":"SUCCESS","detailsUrl":"https://github.com/acme/webapp/actions/runs/1/job/2","startedAt":"ago:1800","completedAt":"ago:1740"},
-   {"name":"api / test","status":"COMPLETED","conclusion":"FAILURE","detailsUrl":"https://github.com/acme/webapp/actions/runs/1/job/3","startedAt":"ago:1800","completedAt":"ago:1560"},
-   {"name":"e2e","status":"IN_PROGRESS","conclusion":null,"detailsUrl":"https://github.com/acme/webapp/actions/runs/1/job/4","startedAt":"ago:720","completedAt":null}]}},
+   {"name":"lint","status":"COMPLETED","conclusion":"SUCCESS","detailsUrl":"https://github.com/acme/webapp/actions/runs/1/job/2","checkSuite":{"conclusion":"FAILURE","app":{"slug":"github-actions"},"workflowRun":{"databaseId":1,"event":"pull_request","workflow":{"name":"CI"}}},"startedAt":"ago:1800","completedAt":"ago:1740"},
+   {"name":"api / test","status":"COMPLETED","conclusion":"FAILURE","detailsUrl":"https://github.com/acme/webapp/actions/runs/1/job/3","checkSuite":{"conclusion":"FAILURE","app":{"slug":"github-actions"},"workflowRun":{"databaseId":1,"event":"pull_request","workflow":{"name":"CI"}}},"startedAt":"ago:1800","completedAt":"ago:1560"},
+   {"name":"e2e","status":"IN_PROGRESS","conclusion":null,"detailsUrl":"https://github.com/acme/webapp/actions/runs/4/job/1","checkSuite":{"conclusion":null,"app":{"slug":"github-actions"},"workflowRun":{"databaseId":4,"event":"pull_request","workflow":{"name":"e2e"}}},"startedAt":"ago:720","completedAt":null}]}},
   "reviews":{"nodes":[]},"reviewRequests":{"nodes":[]},"comments":{"totalCount":2}},
+ {"number":4827,"title":"Log slow queries over 500 ms","url":"https://github.com/acme/webapp/pull/4827",
+  "isDraft":false,"updatedAt":"ago:600","headRefName":"slow-query-log",
+  "repository":{"nameWithOwner":"acme/webapp"},"author":{"login":"me"},"reviewDecision":"APPROVED",
+  "mergeStateStatus":"CLEAN","additions":34,"deletions":2,"mergeQueueEntry":{"position":2,"state":"AWAITING_CHECKS"},
+  "isMergeQueueEnabled":true,
+  "statusCheckRollup":{"state":"SUCCESS","contexts":{"totalCount":1,"nodes":[
+   {"name":"CI/CD","status":"COMPLETED","conclusion":"SUCCESS","detailsUrl":"https://github.com/acme/webapp/actions/runs/7/job/1","startedAt":"ago:2400","completedAt":"ago:1980"}]}},
+  "reviews":{"nodes":[]},"reviewRequests":{"nodes":[]},"comments":{"totalCount":1}},
  {"number":4830,"title":"Add rate limit headers to the API","url":"https://github.com/acme/auth/pull/4830",
   "isDraft":false,"updatedAt":"ago:2400","headRefName":"rate-limit-headers",
   "repository":{"nameWithOwner":"acme/auth"},"author":{"login":"me"},"reviewDecision":"REVIEW_REQUIRED",
@@ -18,7 +26,7 @@
  {"number":4790,"title":"Spike: parallel test runner","url":"https://github.com/acme/webapp/pull/4790",
   "isDraft":true,"updatedAt":"ago:1123200","headRefName":"parallel-test-spike",
   "repository":{"nameWithOwner":"acme/webapp"},"author":{"login":"me"},"reviewDecision":null,
-  "mergeStateStatus":"UNKNOWN","additions":1,"deletions":1,"mergeQueueEntry":null,
+  "mergeStateStatus":"UNKNOWN","additions":1,"deletions":1,"mergeQueueEntry":null,"isMergeQueueEnabled":true,
   "statusCheckRollup":{"state":"SUCCESS","contexts":{"totalCount":1,"nodes":[
    {"name":"CI/CD","status":"COMPLETED","conclusion":"SUCCESS","detailsUrl":"https://github.com/acme/webapp/actions/runs/3/job/1"}]}},
   "reviews":{"nodes":[]},"reviewRequests":{"nodes":[]},"comments":{"totalCount":0}}

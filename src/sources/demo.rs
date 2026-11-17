@@ -11,6 +11,7 @@ use crate::sources::github::{Github, Variable};
 use crate::sources::kube::Kube;
 
 const PRS: &str = include_str!("demo/prs.json");
+const REVIEW: &str = include_str!("demo/review.json");
 const QUEUE: &str = include_str!("demo/queue.json");
 const RUNS: &str = include_str!("demo/runs.json");
 const MERGE_GROUP_RUNS: &str = include_str!("demo/merge-group-runs.json");
@@ -71,13 +72,19 @@ fn aged(value: &mut Value, now: SystemTime) {
 fn jobs(run: &str) -> String {
     let (status, conclusion, completed) = match run {
         "1" | "311" => ("completed", "\"failure\"", "\"ago:1181\""),
-        "2" | "312" | "313" => ("in_progress", "null", "null"),
+        "2" | "4" | "312" | "313" | "314" => ("in_progress", "null", "null"),
         _ => ("completed", "\"success\"", "\"ago:1181\""),
     };
     JOBS.replace("STATUS", status)
         .replace("CONCLUSION", conclusion)
         .replace("COMPLETED", completed)
         .replace("RUN", run)
+}
+
+fn asks(vars: &[(&str, Variable)], term: &str) -> bool {
+    vars.iter().any(|(name, value)| {
+        *name == "q" && matches!(value, Variable::Text(query) if query.contains(term))
+    })
 }
 
 fn nothing_changed() -> Failure {
@@ -91,6 +98,7 @@ fn no_fixture(what: &str) -> Failure {
 impl Github for Demo {
     fn graphql(&self, query: &str, vars: &[(&str, Variable)]) -> Result<Value, Failure> {
         match query {
+            PRS_QUERY if asks(vars, "review-requested") => self.answer(REVIEW),
             PRS_QUERY => self.answer(PRS),
             QUEUE_QUERY if vars.iter().any(|(_, v)| *v == Variable::from("webapp")) => {
                 self.answer(QUEUE)

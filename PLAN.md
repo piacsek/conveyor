@@ -812,7 +812,11 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   expired-session text the shim printed; the `acme/infra` queue answers empty; any GraphQL
   other than My PRs and the queue answers a repository with no commits, so pull requests come
   through the REST route by sha; a `#N` OSC 8 link clicked in the terminal still opens GitHub's
-  404, out of conveyor's hands. Fragment `kind: feat`.
+  404, out of conveyor's hands. Review round 1: the marker also shows under the help and
+  changelog panes; the `review` tab answers its own two pull requests; the fixture tells one
+  story (My PRs are open and mine, one of them queued at the queue's position 2, Main builds
+  and Deployed come from other people's merged pull requests); `#4821`'s failing check has a
+  finished suite, so rerun is offered. Fragment `kind: feat`.
 
 ## Deferred / backlog (discuss at retros)
 

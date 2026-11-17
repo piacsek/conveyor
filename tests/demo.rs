@@ -4,7 +4,9 @@ use conveyor::config::{Config, MergeMethod, Prs, Repo, Ui, UpdateMethod};
 use conveyor::model::deployed::Health;
 use conveyor::model::prs::StatusChange;
 use conveyor::sources::demo::{self, Demo};
-use conveyor::sources::fetch::{BuildsSource, DeploySource, fetch_jobs, fetch_log, fetch_queue};
+use conveyor::sources::fetch::{
+    BuildsSource, DeploySource, fetch_jobs, fetch_log, fetch_prs, fetch_queue,
+};
 use conveyor::sources::github::Github;
 
 #[test]
@@ -53,6 +55,18 @@ fn the_demo_has_its_own_my_prs_tabs() {
 }
 
 #[test]
+fn the_demo_review_tab_holds_other_pull_requests_than_mine() {
+    let config = demo::config(Config::default());
+
+    let review = fetch_prs(&Demo, &config, 1).unwrap();
+
+    assert_eq!(review.len(), 2);
+    assert_eq!(review[0].number, 4844);
+    assert_eq!(review[1].number, 212);
+    assert_eq!(review[1].repo, "acme/infra");
+}
+
+#[test]
 fn the_demo_keeps_the_users_ui_settings() {
     let user = Config {
         ui: Ui {
@@ -74,9 +88,53 @@ fn the_demo_queue_of_acme_webapp_holds_two_pull_requests_with_their_runs() {
     let queue = fetch_queue(&Demo, &config.repo[0]).unwrap();
 
     assert_eq!(queue.entries.len(), 2);
-    assert_eq!(queue.entries[0].number, 4821);
+    assert_eq!(queue.entries[0].number, 4836);
+    assert_eq!(queue.entries[0].author, "erin");
     assert_eq!(queue.entries[0].run.as_ref().unwrap().id, 313);
+    assert_eq!(queue.entries[1].number, 4827);
+    assert_eq!(queue.entries[1].author, "me");
     assert_eq!(queue.entries[1].run.as_ref().unwrap().id, 314);
+}
+
+#[test]
+fn my_demo_pull_request_in_the_queue_is_queued_in_my_prs_at_the_same_position() {
+    let config = demo::config(Config::default());
+    let queue = fetch_queue(&Demo, &config.repo[0]).unwrap();
+
+    let mine = fetch_prs(&Demo, &config, 0).unwrap();
+
+    let queued = mine.iter().find(|pr| pr.number == 4827).unwrap();
+    assert_eq!(queued.queue_position, Some(queue.entries[1].position));
+}
+
+#[test]
+fn only_my_queued_demo_pull_request_is_queued_in_my_prs() {
+    let config = demo::config(Config::default());
+
+    let mine = fetch_prs(&Demo, &config, 0).unwrap();
+
+    let queued: Vec<u64> = mine
+        .iter()
+        .filter(|pr| pr.queue_position.is_some())
+        .map(|pr| pr.number)
+        .collect();
+    assert_eq!(queued, vec![4827]);
+}
+
+#[test]
+fn no_open_demo_pull_request_of_mine_was_already_built_on_main() {
+    let config = demo::config(Config::default());
+    let mine = fetch_prs(&Demo, &config, 0).unwrap();
+    let mut source = BuildsSource::new(config.repo[0].clone());
+
+    let builds = source.fetch(&Demo, SystemTime::now()).unwrap();
+
+    let built_and_open: Vec<u64> = builds
+        .iter()
+        .filter_map(|build| build.pull.as_ref().map(|pull| pull.number))
+        .filter(|number| mine.iter().any(|pr| pr.number == *number))
+        .collect();
+    assert!(built_and_open.is_empty(), "{built_and_open:?}");
 }
 
 #[test]
@@ -99,7 +157,9 @@ fn the_demo_main_builds_are_four_runs_newest_first_with_their_pull_requests() {
     assert_eq!(builds[0].run_number, 312);
     assert_eq!(builds[0].pull.as_ref().unwrap().number, 4840);
     assert_eq!(builds[0].pull.as_ref().unwrap().author, "bob");
-    assert_eq!(builds[3].pull.as_ref().unwrap().number, 4790);
+    assert_eq!(builds[1].pull.as_ref().unwrap().number, 4815);
+    assert_eq!(builds[1].pull.as_ref().unwrap().author, "alice");
+    assert_eq!(builds[3].pull.as_ref().unwrap().number, 4799);
 }
 
 #[test]
@@ -156,7 +216,7 @@ fn the_demo_prod_runs_an_older_build() {
     assert_eq!(deployed.rows[2].env, "prod");
     assert_eq!(
         deployed.rows[2].pull.as_ref().map(|pull| pull.number),
-        Some(4790)
+        Some(4799)
     );
 }
 

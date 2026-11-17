@@ -26,7 +26,7 @@ pub(crate) fn footer_text(app: &App) -> String {
     }
 }
 
-const DEMO: &str = "demo ";
+const DEMO: &str = "demo";
 
 pub fn logo() -> String {
     format!(
@@ -41,21 +41,35 @@ pub(crate) fn draw_footer(frame: &mut Frame, app: &App, area: Rect) {
     } else {
         footer_text(app)
     };
-    let marker = if app.demo { DEMO } else { "" };
-    let logo = logo();
-    let width = (marker.chars().count() + logo.chars().count()) as u16 + 1;
-    let [left, right] =
-        Layout::horizontal([Constraint::Fill(1), Constraint::Length(width)]).areas(area);
+    let left = draw_right(frame, app, Some(Span::styled(logo(), dim())), area);
     frame.render_widget(Paragraph::new(text), left);
-    frame.render_widget(
-        Paragraph::new(Line::from(vec![
-            Span::styled(
-                marker,
-                Style::new().fg(Color::Magenta).add_modifier(Modifier::BOLD),
-            ),
-            Span::styled(logo, dim()),
-        ]))
-        .right_aligned(),
-        right,
-    );
+}
+
+pub(crate) fn draw_overlay_footer(frame: &mut Frame, app: &App, hint: &str, area: Rect) {
+    let text = app.notice.as_deref().unwrap_or(hint);
+    let left = draw_right(frame, app, None, area);
+    frame.render_widget(Paragraph::new(text.to_string()), left);
+}
+
+fn draw_right(frame: &mut Frame, app: &App, logo: Option<Span<'static>>, area: Rect) -> Rect {
+    let mut spans = Vec::new();
+    if app.demo {
+        spans.push(Span::styled(
+            DEMO,
+            Style::new().fg(Color::Magenta).add_modifier(Modifier::BOLD),
+        ));
+    }
+    if let Some(logo) = logo {
+        if app.demo {
+            spans.push(Span::raw(" "));
+        }
+        spans.push(logo);
+    }
+    let line = Line::from(spans);
+    let width = line.width() as u16;
+    let gap = u16::from(width > 0);
+    let [left, right] =
+        Layout::horizontal([Constraint::Fill(1), Constraint::Length(width + gap)]).areas(area);
+    frame.render_widget(Paragraph::new(line).right_aligned(), right);
+    left
 }

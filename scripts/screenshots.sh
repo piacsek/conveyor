@@ -57,7 +57,7 @@ shoot() {
   render "$name" --padding 20,64,20,20 --window
 }
 
-shoot details 160 26 "d"
+shoot details 160 26 "jd"
 echo "wrote $out/details.png"
 shoot help 160 26 "?"
 echo "wrote $out/help.png"

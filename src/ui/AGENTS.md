@@ -156,8 +156,9 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   `refreshed just now` for 3 s, then `refreshed at HH:MM:SS` local time
   (`utc_offset_secs` from `chrono::Local` in `main`, 0 in tests). The bottom right holds the
   static `ui::logo()` with the crate version; nothing there changes between ticks. Under
-  `--demo` (`App::demo`) a bold magenta `demo` sits in front of it, always: magenta is used
-  nowhere else, so it never reads as a status.
+  `--demo` (`App::demo`) a bold magenta `demo` sits in front of it, always, and alone at the
+  right of the help and changelog footers: magenta is used nowhere else, so it never reads as
+  a status.
 - How the details pane scrolls (`draw_details` owns the clamp), the log pane and zoom: see `src/app/AGENTS.md`.
 - What the `S` popup offers and when an action asks `y`: see `src/app/AGENTS.md`.
 - The keymap behind `KEYS`: see `src/app/AGENTS.md`.

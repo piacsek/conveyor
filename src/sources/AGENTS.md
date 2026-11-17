@@ -172,11 +172,17 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
 - **`Demo` is both `Github` and `Kube`, and reaches nothing.** It answers from JSON under
   `src/sources/demo/` (`include_str!`), which `scripts/screenshots.sh` also draws. A
   string `ago:<secs>` becomes the UTC time that many seconds before the call, so ages stay alive
-  across refreshes. `graphql` matches `PRS_QUERY` and `QUEUE_QUERY` (the queue only for
+  across refreshes. `graphql` matches `PRS_QUERY` (`review.json` when `q` holds
+  `review-requested`, else `prs.json`) and `QUEUE_QUERY` (the queue only for
   `name = "webapp"`, an empty queue for any other repository) and answers any other query with
   a `repository` holding no commits, so `Pulls::prefetch` falls through to REST
   `commits/{sha}/pulls`, which `pulls.json` answers by sha. `rest` routes by path segments;
-  jobs exist for any run id, failed for 1 and 311, running for 2, 312 and 313.
+  jobs exist for any run id, failed for 1 and 311, running for 2, 4, 312, 313 and 314.
+- **The fixture tells one story.** My PRs are `me`'s and still open, so none of them is a
+  Main build; the one queued (`#4827`) sits at the same position in `queue.json`, and each
+  merge-group run's `pr-<N>-` branch names its entry. The failing check of `#4821` carries a
+  finished failing suite with a run id, so `S` offers `f`. `tests/demo.rs` holds these
+  agreements; a fixture change that breaks one fails there.
 - **`Kube` answers per environment name** from `deployments.json` and `pods.json`; any other
   environment (`uat`) fails with `ERROR: Active profile expired.`, so the demo shows an error row.
 - **Every write and the checkout fail with `demo: nothing was changed`**, which marks the card

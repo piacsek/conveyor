@@ -54,6 +54,8 @@ lives in `scripts/screenshots.sh` as shell-written JSON behind `gh` and `kubectl
 | open in browser (`p`, `b`, `o`-less keys) | nothing spawned; `Opener::open` errs | footer `demo: acme/* is made up, so nothing was opened` |
 | `#N` OSC 8 link clicked in the terminal | the terminal opens the `acme/*` URL itself | GitHub's 404; out of conveyor's hands |
 | copy (`y`/`Y`) | copies as usual | as usual |
+| `review` tab | its own two pull requests, by other authors | two cards, none of them mine |
+| help or changelog pane open | the footer keeps the marker | `demo` at the bottom right |
 | a sha with no pull request | REST `[]`, then the `(#N)` route answers nothing | the row without a pull request, as today |
 | `uat` environment | `Kube` errs like an expired session | `✗` row with the message |
 | config file missing | default config, then the demo tables | demo |
