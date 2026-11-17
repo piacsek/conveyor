@@ -6,6 +6,7 @@ use ratatui::widgets::{Block, Paragraph};
 
 use crate::app::Stage;
 use crate::config::{Key, Keys, Titles, Ui};
+use crate::text::{display_width, pad_right};
 use crate::ui::style::dim;
 
 pub const KEYS: [(&str, &str); 15] = [
@@ -84,7 +85,7 @@ pub(crate) fn draw_help(frame: &mut Frame, area: Rect, stage: Stage, ui: &Ui) {
     let keys = keys_for(stage, &ui.keys);
     let width = keys
         .iter()
-        .map(|(k, _)| k.chars().count())
+        .map(|(k, _)| display_width(k))
         .max()
         .unwrap_or(0);
     let lines: Vec<Line> = keys
@@ -92,7 +93,7 @@ pub(crate) fn draw_help(frame: &mut Frame, area: Rect, stage: Stage, ui: &Ui) {
         .map(|(key, what)| {
             Line::from(vec![
                 Span::styled(
-                    format!("{key:<width$}"),
+                    pad_right(key, width),
                     Style::default().add_modifier(Modifier::BOLD),
                 ),
                 Span::raw("  "),

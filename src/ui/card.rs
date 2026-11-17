@@ -1,7 +1,7 @@
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
-use crate::text::{pad_right, truncate};
+use crate::text::{display_width, pad_right, truncate};
 use crate::ui::style::{BAR, INDENT, dim};
 
 pub(crate) fn card(
@@ -14,7 +14,7 @@ pub(crate) fn card(
     width: usize,
 ) -> Vec<Line<'static>> {
     let icon_width = if icon.is_some() { 2 } else { 0 };
-    let title_width = width.saturating_sub(INDENT + icon_width + right.chars().count() + 1);
+    let title_width = width.saturating_sub(INDENT + icon_width + display_width(&right) + 1);
     let emphasis = if selected {
         Style::default().add_modifier(Modifier::BOLD)
     } else {

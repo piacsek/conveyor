@@ -22,8 +22,8 @@ title too far, pushing its right-aligned figure out of the card. Listed under "K
   the refresh age, drawn by a `Paragraph`, which ratatui clips by cell width. Nothing to change
   there; the backlog's "the footer cuts titles" line is stale.
 - `unicode-width` 0.2.2 is in `Cargo.lock` through ratatui; ratatui's `Line::width` uses it.
-- The other `chars().count()` in `src/ui/` measure fixed ASCII text (the `#N` label, the help
-  keys, the changelog bullet indent).
+- The other `chars().count()` in `src/ui/` measure fixed ASCII text (the `#N` label, the
+  changelog bullet indent). The help keys are not: a configured tab key may be any character.
 
 ## Decisions
 
@@ -41,7 +41,10 @@ title too far, pushing its right-aligned figure out of the card. Listed under "K
    `?` before the border (TUI test).
 5. A card's unhappy checks line and the tab bar measure by display width. `draw_manage`
    keeps its character count: its offers and title are fixed ASCII words and a `#N` label.
-6. Docs: the Known limits line and the `src/ui/AGENTS.md` sentence go, the backlog item is
+6. Review round 1: `take_width` cuts where the prefix's string width fits, never inside an
+   emoji with its selector or a joined emoji; a card measures its right side (a branch name
+   on Deployed) and the help pads its keys by display width.
+7. Docs: the Known limits line and the `src/ui/AGENTS.md` sentence go, the backlog item is
    marked done, the fragment.
 
 ## Outcome

@@ -15,14 +15,24 @@ pub fn display_width(text: &str) -> usize {
 }
 
 pub fn take_width(text: &str, width: usize) -> &str {
-    let mut used = 0;
-    for (at, c) in text.char_indices() {
-        used += UnicodeWidthChar::width(c).unwrap_or(0);
-        if used > width {
-            return &text[..at];
+    let mut fits = "";
+    for end in cut_points(text) {
+        if display_width(&text[..end]) > width {
+            break;
         }
+        fits = &text[..end];
     }
-    text
+    fits
+}
+
+fn cut_points(text: &str) -> impl Iterator<Item = usize> + '_ {
+    text.char_indices()
+        .zip(text.chars().skip(1))
+        .filter(|&((_, before), after)| {
+            before != '\u{200d}' && UnicodeWidthChar::width(after).is_some_and(|w| w > 0)
+        })
+        .map(|((at, before), _)| at + before.len_utf8())
+        .chain([text.len()])
 }
 
 pub fn truncate(text: &str, width: usize) -> String {
@@ -47,7 +57,7 @@ pub fn wrap(text: &str, width: usize, lines: usize) -> Vec<String> {
             if !current.is_empty() {
                 wrapped.push(std::mem::take(&mut current));
             }
-            let first = word.chars().next().map_or(0, char::len_utf8);
+            let first = cut_points(&word).next().unwrap_or(word.len());
             let at = take_width(&word, width).len().max(first);
             wrapped.push(word[..at].to_string());
             word = word[at..].to_string();

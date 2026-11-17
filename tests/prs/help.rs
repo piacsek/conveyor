@@ -1,3 +1,4 @@
+use conveyor::config::{Config, Key};
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::three;
@@ -107,4 +108,29 @@ fn question_mark_shows_the_key_help_and_any_key_returns() {
 
     h.run(vec![key(KeyCode::Char('x'))]).unwrap();
     assert!(h.screen().contains("#1 a"), "{}", h.screen());
+}
+
+#[test]
+fn a_wide_tab_key_keeps_its_description_in_line_with_the_others() {
+    let mut config = Config::default();
+    config.ui.keys.next_tab = Key::Char('修');
+    config.ui.keys.previous_tab = Key::Char('复');
+    let mut h = Harness::with_config(160, 18, config);
+
+    h.run(vec![prs(three()), key(KeyCode::Char('?'))]).unwrap();
+
+    let screen = h.screen();
+    assert_eq!(
+        cell_of(&screen, "next / previous / nth tab"),
+        cell_of(&screen, "quit"),
+        "{screen}"
+    );
+}
+
+fn cell_of(screen: &str, text: &str) -> usize {
+    let line = screen
+        .lines()
+        .find(|line| line.contains(text))
+        .expect("a line with that text");
+    line[..line.find(text).unwrap()].chars().count()
 }

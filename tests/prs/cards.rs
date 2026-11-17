@@ -341,21 +341,6 @@ fn two_busy_cards_each_name_their_own_action() {
     assert!(second.contains("merging… · webapp"), "{screen}");
 }
 
-fn card(screen: &str, title: &str) -> (String, String) {
-    let lines: Vec<&str> = screen.lines().collect();
-    let at = lines
-        .iter()
-        .position(|line| line.contains(title))
-        .expect("a card with that title");
-    (lines[at].to_string(), lines[at + 1].to_string())
-}
-
-fn nerd() -> Config {
-    let mut config = Config::default();
-    config.ui.icons = Icons::Nerd;
-    config
-}
-
 #[test]
 fn a_check_that_no_longer_fits_after_a_wide_one_is_left_off_the_card() {
     let mut h = Harness::new();
@@ -379,4 +364,38 @@ fn a_check_that_no_longer_fits_after_a_wide_one_is_left_off_the_card() {
     let screen = h.screen();
     assert!(screen.contains("✗ 修"), "{screen}");
     assert!(!screen.contains("✗ api"), "{screen}");
+}
+
+#[test]
+fn a_title_with_a_variation_selector_emoji_keeps_the_age_on_the_card() {
+    let mut h = Harness::new();
+
+    h.run(vec![
+        prs(vec![pr(
+            4821,
+            "♻️ refactor the webhook retries and every backoff",
+        )]),
+        key(KeyCode::Char('q')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    let rows: Vec<&str> = screen.lines().collect();
+    assert!(rows[1].contains("♻"), "{screen}");
+    assert!(rows[1].contains(" 2h│"), "{screen}");
+}
+
+fn card(screen: &str, title: &str) -> (String, String) {
+    let lines: Vec<&str> = screen.lines().collect();
+    let at = lines
+        .iter()
+        .position(|line| line.contains(title))
+        .expect("a card with that title");
+    (lines[at].to_string(), lines[at + 1].to_string())
+}
+
+fn nerd() -> Config {
+    let mut config = Config::default();
+    config.ui.icons = Icons::Nerd;
+    config
 }

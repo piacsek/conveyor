@@ -10,7 +10,7 @@ fn the_demo_draws_my_prs_with_no_gh_and_no_config() {
 
     demo(&server, home.path());
 
-    let screen = server.wait_for_screen("#4821 Retry webhook");
+    let screen = server.wait_for_screen("🔁 Retry webhook");
     assert!(screen.contains("#4830 Add rate limit"), "{screen}");
 }
 
@@ -23,7 +23,7 @@ fn the_demo_fills_all_four_columns_with_no_gh_no_kubectl_and_no_config() {
     demo(&server, home.path());
 
     let screen = server.wait_for_screen("CrashLoopBackOff");
-    assert!(screen.contains("#4821 Retry webhook"), "{screen}");
+    assert!(screen.contains("🔁 Retry webhook"), "{screen}");
     assert!(screen.contains("Speed up CI with a warm cache"), "{screen}");
     assert!(screen.contains("carol"), "{screen}");
     assert!(screen.contains("Active profile expired"), "{screen}");
@@ -37,7 +37,7 @@ fn the_demo_says_so_in_the_footer() {
 
     demo(&server, home.path());
 
-    let screen = server.wait_for_screen("#4821 Retry webhook");
+    let screen = server.wait_for_screen("🔁 Retry webhook");
     assert!(screen.contains("demo \u{25aa}"), "{screen}");
 }
 
@@ -47,7 +47,7 @@ fn the_demo_says_so_under_the_help_pane() {
     let home = tempfile::tempdir().unwrap();
     let server = Server::sized("demo-help", "30");
     demo(&server, home.path());
-    server.wait_for_screen("#4821 Retry webhook");
+    server.wait_for_screen("🔁 Retry webhook");
 
     server.send_keys(&["?"]);
 
@@ -61,7 +61,7 @@ fn rerunning_the_failed_checks_of_a_demo_pull_request_changes_nothing() {
     let home = tempfile::tempdir().unwrap();
     let server = Server::sized("demo-rerun", "30");
     demo(&server, home.path());
-    server.wait_for_screen("#4821 Retry webhook");
+    server.wait_for_screen("🔁 Retry webhook");
     server.send_keys(&["j"]);
 
     server.send_keys(&["S"]);
@@ -77,7 +77,7 @@ fn opening_a_pull_request_in_the_demo_opens_nothing() {
     let home = tempfile::tempdir().unwrap();
     let server = Server::sized("demo-open", "30");
     demo(&server, home.path());
-    server.wait_for_screen("#4821 Retry webhook");
+    server.wait_for_screen("🔁 Retry webhook");
 
     server.send_keys(&["p"]);
 

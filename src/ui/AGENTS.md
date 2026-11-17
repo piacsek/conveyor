@@ -135,7 +135,8 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   while the active My PRs tab lists more than one repository (`me/webapp#N` when two of them
   share a short name). Widths are terminal cells, not characters: `text::display_width`
   measures, and `truncate`, `wrap`, `pad_right` and `take_width` cut, so a CJK character or
-  an emoji counts two and a wide title ends inside the dialog.
+  an emoji counts two and a wide title ends inside the dialog. A cut never splits an emoji from
+  its selector (`♻️`) or a joined emoji (`👨‍👩‍👧`).
 - **Overlays show what lands under them.** The help and changelog panes replace the footer
   with a hint, so while `App::notice` is set (a merge, rerun or update result that landed while
   the pane was open) the footer shows the notice instead; the next key clears it as usual.

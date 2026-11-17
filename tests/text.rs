@@ -18,6 +18,34 @@ fn pad_right_fills_up_to_the_width_in_cells() {
 }
 
 #[test]
+fn truncate_counts_a_symbol_with_its_emoji_selector_as_two_cells() {
+    assert_eq!(truncate("♻️ refactor", 5), "♻️ r…");
+    assert_eq!(truncate("❤️❤️❤️❤️❤️ fix", 4), "❤️…");
+}
+
+#[test]
+fn pad_right_counts_a_symbol_with_its_emoji_selector_as_two_cells() {
+    assert_eq!(pad_right("♻️ refactor", 5), "♻️ r…");
+    assert_eq!(pad_right("♻️", 4), "♻️  ");
+}
+
+#[test]
+fn truncate_never_cuts_inside_a_joined_emoji() {
+    assert_eq!(truncate("👨‍👩‍👧 family", 6), "👨‍👩‍👧 fa…");
+    assert_eq!(truncate("👨‍👩‍👧 family", 2), "…");
+}
+
+#[test]
+fn wrap_hard_cuts_a_word_of_selector_emoji_at_its_width_in_cells() {
+    assert_eq!(wrap("❤️❤️❤️❤️", 4, 3), vec!["❤️❤️", "❤️❤️"]);
+}
+
+#[test]
+fn wrap_keeps_a_selector_emoji_wider_than_the_line_whole() {
+    assert_eq!(wrap("❤️", 1, 2), vec!["❤️"]);
+}
+
+#[test]
 fn wrap_fills_words_greedily_up_to_the_width() {
     assert_eq!(wrap("one two three", 9, 3), vec!["one two", "three"]);
     assert_eq!(wrap("one two three", 40, 2), vec!["one two three"]);
