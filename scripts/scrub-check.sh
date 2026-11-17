@@ -24,9 +24,17 @@ search() {
 listed_paths() {
   git ls-files -z --cached --others --exclude-standard | tr '\0' '\n' | grep -iF -f "$list"
 }
-search "git grep --untracked" git grep --untracked -niIF -f "$list"
-search "git grep --cached" git grep --cached -niIF -f "$list"
-search "the path check" listed_paths
+if [ "${1:-}" = --outgoing ]; then
+  log="$(git log -p --cc --no-color --no-ext-diff --format=%B HEAD --not --remotes)" ||
+    { echo "scrub-check: git log failed" >&2; exit 1; }
+  branch="$(git rev-parse --abbrev-ref HEAD)"
+  outgoing() { printf '%s\n%s\n' "$branch" "$log" | grep -iF -f "$list"; }
+  search "the outgoing check" outgoing
+else
+  search "git grep --untracked" git grep --untracked -niIF -f "$list"
+  search "git grep --cached" git grep --cached -niIF -f "$list"
+  search "the path check" listed_paths
+fi
 if [ "$found" = 1 ]; then
   echo "scrub-check: denylisted terms found (see above)" >&2
   exit 1

@@ -172,6 +172,57 @@ fn a_listed_term_only_in_the_name_of_an_ignored_file_leaves_the_scrub_clean() {
     assert_eq!(stdout(&output), "scrub-check: clean\n");
 }
 
+#[test]
+fn an_outgoing_symlink_whose_target_holds_a_listed_term_fails_the_scrub() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "zz-secret-term\n");
+    symlink("../zz-secret-term/notes", work.join("link")).unwrap();
+    git(&work, &["add", "link"]);
+    git(&work, &["commit", "-qm", "a link"]);
+
+    let output = scrub_outgoing(&work, &list);
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stdout(&output).contains("+../zz-secret-term/notes\n"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn a_listed_term_only_in_commits_a_remote_already_has_passes_the_outgoing_scrub() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "zz-secret-term\n");
+    fs::write(work.join("README.md"), "about zz-secret-term\n").unwrap();
+    git(&work, &["commit", "-qam", "zz-secret-term"]);
+    git(&work, &["update-ref", "refs/remotes/origin/topic", "HEAD"]);
+
+    let output = scrub_outgoing(&work, &list);
+
+    assert!(output.status.success(), "{}", stdout(&output));
+    assert_eq!(stdout(&output), "scrub-check: clean\n");
+}
+
+#[test]
+fn an_outgoing_scrub_git_log_cannot_read_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "zz-secret-term\n");
+    git(&work, &["checkout", "-q", "--orphan", "empty"]);
+
+    let output = scrub_outgoing(&work, &list);
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stderr(&output).contains("scrub-check: git log failed"),
+        "{}",
+        stderr(&output)
+    );
+}
+
 fn scrub_sandbox(root: &Path) -> PathBuf {
     let work = repository(root);
     link_script(&work, "scrub-check.sh");
@@ -199,4 +250,13 @@ fn scrub(work: &Path, list: Option<&Path>) -> Output {
 
 fn default_denylist(root: &Path) -> PathBuf {
     root.join("home/.config/conveyor-dev/denylist")
+}
+
+fn scrub_outgoing(work: &Path, list: &Path) -> Output {
+    isolated(&mut Command::new(work.join("scripts/scrub-check.sh")))
+        .arg("--outgoing")
+        .env("HOME", work.parent().unwrap().join("home"))
+        .env("CONVEYOR_DENYLIST", list)
+        .output()
+        .unwrap()
 }

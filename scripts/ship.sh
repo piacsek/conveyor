@@ -18,6 +18,10 @@ fi
 git add -A
 scripts/scrub-check.sh
 git commit -q -m "$message"
+if ! scripts/scrub-check.sh --outgoing; then
+  echo "ship: the commit stays local and unpushed; fix it with git commit --amend or git reset --soft HEAD~1, then ship again" >&2
+  exit 1
+fi
 git push -q -u origin "$branch"
 git log --oneline -1
 if ! gh pr view "$branch" --json number >/dev/null 2>&1; then

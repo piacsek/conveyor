@@ -186,6 +186,81 @@ fn ship_commits_and_pushes_nothing_when_what_it_staged_holds_a_listed_term_the_g
 }
 
 #[test]
+fn ship_commits_but_pushes_nothing_when_its_message_holds_a_listed_term() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = ship_sandbox(dir.path());
+    link_conveyor_dev(dir.path(), &another_build(dir.path()));
+    denylist(dir.path(), "zz-secret-term\n");
+    fs::write(work.join("README.md"), "changed\n").unwrap();
+
+    let output = first_ship(dir.path(), "fix: port the zz-secret-term workaround");
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert_eq!(calls(dir.path()), ["cargo fmt", "gates.sh "]);
+    assert_eq!(
+        local_subject(&work),
+        "fix: port the zz-secret-term workaround"
+    );
+    assert!(!pushed(dir.path()));
+    assert!(
+        stderr(&output).contains("git commit --amend"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn ship_pushes_nothing_from_a_branch_named_after_a_listed_term() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = ship_sandbox(dir.path());
+    link_conveyor_dev(dir.path(), &another_build(dir.path()));
+    denylist(dir.path(), "zz-secret-term\n");
+    git(&work, &["checkout", "-qb", "zz-secret-term-fix"]);
+    fs::write(work.join("README.md"), "changed\n").unwrap();
+
+    let output = first_ship(dir.path(), "docs: readme");
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(!pushed(dir.path()));
+}
+
+#[test]
+fn ship_pushes_nothing_when_an_earlier_unpushed_commit_added_a_listed_term_the_tree_no_longer_holds()
+ {
+    let dir = tempfile::tempdir().unwrap();
+    let work = ship_sandbox(dir.path());
+    link_conveyor_dev(dir.path(), &another_build(dir.path()));
+    denylist(dir.path(), "zz-secret-term\n");
+    fs::write(work.join("README.md"), "about zz-secret-term\n").unwrap();
+    git(&work, &["commit", "-qam", "docs: readme"]);
+    fs::write(work.join("README.md"), "readme\n").unwrap();
+
+    let output = first_ship(dir.path(), "docs: readme again");
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(!pushed(dir.path()));
+}
+
+#[test]
+fn a_clean_ship_with_a_denylist_pushes_and_opens_the_draft() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = ship_sandbox(dir.path());
+    link_conveyor_dev(dir.path(), &another_build(dir.path()));
+    denylist(dir.path(), "zz-secret-term\n");
+    fs::write(work.join("README.md"), "changed\n").unwrap();
+
+    let output = first_ship(dir.path(), "docs: readme");
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(pushed_subject(dir.path()), "docs: readme");
+    assert!(
+        stdout(&output).contains("opened draft PR for topic\n"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
 fn the_template_holds_a_summary_and_the_changes() {
     let template = Path::new(env!("CARGO_MANIFEST_DIR")).join(".github/pull_request_template.md");
 
@@ -257,7 +332,6 @@ fn pushed_subject(root: &Path) -> String {
 fn scrubbing_gates(work: &Path) {
     fs::remove_file(work.join("scripts/gates.sh")).unwrap();
     link_script(work, "gates.sh");
-    link_script(work, "script-tests-skippable.sh");
 }
 
 fn denylist(root: &Path, terms: &str) {
@@ -267,12 +341,23 @@ fn denylist(root: &Path, terms: &str) {
 }
 
 fn pushed(root: &Path) -> bool {
-    isolated(
+    let output = isolated(
         Command::new("git")
             .current_dir(root.join("origin.git"))
-            .args(["rev-parse", "--verify", "--quiet", "topic"]),
+            .args(["for-each-ref"]),
     )
-    .status()
-    .unwrap()
-    .success()
+    .output()
+    .unwrap();
+    !stdout(&output).is_empty()
+}
+
+fn local_subject(work: &Path) -> String {
+    let output = isolated(
+        Command::new("git")
+            .current_dir(work)
+            .args(["log", "-1", "--format=%s"]),
+    )
+    .output()
+    .unwrap();
+    stdout(&output).trim().to_string()
 }

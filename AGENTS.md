@@ -17,15 +17,19 @@ in `plans/`.
 No employer data, ever: no org or repo names, PR numbers or titles, logins, hostnames, cluster
 or kube-context names, ticket prefixes. Fixtures come from this repo's own public PRs;
 screenshots and TUI tests use invented `acme/*` data; plans and docs use `<owner>/<repo>`
-placeholders. `scripts/scrub-check.sh` (first gate, and again in `ship.sh` between `git add -A`
-and `git commit`) fails when what is about to be committed matches the local denylist at
-`~/.config/conveyor-dev/denylist` (or the file `CONVEYOR_DENYLIST` names): the contents and the
-paths of the index and of the working tree's tracked and untracked files that are not ignored.
-The list is kept outside the repo on purpose; the check is skipped only where that default path
-does not exist at all, so CI does not enforce it, and fails when the path is there but is not a
-readable file, when `CONVEYOR_DENYLIST` names one that is not, when the list is empty, or when
-`git grep` cannot run. It does not read commit messages, branch names or the contents of binary
-files.
+placeholders. `scripts/scrub-check.sh` matches the local denylist at
+`~/.config/conveyor-dev/denylist` (or the file `CONVEYOR_DENYLIST` names) against what
+`ship.sh` publishes, three times: as the first gate and again between `git add -A` and
+`git commit`, it reads the contents and the paths of the index and of the working tree's
+tracked and untracked files that are not ignored; between `git commit` and `git push`,
+`--outgoing` reads the branch name and every commit no remote has yet (`git log -p --cc`: the
+messages, the paths, the added and removed lines, a symlink's target). A refused push leaves the
+commit local, to fix with `git commit --amend` or `git reset --soft HEAD~1`. The list is kept
+outside the repo on purpose; the check is skipped only where that default path does not exist
+at all, so CI does not enforce it, and fails when the path is there but is not a readable file,
+when `CONVEYOR_DENYLIST` names one that is not, when the list is empty, or when `git grep` or
+`git log` cannot run. It does not read the contents of binary files, the PR body, or anything
+pushed without `ship.sh`.
 
 ## Layout
 
@@ -100,7 +104,7 @@ flake.nix, flake.lock         the Nix flake: the binary built from `Cargo.toml`,
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/scrub-check.sh        denylist grep over what a commit would take (see "This repository is public")
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
-scripts/ship.sh               gates + dev-install (unless skippable) + stage + scrub + commit + push, aborts on any failure; the first push of a branch opens the draft PR (commit subject as title, the template as body)
+scripts/ship.sh               gates + dev-install (unless skippable) + stage + scrub + commit + scrub of the outgoing commits and branch name + push, aborts on any failure; the first push of a branch opens the draft PR (commit subject as title, the template as body)
 scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
 scripts/script-tests-skippable.sh exit 0 with the reason when `gates.sh` may leave out the `scripts` test target, else 1 with the first path that needs it
 scripts/feeds-binary.sh       reads paths on stdin, prints the ones that feed the binary; the one list of what does not (`tests/`, `docs/`, `changes/`, …)

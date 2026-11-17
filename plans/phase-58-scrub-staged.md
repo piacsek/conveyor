@@ -53,6 +53,12 @@ exactly like a machine with no denylist.
 | readable file | a listed term only in the path of an ignored file | `clean`, exit 0 |
 | empty file | any | `git grep` fails, exit 1 |
 | readable file | a listed term in a file written after the gates ran, before `git add -A` | `ship.sh` scrubs again after `git add -A`: nothing committed or pushed, the files stay staged |
+| readable file | a listed term only in the commit message | committed, not pushed, no PR opened; `ship.sh` says to amend or reset |
+| readable file | a listed term in the branch name | committed, not pushed |
+| readable file | a listed term added and removed again by commits no remote has | committed, not pushed |
+| readable file | a symlink whose target holds a listed term, in an outgoing commit | `--outgoing` names the target line, exit 1 |
+| readable file | a listed term only in commits a remote already has | `--outgoing` reads `clean`, exit 0 |
+| readable file | `git log` cannot run (no commit yet) | `--outgoing` says `git log failed`, exit 1 |
 
 ## Tasks
 
