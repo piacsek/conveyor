@@ -14,15 +14,15 @@ pub fn display_width(text: &str) -> usize {
     UnicodeWidthStr::width(text)
 }
 
-fn fitting(text: &str, room: usize) -> usize {
+pub fn take_width(text: &str, width: usize) -> &str {
     let mut used = 0;
     for (at, c) in text.char_indices() {
         used += UnicodeWidthChar::width(c).unwrap_or(0);
-        if used > room {
-            return at;
+        if used > width {
+            return &text[..at];
         }
     }
-    text.len()
+    text
 }
 
 pub fn truncate(text: &str, width: usize) -> String {
@@ -32,7 +32,7 @@ pub fn truncate(text: &str, width: usize) -> String {
     if width == 0 {
         return String::new();
     }
-    format!("{}…", &text[..fitting(text, width - 1)])
+    format!("{}…", take_width(text, width - 1))
 }
 
 pub fn wrap(text: &str, width: usize, lines: usize) -> Vec<String> {
@@ -48,7 +48,7 @@ pub fn wrap(text: &str, width: usize, lines: usize) -> Vec<String> {
                 wrapped.push(std::mem::take(&mut current));
             }
             let first = word.chars().next().map_or(0, char::len_utf8);
-            let at = fitting(&word, width).max(first);
+            let at = take_width(&word, width).len().max(first);
             wrapped.push(word[..at].to_string());
             word = word[at..].to_string();
         }

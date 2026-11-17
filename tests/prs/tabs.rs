@@ -311,6 +311,18 @@ fn a_bar_too_wide_for_the_column_drops_tabs_before_the_active_one() {
 }
 
 #[test]
+fn a_bar_of_wide_tab_names_too_wide_for_the_column_is_cut_with_an_ellipsis() {
+    let mut h = Harness::with_config(160, 12, wide_tabs());
+
+    h.run(vec![prs_in(0, three()), key(KeyCode::Char('2'))])
+        .unwrap();
+
+    let screen = h.screen();
+    let bar: String = screen.lines().nth(1).unwrap().chars().take(40).collect();
+    assert!(bar.contains("…"), "{screen}");
+}
+
+#[test]
 fn the_narrow_layout_draws_the_column_bar_then_the_tab_bar() {
     let mut h = Harness::with_config(80, 12, two_tabs());
 
@@ -439,6 +451,16 @@ fn long_tabs() -> Config {
         tab("alpha-long-name"),
         tab("bravo-long-name"),
         tab("charlie-long-name"),
+    ];
+    config
+}
+
+fn wide_tabs() -> Config {
+    let mut config = Config::default();
+    config.prs.tab = vec![
+        tab("修复修复修复"),
+        tab("审查审查审查"),
+        tab("团队团队团队"),
     ];
     config
 }
