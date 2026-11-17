@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 
 use conveyor::app::{Input, Stage};
 use conveyor::refresh::{Schedule, Wake, spawn, wait};
+use conveyor::sources::failure::Failure;
 
 #[test]
 fn a_burst_of_refresh_signals_wakes_the_fetcher_once() {
@@ -303,6 +304,48 @@ fn a_refresh_naming_a_tab_fetches_that_tab_and_the_result_carries_it() {
         next(),
         Input::Data(Stage::Prs, 1, Err("tab 1".to_string().into()))
     );
+}
+
+#[test]
+fn a_crashed_fetch_comes_back_as_the_columns_error_and_the_next_refresh_fetches() {
+    let (inputs_tx, inputs) = mpsc::channel();
+    let mut fetches = 0;
+    let refresh = spawn(Stage::Queue, secs(60), 1, inputs_tx, move |_| {
+        fetches += 1;
+        if fetches == 1 {
+            panic!("boom");
+        }
+        Err("fetched again".to_string().into())
+    });
+    let next = || inputs.recv_timeout(secs(5)).unwrap().unwrap();
+
+    assert_eq!(next(), Input::Fetching(Stage::Queue, 0));
+    assert_eq!(
+        next(),
+        Input::Data(Stage::Queue, 0, Err(Failure::crashed(&"boom")))
+    );
+
+    refresh.send(0).unwrap();
+
+    assert_eq!(next(), Input::Fetching(Stage::Queue, 0));
+    assert_eq!(
+        next(),
+        Input::Data(Stage::Queue, 0, Err("fetched again".to_string().into()))
+    );
+}
+
+#[test]
+fn no_profile_aborts_on_a_panic_so_a_crash_stays_catchable() {
+    let manifest: toml::Table = include_str!("../Cargo.toml").parse().unwrap();
+    let profiles = manifest.get("profile").and_then(toml::Value::as_table);
+    let aborting: Vec<&String> = profiles
+        .into_iter()
+        .flatten()
+        .filter(|(_, profile)| profile.get("panic").and_then(toml::Value::as_str) == Some("abort"))
+        .map(|(name, _)| name)
+        .collect();
+
+    assert!(aborting.is_empty(), "{aborting:?}");
 }
 
 fn secs(n: u64) -> Duration {

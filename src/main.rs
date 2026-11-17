@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::env;
 use std::io;
+use std::panic;
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::mpsc;
@@ -12,6 +13,7 @@ use conveyor::app::{
 };
 use conveyor::cli::{self, Command};
 use conveyor::config::{self, Config, Repo, expand_home};
+use conveyor::crash;
 use conveyor::events::{self, Crossterm, SystemClock};
 use conveyor::log::{self, Log};
 use conveyor::open::{DemoOpener, Opener, SystemOpener};
@@ -135,6 +137,8 @@ where
     if let Some(err) = &config_error {
         log.line(&format!("config error: {err}"));
     }
+    let mut terminal = ratatui::init();
+    panic::set_hook(crash::hook(log.clone(), panic::take_hook()));
     let (tx, rx) = mpsc::channel::<io::Result<Input>>();
     let mut refreshers: HashMap<Stage, mpsc::Sender<usize>> = HashMap::new();
     refreshers.insert(
@@ -198,7 +202,6 @@ where
     app.notice = config_error;
     app.demo = demo;
     app.utc_offset_secs = chrono::Local::now().offset().local_minus_utc();
-    let mut terminal = ratatui::init();
     let result = run(
         &mut terminal,
         &mut app,
@@ -243,7 +246,10 @@ where
 }
 
 fn spawn_terminal_events(tx: Inputs) {
-    thread::spawn(move || events::forward(&mut Crossterm, &SystemClock, &tx));
+    thread::Builder::new()
+        .name("terminal events".to_string())
+        .spawn(move || events::forward(&mut Crossterm, &SystemClock, &tx))
+        .expect("the terminal events thread starts");
 }
 
 fn spawn_prs_fetcher(

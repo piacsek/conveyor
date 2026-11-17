@@ -87,7 +87,10 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   and the kind, which owns the footer `progress` and the card `word`; each result removes its
   own entry, a pull request result by number and kind, a rerun by its run ids. Each kind still
   has one worker thread in `main`, so two writes of the same kind run one after the other, each
-  row busy until its own answer. The same pull request number in two repositories shares a key:
+  row busy until its own answer. A worker catches a panic around one request
+  (`crash::catch`) and answers that request with `crashed: <msg>` as its failure
+  (`worker::Task::crashed`: the card mark for a write, every run of a rerun, the jobs or log
+  pane), then takes the next request. The same pull request number in two repositories shares a key:
   one blocks the other. `X`, `M` and `U` were removed in v0.21.0; `S` replaced them.
   A letter re-derives the menu: a different title (another row selected) or a different offer
   under the letter says `the pull request changed; press S again` (`the run changed` in Main
@@ -317,6 +320,15 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   terminals send a key-repeat stream for a held key, which opened a tab per repeat. Ticks keep
   `app.now` moving under a held key, so a window measured from the last open would open a tab
   every second; a held key opens one, and the next press after 1 s of quiet opens again.
+- **A crashed fetch is the column's error.** `refresh::spawn` catches a panic around one
+  `fetch(tab)` and sends it as that tab's `Err` (`crashed: <msg>`), keeping its schedule, so
+  the next interval or `r` fetches again. The panic hook `main` installs right after
+  `ratatui::init()`, before any thread starts (`crash::hook`), writes `panic on <thread>: <msg>
+  at <file:line>` to the call log for every panic and restores the terminal only for a panic
+  on the main thread: ratatui's own hook restored it from any thread, which left a worker's
+  panic with a cooked terminal and no keys (phase 54). Threads are named `<kind> worker`,
+  `<Stage> fetcher` and `terminal events`. A panic in the events thread ends `run()` with
+  `terminal events stopped: crashed: <msg>`, since nothing else could quit a raw terminal.
 - **Refreshes coalesce in the fetcher.** `r`/`R` always send a `Request::Refresh`; each
   fetcher thread wakes through `refresh::wait`, which takes one signal and drains the rest, so
   a burst costs at most one fetch beyond the one running, and a held `r` refetches back to back
