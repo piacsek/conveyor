@@ -32,6 +32,7 @@ src/config.rs    the config: its tables, defaults, path and `CONVEYOR_CONFIG` ov
 src/sources/     everything that reaches out to an external service, and nothing else
 src/sources/github.rs the Github trait and CliGh, which spawns `gh` (and `git` for the checkout guard), error mapping
 src/sources/kube.rs   the Kube trait and CliKubectl, which spawns `kubectl` under a deadline that kills it
+src/sources/failure.rs Failure: what a failed call said and which kind of failure it was
 src/sources/fetch.rs  what each stage fetches, the sha → pull request cache, Deployed read per environment on parallel threads
 src/sources/queries/  GraphQL documents, `include_str!`ed
 src/sources/AGENTS.md GitHub and kubectl facts: API shapes and queries, the sha → pull request lookup, the spawn lock, call logging, the kubectl deadline
@@ -77,6 +78,7 @@ src/ui/dialog.rs the `S` popup and the confirm dialog
 src/ui/help.rs   KEYS is the generic table the README mirrors; the `p`/`b` wording swapped per column, the tab keys as configured
 src/ui/AGENTS.md  cards, glyphs and icons, dialogs, the details, help and changelog panes, the footer, colours
 src/refresh.rs   one fetcher thread per stage, sleeping until the interval or a refresh
+src/worker.rs    one thread per kind of request (jobs, log, rerun, merge, update, status, checkout): each request in, one input back
 src/events.rs    the terminal events thread: key presses and resizes as inputs, a tick every 250 ms by deadline
 src/open.rs      opening a URL and copying to the clipboard: the OS seam, not a service, so it stays out of `sources/`
 src/changelog.rs the bundled CHANGELOG.md and the rules a release entry must meet

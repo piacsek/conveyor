@@ -232,7 +232,7 @@ fn marked_first(
         Ok(conveyor::app::Input::StatusChanged(
             1,
             conveyor::model::prs::StatusChange::Ready,
-            Err("HTTP 422".to_string()),
+            Err("HTTP 422".to_string().into()),
         )),
     ];
     inputs.extend(then);

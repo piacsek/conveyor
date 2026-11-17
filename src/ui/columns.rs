@@ -283,8 +283,8 @@ fn draw_list<T: Row>(
     if column.is_loading() {
         let body = column
             .error
-            .clone()
-            .unwrap_or_else(|| "fetching…".to_string());
+            .as_ref()
+            .map_or_else(|| "fetching…".to_string(), ToString::to_string);
         frame.render_widget(Paragraph::new(body).block(block), area);
         return;
     }

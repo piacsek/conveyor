@@ -6,6 +6,7 @@ use std::time::Instant;
 use crate::config::{MergeMethod, UpdateMethod};
 use crate::log::Log;
 use crate::model::prs::{BranchUpdate, StatusChange};
+use crate::sources::failure::Failure;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Variable {
@@ -38,22 +39,28 @@ impl From<usize> for Variable {
 }
 
 pub trait Github {
-    fn graphql(&self, query: &str, vars: &[(&str, Variable)]) -> io::Result<serde_json::Value>;
-    fn rest(&self, path: &str) -> io::Result<serde_json::Value>;
-    fn current_repo(&self) -> io::Result<String>;
+    fn graphql(&self, query: &str, vars: &[(&str, Variable)])
+    -> Result<serde_json::Value, Failure>;
+    fn rest(&self, path: &str) -> Result<serde_json::Value, Failure>;
+    fn current_repo(&self) -> Result<String, Failure>;
     /// The raw `gh run view --log-failed` text for one job of a run.
-    fn log_failed(&self, repo: &str, run_id: u64, job_id: u64) -> io::Result<String>;
-    fn rerun_failed(&self, repo: &str, run_id: u64) -> io::Result<()>;
-    fn merge(&self, repo: &str, number: u64, method: MergeMethod, head_oid: &str)
-    -> io::Result<()>;
+    fn log_failed(&self, repo: &str, run_id: u64, job_id: u64) -> Result<String, Failure>;
+    fn rerun_failed(&self, repo: &str, run_id: u64) -> Result<(), Failure>;
+    fn merge(
+        &self,
+        repo: &str,
+        number: u64,
+        method: MergeMethod,
+        head_oid: &str,
+    ) -> Result<(), Failure>;
     fn update_branch(
         &self,
         repo: &str,
         number: u64,
         method: UpdateMethod,
-    ) -> io::Result<BranchUpdate>;
-    fn change_status(&self, repo: &str, number: u64, change: &StatusChange) -> io::Result<()>;
-    fn checkout(&self, repo: &str, number: u64, dir: Option<&Path>) -> io::Result<()>;
+    ) -> Result<BranchUpdate, Failure>;
+    fn change_status(&self, repo: &str, number: u64, change: &StatusChange) -> Result<(), Failure>;
+    fn checkout(&self, repo: &str, number: u64, dir: Option<&Path>) -> Result<(), Failure>;
 }
 
 const ENABLE_AUTO_MERGE: &str = "mutation($id: ID!, $method: PullRequestMergeMethod!, $head: GitObjectID) { enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head}) { clientMutationId } }";
@@ -229,7 +236,7 @@ impl CliGh {
         .to_vec()
     }
 
-    fn run(&self, args: &[String]) -> io::Result<String> {
+    fn run(&self, args: &[String]) -> Result<String, Failure> {
         self.exec(&Tool::gh(&self.program), None, args, &[])
     }
 
@@ -239,7 +246,7 @@ impl CliGh {
         dir: Option<&Path>,
         args: &[String],
         env: &[(&str, &str)],
-    ) -> io::Result<String> {
+    ) -> Result<String, Failure> {
         let started = Instant::now();
         let output = self.output(tool.program, dir, args, env).map_err(|err| {
             if err.kind() == io::ErrorKind::NotFound {
@@ -257,10 +264,10 @@ impl CliGh {
             } else {
                 stderr
             };
-            return Err(io::Error::other(message));
+            return Err((tool.said)(message));
         }
         String::from_utf8(output.stdout)
-            .map_err(|err| io::Error::other(format!("{} printed invalid UTF-8: {err}", tool.name)))
+            .map_err(|err| Failure::from(format!("{} printed invalid UTF-8: {err}", tool.name)))
     }
 
     fn output(
@@ -292,6 +299,7 @@ struct Tool<'a> {
     program: &'a Path,
     name: &'static str,
     missing: &'static str,
+    said: fn(String) -> Failure,
 }
 
 impl<'a> Tool<'a> {
@@ -300,6 +308,7 @@ impl<'a> Tool<'a> {
             program,
             name: "gh",
             missing: MISSING,
+            said: Failure::said_by_gh,
         }
     }
 
@@ -308,32 +317,37 @@ impl<'a> Tool<'a> {
             program,
             name: "git",
             missing: "git not found on PATH",
+            said: Failure::from,
         }
     }
 }
 
 impl Github for CliGh {
-    fn graphql(&self, query: &str, vars: &[(&str, Variable)]) -> io::Result<serde_json::Value> {
+    fn graphql(
+        &self,
+        query: &str,
+        vars: &[(&str, Variable)],
+    ) -> Result<serde_json::Value, Failure> {
         let stdout = self.run(&Self::graphql_args(query, vars))?;
         serde_json::from_str(&stdout)
-            .map_err(|err| io::Error::other(format!("gh returned invalid JSON: {err}")))
+            .map_err(|err| Failure::from(format!("gh returned invalid JSON: {err}")))
     }
 
-    fn rest(&self, path: &str) -> io::Result<serde_json::Value> {
+    fn rest(&self, path: &str) -> Result<serde_json::Value, Failure> {
         let stdout = self.run(&Self::rest_args(path))?;
         serde_json::from_str(&stdout)
-            .map_err(|err| io::Error::other(format!("gh returned invalid JSON: {err}")))
+            .map_err(|err| Failure::from(format!("gh returned invalid JSON: {err}")))
     }
 
-    fn current_repo(&self) -> io::Result<String> {
+    fn current_repo(&self) -> Result<String, Failure> {
         Ok(self.run(&Self::current_repo_args())?.trim().to_string())
     }
 
-    fn log_failed(&self, repo: &str, run_id: u64, job_id: u64) -> io::Result<String> {
+    fn log_failed(&self, repo: &str, run_id: u64, job_id: u64) -> Result<String, Failure> {
         self.run(&Self::log_failed_args(repo, run_id, job_id))
     }
 
-    fn rerun_failed(&self, repo: &str, run_id: u64) -> io::Result<()> {
+    fn rerun_failed(&self, repo: &str, run_id: u64) -> Result<(), Failure> {
         self.run(&Self::rerun_failed_args(repo, run_id)).map(|_| ())
     }
 
@@ -343,7 +357,7 @@ impl Github for CliGh {
         number: u64,
         method: MergeMethod,
         head_oid: &str,
-    ) -> io::Result<()> {
+    ) -> Result<(), Failure> {
         self.run(&Self::merge_args(repo, number, method, head_oid))
             .map(|_| ())
             .map_err(without_warnings)
@@ -354,7 +368,7 @@ impl Github for CliGh {
         repo: &str,
         number: u64,
         method: UpdateMethod,
-    ) -> io::Result<BranchUpdate> {
+    ) -> Result<BranchUpdate, Failure> {
         match self.run(&Self::update_branch_args(repo, number, method)) {
             Ok(stdout) if stdout.contains("already up-to-date") => Ok(BranchUpdate::UpToDate),
             Ok(_) => Ok(BranchUpdate::Updated),
@@ -369,18 +383,15 @@ impl Github for CliGh {
         }
     }
 
-    fn change_status(&self, repo: &str, number: u64, change: &StatusChange) -> io::Result<()> {
+    fn change_status(&self, repo: &str, number: u64, change: &StatusChange) -> Result<(), Failure> {
         self.run(&Self::status_args(repo, number, change))
             .map(|_| ())
             .map_err(without_warnings)
     }
 
-    fn checkout(&self, repo: &str, number: u64, dir: Option<&Path>) -> io::Result<()> {
+    fn checkout(&self, repo: &str, number: u64, dir: Option<&Path>) -> Result<(), Failure> {
         if let Some(dir) = dir.filter(|dir| !dir.is_dir()) {
-            return Err(io::Error::other(format!(
-                "{} is not a directory",
-                dir.display()
-            )));
+            return Err(format!("{} is not a directory", dir.display()).into());
         }
         let remotes = self
             .exec(&Tool::git(&self.git), dir, &Self::remotes_args(), &[])
@@ -412,15 +423,15 @@ fn names(remote: &str, repo: &str) -> bool {
     format!("{owner}/{name}").eq_ignore_ascii_case(repo)
 }
 
-fn not_a_repository(err: io::Error, repo: &str, dir: Option<&Path>) -> io::Error {
-    if err.kind() != io::ErrorKind::NotFound && err.to_string().contains("not a git repository") {
+fn not_a_repository(err: Failure, repo: &str, dir: Option<&Path>) -> Failure {
+    if err.message().contains("not a git repository") {
         return no_clone(repo, dir);
     }
     gits_reason(err)
 }
 
-fn no_clone(repo: &str, dir: Option<&Path>) -> io::Error {
-    io::Error::other(match dir {
+fn no_clone(repo: &str, dir: Option<&Path>) -> Failure {
+    Failure::from(match dir {
         Some(dir) => format!("{} is not a clone of {repo}", dir.display()),
         None => {
             format!("conveyor does not run in a clone of {repo}; set `path` under its [[repo]]")
@@ -428,14 +439,15 @@ fn no_clone(repo: &str, dir: Option<&Path>) -> io::Error {
     })
 }
 
-fn gits_reason(err: io::Error) -> io::Error {
-    let message = err.to_string();
-    let reason = message
+fn gits_reason(err: Failure) -> Failure {
+    let reason = err
+        .message()
         .lines()
         .find(|line| line.starts_with("fatal: ") || line.starts_with("error: "))
-        .or_else(|| message.lines().rfind(|line| !line.trim().is_empty()));
+        .or_else(|| err.message().lines().rfind(|line| !line.trim().is_empty()))
+        .map(str::to_string);
     match reason {
-        Some(line) => io::Error::other(line.to_string()),
+        Some(line) => err.reworded(line),
         None => err,
     }
 }
@@ -447,14 +459,15 @@ fn pinned<'a>(mut vars: Vec<(&'a str, Variable)>, head_oid: &str) -> Vec<(&'a st
     vars
 }
 
-fn without_warnings(err: io::Error) -> io::Error {
-    let message = err.to_string();
-    let kept: Vec<&str> = message
+fn without_warnings(err: Failure) -> Failure {
+    let kept: Vec<&str> = err
+        .message()
         .lines()
         .filter(|line| !line.starts_with("! "))
         .collect();
     if kept.is_empty() {
         return err;
     }
-    io::Error::new(err.kind(), kept.join("\n"))
+    let kept = kept.join("\n");
+    err.reworded(kept)
 }

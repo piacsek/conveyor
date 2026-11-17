@@ -12,7 +12,11 @@ pub struct CheckoutTarget {
 }
 
 impl App {
-    pub fn receive_checkout(&mut self, target: &CheckoutTarget, result: &Result<(), String>) {
+    pub fn receive_checkout(
+        &mut self,
+        target: &CheckoutTarget,
+        result: &Result<(), crate::sources::failure::Failure>,
+    ) {
         let number = target.number;
         let write = self.finish_write(number, &WriteKind::Checkout);
         if let Err(message) = result {

@@ -5,7 +5,12 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
 ## Behaviour that is easy to break
 
 - **Errors stay inside the TUI.** A failed action or fetch sets an error drawn in the footer
-  or column title, and a failed action also marks its card; the app never exits on it.
+  or column title, and a failed action also marks its card; the app never exits on it. Each
+  holds a `sources::failure::Failure`, so its kind travels with its text: `Column::error`, a
+  Deployed row's `error` and `pods_error`, `JobsState::Failed`, `LogState::Failed`, and the
+  `kind` of a card's mark (`app::Failure`, set by `fail`). A rerun of several runs marks the
+  card with the first failed run's kind. Update's conflicts read `Other`. What a card does with
+  a kind is a later issue.
 - **Draw before the first read.** `run()` renders, then waits for input.
 - **The filter is a value, editing is a mode.** `App.query` is the live filter on all four
   columns; `Mode::Filter` only means it is being typed (footer cursor `▏`). `Enter` commits

@@ -4,10 +4,14 @@ use std::process::Command;
 use std::sync::{Arc, Barrier, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
-use conveyor::config::DeployEnv;
+use conveyor::app::{App, Rows, Stage};
+use conveyor::config::{Config, Deploy, DeployEnv};
 use conveyor::log::Log;
 use conveyor::model::deployed::sha_from_image;
-use conveyor::sources::kube::{CliKubectl, Kube};
+use conveyor::sources::failure::FailureKind;
+use conveyor::sources::fetch::DeploySource;
+use conveyor::sources::github::CliGh;
+use conveyor::sources::kube::{CliKubectl, Kube, MISSING};
 
 static SHIMS: Mutex<()> = Mutex::new(());
 
@@ -335,6 +339,119 @@ fn the_sha_is_the_40_hex_tag_or_a_40_hex_suffix() {
     );
     assert!(sha_from_image("ghcr.io/acme/api").is_err());
     assert!(sha_from_image("registry:5000/acme/api@sha256:abc").is_err());
+}
+
+#[test]
+fn a_missing_kubectl_fails_the_deployed_row_as_program_missing_with_its_own_words() {
+    let app = deployed_by(CliKubectl::with_program("/nonexistent/kubectl".into()));
+
+    let failure = app
+        .deployed
+        .column
+        .selected()
+        .unwrap()
+        .error
+        .clone()
+        .unwrap();
+    assert_eq!(failure.kind(), FailureKind::ProgramMissing);
+    assert_eq!(app.focused_error(), Some(MISSING));
+}
+
+#[test]
+fn a_kubectl_past_its_deadline_fails_the_deployed_row_as_timed_out_with_its_own_words() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let kubectl = shim(&dir, "exec sleep 5").with_deadline(Duration::from_secs(1));
+
+    let app = deployed_by(kubectl);
+
+    let failure = app
+        .deployed
+        .column
+        .selected()
+        .unwrap()
+        .error
+        .clone()
+        .unwrap();
+    assert_eq!(failure.kind(), FailureKind::TimedOut);
+    assert_eq!(
+        app.focused_error(),
+        Some("kubectl did not answer within 1s")
+    );
+}
+
+#[test]
+fn any_other_kubectl_failure_fails_the_deployed_row_as_other_with_its_own_words() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let kubectl = shim(
+        &dir,
+        "echo 'error: You must be logged in to the server' >&2; exit 1",
+    );
+
+    let app = deployed_by(kubectl);
+
+    let failure = app
+        .deployed
+        .column
+        .selected()
+        .unwrap()
+        .error
+        .clone()
+        .unwrap();
+    assert_eq!(failure.kind(), FailureKind::Other);
+    assert_eq!(
+        app.focused_error(),
+        Some("error: You must be logged in to the server")
+    );
+}
+
+#[test]
+fn pods_past_the_deadline_fail_the_rows_pods_as_timed_out_with_their_own_words() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let kubectl = shim(
+        &dir,
+        &format!(
+            r#"case "$*" in *"get pods"*) exec sleep 5;; *) cat '{}/tests/fixtures/deployment.json';; esac"#,
+            env!("CARGO_MANIFEST_DIR")
+        ),
+    );
+    kubectl.deployment(&env()).unwrap();
+
+    let app = deployed_by(kubectl.with_deadline(Duration::from_secs(1)));
+
+    let failure = app
+        .deployed
+        .column
+        .selected()
+        .unwrap()
+        .pods_error
+        .clone()
+        .unwrap();
+    assert_eq!(failure.kind(), FailureKind::TimedOut);
+    assert_eq!(failure.to_string(), "kubectl did not answer within 1s");
+}
+
+fn deployed_by(kubectl: CliKubectl) -> App {
+    let deploy = Deploy {
+        env: vec![env()],
+        ..Deploy::default()
+    };
+    let mut source = DeploySource::new("acme/api".to_string(), deploy);
+    let gh = CliGh::with_program("/nonexistent/gh".into());
+    let mut app = App::new(Config::default());
+    app.focus = Stage::Deployed;
+    app.receive(
+        Stage::Deployed,
+        0,
+        Ok(Rows::Deployed(source.fetch(
+            &gh,
+            &kubectl,
+            std::time::SystemTime::UNIX_EPOCH,
+        ))),
+    );
+    app
 }
 
 fn time_out_once_ready(dir: &tempfile::TempDir, mut kubectl: CliKubectl) {

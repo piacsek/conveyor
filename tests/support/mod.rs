@@ -147,13 +147,13 @@ pub fn rerun_done(results: Vec<(u64, Result<(), &str>)>) -> io::Result<Input> {
     Ok(Input::Rerun(
         results
             .into_iter()
-            .map(|(run_id, result)| (run_id, result.map_err(str::to_string)))
+            .map(|(run_id, result)| (run_id, result.map_err(|err| err.to_string().into())))
             .collect(),
     ))
 }
 
 pub fn jobs_failed(run_id: u64, message: &str) -> io::Result<Input> {
-    Ok(Input::Jobs(run_id, Err(message.to_string())))
+    Ok(Input::Jobs(run_id, Err(message.to_string().into())))
 }
 
 pub fn job(id: u64, name: &str, status: BuildStatus, failed_step: Option<&str>) -> Job {
@@ -232,7 +232,7 @@ pub fn failed(stage: Stage, message: &str) -> io::Result<Input> {
 }
 
 pub fn failed_in(stage: Stage, tab: usize, message: &str) -> io::Result<Input> {
-    Ok(Input::Data(stage, tab, Err(message.to_string())))
+    Ok(Input::Data(stage, tab, Err(message.to_string().into())))
 }
 
 pub fn fetching(stage: Stage) -> io::Result<Input> {

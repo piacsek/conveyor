@@ -1,6 +1,7 @@
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 
+use conveyor::sources::failure::FailureKind;
 use conveyor::sources::github::{CliGh, Github};
 
 use crate::shims::{serialized, shim};
@@ -220,6 +221,26 @@ fn a_refused_checkout_with_no_reason_from_git_reports_the_last_line_gh_printed()
     assert_eq!(
         err.to_string(),
         "GraphQL: Could not resolve to a PullRequest with the number of 42."
+    );
+}
+
+#[test]
+fn a_checkout_refused_for_a_rejected_token_keeps_its_kind_in_the_line_it_reports() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let clone = clone_dir(&dir);
+    let (gh, _calls) = shims(
+        &dir,
+        ORIGIN,
+        r#"printf '%s\n' 'HTTP 401: Bad credentials (https://api.github.com/graphql)' 'Try authenticating with:  gh auth login -h github.com' >&2; exit 1"#,
+    );
+
+    let err = gh.checkout("acme/webapp", 42, Some(&clone)).unwrap_err();
+
+    assert_eq!(err.kind(), FailureKind::NotSignedIn);
+    assert_eq!(
+        err.to_string(),
+        "Try authenticating with:  gh auth login -h github.com"
     );
 }
 

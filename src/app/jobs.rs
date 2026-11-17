@@ -1,5 +1,6 @@
 use crate::model::builds::{Build, BuildStatus};
 use crate::model::jobs::Job;
+use crate::sources::failure::Failure;
 
 use super::{Action, App, Stage};
 
@@ -11,7 +12,7 @@ pub enum JobsState {
     Ready(Vec<Job>),
     Stale(Vec<Job>),
     Refreshing(Vec<Job>),
-    Failed(String),
+    Failed(Failure),
 }
 
 impl JobsState {
@@ -29,7 +30,7 @@ impl JobsState {
 pub enum LogState {
     Loading,
     Ready(Vec<String>),
-    Failed(String),
+    Failed(Failure),
 }
 
 impl App {
@@ -173,7 +174,7 @@ impl App {
         }
     }
 
-    pub fn receive_log(&mut self, job_id: u64, result: Result<Vec<String>, String>) {
+    pub fn receive_log(&mut self, job_id: u64, result: Result<Vec<String>, Failure>) {
         let state = match result {
             Ok(lines) => LogState::Ready(lines),
             Err(message) => LogState::Failed(message),
@@ -185,7 +186,7 @@ impl App {
         }
     }
 
-    pub fn receive_jobs(&mut self, run_id: u64, result: Result<Vec<Job>, String>) {
+    pub fn receive_jobs(&mut self, run_id: u64, result: Result<Vec<Job>, Failure>) {
         let settled = self.run_is_settled(run_id);
         let state = match (result, self.jobs.remove(&run_id)) {
             (Ok(jobs), _) => JobsState::Ready(jobs),

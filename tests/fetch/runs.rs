@@ -31,7 +31,7 @@ fn fetch_jobs_turns_a_gh_error_into_a_message() {
 
     let error = conveyor::sources::fetch::fetch_jobs(&gh, "acme/webapp", 7).unwrap_err();
 
-    assert_eq!(error, "gh: HTTP 404");
+    assert_eq!(error.to_string(), "gh: HTTP 404");
 }
 
 #[test]
@@ -61,7 +61,7 @@ fn fetch_log_turns_a_gh_error_into_a_message() {
 
     let error = conveyor::sources::fetch::fetch_log(&gh, "acme/webapp", 7, 1).unwrap_err();
 
-    assert_eq!(error, "gh: HTTP 404");
+    assert_eq!(error.to_string(), "gh: HTTP 404");
 }
 
 #[test]
@@ -90,7 +90,10 @@ fn rerun_failed_tries_every_run_past_an_error_and_reports_each() {
     assert_eq!(results[0], (431, Ok(())));
     assert_eq!(
         results[1],
-        (432, Err("HTTP 403: Resource not accessible".to_string()))
+        (
+            432,
+            Err("HTTP 403: Resource not accessible".to_string().into())
+        )
     );
     assert_eq!(results[2], (433, Ok(())));
 }

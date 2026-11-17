@@ -240,6 +240,39 @@ fn a_rerun_that_failed_for_some_runs_says_how_many_on_the_card() {
     );
 }
 
+#[test]
+fn a_rerun_that_failed_for_several_runs_marks_the_card_with_the_kind_of_the_first() {
+    use conveyor::app::{Input, Stage};
+    use conveyor::sources::failure::{Failure, FailureKind};
+    let mut h = Harness::with_size(160, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![failing_in("test", 70), failing_in("e2e", 80)];
+
+    h.run(vec![
+        prs(vec![failing]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('f')),
+        Ok(Input::Rerun(vec![
+            (70, Err(Failure::said_by_gh(SIGNED_OUT.to_string()))),
+            (80, Err(Failure::said_by_gh(RATE_LIMITED.to_string()))),
+        ])),
+    ])
+    .unwrap();
+
+    let mark = h.app.failure_on(Stage::Prs, 4821).unwrap();
+    assert_eq!(mark.kind, FailureKind::NotSignedIn);
+    assert_eq!(
+        h.app.notice.as_deref(),
+        Some(
+            "rerun failed: run 70: gh: Bad credentials (HTTP 401); run 80: gh: API rate limit exceeded for user ID 1. (HTTP 403)"
+        )
+    );
+}
+
+const SIGNED_OUT: &str = "gh: Bad credentials (HTTP 401)";
+
+const RATE_LIMITED: &str = "gh: API rate limit exceeded for user ID 1. (HTTP 403)";
+
 fn rerun_from_my_prs(results: Vec<(u64, Result<(), &str>)>) -> String {
     let mut h = Harness::with_size(160, 20);
     let mut failing = pr(4821, "Retry hooks");

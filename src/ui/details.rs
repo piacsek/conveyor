@@ -241,7 +241,7 @@ fn deployed_details(row: &Deployment, now: SystemTime) -> Vec<Line<'static>> {
     ]));
     if let Some(error) = &row.error {
         lines.push(Line::from(Span::styled(
-            error.clone(),
+            error.to_string(),
             Style::default().fg(Color::Red),
         )));
     }
@@ -379,7 +379,7 @@ fn log_body(state: &LogState) -> Vec<Line<'static>> {
     match state {
         LogState::Loading => vec![Line::from(Span::styled("loading…", dim()))],
         LogState::Failed(message) => vec![Line::from(Span::styled(
-            message.clone(),
+            message.to_string(),
             Style::default().fg(Color::Red),
         ))],
         LogState::Ready(lines) => lines.iter().map(|line| Line::from(line.clone())).collect(),

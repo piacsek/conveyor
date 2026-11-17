@@ -173,7 +173,7 @@ fn status_changed(result: Result<(), &str>) -> std::io::Result<conveyor::app::In
     Ok(conveyor::app::Input::StatusChanged(
         4821,
         conveyor::model::prs::StatusChange::Ready,
-        result.map_err(str::to_string),
+        result.map_err(|err| err.to_string().into()),
     ))
 }
 

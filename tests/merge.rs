@@ -213,7 +213,10 @@ fn s_with_nothing_selected_says_so() {
 }
 
 fn merged(number: u64, result: Result<(), &str>) -> std::io::Result<Input> {
-    Ok(Input::Merged(number, result.map_err(str::to_string)))
+    Ok(Input::Merged(
+        number,
+        result.map_err(|err| err.to_string().into()),
+    ))
 }
 
 #[test]
