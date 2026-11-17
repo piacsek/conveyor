@@ -17,9 +17,13 @@ in `plans/`.
 No employer data, ever: no org or repo names, PR numbers or titles, logins, hostnames, cluster
 or kube-context names, ticket prefixes. Fixtures come from this repo's own public PRs;
 screenshots and TUI tests use invented `acme/*` data; plans and docs use `<owner>/<repo>`
-placeholders. `scripts/scrub-check.sh` (first gate) fails when a tracked file matches the
-local denylist at `~/.config/conveyor-dev/denylist` (kept outside the repo on purpose; the
-check is skipped where the file is absent, so CI does not enforce it).
+placeholders. `scripts/scrub-check.sh` (first gate) fails when what `ship.sh` is about to
+commit matches the local denylist at `~/.config/conveyor-dev/denylist` (or the file
+`CONVEYOR_DENYLIST` names): the index, and the working tree's tracked and untracked files that
+are not ignored, which is what `git add -A` stages. The list is kept outside the repo on
+purpose; the check is skipped only where that default path does not exist at all, so CI does
+not enforce it, and fails when the path is there but is not a readable file, when
+`CONVEYOR_DENYLIST` names one that is not, or when `git grep` cannot run.
 
 ## Layout
 
@@ -92,7 +96,7 @@ src/text.rs      text helpers: truncation and wrapping with `…`, ages, duratio
 rust-toolchain.toml           the one Rust version (rustfmt and clippy with it) that local gates and CI run; see Development
 flake.nix, flake.lock         the Nix flake: the binary built from `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md` and `src/` with the Rust `rust-toolchain.toml` names, through the locked `rust-overlay`; feeds the binary
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
-scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
+scripts/scrub-check.sh        denylist grep over what a commit would take (see "This repository is public")
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
 scripts/ship.sh               gates + dev-install (unless skippable) + commit + push, aborts on any failure; the first push of a branch opens the draft PR (commit subject as title, the template as body)
 scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
