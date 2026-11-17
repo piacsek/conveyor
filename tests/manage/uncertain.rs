@@ -1,10 +1,13 @@
-use conveyor::app::{Input, Request, Stage};
-use conveyor::model::prs::{BranchUpdate, MergeState, StatusChange};
+use conveyor::app::{Input, Request, Stage, pull_key};
+use conveyor::config::UpdateMethod;
+use conveyor::model::prs::{BranchUpdate, MergeState, PullRequest, StatusChange};
 use conveyor::sources::failure::Failure;
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::{draft, line_after, open, queueable, status_changed, tall};
-use crate::support::{NOW, fetching, key, prs, tick_at};
+use crate::support::{
+    NOW, fetching, key, merge_target, prs, status_target, tick_at, update_target,
+};
 
 #[test]
 fn a_timed_out_enqueue_keeps_its_mark_and_holds_update_until_my_prs_refreshes() {
@@ -59,7 +62,7 @@ fn a_timed_out_enqueue_keeps_its_mark_and_holds_update_until_my_prs_refreshes() 
     );
     assert_eq!(
         h.app
-            .failure_on(Stage::Prs, 1)
+            .failure_on(Stage::Prs, pull_key("acme/webapp", 1))
             .map(|mark| mark.message.as_str()),
         Some("gh did not answer within 60s; it may already be in the merge queue")
     );
@@ -74,7 +77,10 @@ fn a_timed_out_merge_reloads_both_columns_and_holds_update() {
         key(KeyCode::Char('S')),
         key(KeyCode::Char('m')),
         key(KeyCode::Char('y')),
-        Ok(Input::Merged(1, Err(timed_out("it may already be merged")))),
+        Ok(Input::Merged(
+            merge_target(1, ""),
+            Err(timed_out("it may already be merged")),
+        )),
         prs(vec![open(1, "Retry webhooks")]),
         key(KeyCode::Char('S')),
     ])
@@ -121,7 +127,7 @@ fn a_timed_out_branch_update_reloads_my_prs() {
         key(KeyCode::Char('S')),
         key(KeyCode::Char('u')),
         Ok(Input::BranchUpdated(
-            1,
+            update_target(1, "", UpdateMethod::Merge),
             Err::<BranchUpdate, _>(timed_out("the branch may already be updated")),
         )),
     ])
@@ -153,6 +159,42 @@ fn an_enqueue_that_failed_in_time_neither_reloads_nor_holds_update() {
     );
 }
 
+#[test]
+fn a_timed_out_enqueue_holds_update_only_on_the_pull_request_of_its_own_repository() {
+    let mut h = tall();
+
+    h.run(vec![
+        prs(same_number()),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+        timed_out_in_infra(enqueue(12), "it may already be in the merge queue"),
+        prs(same_number()),
+        key(KeyCode::Char('S')),
+    ])
+    .unwrap();
+
+    assert!(
+        h.screen().contains("waiting for My PRs to catch up with"),
+        "{}",
+        h.screen()
+    );
+
+    h.run(vec![
+        key(KeyCode::Esc),
+        key(KeyCode::Char('k')),
+        key(KeyCode::Char('S')),
+    ])
+    .unwrap();
+
+    assert!(
+        !h.screen().contains("waiting for My PRs to catch up with"),
+        "{}",
+        h.screen()
+    );
+}
+
 fn enqueue(number: u64) -> StatusChange {
     StatusChange::Enqueue {
         node_id: format!("PR_node{number}"),
@@ -166,8 +208,7 @@ fn timed_out(aftermath: &str) -> Failure {
 
 fn timed_out_status(number: u64, change: StatusChange, aftermath: &str) -> std::io::Result<Input> {
     Ok(Input::StatusChanged(
-        number,
-        change,
+        status_target(number, "", change),
         Err(timed_out(aftermath)),
     ))
 }
@@ -177,4 +218,17 @@ fn prs_refreshes(requests: &[Request]) -> usize {
         .iter()
         .filter(|request| **request == Request::Refresh(Stage::Prs, 0))
         .count()
+}
+
+fn timed_out_in_infra(change: StatusChange, aftermath: &str) -> std::io::Result<Input> {
+    let mut target = status_target(12, "", change);
+    target.repo = "acme/infra".to_string();
+    Ok(Input::StatusChanged(target, Err(timed_out(aftermath))))
+}
+
+fn same_number() -> Vec<PullRequest> {
+    let mut infra = queueable(12, "Drop the users table");
+    infra.repo = "acme/infra".to_string();
+    infra.url = "https://github.com/acme/infra/pull/12".to_string();
+    vec![queueable(12, "Bump the api client"), infra]
 }

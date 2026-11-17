@@ -270,7 +270,7 @@ fn a_rerun_that_failed_for_some_runs_says_how_many_on_the_card() {
 
 #[test]
 fn a_rerun_that_failed_for_several_runs_marks_the_card_with_the_kind_of_the_first() {
-    use conveyor::app::{Input, Stage};
+    use conveyor::app::{Input, Stage, pull_key};
     use conveyor::sources::failure::{Failure, FailureKind};
     let mut h = Harness::with_size(160, 20);
     let mut failing = pr(4821, "Retry hooks");
@@ -287,7 +287,10 @@ fn a_rerun_that_failed_for_several_runs_marks_the_card_with_the_kind_of_the_firs
     ])
     .unwrap();
 
-    let mark = h.app.failure_on(Stage::Prs, 4821).unwrap();
+    let mark = h
+        .app
+        .failure_on(Stage::Prs, pull_key("acme/webapp", 4821))
+        .unwrap();
     assert_eq!(mark.kind, FailureKind::NotSignedIn);
     assert_eq!(
         h.app.notice.as_deref(),

@@ -1,13 +1,14 @@
 use std::io;
 
 use conveyor::app::{Input, Stage};
+use conveyor::config::UpdateMethod;
 use conveyor::model::prs::{BranchUpdate, PullRequest, StatusChange};
 use conveyor::text::cells;
 use ratatui::crossterm::event::KeyCode;
 use ratatui::style::Color;
 
 use crate::helpers::{draft, line_after, open, status_changed, tall};
-use crate::support::{Harness, checkout_target, failed, key, prs};
+use crate::support::{Harness, checkout_target, failed, key, merge_target, prs, update_target};
 
 #[test]
 fn a_failed_status_change_stays_on_its_card_after_another_one_lands_and_a_refresh() {
@@ -80,7 +81,10 @@ fn a_failure_that_lands_while_the_popup_is_open_on_another_card_stays_on_its_own
 fn a_failed_merge_marks_its_card() {
     let screen = after(
         &['m', 'y'],
-        Ok(Input::Merged(12, Err("HTTP 405".to_string().into()))),
+        Ok(Input::Merged(
+            merge_target(12, ""),
+            Err("HTTP 405".to_string().into()),
+        )),
     );
 
     assert!(
@@ -94,7 +98,7 @@ fn a_reason_of_several_lines_reads_as_one_line_on_the_card() {
     let screen = after(
         &['m', 'y'],
         Ok(Input::Merged(
-            12,
+            merge_target(12, ""),
             Err("Blocked.\n  See rules".to_string().into()),
         )),
     );
@@ -111,7 +115,7 @@ fn a_reason_of_several_lines_reads_as_one_line_on_the_card() {
 
 #[test]
 fn a_merge_that_was_sent_leaves_no_mark() {
-    let screen = after(&['m', 'y'], Ok(Input::Merged(12, Ok(()))));
+    let screen = after(&['m', 'y'], Ok(Input::Merged(merge_target(12, ""), Ok(()))));
 
     assert!(!screen.contains("failed"), "{screen}");
 }
@@ -361,7 +365,7 @@ fn after(letters: &[char], result: io::Result<Input>) -> String {
 
 fn updated(result: Result<BranchUpdate, &str>) -> io::Result<Input> {
     Ok(Input::BranchUpdated(
-        12,
+        update_target(12, "", UpdateMethod::Merge),
         result.map_err(|err| err.to_string().into()),
     ))
 }

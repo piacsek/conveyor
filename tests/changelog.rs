@@ -20,7 +20,7 @@ mod support;
 
 use conveyor::app::Input;
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, ctrl, key, prs};
+use support::{Harness, ctrl, key, merge_target, prs};
 
 #[test]
 fn c_opens_the_changelog_at_the_newest_release() {
@@ -360,7 +360,10 @@ fn a_result_that_lands_while_the_changelog_is_open_shows_in_its_footer() {
     h.run(vec![
         prs(vec![]),
         key(KeyCode::Char('c')),
-        Ok(Input::Merged(7, Err("merge refused".to_string().into()))),
+        Ok(Input::Merged(
+            merge_target(7, ""),
+            Err("merge refused".to_string().into()),
+        )),
     ])
     .unwrap();
 
@@ -375,7 +378,10 @@ fn a_result_that_lands_while_the_help_is_open_shows_in_its_footer() {
     h.run(vec![
         prs(vec![]),
         key(KeyCode::Char('?')),
-        Ok(Input::Merged(7, Err("merge refused".to_string().into()))),
+        Ok(Input::Merged(
+            merge_target(7, ""),
+            Err("merge refused".to_string().into()),
+        )),
     ])
     .unwrap();
 
