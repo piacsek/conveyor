@@ -835,6 +835,17 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   creates it. Fragment `kind: feat`. Review round 1: the README command failed on a default Nix
   install (`nix-command` is experimental; CI's install action enables it), and the single
   `stable` job held `contents: write` while it built the tag, so it was split in two.
+- Phase 50 (`plans/phase-50-plain-icons.md`, closes #96): conveyor no longer needs a Nerd
+  Font. `[ui] icons` (`config::Icons`) is `"plain"` by default and draws `↑` open, `→` in the
+  merge queue and `≈` draft on the My PRs cards, in the old colours; `"nerd"` draws the
+  octicons as before; any other value is the usual config error naming the file. The demo
+  keeps `[ui]`, so a first `conveyor --demo` shows no box. No detection: a terminal cannot
+  tell whether its font is a Nerd Font. Coverage checked with `fontTools` in Menlo, SF Mono,
+  DejaVu Sans Mono 2.37, Cascadia Mono 2404.23 and FiraCode Nerd Font Mono (Monaco lacks
+  `↑`, and every check glyph). `scripts/screenshots.sh` writes `icons = "nerd"` for
+  `docs/details.png` (unchanged) and shoots `docs/plain.png` without it. Decisions: a draft is
+  still told by its icon and colour only (no `draft` word back on the meta line); `→` echoes
+  the `⇥N` queue position on the same line. Fragment `kind: feat`.
 
 ## Deferred / backlog (discuss at retros)
 

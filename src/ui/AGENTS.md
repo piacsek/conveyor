@@ -43,12 +43,16 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   go further: one field per line rather than a joined-and-truncated `meta()`, the PR title
   before the author, wrapped with `text::wrap` over at most `DEPLOYED_TITLE_LINES` lines. Card
   height varies per row; the list widget handles it.
-- **A PR card carries GitHub's pull-request icon** after its check glyph: `pr_glyph` gives
-  U+F407 in green for an open pull request, U+F4DB (git-merge-queue) in yellow once it has a
-  merge queue position, and U+F4DD in grey for a draft, so the meta line no longer says
-  `draft`. They are Nerd Font octicons, the only Nerd Font glyphs in the UI: a terminal
-  without a Nerd Font draws a box there, which the README's Dependencies and FAQ say. `card()` takes the icon as an
-  `Option<(char, Color)>`; every other stage passes `None`.
+- **A PR card carries a pull-request icon** after its check glyph, picked by `[ui] icons`
+  (`config::Icons`): `pr_glyph` gives green for an open pull request, yellow once it has a
+  merge queue position and grey for a draft, so the meta line no longer says `draft`. The
+  default `plain` draws `↑`, `→` and `≈`: one cell wide in Menlo, SF Mono, DejaVu Sans Mono,
+  Cascadia Mono and FiraCode (checked in the font files, phase 50), and unlike any check,
+  deploy or selection glyph. `nerd` draws GitHub's octicons U+F407, U+F4DB (git-merge-queue)
+  and U+F4DD, the only Nerd Font glyphs in the UI: a terminal without a Nerd Font draws a box
+  there, which the README's FAQ says. There is no detection, since a terminal cannot tell
+  whether its font is a Nerd Font. `card()` takes the icon as an `Option<(char, Color)>`; every
+  other stage passes `None`.
 - **A card's `#N` is a terminal hyperlink (OSC 8).** After the list is drawn, `draw_list` asks
   `ui::link::link` to find the card's `#N` in the frame buffer, inside that card's own lines,
   and rewrites each of its cells as `ESC ] 8 ; id=<x>-<y> ; <url> ESC \ <char> ESC ] 8 ; ; ESC \`

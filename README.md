@@ -32,8 +32,9 @@ nix --extra-experimental-features 'nix-command flakes' profile install github:pi
 - `git`, to check a pull request out locally.
 - `kubectl` with a working context, for the Deployed column only.
 - `open`/`pbcopy` on macOS, `xdg-open`/`xclip` on Linux, to open links and copy URLs.
-- A [Nerd Font](https://www.nerdfonts.com) as the terminal font, for the pull request icon
-  on each card in My PRs (open, in the merge queue, draft). Every other glyph is plain Unicode.
+- Optional: a [Nerd Font](https://www.nerdfonts.com) as the terminal font, for GitHub's pull
+  request icons on the My PRs cards with `icons = "nerd"`. Without it, conveyor draws plain
+  Unicode only.
 
 ## Usage
 
@@ -85,6 +86,7 @@ background_tabs = true        # every My PRs tab refreshes on the interval, not 
 [ui]
 min_column_width = 36
 details_percent = 40
+icons = "plain"               # or "nerd": GitHub's pull request icons, needs a Nerd Font
 
 [ui.keys]
 next_tab = "tab"              # one character, "tab", "shift-tab" or "ctrl-a" to "ctrl-z"
@@ -118,10 +120,10 @@ deployment = "api"
 ## FAQ
 
 **A card shows a box, a `?` in a box, or a blank square before its `#number`.** That is the
-pull request icon, a Nerd Font glyph, drawn by a terminal font that lacks it. Set the
-terminal's font to a Nerd Font (for example `brew install --cask font-fira-code-nerd-font`,
-then pick "FiraCode Nerd Font"), or add one as the terminal's fallback for symbols.
-Everything else works without it; only the icon is missing.
+pull request icon of `icons = "nerd"`, a Nerd Font glyph, drawn by a terminal font that lacks
+it. Set the terminal's font to a Nerd Font (for example
+`brew install --cask font-fira-code-nerd-font`, then pick "FiraCode Nerd Font"), or set
+`icons = "plain"` under `[ui]` (the default) to draw plain arrows instead.
 
 ## Development
 
