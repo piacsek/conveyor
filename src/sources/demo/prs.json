@@ -23,6 +23,13 @@
   "statusCheckRollup":{"state":"PENDING","contexts":{"totalCount":1,"nodes":[
    {"name":"CI/CD","status":"IN_PROGRESS","conclusion":null,"detailsUrl":"https://github.com/acme/auth/actions/runs/2/job/1"}]}},
   "reviews":{"nodes":[]},"reviewRequests":{"nodes":[]},"comments":{"totalCount":0}},
+ {"number":4821,"title":"Pin the ingress chart to 4.11","url":"https://github.com/acme/infra/pull/4821",
+  "isDraft":false,"updatedAt":"ago:5400","headRefName":"pin-ingress-chart",
+  "repository":{"nameWithOwner":"acme/infra"},"author":{"login":"me"},"reviewDecision":"APPROVED",
+  "mergeStateStatus":"CLEAN","additions":4,"deletions":2,"mergeQueueEntry":null,
+  "statusCheckRollup":{"state":"SUCCESS","contexts":{"totalCount":1,"nodes":[
+   {"name":"plan","status":"COMPLETED","conclusion":"SUCCESS","detailsUrl":"https://github.com/acme/infra/actions/runs/3/job/1"}]}},
+  "reviews":{"nodes":[]},"reviewRequests":{"nodes":[]},"comments":{"totalCount":0}},
  {"number":4790,"title":"Spike: parallel test runner","url":"https://github.com/acme/webapp/pull/4790",
   "isDraft":true,"updatedAt":"ago:1123200","headRefName":"parallel-test-spike",
   "repository":{"nameWithOwner":"acme/webapp"},"author":{"login":"me"},"reviewDecision":null,

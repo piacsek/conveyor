@@ -126,7 +126,9 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   offer wraps over at most 2 lines with a hanging indent, and nothing else: no hint line (the
   user called it pollution; the dim reasons already explain the popup). On a short terminal the popup's bottom is clipped. The footer carries no
   prompt, only the usual notice or refresh age underneath; it used to hold the question and was
-  easy to miss. A new sensitive action adds a `Pending` variant and an arm in `dialog::question`. Widths are counted in characters,
+  easy to miss. A new sensitive action adds a `Pending` variant and an arm in `dialog::question`. The question
+  names the pull request the way the popup title does (`PrsStage::label`): `#N`, or `infra#N`
+  while the active My PRs tab lists more than one repository. Widths are counted in characters,
   like the rest of the UI, so a title of wide characters (CJK, emoji) can be clipped at the
   dialog's right border.
 - **Overlays show what lands under them.** The help and changelog panes replace the footer
