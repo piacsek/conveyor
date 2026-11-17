@@ -107,7 +107,7 @@ changes/                      one fragment per pull request that feeds the binar
 plans/                        one versioned plan file per phase (see Working agreements)
 scripts/homebrew-formula.sh   prints the tap formula for a released version
 scripts/formula-version.sh    the `tap` job's decision; never a version below the formula's
-scripts/stable-version.sh     the `stable` job's decision: the release the `stable` branch moves to, never below the version it holds
+scripts/stable-version.sh     the `stable-build` and `stable` jobs' decision, asked by both: the release the `stable` branch moves to, never below the version it holds
 scripts/screenshots.sh        renders docs/details.png, plus one `shoot` per extra view, from a gh shim + synthetic fixture (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
@@ -462,8 +462,8 @@ gh api repos/piacsek/homebrew-tap/contents/Formula/conveyor.rb -H 'Accept: appli
 gh api 'repos/piacsek/conveyor/contents/Cargo.toml?ref=stable' -H 'Accept: application/vnd.github.raw+json'
 ```
 
-Never push or move `stable` by hand: only the `stable` job of the release run moves it, after the
-flake at the tag builds.
+Never push or move `stable` by hand: only the `stable` job of the release run moves it, after
+`stable-build` built the flake at the tag.
 
 A cancelled `release` run is normal (merges in quick succession queue up); a red one is not: see
 "When a run fails or a job is stuck" under "Releasing internals" in `.github/AGENTS.md`.

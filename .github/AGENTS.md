@@ -189,24 +189,36 @@ pipeline went from ~3 min 20 s to 37 s:
   could not keep the formula from going back (a rerun of an old `tap` after a newer release),
   nor repair a run cancelled between `publish` and `tap`. It still runs one at a time
   (`concurrency: tap`, `cancel-in-progress: false`), so two writes never race.
-- **The `stable` job of `release.yml` reconciles too.** It moves the `stable` branch, which
-  `nix profile install github:piacsek/conveyor/stable` reads, to the commit of the newest
-  release. It runs after `publish` in every run that is not cancelled (`needs: [tag, publish]`,
-  `if: !cancelled()`, `concurrency: stable` without cancelling), and
-  `scripts/stable-version.sh` decides: the newest published `complete` release above the
-  version in `Cargo.toml` on `stable` (a 404 means no `stable` yet), nothing otherwise. Only
-  then does the job check out that tag, `nix build` it, refuse unless
-  `./result/bin/conveyor --version` prints `conveyor <version>`, and push the tag's commit to
-  `refs/heads/stable`, forced because release commits are siblings, not descendants. The job's
-  own `GITHUB_TOKEN` (`contents: write` on that job only) is enough: the ruleset covers only the
-  default branch, a push with that token starts no workflow, and it force-moved `stable` across
-  a change of a workflow file between two releases. Branch cleanup never touches `stable`: it
-  is never the head of a pull request. No `github.repository` guard: a fork's `stable` follows
-  the fork's releases. Proven on the private throwaway repository on 2026-11-16: the first
-  release created `stable` (job 40 s, of which the build of the small proof crate 22 s; conveyor's
-  own build takes about 1 min 40 s on Linux, see `flake` above), a full rerun left it alone, a second
-  release moved it (`forced update`), and a rerun of the first run's `stable` job left it on the
-  newer release. Nixpkgs 26.11 dropped `x86_64-darwin`, so the flake offers `x86_64-linux`,
+- **The `stable-build` and `stable` jobs of `release.yml` reconcile too.** They move the
+  `stable` branch, which `nix profile install github:piacsek/conveyor/stable` reads, to the
+  commit of the newest release, in two jobs so the one that runs the tag's code holds no write
+  token. `stable-build` (`contents: read`) runs after `publish` in every run that is not
+  cancelled (`needs: [tag, publish]`, `if: !cancelled()`): `scripts/stable-version.sh` picks
+  the newest published `complete` release above the version in `Cargo.toml` on `stable` (a 404
+  means no `stable` yet), nothing otherwise; only then does it check out that tag without
+  keeping a credential, install Nix, `nix build` it and refuse unless
+  `./result/bin/conveyor --version` prints `conveyor <version>`. Its `version` output is set
+  by that build step, so it is empty unless the build passed. `stable` (`contents: write`, no
+  Nix, nothing of the tag run) starts only when `stable-build` succeeded with a version, asks
+  `stable-version.sh` again, and pushes the tag's commit to `refs/heads/stable`, forced
+  (release commits are siblings, not descendants), only when the answer is still the version
+  that built. Only `stable` holds `concurrency: stable` (no cancelling), so the second ask and
+  the push of two runs never interleave; builds may overlap, they write nothing. The second ask
+  covers what changed between the jobs: another run moved `stable` meanwhile (the answer is
+  then empty) or a newer release was published (another version, which that release's own run
+  moves to). GitHub keeps one waiting job per group, so a `stable` job queued behind two others
+  can be cancelled; the newer run's job moves `stable` instead. The job's own `GITHUB_TOKEN` is
+  enough: the ruleset covers only the default branch, a push with that token starts no
+  workflow, and it force-moved `stable` across a change of a workflow file between two
+  releases. Branch cleanup never touches `stable`: it is never the head of a pull request. No
+  `github.repository` guard: a fork's `stable` follows the fork's releases. Proven on the
+  private throwaway repository on 2026-11-16, as one job: the first release created `stable`
+  (job 40 s, of which the build of the small proof crate 22 s; conveyor's own build takes about
+  1 min 40 s on Linux, see `flake` above), a full rerun left it alone, a second release moved it
+  (`forced update`), and a rerun of the first run's `stable` job left it on the newer release.
+  Proven again as two jobs (run 44006661157): a third release moved `stable` (`stable-build`
+  49 s, `stable` 7 s, `forced update`), and a full rerun picked nothing in `stable-build`,
+  skipped `stable` and left the branch where it was. Nixpkgs 26.11 dropped `x86_64-darwin`, so the flake offers `x86_64-linux`,
   `aarch64-linux` and `aarch64-darwin`; an Intel Mac keeps Homebrew or the tarball.
 - **A pull request's branch is deleted when it merges or closes.** Merged: the repository
   setting `delete_branch_on_merge`. Closed without merging: GitHub has no setting, so
@@ -429,7 +441,8 @@ then. Its `build` and `publish` check that tag again: they finish it when its re
 unfinished and do nothing when it is already `complete`, and its `tap` only moves the formula
 forward, so rerunning an old run never rewrites a published release or the formula backwards. If `tap` fails, the next release run repairs the formula; to repair it
 now, start a new run, or run `scripts/homebrew-formula.sh <version>` by hand and push the tap.
-If `stable` fails, `stable` stays on the release before and every later run tries again. A
+If `stable-build` or `stable` fails, `stable` stays on the release before and every later run
+tries again. A
 failed `nix build` at a tag is never fixed at that tag: land the fix on `main` through a pull
 request with a fragment, and the release it makes moves `stable` past the broken one. A
 failure of `gh` or of the Nix install is fixed by starting a new run. `stable` is never pushed
@@ -454,7 +467,8 @@ The first command only applies when a draft exists.
 
 Every action is pinned to a commit SHA with the tag in a trailing comment; bump pins with
 `gh api repos/<owner>/<repo>/git/ref/tags/<tag>`. Workflows default to `contents: read`; only
-the `tag` job (pushes the tag), `stable` (pushes the `stable` branch) and `publish` (`contents: write`, `id-token` and
+the `tag` job (pushes the tag), `stable` (pushes the `stable` branch, while `stable-build` that
+builds the tag stays read-only) and `publish` (`contents: write`, `id-token` and
 `attestations: write` for `actions/attest-build-provenance`) get more. CI also runs
 `cargo audit` (a prebuilt binary via `taiki-e/install-action`; the `rustsec/audit-check` action
 compiled cargo-audit from source on every run, ~3 min of a ~3.5 min pipeline). The `check` job

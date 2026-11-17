@@ -163,26 +163,51 @@ fn a_release_list_that_cannot_be_read_stops_the_job() {
 }
 
 #[test]
-fn the_stable_job_runs_after_publish_in_every_run_one_at_a_time() {
+fn the_stable_build_runs_after_publish_in_every_run_with_a_read_only_token() {
+    assert!(build_job().contains(BUILD_HEADER), "{}", build_job());
+}
+
+#[test]
+fn the_stable_build_asks_the_script_which_release_to_point_at() {
+    assert!(build_job().contains(PICK_STEP), "{}", build_job());
+}
+
+#[test]
+fn the_stable_build_builds_the_flake_at_the_tag_and_names_the_version_only_once_it_built() {
+    assert!(build_job().contains(BUILD_STEP), "{}", build_job());
+}
+
+#[test]
+fn the_stable_build_leaves_no_credential_in_its_checkouts() {
+    let job = build_job();
+    assert_eq!(
+        job.matches("persist-credentials: false\n").count(),
+        job.matches("actions/checkout@").count(),
+        "{job}"
+    );
+}
+
+#[test]
+fn the_stable_job_moves_stable_after_a_successful_build_one_run_at_a_time() {
     assert!(stable_job().contains(STABLE_HEADER), "{}", stable_job());
 }
 
 #[test]
-fn the_stable_job_asks_the_script_which_release_to_point_at() {
-    assert!(stable_job().contains(PICK_STEP), "{}", stable_job());
+fn the_stable_job_installs_no_nix_and_runs_nothing_from_the_tag() {
+    assert!(
+        !stable_job().contains("install-nix-action"),
+        "{}",
+        stable_job()
+    );
+    assert!(!stable_job().contains("nix build"), "{}", stable_job());
 }
 
 #[test]
-fn the_stable_job_builds_the_flake_at_the_tag_and_checks_its_version() {
-    assert!(stable_job().contains(BUILD_STEP), "{}", stable_job());
-}
-
-#[test]
-fn the_stable_job_moves_stable_only_after_the_build_step() {
+fn the_stable_job_asks_the_script_again_before_it_pushes() {
     let job = stable_job();
-    let build = job.find(BUILD_STEP).unwrap();
+    let check = job.find(RECHECK_STEP).unwrap();
     let push = job.find(PUSH_STEP).unwrap();
-    assert!(build < push, "{job}");
+    assert!(check < push, "{job}");
 }
 
 fn stable_version(root: &Path) -> Output {
@@ -241,24 +266,32 @@ fn sandbox(root: &Path) {
 
 const ASSETS: &str = "conveyor-aarch64-apple-darwin.tar.gz\nconveyor-aarch64-apple-darwin.tar.gz.sha256\nconveyor-x86_64-apple-darwin.tar.gz\nconveyor-x86_64-apple-darwin.tar.gz.sha256\nconveyor-x86_64-unknown-linux-gnu.tar.gz\nconveyor-x86_64-unknown-linux-gnu.tar.gz.sha256\n";
 
+fn release_workflow() -> String {
+    fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(".github/workflows/release.yml"))
+        .unwrap()
+}
+
+fn build_job() -> String {
+    let release = release_workflow();
+    let start = release.find("\n  stable-build:\n").unwrap();
+    let end = release.find("\n  stable:\n").unwrap();
+    release[start..end].to_string()
+}
+
 fn stable_job() -> String {
-    let release = fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join(".github/workflows/release.yml"),
-    )
-    .unwrap();
+    let release = release_workflow();
     let start = release.find("\n  stable:\n").unwrap();
     release[start..].to_string()
 }
 
-const STABLE_HEADER: &str = "  stable:
+const BUILD_HEADER: &str = "  stable-build:
     needs: [tag, publish]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-    concurrency:
-      group: stable
-      cancel-in-progress: false
+      contents: read
+    outputs:
+      version: ${{ steps.built.outputs.version }}
 ";
 
 const PICK_STEP: &str = "      - name: Pick the release stable should point at
@@ -269,6 +302,7 @@ const PICK_STEP: &str = "      - name: Pick the release stable should point at
 ";
 
 const BUILD_STEP: &str = "      - name: The flake at the tag builds that version
+        id: built
         if: steps.stable.outputs.version != ''
         env:
           VERSION: ${{ steps.stable.outputs.version }}
@@ -276,9 +310,28 @@ const BUILD_STEP: &str = "      - name: The flake at the tag builds that version
           nix build ./release
           printed=\"$(./result/bin/conveyor --version)\"
           test \"$printed\" = \"conveyor $VERSION\" || { echo \"the flake at v$VERSION prints $printed\"; exit 1; }
+          echo \"version=$VERSION\" >> \"$GITHUB_OUTPUT\"
+";
+
+const STABLE_HEADER: &str = "  stable:
+    needs: [stable-build]
+    if: ${{ !cancelled() && needs.stable-build.result == 'success' && needs.stable-build.outputs.version != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: stable
+      cancel-in-progress: false
+";
+
+const RECHECK_STEP: &str = "      - name: Stable is still below the release that built
+        id: stable
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/stable-version.sh >> \"$GITHUB_OUTPUT\"
 ";
 
 const PUSH_STEP: &str = "      - name: Point stable at the tag
-        if: steps.stable.outputs.version != ''
+        if: steps.stable.outputs.version == needs.stable-build.outputs.version
         run: git -C release push origin \"+HEAD:refs/heads/stable\"
 ";

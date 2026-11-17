@@ -169,19 +169,19 @@ jobs:
           git diff --cached --quiet || git commit -m "conveyor $VERSION"
           git push
 
-  stable:
+  stable-build:
     needs: [tag, publish]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-    concurrency:
-      group: stable
-      cancel-in-progress: false
+      contents: read
+    outputs:
+      version: ${{ steps.built.outputs.version }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           sparse-checkout: scripts
+          persist-credentials: false
       - name: Pick the release stable should point at
         id: stable
         env:
@@ -192,9 +192,11 @@ jobs:
         with:
           ref: v${{ steps.stable.outputs.version }}
           path: release
+          persist-credentials: false
       - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
         if: steps.stable.outputs.version != ''
       - name: The flake at the tag builds that version
+        id: built
         if: steps.stable.outputs.version != ''
         env:
           VERSION: ${{ steps.stable.outputs.version }}
@@ -202,6 +204,32 @@ jobs:
           nix build ./release
           printed="$(./result/bin/conveyor --version)"
           test "$printed" = "conveyor $VERSION" || { echo "the flake at v$VERSION prints $printed"; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  stable:
+    needs: [stable-build]
+    if: ${{ !cancelled() && needs.stable-build.result == 'success' && needs.stable-build.outputs.version != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: stable
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          sparse-checkout: scripts
+          persist-credentials: false
+      - name: Stable is still below the release that built
+        id: stable
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/stable-version.sh >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        if: steps.stable.outputs.version == needs.stable-build.outputs.version
+        with:
+          ref: v${{ needs.stable-build.outputs.version }}
+          path: release
       - name: Point stable at the tag
-        if: steps.stable.outputs.version != ''
+        if: steps.stable.outputs.version == needs.stable-build.outputs.version
         run: git -C release push origin "+HEAD:refs/heads/stable"

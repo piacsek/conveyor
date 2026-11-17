@@ -44,21 +44,30 @@ on crates.io, and the AUR needs an account and a key.
    says; the flake does not bring them. One input, nixpkgs.
 2. **A `stable` branch at the newest release.** The release run moves `stable` to the commit of
    the newest published release, so `nix run github:piacsek/conveyor/stable` and
-   `nix profile install github:piacsek/conveyor/stable` give the newest release with its real
-   version and changelog. A new job, `stable`, in `release.yml`, after `publish`, built the
-   same way as `tap`: it reconciles rather than replays.
+   `nix profile install github:piacsek/conveyor/stable` (with
+   `--extra-experimental-features 'nix-command flakes'` in the README, so a default Nix install
+   runs it) give the newest release with its real
+   version and changelog. Two new jobs, `stable-build` and `stable`, in `release.yml`, after
+   `publish`, built the same way as `tap`: they reconcile rather than replay.
    - `scripts/stable-version.sh` decides, like `scripts/formula-version.sh`: it reads the
      version in `Cargo.toml` at `stable` (`gh api`, a 404 meaning no `stable` yet) and prints
      `version=<v>` for the newest published `complete` release above it, nothing otherwise.
      The release walk and the version comparison move from `formula-version.sh` into
      `scripts/releases.sh`, shared by both.
-   - When it names a version, the job checks out that tag, runs `nix build`, refuses unless
-     `./result/bin/conveyor --version` prints `conveyor <v>`, and only then pushes the tag's
-     commit to `refs/heads/stable`, forced (release commits are siblings, not descendants).
-   - `needs: [tag, publish]`, `if: !cancelled()`, `concurrency: stable` with no cancelling, so
-     it runs after `publish` in every run, built or not, and two runs never race on the push.
-     `contents: write` on that job only. No `github.repository` guard: a fork's own `stable`
-     follows the fork's own releases, and the throwaway repository proves it.
+   - When it names a version, `stable-build` (`contents: read`) checks out that tag without
+     keeping a credential, runs `nix build`, refuses unless `./result/bin/conveyor --version`
+     prints `conveyor <v>`, and only then sets its `version` output.
+   - `stable` (`contents: write`, no Nix, runs nothing from the tag) starts only when
+     `stable-build` succeeded with a version, asks the script again and pushes the tag's commit
+     to `refs/heads/stable`, forced (release commits are siblings, not descendants), only when
+     the answer is still that version: another run may have moved `stable` or published a newer
+     release while this one built.
+   - `stable-build`: `needs: [tag, publish]`, `if: !cancelled()`, so it runs after `publish` in
+     every run, built or not. `stable` alone holds `concurrency: stable` with no cancelling, so
+     the second ask and the push of two runs never interleave. No `github.repository` guard: a
+     fork's own `stable` follows the fork's own releases, and the throwaway repository proves it.
+   - Review round 1 split the first single job (`contents: write` while it built the tag, and
+     the Nix install writes the token into `nix.conf`) into these two.
 3. **The flake in CI**: a `flake` job in `ci.yml`, beside `check` and `audit`, builds the flake
    on Linux and macOS and checks `--version`. It is not a required check (the ruleset is not
    changed): a Nix or nixpkgs outage must never block a merge, and the release run guards

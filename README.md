@@ -22,7 +22,7 @@ cargo install --git https://github.com/piacsek/conveyor --locked
 Or with Nix (Linux, Apple silicon), from the `stable` branch, which follows the newest release:
 
 ```sh
-nix profile install github:piacsek/conveyor/stable
+nix --extra-experimental-features 'nix-command flakes' profile install github:piacsek/conveyor/stable
 ```
 
 ## Dependencies
