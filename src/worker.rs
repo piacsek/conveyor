@@ -45,7 +45,7 @@ impl Task for MergeTarget {
     const WORKER: &'static str = "merge";
 
     fn crashed(self, failure: Failure) -> Input {
-        Input::Merged(self.number, Err(failure))
+        Input::Merged(self, Err(failure))
     }
 }
 
@@ -53,7 +53,7 @@ impl Task for UpdateTarget {
     const WORKER: &'static str = "update";
 
     fn crashed(self, failure: Failure) -> Input {
-        Input::BranchUpdated(self.number, Err(failure))
+        Input::BranchUpdated(self, Err(failure))
     }
 }
 
@@ -61,7 +61,7 @@ impl Task for StatusTarget {
     const WORKER: &'static str = "status";
 
     fn crashed(self, failure: Failure) -> Input {
-        Input::StatusChanged(self.number, self.change, Err(failure))
+        Input::StatusChanged(self, Err(failure))
     }
 }
 

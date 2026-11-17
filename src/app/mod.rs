@@ -8,7 +8,7 @@ use ratatui::crossterm::event::KeyEvent;
 use crate::config::Config;
 use crate::model::deployed::Deployment;
 use crate::model::jobs::Job;
-use crate::model::prs::{BranchUpdate, StatusChange};
+use crate::model::prs::BranchUpdate;
 
 mod actions;
 mod browser;
@@ -24,7 +24,7 @@ pub use actions::{
     UpdateTarget, Write, WriteKind,
 };
 pub use browser::OPEN_DEBOUNCE;
-pub use column::{Column, ColumnState, Listing, Navigable, Order, Row};
+pub use column::{Column, ColumnState, Listing, Navigable, Order, Row, pull_key};
 pub use jobs::{JobsState, LogState};
 pub use run::run;
 pub use stages::{
@@ -39,14 +39,13 @@ pub enum Input {
     Jobs(u64, Result<Vec<Job>, crate::sources::failure::Failure>),
     /// The tail of one job's failed-step log, keyed by job id.
     Log(u64, Result<Vec<String>, crate::sources::failure::Failure>),
-    Merged(u64, Result<(), crate::sources::failure::Failure>),
+    Merged(MergeTarget, Result<(), crate::sources::failure::Failure>),
     Rerun(Vec<(u64, Result<(), crate::sources::failure::Failure>)>),
-    BranchUpdated(u64, Result<BranchUpdate, crate::sources::failure::Failure>),
-    StatusChanged(
-        u64,
-        StatusChange,
-        Result<(), crate::sources::failure::Failure>,
+    BranchUpdated(
+        UpdateTarget,
+        Result<BranchUpdate, crate::sources::failure::Failure>,
     ),
+    StatusChanged(StatusTarget, Result<(), crate::sources::failure::Failure>),
     CheckedOut(CheckoutTarget, Result<(), crate::sources::failure::Failure>),
     Tick(SystemTime),
     Resize,

@@ -17,17 +17,15 @@ use support::{Harness, checkout_target, key, merge_target, pr, prs, status_targe
 fn a_request_comes_back_as_the_input_the_work_built() {
     let (inputs_tx, inputs) = mpsc::channel();
     let requests = worker::spawn(inputs_tx, |target: MergeTarget| {
-        Input::Merged(
-            target.number,
-            Err(format!("asked for {}", target.number).into()),
-        )
+        let number = target.number;
+        Input::Merged(target, Err(format!("asked for {number}").into()))
     });
 
     requests.send(merge_target(7, "Add a cache")).unwrap();
 
     let input = inputs.recv_timeout(WAIT).unwrap().unwrap();
     assert!(
-        matches!(input, Input::Merged(7, Err(ref reason)) if reason.to_string() == "asked for 7")
+        matches!(input, Input::Merged(ref target, Err(ref reason)) if target.number == 7 && reason.to_string() == "asked for 7")
     );
 }
 
@@ -35,7 +33,7 @@ fn a_request_comes_back_as_the_input_the_work_built() {
 fn two_requests_come_back_as_two_inputs_in_order() {
     let (inputs_tx, inputs) = mpsc::channel();
     let requests = worker::spawn(inputs_tx, |target: MergeTarget| {
-        Input::Merged(target.number, Ok(()))
+        Input::Merged(target, Ok(()))
     });
 
     requests.send(merge_target(1, "Add a cache")).unwrap();
@@ -43,8 +41,11 @@ fn two_requests_come_back_as_two_inputs_in_order() {
 
     let first = inputs.recv_timeout(WAIT).unwrap().unwrap();
     let second = inputs.recv_timeout(WAIT).unwrap().unwrap();
-    assert!(matches!(first, Input::Merged(1, Ok(()))));
-    assert!(matches!(second, Input::Merged(2, Ok(()))));
+    assert_eq!(first, Input::Merged(merge_target(1, "Add a cache"), Ok(())));
+    assert_eq!(
+        second,
+        Input::Merged(merge_target(2, "Drop a route"), Ok(()))
+    );
 }
 
 #[test]
@@ -54,7 +55,7 @@ fn the_worker_ends_once_nobody_reads_its_inputs() {
     let guard = EndGuard(ended_tx);
     let requests = worker::spawn(inputs_tx, move |target: MergeTarget| {
         let _ = &guard;
-        Input::Merged(target.number, Ok(()))
+        Input::Merged(target, Ok(()))
     });
     drop(inputs);
 
@@ -70,7 +71,7 @@ fn the_worker_ends_once_nobody_sends_it_requests() {
     let guard = EndGuard(ended_tx);
     let requests = worker::spawn(inputs_tx, move |target: MergeTarget| {
         let _ = &guard;
-        Input::Merged(target.number, Ok(()))
+        Input::Merged(target, Ok(()))
     });
 
     drop(requests);
@@ -146,14 +147,20 @@ fn a_crashed_merge_fails_that_pull_request_and_the_next_merge_runs() {
         if target.number == 1 {
             panic!("boom");
         }
-        Input::Merged(target.number, Ok(()))
+        Input::Merged(target, Ok(()))
     });
 
     requests.send(merge_target(1, "Add a cache")).unwrap();
     requests.send(merge_target(2, "Drop a route")).unwrap();
 
-    assert_eq!(next(&inputs), Input::Merged(1, Err(crashed("boom"))));
-    assert_eq!(next(&inputs), Input::Merged(2, Ok(())));
+    assert_eq!(
+        next(&inputs),
+        Input::Merged(merge_target(1, "Add a cache"), Err(crashed("boom")))
+    );
+    assert_eq!(
+        next(&inputs),
+        Input::Merged(merge_target(2, "Drop a route"), Ok(()))
+    );
 }
 
 #[test]
@@ -163,7 +170,7 @@ fn a_crashed_update_fails_that_pull_request_and_the_next_update_runs() {
         if target.number == 1 {
             panic!("boom");
         }
-        Input::BranchUpdated(target.number, Ok(BranchUpdate::Updated))
+        Input::BranchUpdated(target, Ok(BranchUpdate::Updated))
     });
 
     requests
@@ -173,10 +180,19 @@ fn a_crashed_update_fails_that_pull_request_and_the_next_update_runs() {
         .send(update_target(2, "Drop a route", UpdateMethod::Merge))
         .unwrap();
 
-    assert_eq!(next(&inputs), Input::BranchUpdated(1, Err(crashed("boom"))));
     assert_eq!(
         next(&inputs),
-        Input::BranchUpdated(2, Ok(BranchUpdate::Updated))
+        Input::BranchUpdated(
+            update_target(1, "Add a cache", UpdateMethod::Merge),
+            Err(crashed("boom"))
+        )
+    );
+    assert_eq!(
+        next(&inputs),
+        Input::BranchUpdated(
+            update_target(2, "Drop a route", UpdateMethod::Merge),
+            Ok(BranchUpdate::Updated)
+        )
     );
 }
 
@@ -187,7 +203,7 @@ fn a_crashed_status_change_fails_that_pull_request_and_the_next_change_runs() {
         if target.number == 1 {
             panic!("boom");
         }
-        Input::StatusChanged(target.number, target.change, Ok(()))
+        Input::StatusChanged(target, Ok(()))
     });
 
     requests
@@ -199,11 +215,17 @@ fn a_crashed_status_change_fails_that_pull_request_and_the_next_change_runs() {
 
     assert_eq!(
         next(&inputs),
-        Input::StatusChanged(1, StatusChange::Ready, Err(crashed("boom")))
+        Input::StatusChanged(
+            status_target(1, "Add a cache", StatusChange::Ready),
+            Err(crashed("boom"))
+        )
     );
     assert_eq!(
         next(&inputs),
-        Input::StatusChanged(2, StatusChange::Draft, Ok(()))
+        Input::StatusChanged(
+            status_target(2, "Drop a route", StatusChange::Draft),
+            Ok(())
+        )
     );
 }
 
@@ -241,7 +263,10 @@ fn a_panic_that_carries_no_text_still_fails_its_request() {
 
     assert_eq!(
         next(&inputs),
-        Input::Merged(1, Err(crashed("a panic with no message")))
+        Input::Merged(
+            merge_target(1, "Add a cache"),
+            Err(crashed("a panic with no message"))
+        )
     );
 }
 

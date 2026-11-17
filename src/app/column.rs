@@ -27,11 +27,22 @@ pub trait Row: Clone {
     fn matches(&self, query: &str) -> bool;
 }
 
+pub fn pull_key(repo: &str, number: u64) -> u64 {
+    hashed(&(repo, number))
+}
+
+fn hashed(value: &impl std::hash::Hash) -> u64 {
+    use std::hash::Hasher;
+    let mut hasher = std::hash::DefaultHasher::new();
+    value.hash(&mut hasher);
+    hasher.finish()
+}
+
 impl Row for PullRequest {
     const ORDER: Order = Order::ByRankAscending;
 
     fn key(&self) -> u64 {
-        self.number
+        pull_key(&self.repo, self.number)
     }
 
     fn rank(&self) -> u64 {
@@ -104,10 +115,7 @@ impl Row for Build {
 
 impl Row for Deployment {
     fn key(&self) -> u64 {
-        use std::hash::{Hash, Hasher};
-        let mut hasher = std::hash::DefaultHasher::new();
-        self.env.hash(&mut hasher);
-        hasher.finish()
+        hashed(&self.env)
     }
 
     fn matches(&self, query: &str) -> bool {

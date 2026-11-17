@@ -5,7 +5,9 @@ use conveyor::model::prs::{
     Check, CheckConclusion, CheckState, MergeState, PullRequest, ReviewDecision,
 };
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, build, builds, entry, failed, job, jobs, key, pr, prs, queue};
+use support::{
+    Harness, build, builds, entry, failed, job, jobs, key, pr, prs, queue, status_target,
+};
 
 fn sample() -> Vec<PullRequest> {
     let mut failing = pr(4821, "Retry webhook delivery with backoff");
@@ -274,8 +276,7 @@ fn failed_card_layout() {
         key(KeyCode::Char('S')),
         key(KeyCode::Char('t')),
         Ok(conveyor::app::Input::StatusChanged(
-            4821,
-            conveyor::model::prs::StatusChange::Draft,
+            status_target(4821, "", conveyor::model::prs::StatusChange::Draft),
             Err("GraphQL: Pull request is in the merge queue"
                 .to_string()
                 .into()),

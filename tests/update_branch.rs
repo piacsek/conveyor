@@ -4,7 +4,10 @@ use conveyor::app::{Input, Request, Stage};
 use conveyor::config::{Config, UpdateMethod};
 use conveyor::model::prs::{BranchUpdate, MergeState, PullRequest};
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, NOW, entry, failed, fetching, key, pr, prs, queue, tick_at, update_target};
+use support::{
+    Harness, NOW, entry, failed, fetching, key, merge_target, pr, prs, queue, tick_at,
+    update_target,
+};
 
 fn behind(number: u64, title: &str) -> PullRequest {
     let mut pull = pr(number, title);
@@ -238,7 +241,7 @@ fn while_an_update_is_in_flight_s_opens_on_another_pull_request() {
 
 fn updated(number: u64, result: Result<BranchUpdate, &str>) -> std::io::Result<Input> {
     Ok(Input::BranchUpdated(
-        number,
+        update_target(number, "", UpdateMethod::Merge),
         result.map_err(|err| err.to_string().into()),
     ))
 }
@@ -352,7 +355,7 @@ fn after_a_merge_lands_the_update_waits_for_a_refresh_that_started_after_it() {
         key(KeyCode::Char('S')),
         key(KeyCode::Char('m')),
         key(KeyCode::Char('y')),
-        Ok(Input::Merged(1, Ok(()))),
+        Ok(Input::Merged(merge_target(1, ""), Ok(()))),
         prs(vec![behind(1, "a")]),
         key(KeyCode::Char('S')),
         key(KeyCode::Char('u')),
@@ -397,7 +400,7 @@ fn after_a_merge_lands_another_pull_request_is_offered_its_update_and_draft() {
         key(KeyCode::Char('S')),
         key(KeyCode::Char('m')),
         key(KeyCode::Char('y')),
-        Ok(Input::Merged(1, Ok(()))),
+        Ok(Input::Merged(merge_target(1, ""), Ok(()))),
         key(KeyCode::Char('j')),
         key(KeyCode::Char('S')),
     ])
@@ -440,7 +443,10 @@ fn after_a_refused_merge_u_updates_right_away() {
         key(KeyCode::Char('S')),
         key(KeyCode::Char('m')),
         key(KeyCode::Char('y')),
-        Ok(Input::Merged(1, Err("not mergeable".to_string().into()))),
+        Ok(Input::Merged(
+            merge_target(1, ""),
+            Err("not mergeable".to_string().into()),
+        )),
         key(KeyCode::Char('S')),
         key(KeyCode::Char('u')),
     ])
@@ -459,12 +465,15 @@ fn a_refused_merge_of_another_pull_request_keeps_the_landed_one_waiting() {
         key(KeyCode::Char('S')),
         key(KeyCode::Char('m')),
         key(KeyCode::Char('y')),
-        Ok(Input::Merged(1, Ok(()))),
+        Ok(Input::Merged(merge_target(1, ""), Ok(()))),
         key(KeyCode::Char('j')),
         key(KeyCode::Char('S')),
         key(KeyCode::Char('m')),
         key(KeyCode::Char('y')),
-        Ok(Input::Merged(2, Err("not mergeable".to_string().into()))),
+        Ok(Input::Merged(
+            merge_target(2, ""),
+            Err("not mergeable".to_string().into()),
+        )),
         key(KeyCode::Char('k')),
         key(KeyCode::Char('S')),
     ])

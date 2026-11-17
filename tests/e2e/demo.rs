@@ -65,7 +65,7 @@ fn rerunning_the_failed_checks_of_a_demo_pull_request_changes_nothing() {
     server.send_keys(&["j"]);
 
     server.send_keys(&["S"]);
-    server.wait_for_screen("Manage #4821");
+    server.wait_for_screen("Manage webapp#4821");
     server.send_keys(&["f"]);
 
     server.wait_for_screen("demo: nothing was changed");

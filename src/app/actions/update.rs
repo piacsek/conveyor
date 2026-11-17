@@ -1,6 +1,6 @@
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
-use crate::app::{Action, App};
+use crate::app::{Action, App, pull_key};
 use crate::config::UpdateMethod;
 use crate::model::prs::BranchUpdate;
 
@@ -15,13 +15,24 @@ pub struct UpdateTarget {
     pub method: UpdateMethod,
 }
 
+impl UpdateTarget {
+    pub fn key(&self) -> u64 {
+        pull_key(&self.repo, self.number)
+    }
+}
+
 impl App {
     pub(super) fn confirm_update(&mut self, key: KeyEvent, target: UpdateTarget) -> Action {
         if key.code != KeyCode::Char('y') || !key.modifiers.is_empty() {
             self.notice = Some("update cancelled".to_string());
             return Action::Continue;
         }
-        if let Err(message) = self.reconfirm('u', target.number, Choice::Update(target.clone())) {
+        if let Err(message) = self.reconfirm(
+            'u',
+            &target.repo,
+            target.number,
+            Choice::Update(target.clone()),
+        ) {
             self.notice = Some(message);
             return Action::Continue;
         }
@@ -29,16 +40,17 @@ impl App {
     }
 
     pub(super) fn send_update(&mut self, target: UpdateTarget) -> Action {
-        self.start_write(target.number, WriteKind::Update);
+        self.start_write(target.key(), WriteKind::Update(target.number));
         Action::UpdateBranch(target)
     }
 
     pub fn receive_branch_update(
         &mut self,
-        number: u64,
+        target: &UpdateTarget,
         result: &Result<BranchUpdate, crate::sources::failure::Failure>,
     ) -> bool {
-        let write = self.finish_write(number, &WriteKind::Update);
+        let number = target.number;
+        let write = self.finish_write(target.key(), &WriteKind::Update(number));
         match result {
             Ok(BranchUpdate::Conflicts) => self.fail(write, &CONFLICTS.to_string().into()),
             Err(message) => self.fail(write, message),
