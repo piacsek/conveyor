@@ -4,6 +4,10 @@ pub fn cells(count: usize) -> u16 {
     u16::try_from(count).unwrap_or(u16::MAX)
 }
 
+pub fn scroll(offset: i32) -> u16 {
+    u16::try_from(offset.max(0)).unwrap_or(u16::MAX)
+}
+
 pub fn truncate(text: &str, width: usize) -> String {
     let count = text.chars().count();
     if count <= width {
