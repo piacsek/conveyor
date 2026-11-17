@@ -52,6 +52,50 @@ fn the_ends_of_the_layout_ranges_load() {
     assert!(wide.is_ok(), "{wide:?}");
 }
 
+#[test]
+fn a_repository_name_needs_one_owner_and_one_name() {
+    assert!(refused_repo("acme/").contains("[[repo]] name \"acme/\" is not owner/name"));
+    assert!(refused_repo("/webapp").contains("[[repo]] name \"/webapp\" is not owner/name"));
+    assert!(refused_repo("acme/web/app").contains("is not owner/name"));
+    assert!(refused_repo("acme/web app").contains("is not owner/name"));
+    assert!(refused_repo("").contains("[[repo]] name \"\" is not owner/name"));
+}
+
+#[test]
+fn an_environment_needs_every_field() {
+    let full = "name = \"prod\"\ncontext = \"ctx\"\nnamespace = \"api\"\ndeployment = \"api\"\n";
+
+    assert!(
+        refused_env(&full.replace("prod", " "))
+            .contains("a [[repo.deploy.env]] of acme/webapp has a blank name")
+    );
+    assert!(
+        refused_env(&full.replace("\"ctx\"", "\"\""))
+            .contains("\"prod\" of acme/webapp has a blank context")
+    );
+    assert!(
+        refused_env(&full.replace("namespace = \"api\"", ""))
+            .contains("\"prod\" of acme/webapp has a blank namespace")
+    );
+    assert!(
+        refused_env(&full.replace("deployment = \"api\"", "deployment = \" \""))
+            .contains("\"prod\" of acme/webapp has a blank deployment")
+    );
+}
+
+fn refused_env(env: &str) -> String {
+    let dir = tempfile::tempdir().unwrap();
+    let text =
+        format!("[[repo]]\nname = \"acme/webapp\"\n[[repo.deploy]]\n[[repo.deploy.env]]\n{env}");
+    load(&write(&dir, &text)).unwrap_err().to_string()
+}
+
+fn refused_repo(name: &str) -> String {
+    let dir = tempfile::tempdir().unwrap();
+    let text = format!("[[repo]]\nname = \"{name}\"\n");
+    load(&write(&dir, &text)).unwrap_err().to_string()
+}
+
 fn write(dir: &tempfile::TempDir, text: &str) -> std::path::PathBuf {
     let path = dir.path().join("config.toml");
     std::fs::write(&path, text).unwrap();

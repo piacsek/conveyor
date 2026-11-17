@@ -6,3 +6,5 @@ kind: fix
   its column or showing a page size nobody asked for.
 - A `details_percent` outside 10 to 90 or a `min_column_width` above 1000 is refused at start,
   instead of hiding the columns or wrapping the width around.
+- A `[[repo]]` name that is not `owner/name`, or an environment with a blank name, context,
+  namespace or deployment, is refused at start instead of failing later in its column.

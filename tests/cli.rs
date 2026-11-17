@@ -402,6 +402,32 @@ fn config_refuses_a_column_width_too_wide_to_count() {
     );
 }
 
+#[test]
+fn config_refuses_a_repository_name_without_its_owner() {
+    let (code, stderr) = refusal("[[repo]]\nname = \"not-a-repo\"\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[[repo]] name \"not-a-repo\" is not owner/name"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_an_environment_with_a_blank_context() {
+    let (code, stderr) = refusal(&format!(
+        "{ONE_DEPLOY}[[repo.deploy.env]]\nname = \"prod\"\nnamespace = \"api\"\ndeployment = \"api\"\n"
+    ));
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[[repo.deploy.env]] \"prod\" of acme/webapp has a blank context"),
+        "{stderr}"
+    );
+}
+
+const ONE_DEPLOY: &str = "[[repo]]\nname = \"acme/webapp\"\n[[repo.deploy]]\n";
+
 const CONFIG_V0: &str = include_str!("fixtures/config-v0.toml");
 
 fn fixture(name: &str) -> std::path::PathBuf {

@@ -69,7 +69,8 @@ without a word. Phases 60 and 65 are reserved, 64, 66 and 67 run in parallel, so
 | `[ui] details_percent` | 10 to 90 | `[ui] details_percent is 500; use 10 to 90` |
 | `[ui] min_column_width` | 0 to 1000 | `[ui] min_column_width is 16384; use 1000 or less` |
 | `[[repo]] name` | `owner/name`, both parts non-empty, no spaces | `[[repo]] name "not-a-repo" is not owner/name` |
-| `[[repo.deploy.env]] name`, `context`, `namespace`, `deployment` | not blank | `[[repo.deploy.env]] "prod" of acme/webapp has a blank context` |
+| `[[repo.deploy.env]] name` | not blank | `a [[repo.deploy.env]] of acme/webapp has a blank name` |
+| `[[repo.deploy.env]] context`, `namespace`, `deployment` | not blank | `[[repo.deploy.env]] "prod" of acme/webapp has a blank context` |
 | two `[[repo]]` of one name | refused | `two [[repo]] are named "acme/webapp"` |
 | two envs of one name in a deploy | refused | `two [[repo.deploy.env]] of acme/webapp are named "prod"` |
 | a second `[[repo.deploy]]` on a repository | refused | `acme/webapp has a second [[repo.deploy]]; conveyor reads only the first` |
