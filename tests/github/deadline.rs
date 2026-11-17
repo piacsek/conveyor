@@ -75,6 +75,17 @@ fn a_read_runs_in_a_process_group_of_its_own_that_its_deadline_can_kill() {
 }
 
 #[test]
+fn the_failed_log_waits_as_long_as_a_write_since_it_downloads_the_whole_log() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let gh = shim(&dir, "sleep 0.3\necho 'the log'").with_deadlines(BRIEF, LONG);
+
+    let log = gh.log_failed("acme/api", 70, 7);
+
+    assert_eq!(log.unwrap(), "the log\n");
+}
+
+#[test]
 fn a_merge_past_its_deadline_says_it_may_be_merged() {
     let _serialized = serialized();
     let dir = tempfile::tempdir().unwrap();

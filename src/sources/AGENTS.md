@@ -260,18 +260,26 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   long as it ran: the column stayed on `fetching…` and `r` did nothing, and one hung merge held
   every later merge of the session. `CliGh::exec` runs `gh` through `runner::run`, the same
   process group, pipe draining and group kill as kubectl (above). A read (`graphql`, `rest`,
-  `current_repo`, `log_failed`) gets `github::READ_DEADLINE` (30 s) and fails as `gh did not
-  answer within 30s`; the column keeps its last rows and the next interval or `r` tries again.
-  A write (`merge`, `update_branch`, `change_status`, `rerun_failed`) gets `WRITE_DEADLINE`
-  (60 s), and since GitHub may have done it anyway, its message leads with it:
-  `may be merged: no answer in 60s`, one wording per write (`Aftermath::wording`), short
-  enough for a card of about 44 characters. The app treats such a write as uncertain, not failed (see the failed
-  writes bullet of `src/app/AGENTS.md`). The checkout (`git remote -v`, `gh pr checkout`) has
+  `current_repo`) gets `github::READ_DEADLINE` (30 s) and fails as `gh did not answer within
+  30s`; the column keeps its last rows and the next interval or `r` tries again. `log_failed`
+  (`gh run view --log-failed`) downloads the whole run's log, which on a slow link can take
+  longer than a read, so it gets `WRITE_DEADLINE` (60 s) and fails as `gh did not answer within
+  60s`. A write (`merge`, `update_branch`, `change_status`, `rerun_failed`) gets
+  `WRITE_DEADLINE` too, and since GitHub may have done it anyway, it fails as
+  `Failure::unanswered(aftermath, secs)`: its message is `may be merged: no answer in 60s` and
+  it carries `Unanswered`, the wording per write (`Aftermath::wording`) and the seconds, so the
+  card, the footer and the details pane each word it themselves. The app treats such a write as
+  uncertain, not failed (see the failed writes bullet of `src/app/AGENTS.md`). The checkout (`git remote -v`, `gh pr checkout`) has
   none: a fetch over ssh can take long on a large repository, and nothing on GitHub changes
   that `r` would show. **Only a call with a deadline gets a process group of its own**: the
   group exists so the deadline can kill it, and a checkout in one would put `ssh` in a
   background group, stopped at a passphrase or host-key prompt on `/dev/tty` where nobody can
   answer it. Without a deadline `runner::run` waits for the pipes as `Command::output()` does
   (see the known limit in `AGENTS.md`).
+  **A call in a process group of its own outlives a closed terminal.** The terminal's hangup
+  goes to its foreground process group, which conveyor is in and a `gh` or kubectl with a
+  deadline is not, so closing the terminal while one hangs leaves it running until it exits by
+  itself; a call that answers, or reaches its deadline before conveyor exits, does not. Known
+  limit (`AGENTS.md`).
   Tests shorten the deadlines with `CliGh::with_deadlines(read, write)`.
 - What each `S` action makes `CliGh` run (`merge`, `update_branch`, `change_status`, `checkout` and its remotes guard, `rerun_failed`, `log_failed`): see `src/app/AGENTS.md`.

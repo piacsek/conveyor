@@ -12,10 +12,17 @@ pub enum FailureKind {
     Other,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Unanswered {
+    pub aftermath: &'static str,
+    pub secs: u64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Failure {
     kind: FailureKind,
     message: String,
+    unanswered: Option<Unanswered>,
 }
 
 impl Failure {
@@ -29,13 +36,25 @@ impl Failure {
         } else {
             FailureKind::Other
         };
-        Self { kind, message }
+        Self {
+            kind,
+            message,
+            unanswered: None,
+        }
     }
 
     pub fn timed_out(message: String) -> Self {
         Self {
             kind: FailureKind::TimedOut,
             message,
+            unanswered: None,
+        }
+    }
+
+    pub fn unanswered(aftermath: &'static str, secs: u64) -> Self {
+        Self {
+            unanswered: Some(Unanswered { aftermath, secs }),
+            ..Self::timed_out(format!("{aftermath}: no answer in {secs}s"))
         }
     }
 
@@ -44,11 +63,16 @@ impl Failure {
         Self {
             kind: FailureKind::Crashed,
             message: format!("crashed: {said}"),
+            unanswered: None,
         }
     }
 
     pub fn kind(&self) -> FailureKind {
         self.kind
+    }
+
+    pub fn unanswered_write(&self) -> Option<Unanswered> {
+        self.unanswered
     }
 
     pub fn message(&self) -> &str {
@@ -65,6 +89,7 @@ impl From<String> for Failure {
         Self {
             kind: FailureKind::Other,
             message,
+            unanswered: None,
         }
     }
 }
@@ -79,6 +104,7 @@ impl From<io::Error> for Failure {
         Self {
             kind,
             message: err.to_string(),
+            unanswered: None,
         }
     }
 }

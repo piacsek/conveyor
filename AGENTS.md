@@ -194,6 +194,9 @@ impact.
 - **A checkout can hang on ssh**: a key that needs a passphrase and has no agent prompts on
   `/dev/tty`, and a stalled fetch has no deadline: the checkout is the one `gh` call without
   one (`src/app/AGENTS.md`, the checkout; `src/sources/AGENTS.md`).
+- **A hung `gh` or `kubectl` outlives a closed terminal**: a call with a deadline runs in its own
+  process group, so the terminal's hangup does not reach it and it runs until it exits by itself
+  (`src/sources/AGENTS.md`, "A call in a process group of its own outlives a closed terminal").
 - **Some commits cost a call on every refresh**: a sha the batch answers `null` for and REST
   answers 422, and an upper-case sha (`src/sources/AGENTS.md`, `Pulls`).
 - **The `version` check judges "feeds the binary" by path only**, can be pointed by cargo at

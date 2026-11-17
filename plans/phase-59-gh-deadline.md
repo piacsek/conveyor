@@ -40,32 +40,45 @@ was killed. Every outcome is logged as today; a timeout as `gh <argv> <ms>ms tim
 | A read of a fetch (My PRs, Merge queue, Main builds, the sha lookup of Deployed) | answers in time | as today | as today |
 | same | fails in time | as today: the column's error, its last rows kept | as today |
 | same | times out | the column's error `gh did not answer within 30s` (kind `TimedOut`), its last rows kept, spinner gone; the next interval or `r` fetches again | the error when the column is focused, as for any failed fetch |
-| Jobs, failed log | times out | the jobs or log pane shows `gh did not answer within 30s` as its error | as for any failed jobs or log fetch |
-| Merge (`gh pr merge`) | times out | `! may be merged: no answer in 60s` | `#N: may be merged: no answer in 60s` |
-| Update branch | times out | `! branch may be updated: no answer in 60s` | `#N: ` and the same |
-| Mark ready / convert to draft | times out | `! may be marked ready: …` / `! may be a draft: …` | `#N: ` and the same |
-| Enable / disable auto-merge | times out | `! auto-merge may be on: …` / `! auto-merge may be off: …` | `#N: ` and the same |
-| Add to / leave the merge queue | times out | `! may be in the queue: …` / `! may be out of the queue: …` (43 characters, the longest) | `#N: ` and the same |
-| Close | times out | `! may be closed: …` | `#N: ` and the same |
-| Rerun failed jobs | times out | `! run <id>: may be rerunning: no answer in 60s` | `run <id>: may be rerunning: no answer in 60s` |
+| Jobs / failed log | times out | the jobs pane shows `gh did not answer within 30s`, the log pane `gh did not answer within 60s`, as its error | as for any failed jobs or log fetch |
+| Merge (`gh pr merge`) | times out | `! may be merged` | `#N: may be merged: no answer in 60s` |
+| Update branch | times out | `! branch may be updated` | `#N: branch may be updated: no answer in 60s` |
+| Mark ready / convert to draft | times out | `! may be marked ready` / `! may be a draft` | `#N: ` and the same, then `: no answer in 60s` |
+| Enable / disable auto-merge | times out | `! auto-merge may be on` / `! auto-merge may be off` | `#N: ` and the same, then `: no answer in 60s` |
+| Add to / leave the merge queue | times out | `! may be in the queue` / `! may be out of the queue` (25 characters, the longest) | `#N: ` and the same, then `: no answer in 60s` |
+| Close | times out | `! may be closed` | `#N: may be closed: no answer in 60s` |
+| Rerun failed jobs, every run | times out | `! may be rerunning` | `run <id>: may be rerunning: no answer in 60s`, joined by `; ` |
 | Any write | answers or fails in time | as today | as today |
 | Checkout (`git remote -v`, `gh pr checkout`) | any | as today: no deadline, a hang stays a hang (known limit) | as today |
 
 A timed-out write is uncertain, not failed: GitHub may have done it and only the answer was
-lost. Its mark, footer notice and `d` pane never say "failed": the card reads `! <what may have
-happened>: no answer in 60s`, leading with the uncertainty so a card of about 44 characters (a
-four-column layout 200 wide) keeps all of it, and the `d` pane reads `<write> sent at <time>: …`.
+lost. Its mark, footer notice and `d` pane never say "failed". The card says only what may have
+happened (`! may be merged`): no duration, no run id, at most 25 characters, so no supported
+width cuts it. The `d` pane carries the rest in words that are true, the write, that `gh` did
+not answer, and when conveyor gave up: `merge: may be merged; gh did not answer within 60s (no
+answer by 11:20:02)`. The time is when the deadline fired, never worded as when it was sent.
 It ends the busy spinner and marks the card like a failure, and it also gets what a success
 gets for safety:
 
 | Write | Times out: card | Popup | Guard lifts |
 | --- | --- | --- | --- |
-| Merge | `! may be merged: no answer in 60s` | `u` and `t` (to draft) refused with `waiting for My PRs to catch up with #N` | the first My PRs fetch that started after the timeout lands; My PRs and Merge queue reload once, now |
-| Add to the merge queue | `! may be in the queue: …` | same as merge | same guard; My PRs and Merge queue reload now, My PRs again 10 s later |
-| Enable auto-merge | `! auto-merge may be on: …` | same as merge | same as add to the merge queue |
+| Merge | `! may be merged` | `u` and `t` (to draft) refused with `waiting for My PRs to catch up with #N` | the first My PRs fetch that started after the timeout lands; My PRs and Merge queue reload once, now |
+| Add to the merge queue | `! may be in the queue` | same as merge | same guard; My PRs and Merge queue reload now, My PRs again 10 s later |
+| Enable auto-merge | `! auto-merge may be on` | same as merge | same as add to the merge queue |
 | Ready, draft, disable auto-merge, leave the queue, close | the mark with its wording | as for any failed write | no guard; My PRs (and Merge queue unless ready) reload now, My PRs again 10 s later |
 | Update branch | the mark with its wording | as for any failed write | no guard; My PRs reloads now and 10 s later |
 | Rerun failed jobs | the mark with its wording | as for any failed rerun | no guard; its column reloads now |
+
+A rerun of several runs words itself from the kind of each result, not from the first error:
+runs that failed in time and runs that timed out are counted apart, and "failed" appears only
+when a run did fail.
+
+| Rerun of 2 runs | Card | `d` pane | Footer |
+| --- | --- | --- | --- |
+| one ok, one timed out | `! may be rerunning` | `rerun: may be rerunning; gh did not answer within 60s (no answer by HH:MM:SS)` | `rerun requested for 1 of 2 runs; run <id>: may be rerunning: no answer in 60s` |
+| one failed, one timed out | `! rerun failed: 1 of 2 runs failed: run <id>: <error>; run <id>: may be rerunning: …` | `rerun failed at HH:MM:SS: ` and the same message | `rerun failed: run <id>: <error>; run <id>: may be rerunning: no answer in 60s` |
+| both timed out | `! may be rerunning` | as one ok, one timed out | `run <id>: may be rerunning: no answer in 60s; run <id>: …` |
+| one ok, one failed (as today) | `! rerun failed: 1 of 2 runs failed: run <id>: <error>` | `rerun failed at HH:MM:SS: …` | `rerun requested for 1 of 2 runs; run <id>: <error>` |
 
 The mark stays until `Esc`, a new write on the row, or the row leaving, as for any failed
 write; a refresh does not clear it. A write that fails in time (any other kind) neither lands
@@ -78,8 +91,13 @@ nor reloads, as today. The worker is free for the next write.
   returns `Ran::Finished(Output)` or `Ran::TimedOut(stderr)`. `CliKubectl` and `CliGh` both
   call it; each keeps its own wording and logging.
 - The write message does not repeat `#N`: the footer already starts with it and the card is
-  the pull request's own, so `may be merged` reads right in both. It does not name `gh` either:
-  the read timeouts keep `gh did not answer within 30s`, but a write's card has no room for it.
+  the pull request's own, so `may be merged` reads right in both.
+- The card, the footer and the `d` pane each say one thing (review round 3, after two rounds of
+  findings in one long sentence): the card what may have happened, the footer that and the wait,
+  the `d` pane the write, the wait and the time conveyor gave up. A source `Failure` of a timed-out
+  write carries its wording and its seconds (`Unanswered`) so each place words itself.
+- The failed log (`gh run view --log-failed`) downloads the whole run's log, so it gets the
+  write deadline (60 s), not the read one.
 - The checkout gets no deadline (a fetch over ssh can take long on a large repository, and a
   checkout changes nothing on GitHub that `r` would show). It still runs through the runner,
   but outside a process group: the group exists only so a deadline can kill it, and a group of

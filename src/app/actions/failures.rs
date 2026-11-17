@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 
 use crate::app::{App, Stage};
-use crate::sources::failure::FailureKind;
+use crate::sources::failure::{FailureKind, Unanswered};
 
 use super::Write;
 
@@ -12,19 +12,20 @@ pub struct Failure {
     pub action: String,
     pub kind: FailureKind,
     pub message: String,
+    pub unanswered: Option<Unanswered>,
     pub at: SystemTime,
 }
 
 impl Failure {
     pub fn line(&self) -> String {
+        if let Some(unanswered) = self.unanswered {
+            return format!("! {}", unanswered.aftermath);
+        }
         let message = self
             .message
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");
-        if self.kind == FailureKind::TimedOut {
-            return format!("! {message}");
-        }
         format!("! {} failed: {message}", self.action)
     }
 }
@@ -75,6 +76,7 @@ impl App {
             action: write.action(),
             kind: cause.kind(),
             message: cause.to_string(),
+            unanswered: cause.unanswered_write(),
             at: self.now,
         });
     }

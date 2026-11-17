@@ -269,7 +269,7 @@ impl CliGh {
     fn deadline(&self, limit: Limit) -> Option<Duration> {
         match limit {
             Limit::Read => Some(self.read),
-            Limit::Write(_) => Some(self.write),
+            Limit::Download | Limit::Write(_) => Some(self.write),
             Limit::Unbounded => None,
         }
     }
@@ -298,10 +298,10 @@ impl CliGh {
                 self.log
                     .timed_out(tool.name, args, started.elapsed(), &stderr);
                 let secs = deadline.unwrap_or_default().as_secs();
-                return Err(Failure::timed_out(match limit {
-                    Limit::Write(aftermath) => format!("{aftermath}: no answer in {secs}s"),
-                    _ => format!("{} did not answer within {secs}s", tool.name),
-                }));
+                return Err(match limit {
+                    Limit::Write(aftermath) => Failure::unanswered(aftermath, secs),
+                    _ => Failure::timed_out(format!("{} did not answer within {secs}s", tool.name)),
+                });
             }
             Err(err) if err.kind() == io::ErrorKind::NotFound => {
                 Err(io::Error::new(io::ErrorKind::NotFound, tool.missing))
@@ -327,6 +327,7 @@ impl CliGh {
 #[derive(Clone, Copy)]
 enum Limit {
     Read,
+    Download,
     Write(&'static str),
     Unbounded,
 }
@@ -380,7 +381,13 @@ impl Github for CliGh {
     }
 
     fn log_failed(&self, repo: &str, run_id: u64, job_id: u64) -> Result<String, Failure> {
-        self.read(&Self::log_failed_args(repo, run_id, job_id))
+        self.exec(
+            &Tool::gh(&self.program),
+            Limit::Download,
+            None,
+            &Self::log_failed_args(repo, run_id, job_id),
+            &[],
+        )
     }
 
     fn rerun_failed(&self, repo: &str, run_id: u64) -> Result<(), Failure> {

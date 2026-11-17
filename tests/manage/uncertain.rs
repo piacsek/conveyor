@@ -1,5 +1,5 @@
 use conveyor::app::{Input, Request, Stage, pull_key};
-use conveyor::config::UpdateMethod;
+use conveyor::config::{MergeMethod, UpdateMethod};
 use conveyor::model::prs::{BranchUpdate, MergeState, PullRequest, StatusChange};
 use conveyor::sources::failure::Failure;
 use ratatui::crossterm::event::KeyCode;
@@ -23,7 +23,7 @@ fn a_timed_out_enqueue_keeps_its_mark_and_holds_update_until_my_prs_refreshes() 
     .unwrap();
 
     assert!(
-        line_after(&h.screen(), "#1 Retry webhooks").contains("! may be in the queue: no answer"),
+        line_after(&h.screen(), "#1 Retry webhooks").contains("! may be in the queue "),
         "{}",
         h.screen()
     );
@@ -196,26 +196,86 @@ fn a_timed_out_enqueue_holds_update_only_on_the_pull_request_of_its_own_reposito
 }
 
 #[test]
-fn a_timed_out_write_leads_its_card_with_what_may_have_happened_at_four_columns() {
-    let mut h = Harness::with_size(200, 20);
-    let mut queued = open(1, "Retry webhooks");
+fn every_timed_out_write_keeps_its_whole_mark_at_the_narrowest_four_columns() {
+    let mut behind = open(1, TITLE);
+    behind.merge_state = MergeState::Behind;
+    let mut queued = open(1, TITLE);
     queued.queue_position = Some(2);
+    let mut can_enable = open(1, TITLE);
+    can_enable.can_enable_auto_merge = true;
+    let mut can_disable = open(1, TITLE);
+    can_disable.can_disable_auto_merge = true;
 
-    h.run(vec![
-        prs(vec![queued]),
-        key(KeyCode::Char('S')),
-        key(KeyCode::Char('e')),
-        timed_out_status(1, dequeue(1), "may be out of the queue"),
-    ])
-    .unwrap();
-
-    let card = line_after(&h.screen(), "#1 Retry webhooks");
-    assert!(
-        card.contains("! may be out of the queue: no answer in 60s"),
-        "{}",
-        h.screen()
+    let merge = mark_at_narrowest(
+        open(1, TITLE),
+        &['m', 'y'],
+        Input::Merged(merge_target(1, ""), Err(timed_out("may be merged"))),
     );
-    assert!(!card.contains("failed"), "{}", h.screen());
+    let update = mark_at_narrowest(
+        behind,
+        &['u'],
+        Input::BranchUpdated(
+            update_target(1, "", UpdateMethod::Merge),
+            Err(timed_out("branch may be updated")),
+        ),
+    );
+    let ready = mark_at_narrowest(
+        draft(1, TITLE),
+        &['t'],
+        timed_out_change(StatusChange::Ready, "may be marked ready"),
+    );
+    let to_draft = mark_at_narrowest(
+        open(1, TITLE),
+        &['t'],
+        timed_out_change(StatusChange::Draft, "may be a draft"),
+    );
+    let enable = mark_at_narrowest(
+        can_enable,
+        &['a', 'y'],
+        timed_out_change(
+            StatusChange::EnableAutoMerge {
+                node_id: "PR_node1".to_string(),
+                method: MergeMethod::Squash,
+                head_oid: "8c1f2a7d1".to_string(),
+            },
+            "auto-merge may be on",
+        ),
+    );
+    let disable = mark_at_narrowest(
+        can_disable,
+        &['a'],
+        timed_out_change(
+            StatusChange::DisableAutoMerge {
+                node_id: "PR_node1".to_string(),
+            },
+            "auto-merge may be off",
+        ),
+    );
+    let enqueue = mark_at_narrowest(
+        queueable(1, TITLE),
+        &['m', 'y'],
+        timed_out_change(enqueue(1), "may be in the queue"),
+    );
+    let leave = mark_at_narrowest(
+        queued,
+        &['e'],
+        timed_out_change(dequeue(1), "may be out of the queue"),
+    );
+    let close = mark_at_narrowest(
+        open(1, TITLE),
+        &['x', 'y'],
+        timed_out_change(StatusChange::Close, "may be closed"),
+    );
+
+    assert!(merge.contains("! may be merged "), "{merge}");
+    assert!(update.contains("! branch may be updated "), "{update}");
+    assert!(ready.contains("! may be marked ready "), "{ready}");
+    assert!(to_draft.contains("! may be a draft "), "{to_draft}");
+    assert!(enable.contains("! auto-merge may be on "), "{enable}");
+    assert!(disable.contains("! auto-merge may be off "), "{disable}");
+    assert!(enqueue.contains("! may be in the queue "), "{enqueue}");
+    assert!(leave.contains("! may be out of the queue "), "{leave}");
+    assert!(close.contains("! may be closed "), "{close}");
 }
 
 #[test]
@@ -245,13 +305,20 @@ fn a_timed_out_update_tells_the_footer_and_the_details_what_may_have_happened() 
     h.run(vec![key(KeyCode::Char('d'))]).unwrap();
 
     assert!(
-        h.screen()
-            .contains("update sent at 08:00:00: branch may be"),
+        h.screen().contains("update: branch may be updated;"),
         "{}",
         h.screen()
     );
+    assert!(
+        h.screen().contains("(no answer by 08:00:00)"),
+        "{}",
+        h.screen()
+    );
+    assert!(!h.screen().contains("sent at"), "{}", h.screen());
     assert!(!h.screen().contains("failed"), "{}", h.screen());
 }
+
+const TITLE: &str = "Retry webhooks";
 
 fn enqueue(number: u64) -> StatusChange {
     StatusChange::Enqueue {
@@ -266,11 +333,15 @@ fn dequeue(number: u64) -> StatusChange {
     }
 }
 
-fn timed_out(aftermath: &str) -> Failure {
-    Failure::timed_out(format!("{aftermath}: no answer in 60s"))
+fn timed_out(aftermath: &'static str) -> Failure {
+    Failure::unanswered(aftermath, 60)
 }
 
-fn timed_out_status(number: u64, change: StatusChange, aftermath: &str) -> std::io::Result<Input> {
+fn timed_out_status(
+    number: u64,
+    change: StatusChange,
+    aftermath: &'static str,
+) -> std::io::Result<Input> {
     Ok(Input::StatusChanged(
         status_target(number, "", change),
         Err(timed_out(aftermath)),
@@ -284,7 +355,7 @@ fn prs_refreshes(requests: &[Request]) -> usize {
         .count()
 }
 
-fn timed_out_in_infra(change: StatusChange, aftermath: &str) -> std::io::Result<Input> {
+fn timed_out_in_infra(change: StatusChange, aftermath: &'static str) -> std::io::Result<Input> {
     let mut target = status_target(12, "", change);
     target.repo = "acme/infra".to_string();
     Ok(Input::StatusChanged(target, Err(timed_out(aftermath))))
@@ -295,4 +366,17 @@ fn same_number() -> Vec<PullRequest> {
     infra.repo = "acme/infra".to_string();
     infra.url = "https://github.com/acme/infra/pull/12".to_string();
     vec![queueable(12, "Bump the api client"), infra]
+}
+
+fn timed_out_change(change: StatusChange, aftermath: &'static str) -> Input {
+    Input::StatusChanged(status_target(1, "", change), Err(timed_out(aftermath)))
+}
+
+fn mark_at_narrowest(pull: PullRequest, keys: &[char], result: Input) -> String {
+    let mut h = Harness::with_size(144, 20);
+    let mut inputs = vec![prs(vec![pull]), key(KeyCode::Char('S'))];
+    inputs.extend(keys.iter().map(|letter| key(KeyCode::Char(*letter))));
+    inputs.push(Ok(result));
+    h.run(inputs).unwrap();
+    line_after(&h.screen(), "#1 Retry webhooks")
 }

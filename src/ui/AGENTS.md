@@ -88,10 +88,11 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   card. The card grows by that line; the check glyph and the rest are unchanged. With the
   marked card selected, the details pane starts with `<action> failed at HH:MM:SS: <reason>`
   in red, wrapped over the pane's width with nothing cut (`App::selected_failure`, `text::clock`
-  with `utc_offset_secs`). A write that timed out (`FailureKind::TimedOut`) did not fail, it may
-  have happened: its line is `! <reason>` (`! may be merged: no answer in 60s`), the uncertainty
-  first so a four-column card keeps it, and its details line `<action> sent at HH:MM:SS:
-  <reason>`. The column title counts marks after the row count, before the
+  with `utc_offset_secs`). A write that timed out (`Failure::unanswered`) did not fail, it may
+  have happened: its line says only that (`! may be merged`, at most 25 characters, whole at
+  every supported width), and its details line carries the rest, `<action>: <what may have
+  happened>; gh did not answer within 60s (no answer by HH:MM:SS)`, the time being when
+  conveyor gave up, never worded as when the write was sent. The column title counts marks after the row count, before the
   `⚠`: `My PRs (5) !1`. The count covers every row of the column, rows hidden by the filter
   included, like the `/total` half of the title. `column_title` feeds the column bar of the narrow layout too, so
   a mark behind it still shows. With My PRs tabs, `!N` counts the marked rows of the active tab. No mark, no suffix. What marks and what clears: see
