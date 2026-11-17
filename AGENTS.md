@@ -98,6 +98,7 @@ scripts/ship.sh               gates + dev-install (unless skippable) + commit + 
 scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
 scripts/script-tests-skippable.sh exit 0 with the reason when `gates.sh` may leave out the `scripts` test target, else 1 with the first path that needs it
 scripts/feeds-binary.sh       reads paths on stdin, prints the ones that feed the binary; the one list of what does not (`tests/`, `docs/`, `changes/`, …)
+scripts/flake-inputs.sh       reads paths on stdin, prints the ones the flake build reads; the one list of what the `flake` job of `ci.yml` builds for
 scripts/fragments.sh          sourced, not run: reads the pending fragments and refuses a malformed or repeated one, at the commit its caller names
 scripts/version-check.sh      `<base> <head>`: the `version` job of `version.yml`; reads the head as git objects, runs nothing from it
 scripts/next-version.sh       prints the version the pending fragments ask for, nothing when none is pending
@@ -435,7 +436,7 @@ Outside CI (`CI` unset), `gates.sh` leaves out the `scripts` test target (`tests
 about half of a warm run: 50 s against 23 s for the test step, measured 2026-11-12) when
 `scripts/script-tests-skippable.sh` finds nothing between the merge base with `origin/main` and
 the working tree, untracked files included, under `scripts/`, `tests/scripts/`,
-`tests/fixtures/`, `.github/`, `changes/`, or in `Cargo.toml`, `Cargo.lock` or `CHANGELOG.md`:
+`tests/fixtures/`, `.github/`, `changes/`, or in `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md` or `flake.nix`:
 the paths those tests read from this repository. It then runs `cargo test --lib --bins` with a
 `--test` for every other target it finds as `tests/*.rs` or `tests/*/main.rs`, and
 `cargo test --doc`, and prints `==> skipping the script tests: <reason>; CI runs them`. No
