@@ -74,7 +74,7 @@ are the defaults:
 [prs]
 query = "is:pr is:open archived:false (author:@me OR assignee:@me)"
 limit = 20                    # 1 to 100
-refresh_secs = 60             # 10 to 86400, like every refresh_secs
+refresh_secs = 60             # 10 or more, like every refresh_secs
 merge_method = "squash"
 update_method = "merge"
 background_tabs = true        # every My PRs tab refreshes on the interval, not only the one shown
@@ -86,7 +86,7 @@ background_tabs = true        # every My PRs tab refreshes on the interval, not 
 
 [ui]
 min_column_width = 36         # 0 to 16383
-details_percent = 40          # 10 to 90
+details_percent = 40          # 1 to 99
 icons = "plain"               # or "nerd": GitHub's pull request icons, needs a Nerd Font
 
 [ui.keys]
@@ -99,19 +99,19 @@ previous_tab = "shift-tab"
 # builds = "Main"
 # deployed = "Envs"
 
-[[repo]]                      # optional; default is the repository of the current directory; one Merge queue tab each, which Main builds follows; Deployed the one with [[repo.deploy]]
+[[repo]]                      # optional; default is the repository of the current directory; one Merge queue tab each (all on the first one's refresh_secs), which Main builds follows; Deployed the one with [[repo.deploy]]
 name = "owner/name"
 path = "~/projects/name"      # optional; the local clone `S` then `c` checks a pull request out in
 main_workflow = "CI/CD"       # workflow name or file, e.g. ci.yml
-# branch = "main"             # optional; the branch Main builds reads, default the repository's default branch
+# branch = "main"             # optional; the branch Main builds reads, default the repository's default branch; repeat a [[repo]] to follow another
 builds = 10                   # runs shown in the Main builds column, 1 to 100
-refresh_secs = 30             # 10 to 86400
+refresh_secs = 30             # 10 or more
 
 [[repo.deploy]]               # optional, on one [[repo]] at most; the Deployed column
 system = "api"
 refresh_secs = 120
 
-[[repo.deploy.env]]
+[[repo.deploy.env]]           # one or more
 name = "staging"
 fetcher = "kubectl"           # the only fetcher so far
 context = "my-staging-context" # optional; kubectl's current context

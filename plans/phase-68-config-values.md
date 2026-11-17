@@ -43,23 +43,40 @@ without a word. Phases 60 and 65 are reserved, 64, 66 and 67 run in parallel, so
   unknown key. `--help` and `--version` are untouched: they return before the config is read.
 - No clamping: every value outside its range is refused, naming the table, the key, the
   repository or env where there is one, the value and the range.
+- A value is refused only when something named breaks with it: a panic, an overflow, a call
+  GitHub refuses or answers with another page size, the rate limit, a row collision, or a
+  setting conveyor never reads. A bound that is only tidy is not one (review round 2).
 - `refresh_secs` floor of 10 s, the issue's suggestion: at 5 s two My PRs tabs alone are 1,440
   searches an hour, each costing more than one point of the 5,000-point budget once the check
   contexts are counted. One floor for all three tables keeps the rule one sentence.
-- `details_percent` 10 to 90, the issue's suggestion: 0 leaves an empty pane, 100 and above
-  hide the columns.
+- `details_percent` 1 to 99: 0 leaves an empty pane, 100 and above leave the columns no rows;
+  5 or 95 is cramped but draws both.
+- `limit` and `builds` 1 to 100: GraphQL answers `first: 0` with no rows and `first: 101` with
+  EXCESSIVE_PAGINATION; REST answers `per_page=0` with 30 runs and `per_page=101` with 100.
 - `min_column_width` 0 to 16383: 0 (always four columns) and a width wider than any terminal
   (always the column bar) are both choices that work; only the overflow is broken, and 16383
   (`u16::MAX / 4`) keeps `width * 4` inside `u16`, so the multiplication at `src/ui/mod.rs:63`
   stays as it is.
-- `refresh_secs` at most 86400 (a day): `u64::MAX` overflowed `Instant` in `Schedule::fetched`
-  and killed that column's fetcher after its first fetch.
+- `refresh_secs` has no ceiling: `u64::MAX` overflowed `Instant` in `Schedule::fetched` and
+  killed that column's fetcher after its first fetch, so the deadline is now a `checked_add`
+  and one past the end of `Instant` is never due (a refresh key still fetches).
+- Two `[[repo]]` of one name are refused only when their `branch` and `main_workflow` match
+  too: since phase 66 each is its own tab, so one repository on two branches is a working
+  config, while a pure repeat shows the same tab twice.
+- A `[[repo.deploy]]` with no `[[repo.deploy.env]]` is refused: conveyor reads nothing from it
+  and the Deployed column stays empty without an error.
+- Kept, with what breaks: a blank `deployment` makes `kubectl get deploy ""` list every
+  deployment of the namespace; a blank env `name` draws a card with no title and collides with
+  any other blank one; two envs of one name share one row key, so one selection and one mark;
+  a space or control character in a repository name fails every GitHub call and reaches the
+  terminal raw.
 - A blank `context` or `namespace` stays allowed: `kubectl --context "" -n ""` uses the current
   context and its namespace (checked against a scratch kubeconfig), so leaving them out works.
 - Ignored settings are refused with what conveyor reads instead. Since phase 66 (#114) every
-  `[[repo]]`'s `builds`, `main_workflow`, `branch` and `refresh_secs` is read, so each
-  repository is held to the ranges and none of them is an ignored setting; only the Deployed
-  column still reads one `[[repo.deploy]]`.
+  `[[repo]]`'s `builds`, `main_workflow`, `branch` and `refresh_secs` is read by Main builds,
+  so each repository is held to the ranges. The Merge queue still refreshes every tab on the
+  first repository's `refresh_secs`; that is not refused (the value is read, for Main builds)
+  and went to the backlog. The Deployed column reads one `[[repo.deploy]]`.
 
 ## Settings, ranges and errors
 
@@ -67,20 +84,21 @@ without a word. Phases 60 and 65 are reserved, 64, 66 and 67 run in parallel, so
 
 | Setting | Accepted | Refused with `<file>: …` |
 | --- | --- | --- |
-| `[prs] refresh_secs` | 10 to 86400 | `[prs] refresh_secs is 0; use 10 to 86400` |
-| `[[repo]] refresh_secs` | 10 to 86400 | `[[repo]] refresh_secs of acme/webapp is 0; use 10 to 86400` |
-| `[[repo.deploy]] refresh_secs` | 10 to 86400 | `[[repo.deploy]] refresh_secs of acme/webapp is 0; use 10 to 86400` |
+| `[prs] refresh_secs` | 10 or more | `[prs] refresh_secs is 0; use 10 or more` |
+| `[[repo]] refresh_secs` | 10 or more | `[[repo]] refresh_secs of acme/webapp is 0; use 10 or more` |
+| `[[repo.deploy]] refresh_secs` | 10 or more | `[[repo.deploy]] refresh_secs of acme/webapp is 0; use 10 or more` |
 | `[prs] limit` | 1 to 100 | `[prs] limit is 0; use 1 to 100` |
 | `[[prs.tab]] limit` | 1 to 100 | `[[prs.tab]] limit of "mine" is 500; use 1 to 100` |
 | `[[repo]] builds` | 1 to 100 | `[[repo]] builds of acme/webapp is 0; use 1 to 100` |
-| `[ui] details_percent` | 10 to 90 | `[ui] details_percent is 500; use 10 to 90` |
+| `[ui] details_percent` | 1 to 99 | `[ui] details_percent is 100; use 1 to 99` |
 | `[ui] min_column_width` | 0 to 16383 | `[ui] min_column_width is 16384; use 16383 or less` |
 | `[[repo]] name` | `owner/name`, both parts non-empty, no spaces or control characters | `[[repo]] name "not-a-repo" is not owner/name` |
 | `[[repo.deploy.env]] name` | not blank | `a [[repo.deploy.env]] of acme/webapp has a blank name` |
 | `[[repo.deploy.env]] deployment` | not blank | `[[repo.deploy.env]] "prod" of acme/webapp has a blank deployment` |
 | `[[repo.deploy.env]] context`, `namespace` | anything; blank means kubectl's current context and its namespace | not refused |
-| two `[[repo]]` of one name, compared without case as GitHub does | refused | `two [[repo]] are named "acme/webapp"` |
+| two `[[repo]]` of one name (without case, as GitHub compares) on the same `branch` and `main_workflow` | refused; a different `branch` or `main_workflow` loads | `two [[repo]] named "acme/webapp" follow the same branch and main_workflow; nothing tells their tabs apart` |
 | two envs of one name in a deploy | refused | `two [[repo.deploy.env]] of acme/webapp are named "prod"` |
+| a `[[repo.deploy]]` with no `[[repo.deploy.env]]` | refused | `the [[repo.deploy]] of acme/webapp has no [[repo.deploy.env]]` |
 | a second `[[repo.deploy]]` on a repository | refused | `acme/webapp has a second [[repo.deploy]]; conveyor reads only the first` |
 | a `[[repo.deploy]]` on more than one repository (one on the second repository alone loads) | refused | `the [[repo.deploy]] of acme/infra is ignored: conveyor reads only the one of acme/webapp` |
 
@@ -96,6 +114,8 @@ The drawing site: a column 2 cells wide or less draws its tab bar without panick
 6. Ignored settings: a second deploy, a deploy on more than one repository.
 7. `tab_bar` in a column 2 cells wide.
 8. Fragment, README and `AGENTS.md` facts.
+9. Review round 2: each bound held to what breaks outside it; no refresh ceiling and a
+   `checked_add` deadline; one repository on two branches loads; a deploy needs an env.
 
 ## Outcome
 

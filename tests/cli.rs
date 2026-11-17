@@ -319,7 +319,7 @@ fn config_refuses_my_prs_refreshing_more_often_than_every_ten_seconds() {
 
     assert_eq!(code, Some(1));
     assert!(
-        stderr.contains("config.toml: [prs] refresh_secs is 0; use 10 to 86400"),
+        stderr.contains("config.toml: [prs] refresh_secs is 0; use 10 or more"),
         "{stderr}"
     );
 }
@@ -330,7 +330,7 @@ fn config_refuses_a_repository_refreshing_more_often_than_every_ten_seconds() {
 
     assert_eq!(code, Some(1));
     assert!(
-        stderr.contains("[[repo]] refresh_secs of acme/webapp is 9; use 10 to 86400"),
+        stderr.contains("[[repo]] refresh_secs of acme/webapp is 9; use 10 or more"),
         "{stderr}"
     );
 }
@@ -342,7 +342,7 @@ fn config_refuses_a_deploy_refreshing_more_often_than_every_ten_seconds() {
 
     assert_eq!(code, Some(1));
     assert!(
-        stderr.contains("[[repo.deploy]] refresh_secs of acme/webapp is 0; use 10 to 86400"),
+        stderr.contains("[[repo.deploy]] refresh_secs of acme/webapp is 0; use 10 or more"),
         "{stderr}"
     );
 }
@@ -386,7 +386,7 @@ fn config_refuses_a_details_pane_that_leaves_no_room_for_the_columns() {
 
     assert_eq!(code, Some(1));
     assert!(
-        stderr.contains("[ui] details_percent is 500; use 10 to 90"),
+        stderr.contains("[ui] details_percent is 500; use 1 to 99"),
         "{stderr}"
     );
 }
@@ -427,13 +427,15 @@ fn config_refuses_an_environment_with_a_blank_deployment() {
 }
 
 #[test]
-fn config_refuses_two_repositories_of_one_name() {
+fn config_refuses_two_repositories_nothing_tells_apart() {
     let (code, stderr) =
         refusal("[[repo]]\nname = \"acme/webapp\"\n[[repo]]\nname = \"acme/webapp\"\n");
 
     assert_eq!(code, Some(1));
     assert!(
-        stderr.contains("two [[repo]] are named \"acme/webapp\""),
+        stderr.contains(
+            "two [[repo]] named \"acme/webapp\" follow the same branch and main_workflow"
+        ),
         "{stderr}"
     );
 }
@@ -464,7 +466,7 @@ fn config_refuses_a_second_deploy_it_would_ignore() {
 #[test]
 fn config_refuses_a_deploy_on_two_repositories() {
     let (code, stderr) = refusal(&format!(
-        "{ONE_DEPLOY}[[repo]]\nname = \"acme/infra\"\n[[repo.deploy]]\n"
+        "{ONE_DEPLOY}{PROD}[[repo]]\nname = \"acme/infra\"\n[[repo.deploy]]\n{PROD}"
     ));
 
     assert_eq!(code, Some(1));
@@ -477,6 +479,8 @@ fn config_refuses_a_deploy_on_two_repositories() {
 }
 
 const ONE_DEPLOY: &str = "[[repo]]\nname = \"acme/webapp\"\n[[repo.deploy]]\n";
+
+const PROD: &str = "[[repo.deploy.env]]\nname = \"prod\"\ndeployment = \"api\"\n";
 
 const CONFIG_V0: &str = include_str!("fixtures/config-v0.toml");
 

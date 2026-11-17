@@ -22,7 +22,7 @@ fn the_demo_config_passes_the_checks() {
 #[test]
 fn a_refresh_of_ten_seconds_loads_everywhere() {
     let dir = tempfile::tempdir().unwrap();
-    let text = "[prs]\nrefresh_secs = 10\n[[repo]]\nname = \"acme/webapp\"\nrefresh_secs = 10\n[[repo.deploy]]\nrefresh_secs = 10\n";
+    let text = "[prs]\nrefresh_secs = 10\n[[repo]]\nname = \"acme/webapp\"\nrefresh_secs = 10\n[[repo.deploy]]\nrefresh_secs = 10\n[[repo.deploy.env]]\nname = \"prod\"\ndeployment = \"api\"\n";
 
     let loaded = load(&write(&dir, text));
 
@@ -42,8 +42,8 @@ fn the_ends_of_the_page_range_load() {
 #[test]
 fn the_ends_of_the_layout_ranges_load() {
     let dir = tempfile::tempdir().unwrap();
-    let narrow = "[ui]\ndetails_percent = 10\nmin_column_width = 0\n";
-    let wide = "[ui]\ndetails_percent = 90\nmin_column_width = 16383\n";
+    let narrow = "[ui]\nmin_column_width = 0\n";
+    let wide = "[ui]\nmin_column_width = 16383\n";
 
     let narrow = load(&write(&dir, narrow));
     let wide = load(&write(&dir, wide));
@@ -87,28 +87,9 @@ fn an_environment_without_context_and_namespace_loads_on_the_current_ones() {
 }
 
 #[test]
-fn a_refresh_of_a_day_loads_and_longer_is_refused() {
+fn a_refresh_of_any_length_from_ten_seconds_loads() {
     let dir = tempfile::tempdir().unwrap();
-
-    let day = load(&write(&dir, "[prs]\nrefresh_secs = 86400\n"));
-    let longer = load(&write(
-        &dir,
-        "[[repo]]\nname = \"acme/webapp\"\nrefresh_secs = 18446744073709551615\n",
-    ));
-
-    assert!(day.is_ok(), "{day:?}");
-    assert!(
-        longer.unwrap_err().to_string().contains(
-            "[[repo]] refresh_secs of acme/webapp is 18446744073709551615; use 10 to 86400"
-        )
-    );
-}
-
-#[test]
-fn a_deploy_on_the_second_repository_alone_loads() {
-    let dir = tempfile::tempdir().unwrap();
-    let text =
-        "[[repo]]\nname = \"acme/webapp\"\n[[repo]]\nname = \"acme/infra\"\n[[repo.deploy]]\n";
+    let text = "[[repo]]\nname = \"acme/webapp\"\nrefresh_secs = 18446744073709551615\n";
 
     let loaded = load(&write(&dir, text));
 
@@ -116,14 +97,83 @@ fn a_deploy_on_the_second_repository_alone_loads() {
 }
 
 #[test]
-fn two_repositories_differing_only_in_case_are_one() {
+fn the_edges_of_the_details_pane_load() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let small = load(&write(&dir, "[ui]\ndetails_percent = 1\n"));
+    let large = load(&write(&dir, "[ui]\ndetails_percent = 99\n"));
+
+    assert!(small.is_ok(), "{small:?}");
+    assert!(large.is_ok(), "{large:?}");
+}
+
+#[test]
+fn a_details_pane_of_nothing_or_of_everything_is_refused() {
+    assert!(
+        refused("[ui]\ndetails_percent = 0\n").contains("[ui] details_percent is 0; use 1 to 99")
+    );
+    assert!(
+        refused("[ui]\ndetails_percent = 100\n")
+            .contains("[ui] details_percent is 100; use 1 to 99")
+    );
+}
+
+#[test]
+fn a_page_github_would_not_answer_as_asked_is_refused() {
+    assert!(refused("[prs]\nlimit = 0\n").contains("[prs] limit is 0; use 1 to 100"));
+    assert!(
+        refused("[[repo]]\nname = \"acme/webapp\"\nbuilds = 101\n")
+            .contains("[[repo]] builds of acme/webapp is 101; use 1 to 100")
+    );
+}
+
+#[test]
+fn one_repository_on_two_branches_loads() {
+    let dir = tempfile::tempdir().unwrap();
+    let text = "[[repo]]\nname = \"acme/webapp\"\nbranch = \"main\"\n[[repo]]\nname = \"acme/webapp\"\nbranch = \"develop\"\n";
+
+    let loaded = load(&write(&dir, text));
+
+    assert!(loaded.is_ok(), "{loaded:?}");
+}
+
+#[test]
+fn one_repository_on_two_workflows_loads() {
+    let dir = tempfile::tempdir().unwrap();
+    let text = "[[repo]]\nname = \"acme/webapp\"\n[[repo]]\nname = \"acme/webapp\"\nmain_workflow = \"deploy.yml\"\n";
+
+    let loaded = load(&write(&dir, text));
+
+    assert!(loaded.is_ok(), "{loaded:?}");
+}
+
+#[test]
+fn a_deploy_without_environments_is_refused() {
+    assert!(
+        refused("[[repo]]\nname = \"acme/webapp\"\n[[repo.deploy]]\n")
+            .contains("the [[repo.deploy]] of acme/webapp has no [[repo.deploy.env]]")
+    );
+}
+
+#[test]
+fn a_deploy_on_the_second_repository_alone_loads() {
+    let dir = tempfile::tempdir().unwrap();
+    let text = "[[repo]]\nname = \"acme/webapp\"\n[[repo]]\nname = \"acme/infra\"\n[[repo.deploy]]\n[[repo.deploy.env]]\nname = \"prod\"\ndeployment = \"api\"\n";
+
+    let loaded = load(&write(&dir, text));
+
+    assert!(loaded.is_ok(), "{loaded:?}");
+}
+
+#[test]
+fn two_repositories_differing_only_in_case_on_one_branch_are_one() {
     let dir = tempfile::tempdir().unwrap();
     let text = "[[repo]]\nname = \"acme/webapp\"\n[[repo]]\nname = \"Acme/WebApp\"\n";
 
     let err = load(&write(&dir, text)).unwrap_err().to_string();
 
     assert!(
-        err.contains("two [[repo]] are named \"Acme/WebApp\""),
+        err.contains("two [[repo]] named \"Acme/WebApp\" follow the same branch and main_workflow"),
         "{err}"
     );
 }
@@ -142,7 +192,7 @@ fn every_repository_is_held_to_the_ranges() {
         refused(&format!(
             "{first}[[repo]]\nname = \"acme/infra\"\nrefresh_secs = 5\n"
         ))
-        .contains("[[repo]] refresh_secs of acme/infra is 5; use 10 to 86400")
+        .contains("[[repo]] refresh_secs of acme/infra is 5; use 10 or more")
     );
 }
 

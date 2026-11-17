@@ -3,17 +3,24 @@ use std::ops::RangeInclusive;
 
 use super::{Config, DeployEnv, Prs, Repo, Ui};
 
-const REFRESH_SECS: RangeInclusive<u64> = 10..=86_400;
+const MIN_REFRESH_SECS: u64 = 10;
 const PAGE: RangeInclusive<usize> = 1..=100;
-const DETAILS_PERCENT: RangeInclusive<u16> = 10..=90;
+const DETAILS_PERCENT: RangeInclusive<u16> = 1..=99;
 const MAX_COLUMN_WIDTH: u16 = u16::MAX / 4;
 
 pub(super) fn check(config: &Config) -> Result<(), String> {
     check_prs(&config.prs)?;
     check_ui(&config.ui)?;
     config.repo.iter().try_for_each(check_repo)?;
-    if let Some(repo) = repeated(&config.repo, |a, b| a.name.eq_ignore_ascii_case(&b.name)) {
-        return Err(format!("two [[repo]] are named \"{}\"", repo.name));
+    if let Some(repo) = repeated(&config.repo, |a, b| {
+        a.name.eq_ignore_ascii_case(&b.name)
+            && a.branch == b.branch
+            && a.main_workflow == b.main_workflow
+    }) {
+        return Err(format!(
+            "two [[repo]] named \"{}\" follow the same branch and main_workflow; nothing tells their tabs apart",
+            repo.name
+        ));
     }
     check_read(&config.repo)
 }
@@ -30,7 +37,7 @@ fn check_read(repos: &[Repo]) -> Result<(), String> {
 }
 
 fn check_prs(prs: &Prs) -> Result<(), String> {
-    within("[prs] refresh_secs", prs.refresh_secs, &REFRESH_SECS)?;
+    refresh("[prs] refresh_secs", prs.refresh_secs)?;
     within("[prs] limit", prs.limit, &PAGE)?;
     for tab in &prs.tab {
         if let Some(limit) = tab.limit {
@@ -59,10 +66,9 @@ fn check_repo(repo: &Repo) -> Result<(), String> {
     if !owner_and_name(&repo.name) {
         return Err(format!("[[repo]] name \"{}\" is not owner/name", repo.name));
     }
-    within(
+    refresh(
         &format!("[[repo]] refresh_secs of {}", repo.name),
         repo.refresh_secs,
-        &REFRESH_SECS,
     )?;
     within(
         &format!("[[repo]] builds of {}", repo.name),
@@ -76,11 +82,16 @@ fn check_repo(repo: &Repo) -> Result<(), String> {
         ));
     }
     for deploy in &repo.deploy {
-        within(
+        refresh(
             &format!("[[repo.deploy]] refresh_secs of {}", repo.name),
             deploy.refresh_secs,
-            &REFRESH_SECS,
         )?;
+        if deploy.env.is_empty() {
+            return Err(format!(
+                "the [[repo.deploy]] of {} has no [[repo.deploy.env]]",
+                repo.name
+            ));
+        }
         for env in &deploy.env {
             check_env(env, &repo.name)?;
         }
@@ -123,6 +134,13 @@ fn owner_and_name(name: &str) -> bool {
     };
     name.split_once('/')
         .is_some_and(|(owner, name)| part(owner) && part(name))
+}
+
+fn refresh(what: &str, secs: u64) -> Result<(), String> {
+    if secs < MIN_REFRESH_SECS {
+        return Err(format!("{what} is {secs}; use {MIN_REFRESH_SECS} or more"));
+    }
+    Ok(())
 }
 
 fn within<T: PartialOrd + Display>(

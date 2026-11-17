@@ -393,6 +393,17 @@ fn a_refresh_asked_of_spawn_each_fetches_that_tab_only() {
     assert!(inputs.recv_timeout(Duration::from_millis(300)).is_err());
 }
 
+#[test]
+fn an_interval_past_the_end_of_time_never_falls_due() {
+    let start = Instant::now();
+    let mut schedule = Schedule::new(1, Duration::from_secs(u64::MAX), start);
+
+    assert_eq!(schedule.next(Wake::Due, start), Some(0));
+    schedule.fetched(start);
+
+    assert_eq!(schedule.timeout(start), Some(Duration::MAX));
+}
+
 fn secs(n: u64) -> Duration {
     Duration::from_secs(n)
 }

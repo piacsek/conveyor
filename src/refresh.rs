@@ -31,7 +31,7 @@ pub struct Schedule {
     interval: Duration,
     first: usize,
     left: Vec<usize>,
-    due: Instant,
+    due: Option<Instant>,
     sweeping: bool,
     owed: bool,
 }
@@ -43,7 +43,7 @@ impl Schedule {
             interval: interval.max(Duration::from_secs(1)),
             first: 0,
             left: sweep(0, tabs).collect(),
-            due: now,
+            due: Some(now),
             sweeping: false,
             owed: false,
         }
@@ -53,7 +53,10 @@ impl Schedule {
         if self.owed {
             None
         } else if self.left.is_empty() {
-            Some(self.due.saturating_duration_since(now))
+            Some(
+                self.due
+                    .map_or(Duration::MAX, |due| due.saturating_duration_since(now)),
+            )
         } else {
             Some(Duration::ZERO)
         }
@@ -65,7 +68,7 @@ impl Schedule {
             Wake::Closed => None,
             Wake::Asked(asked) => {
                 self.first = asked;
-                let tab = if self.left.is_empty() && now >= self.due {
+                let tab = if self.left.is_empty() && self.due.is_some_and(|due| now >= due) {
                     self.start_sweep()
                 } else {
                     self.sweeping = !self.left.is_empty();
@@ -93,7 +96,7 @@ impl Schedule {
 
     pub fn fetched(&mut self, now: Instant) {
         if self.left.is_empty() && (self.sweeping || self.tabs <= 1) {
-            self.due = now + self.interval;
+            self.due = now.checked_add(self.interval);
         }
     }
 }
