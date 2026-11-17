@@ -129,7 +129,7 @@ impl PrsStage {
                 "convert to draft",
                 Err(format!("#{} is in the merge queue", pr.number)),
             )
-        } else if context.landing(pr.number) {
+        } else if context.landing(pr.key()) {
             offer('t', "convert to draft", Err(waiting(pr.number)))
         } else {
             offer('t', "convert to draft", status(StatusChange::Draft))
@@ -214,7 +214,7 @@ impl PrsStage {
 
     fn update_target(&self, context: &Context) -> Result<UpdateTarget, String> {
         let pr = self.column().selected().ok_or("nothing selected")?;
-        if context.landing(pr.number) {
+        if context.landing(pr.key()) {
             return Err(waiting(pr.number));
         }
         if pr.queue_position.is_some() {

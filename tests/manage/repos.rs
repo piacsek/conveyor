@@ -1,9 +1,9 @@
-use conveyor::app::Mode;
+use conveyor::app::{Input, Mode};
 use conveyor::model::prs::{PullRequest, StatusChange};
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::{draft, line_after, open, status_changed, tall};
-use crate::support::{key, prs};
+use crate::support::{key, merge_target, prs};
 
 #[test]
 fn a_refresh_keeps_the_selection_on_the_pull_request_of_the_other_repository() {
@@ -57,6 +57,26 @@ fn a_failed_write_marks_only_the_card_of_its_own_repository() {
         !line_after(&screen, "#12 Drop the users table").contains("failed"),
         "{screen}"
     );
+}
+
+#[test]
+fn a_merge_sent_in_one_repository_leaves_the_other_free_to_change() {
+    let mut h = tall();
+
+    h.run(vec![
+        prs(same_number()),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+        Ok(Input::Merged(merge_target(12, ""), Ok(()))),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("t  convert to draft"), "{screen}");
+    assert!(!screen.contains("waiting for My PRs"), "{screen}");
 }
 
 fn same_draft() -> Vec<PullRequest> {

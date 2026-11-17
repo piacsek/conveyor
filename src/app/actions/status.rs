@@ -62,7 +62,7 @@ impl App {
             Err(message) => format!("#{number}: {message}"),
         });
         if result.is_ok() && change.lands_a_merge() {
-            self.land(number);
+            self.land(target.key());
         }
         result.is_ok()
     }

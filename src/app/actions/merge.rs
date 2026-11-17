@@ -40,7 +40,7 @@ impl App {
         let number = target.number;
         let write = self.finish_write(target.key(), &WriteKind::Merge(number));
         match result {
-            Ok(()) => self.land(number),
+            Ok(()) => self.land(target.key()),
             Err(message) => self.fail(write, message),
         }
         self.notice = Some(match result {
@@ -49,10 +49,9 @@ impl App {
         });
     }
 
-    pub(super) fn land(&mut self, number: u64) {
+    pub(super) fn land(&mut self, key: u64) {
         let tab = self.stage(Stage::Prs).active_tab();
-        self.merge_landing
-            .retain(|(landing, _, _)| *landing != number);
-        self.merge_landing.push((number, tab, false));
+        self.merge_landing.retain(|(landing, _, _)| *landing != key);
+        self.merge_landing.push((key, tab, false));
     }
 }
