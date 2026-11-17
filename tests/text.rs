@@ -46,6 +46,18 @@ fn wrap_keeps_a_selector_emoji_wider_than_the_line_whole() {
 }
 
 #[test]
+fn truncate_never_cuts_inside_a_flag() {
+    assert_eq!(truncate("🇺🇸🇺🇸", 3), "🇺🇸…");
+    assert_eq!(truncate("🇺🇸🇺🇸🇺🇸", 4), "🇺🇸…");
+    assert_eq!(truncate("🇨🇦 deploy", 2), "…");
+}
+
+#[test]
+fn pad_right_counts_a_control_character_as_no_cell() {
+    assert_eq!(pad_right("a\tb", 4), "a\tb  ");
+}
+
+#[test]
 fn wrap_fills_words_greedily_up_to_the_width() {
     assert_eq!(wrap("one two three", 9, 3), vec!["one two", "three"]);
     assert_eq!(wrap("one two three", 40, 2), vec!["one two three"]);

@@ -106,11 +106,12 @@ fn pr_checks(pr: &PullRequest, width: usize) -> Vec<Span<'static>> {
     for check in unhappy {
         let (glyph, color) = conclusion_glyph(check.conclusion);
         let text = format!("{glyph} {}", truncate(&check.name, room.saturating_sub(2)));
+        let separator = usize::from(!spans.is_empty());
         let used = display_width(&text);
-        if used + 1 > room {
+        if separator + used > room {
             break;
         }
-        if !spans.is_empty() {
+        if separator == 1 {
             spans.push(Span::styled(" ", dim()));
             room -= 1;
         }

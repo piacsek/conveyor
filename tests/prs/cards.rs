@@ -385,6 +385,30 @@ fn a_title_with_a_variation_selector_emoji_keeps_the_age_on_the_card() {
     assert!(rows[1].contains(" 2h│"), "{screen}");
 }
 
+#[test]
+fn a_single_failing_check_longer_than_the_card_is_cut_with_an_ellipsis() {
+    let mut h = Harness::new();
+    let mut ascii = pr(4821, "Retry hooks");
+    ascii.checks_detail = vec![Check {
+        name: "integration / postgres / every webhook retry path".to_string(),
+        conclusion: CheckConclusion::Failure,
+        ..Default::default()
+    }];
+    let mut wide = pr(4830, "Rate limits");
+    wide.checks_detail = vec![Check {
+        name: "修复修复修复修复修复修复修复修复修复修复".to_string(),
+        conclusion: CheckConclusion::Failure,
+        ..Default::default()
+    }];
+
+    h.run(vec![prs(vec![ascii, wide]), key(KeyCode::Char('q'))])
+        .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("✗ integration / postgres"), "{screen}");
+    assert!(screen.contains("✗ 修"), "{screen}");
+}
+
 fn card(screen: &str, title: &str) -> (String, String) {
     let lines: Vec<&str> = screen.lines().collect();
     let at = lines

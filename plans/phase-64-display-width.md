@@ -49,4 +49,20 @@ title too far, pushing its right-aligned figure out of the card. Listed under "K
 
 ## Outcome
 
+- Text is measured in terminal cells: `text::display_width` measures (control characters count
+  none), and `truncate`, `wrap`, `pad_right` and `take_width` cut where the prefix's width fits,
+  never between an emoji and its selector, after a zero-width joiner, or inside a flag.
+- Fixed with it: the confirm dialog, a card's title and right side (a branch name on Deployed),
+  the unhappy checks line, the tab bar and the help's key column. A single failing check longer
+  than the card is now cut with `…` instead of leaving the checks line empty, as it did on
+  `main` too.
+- The "Widths are counted in characters" known limit is gone. The demo's `#4821` title starts
+  with `🔁`, so `docs/details.png` and `docs/confirm.png` show an emoji title; CJK text stays out
+  of the fixture because the screenshot pipeline draws a gap after each CJK character.
+- Two review rounds; round 2 (unprimed) had no must or should finding.
+
 ## Hurdles
+
+- `design` `take_width` added each character's own width while `display_width` measured the string, so a symbol with its emoji selector (`♻️`) counted one cell in the cut and two on screen, and a card lost its age → code
+- `review-loop` a card's right side (`at <branch>` on Deployed) still counted characters, missed because the plan listed it as fixed text → code
+- `tooling` freeze and Chrome draw the cell after a CJK character as a visible gap, so a CJK title cannot go into the screenshots without misleading → none

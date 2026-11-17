@@ -11,7 +11,7 @@ pub fn scroll(offset: i32) -> u16 {
 }
 
 pub fn display_width(text: &str) -> usize {
-    UnicodeWidthStr::width(text)
+    UnicodeWidthStr::width(text.replace(char::is_control, "").as_str())
 }
 
 pub fn take_width(text: &str, width: usize) -> &str {
@@ -26,13 +26,25 @@ pub fn take_width(text: &str, width: usize) -> &str {
 }
 
 fn cut_points(text: &str) -> impl Iterator<Item = usize> + '_ {
+    let mut flag_halves = 0;
     text.char_indices()
         .zip(text.chars().skip(1))
-        .filter(|&((_, before), after)| {
-            before != '\u{200d}' && UnicodeWidthChar::width(after).is_some_and(|w| w > 0)
+        .filter(move |&((_, before), after)| {
+            flag_halves = if is_flag_half(before) {
+                flag_halves + 1
+            } else {
+                0
+            };
+            before != '\u{200d}'
+                && !(is_flag_half(after) && flag_halves % 2 == 1)
+                && UnicodeWidthChar::width(after).is_some_and(|w| w > 0)
         })
         .map(|((at, before), _)| at + before.len_utf8())
         .chain([text.len()])
+}
+
+fn is_flag_half(c: char) -> bool {
+    ('\u{1f1e6}'..='\u{1f1ff}').contains(&c)
 }
 
 pub fn truncate(text: &str, width: usize) -> String {

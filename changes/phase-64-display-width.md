@@ -6,3 +6,5 @@ kind: fix
   tab bar of such tab names ends with `…` at the column's edge.
 - A Deployed card whose branch name holds such characters keeps its last one inside the card,
   and a tab key set to such a character keeps the help's descriptions in line.
+- A single failing check whose name is longer than the card now shows, cut with `…`, instead of
+  leaving the card's checks line empty.
