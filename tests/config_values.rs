@@ -29,6 +29,16 @@ fn a_refresh_of_ten_seconds_loads_everywhere() {
     assert!(loaded.is_ok(), "{loaded:?}");
 }
 
+#[test]
+fn the_ends_of_the_page_range_load() {
+    let dir = tempfile::tempdir().unwrap();
+    let text = "[prs]\nlimit = 1\n[[prs.tab]]\nname = \"mine\"\nquery = \"is:pr\"\nlimit = 100\n[[repo]]\nname = \"acme/webapp\"\nbuilds = 100\n";
+
+    let loaded = load(&write(&dir, text));
+
+    assert!(loaded.is_ok(), "{loaded:?}");
+}
+
 fn write(dir: &tempfile::TempDir, text: &str) -> std::path::PathBuf {
     let path = dir.path().join("config.toml");
     std::fs::write(&path, text).unwrap();

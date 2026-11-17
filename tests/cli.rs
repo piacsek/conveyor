@@ -347,6 +347,39 @@ fn config_refuses_a_deploy_refreshing_more_often_than_every_ten_seconds() {
     );
 }
 
+#[test]
+fn config_refuses_a_my_prs_limit_github_would_not_answer() {
+    let (code, stderr) = refusal("[prs]\nlimit = 101\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[prs] limit is 101; use 1 to 100"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_a_tab_limit_github_would_not_answer() {
+    let (code, stderr) = refusal("[[prs.tab]]\nname = \"mine\"\nquery = \"is:pr\"\nlimit = 0\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[[prs.tab]] limit of \"mine\" is 0; use 1 to 100"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_a_number_of_builds_github_would_not_answer() {
+    let (code, stderr) = refusal("[[repo]]\nname = \"acme/webapp\"\nbuilds = 0\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[[repo]] builds of acme/webapp is 0; use 1 to 100"),
+        "{stderr}"
+    );
+}
+
 const CONFIG_V0: &str = include_str!("fixtures/config-v0.toml");
 
 fn fixture(name: &str) -> std::path::PathBuf {
