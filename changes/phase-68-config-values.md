@@ -1,8 +1,8 @@
 kind: fix
 
-- A config with a `refresh_secs` below 10 no longer loads: conveyor starts on the defaults and
-  names the file and the setting. Write 10 or more; below 10 it polled GitHub until the rate
-  limit ran out.
+- A config with a `refresh_secs` below 5 no longer loads: conveyor starts on the defaults and
+  names the file and the setting. A refresh of every second or so ran out the GitHub rate
+  limit; write 5 or more.
 - A very large `refresh_secs` no longer stops its column refreshing after the first load.
 - A `limit` or a number of `builds` outside 1 to 100 is refused at start, instead of failing in
   its column or showing a page size nobody asked for.
@@ -18,4 +18,3 @@ kind: fix
 - A `[[repo.deploy]]` with no environment, a second `[[repo.deploy]]` on a repository, or a `[[repo.deploy]]` on more than one
   repository, is refused at start, naming the one conveyor reads, instead of being ignored
   without a word.
-- A My PRs column two cells wide or less no longer crashes while drawing its tabs.

@@ -314,35 +314,35 @@ fn config_leaves_the_branch_out_while_it_is_unset() {
 }
 
 #[test]
-fn config_refuses_my_prs_refreshing_more_often_than_every_ten_seconds() {
-    let (code, stderr) = refusal("[prs]\nrefresh_secs = 0\n");
+fn config_refuses_my_prs_refreshing_more_often_than_every_five_seconds() {
+    let (code, stderr) = refusal("[prs]\nrefresh_secs = 4\n");
 
     assert_eq!(code, Some(1));
     assert!(
-        stderr.contains("config.toml: [prs] refresh_secs is 0; use 10 or more"),
+        stderr.contains("config.toml: [prs] refresh_secs is 4; use 5 or more"),
         "{stderr}"
     );
 }
 
 #[test]
-fn config_refuses_a_repository_refreshing_more_often_than_every_ten_seconds() {
-    let (code, stderr) = refusal("[[repo]]\nname = \"acme/webapp\"\nrefresh_secs = 9\n");
+fn config_refuses_a_repository_refreshing_more_often_than_every_five_seconds() {
+    let (code, stderr) = refusal("[[repo]]\nname = \"acme/webapp\"\nrefresh_secs = 4\n");
 
     assert_eq!(code, Some(1));
     assert!(
-        stderr.contains("[[repo]] refresh_secs of acme/webapp is 9; use 10 or more"),
+        stderr.contains("[[repo]] refresh_secs of acme/webapp is 4; use 5 or more"),
         "{stderr}"
     );
 }
 
 #[test]
-fn config_refuses_a_deploy_refreshing_more_often_than_every_ten_seconds() {
+fn config_refuses_a_deploy_refreshing_more_often_than_every_five_seconds() {
     let (code, stderr) =
-        refusal("[[repo]]\nname = \"acme/webapp\"\n[[repo.deploy]]\nrefresh_secs = 0\n");
+        refusal("[[repo]]\nname = \"acme/webapp\"\n[[repo.deploy]]\nrefresh_secs = 4\n");
 
     assert_eq!(code, Some(1));
     assert!(
-        stderr.contains("[[repo.deploy]] refresh_secs of acme/webapp is 0; use 10 or more"),
+        stderr.contains("[[repo.deploy]] refresh_secs of acme/webapp is 4; use 5 or more"),
         "{stderr}"
     );
 }

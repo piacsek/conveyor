@@ -3,7 +3,7 @@ use std::ops::RangeInclusive;
 
 use super::{Config, DeployEnv, Prs, Repo, Ui};
 
-const MIN_REFRESH_SECS: u64 = 10;
+const MIN_REFRESH_SECS: u64 = 5;
 const PAGE: RangeInclusive<usize> = 1..=100;
 const DETAILS_PERCENT: RangeInclusive<u16> = 1..=99;
 const MAX_COLUMN_WIDTH: u16 = u16::MAX / 4;
@@ -18,7 +18,7 @@ pub(super) fn check(config: &Config) -> Result<(), String> {
             && a.main_workflow == b.main_workflow
     }) {
         return Err(format!(
-            "two [[repo]] named \"{}\" follow the same branch and main_workflow; nothing tells their tabs apart",
+            "two [[repo]] named {:?} follow the same branch and main_workflow; nothing tells their tabs apart",
             repo.name
         ));
     }
@@ -38,11 +38,13 @@ fn check_read(repos: &[Repo]) -> Result<(), String> {
 
 fn check_prs(prs: &Prs) -> Result<(), String> {
     refresh("[prs] refresh_secs", prs.refresh_secs)?;
-    within("[prs] limit", prs.limit, &PAGE)?;
+    if prs.tab.is_empty() || prs.tab.iter().any(|tab| tab.limit.is_none()) {
+        within("[prs] limit", prs.limit, &PAGE)?;
+    }
     for tab in &prs.tab {
         if let Some(limit) = tab.limit {
             within(
-                &format!("[[prs.tab]] limit of \"{}\"", tab.name),
+                &format!("[[prs.tab]] limit of {:?}", tab.name),
                 limit,
                 &PAGE,
             )?;
@@ -64,7 +66,7 @@ fn check_ui(ui: &Ui) -> Result<(), String> {
 
 fn check_repo(repo: &Repo) -> Result<(), String> {
     if !owner_and_name(&repo.name) {
-        return Err(format!("[[repo]] name \"{}\" is not owner/name", repo.name));
+        return Err(format!("[[repo]] name {:?} is not owner/name", repo.name));
     }
     refresh(
         &format!("[[repo]] refresh_secs of {}", repo.name),
@@ -97,7 +99,7 @@ fn check_repo(repo: &Repo) -> Result<(), String> {
         }
         if let Some(env) = repeated(&deploy.env, |a, b| a.name == b.name) {
             return Err(format!(
-                "two [[repo.deploy.env]] of {} are named \"{}\"",
+                "two [[repo.deploy.env]] of {} are named {:?}",
                 repo.name, env.name
             ));
         }
@@ -111,7 +113,7 @@ fn check_env(env: &DeployEnv, repo: &str) -> Result<(), String> {
     }
     if env.deployment.trim().is_empty() {
         return Err(format!(
-            "[[repo.deploy.env]] \"{}\" of {repo} has a blank deployment",
+            "[[repo.deploy.env]] {:?} of {repo} has a blank deployment",
             env.name
         ));
     }

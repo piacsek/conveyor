@@ -46,9 +46,10 @@ without a word. Phases 60 and 65 are reserved, 64, 66 and 67 run in parallel, so
 - A value is refused only when something named breaks with it: a panic, an overflow, a call
   GitHub refuses or answers with another page size, the rate limit, a row collision, or a
   setting conveyor never reads. A bound that is only tidy is not one (review round 2).
-- `refresh_secs` floor of 10 s, the issue's suggestion: at 5 s two My PRs tabs alone are 1,440
-  searches an hour, each costing more than one point of the 5,000-point budget once the check
-  contexts are counted. One floor for all three tables keeps the rule one sentence.
+- `refresh_secs` floor of 5 s, the owner's decision of 2026-11-17 (review round 3; the issue
+  suggested 10): at 5 s My PRs plus the Merge queue are estimated at roughly 1,400 to 3,000
+  GraphQL points an hour, under the 5,000 limit, while 0 and 1 are shown to exhaust it. One
+  floor for all three tables keeps the rule one sentence.
 - `details_percent` 1 to 99: 0 leaves an empty pane, 100 and above leave the columns no rows;
   5 or 95 is cramped but draws both.
 - `limit` and `builds` 1 to 100: GraphQL answers `first: 0` with no rows and `first: 101` with
@@ -84,10 +85,10 @@ without a word. Phases 60 and 65 are reserved, 64, 66 and 67 run in parallel, so
 
 | Setting | Accepted | Refused with `<file>: …` |
 | --- | --- | --- |
-| `[prs] refresh_secs` | 10 or more | `[prs] refresh_secs is 0; use 10 or more` |
-| `[[repo]] refresh_secs` | 10 or more | `[[repo]] refresh_secs of acme/webapp is 0; use 10 or more` |
-| `[[repo.deploy]] refresh_secs` | 10 or more | `[[repo.deploy]] refresh_secs of acme/webapp is 0; use 10 or more` |
-| `[prs] limit` | 1 to 100 | `[prs] limit is 0; use 1 to 100` |
+| `[prs] refresh_secs` | 5 or more | `[prs] refresh_secs is 4; use 5 or more` |
+| `[[repo]] refresh_secs` | 5 or more | `[[repo]] refresh_secs of acme/webapp is 4; use 5 or more` |
+| `[[repo.deploy]] refresh_secs` | 5 or more | `[[repo.deploy]] refresh_secs of acme/webapp is 4; use 5 or more` |
+| `[prs] limit` | 1 to 100, checked only when no `[[prs.tab]]` or one without `limit` falls back to it | `[prs] limit is 0; use 1 to 100` |
 | `[[prs.tab]] limit` | 1 to 100 | `[[prs.tab]] limit of "mine" is 500; use 1 to 100` |
 | `[[repo]] builds` | 1 to 100 | `[[repo]] builds of acme/webapp is 0; use 1 to 100` |
 | `[ui] details_percent` | 1 to 99 | `[ui] details_percent is 100; use 1 to 99` |
@@ -116,6 +117,8 @@ The drawing site: a column 2 cells wide or less draws its tab bar without panick
 8. Fragment, README and `AGENTS.md` facts.
 9. Review round 2: each bound held to what breaks outside it; no refresh ceiling and a
    `checked_add` deadline; one repository on two branches loads; a deploy needs an env.
+10. Review round 3: the refresh floor is 5; `[prs] limit` checked only when a tab falls back to
+    it; a quoted config string is written escaped (`{:?}`), so a message stays on one line.
 
 ## Outcome
 

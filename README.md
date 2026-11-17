@@ -74,7 +74,7 @@ are the defaults:
 [prs]
 query = "is:pr is:open archived:false (author:@me OR assignee:@me)"
 limit = 20                    # 1 to 100
-refresh_secs = 60             # 10 or more, like every refresh_secs
+refresh_secs = 60             # 5 or more, like every refresh_secs
 merge_method = "squash"
 update_method = "merge"
 background_tabs = true        # every My PRs tab refreshes on the interval, not only the one shown
@@ -105,7 +105,7 @@ path = "~/projects/name"      # optional; the local clone `S` then `c` checks a 
 main_workflow = "CI/CD"       # workflow name or file, e.g. ci.yml
 # branch = "main"             # optional; the branch Main builds reads, default the repository's default branch; repeat a [[repo]] to follow another
 builds = 10                   # runs shown in the Main builds column, 1 to 100
-refresh_secs = 30             # 10 or more
+refresh_secs = 30             # 5 or more
 
 [[repo.deploy]]               # optional, on one [[repo]] at most; the Deployed column
 system = "api"
@@ -129,7 +129,7 @@ it. Set the terminal's font to a Nerd Font (for example
 
 **conveyor ignores my config and the footer names the config file.** The config does not load,
 so conveyor started on the defaults; the footer says which key or value is wrong and what to
-write instead. A `refresh_secs` below 10, which earlier versions accepted, is one: write 10 or
+write instead. A `refresh_secs` below 5, which earlier versions accepted, is one: write 5 or
 more. `conveyor config` prints the same message, and prints the config once it is fixed.
 
 ## Development

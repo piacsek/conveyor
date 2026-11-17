@@ -20,9 +20,9 @@ fn the_demo_config_passes_the_checks() {
 }
 
 #[test]
-fn a_refresh_of_ten_seconds_loads_everywhere() {
+fn a_refresh_of_five_seconds_loads_everywhere() {
     let dir = tempfile::tempdir().unwrap();
-    let text = "[prs]\nrefresh_secs = 10\n[[repo]]\nname = \"acme/webapp\"\nrefresh_secs = 10\n[[repo.deploy]]\nrefresh_secs = 10\n[[repo.deploy.env]]\nname = \"prod\"\ndeployment = \"api\"\n";
+    let text = "[prs]\nrefresh_secs = 5\n[[repo]]\nname = \"acme/webapp\"\nrefresh_secs = 5\n[[repo.deploy]]\nrefresh_secs = 5\n[[repo.deploy.env]]\nname = \"prod\"\ndeployment = \"api\"\n";
 
     let loaded = load(&write(&dir, text));
 
@@ -87,7 +87,7 @@ fn an_environment_without_context_and_namespace_loads_on_the_current_ones() {
 }
 
 #[test]
-fn a_refresh_of_any_length_from_ten_seconds_loads() {
+fn a_refresh_of_any_length_from_five_seconds_loads() {
     let dir = tempfile::tempdir().unwrap();
     let text = "[[repo]]\nname = \"acme/webapp\"\nrefresh_secs = 18446744073709551615\n";
 
@@ -190,10 +190,44 @@ fn every_repository_is_held_to_the_ranges() {
     );
     assert!(
         refused(&format!(
-            "{first}[[repo]]\nname = \"acme/infra\"\nrefresh_secs = 5\n"
+            "{first}[[repo]]\nname = \"acme/infra\"\nrefresh_secs = 4\n"
         ))
-        .contains("[[repo]] refresh_secs of acme/infra is 5; use 10 or more")
+        .contains("[[repo]] refresh_secs of acme/infra is 4; use 5 or more")
     );
+}
+
+#[test]
+fn a_my_prs_limit_no_tab_falls_back_to_is_not_read() {
+    let dir = tempfile::tempdir().unwrap();
+    let text = "[prs]\nlimit = 0\n[[prs.tab]]\nname = \"mine\"\nquery = \"is:pr\"\nlimit = 20\n";
+
+    let loaded = load(&write(&dir, text));
+
+    assert!(loaded.is_ok(), "{loaded:?}");
+}
+
+#[test]
+fn a_my_prs_limit_a_tab_falls_back_to_is_held_to_the_range() {
+    let text = "[prs]\nlimit = 0\n[[prs.tab]]\nname = \"mine\"\nquery = \"is:pr\"\nlimit = 20\n[[prs.tab]]\nname = \"team\"\nquery = \"is:pr\"\n";
+
+    assert!(refused(text).contains("[prs] limit is 0; use 1 to 100"));
+}
+
+#[test]
+fn a_quoted_name_is_written_escaped_on_one_line() {
+    let repo = refused_repo("acme/\\nwebapp");
+    let env = refused_env("name = \"pr\\nod\"\n");
+
+    assert!(
+        repo.contains("[[repo]] name \"acme/\\nwebapp\" is not owner/name"),
+        "{repo}"
+    );
+    assert!(!repo.contains('\n'), "{repo}");
+    assert!(
+        env.contains("[[repo.deploy.env]] \"pr\\nod\" of acme/webapp has a blank deployment"),
+        "{env}"
+    );
+    assert!(!env.contains('\n'), "{env}");
 }
 
 fn refused(text: &str) -> String {
