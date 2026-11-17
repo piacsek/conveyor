@@ -14,7 +14,7 @@ use conveyor::cli::{self, Command};
 use conveyor::config::{self, Config, Repo, expand_home};
 use conveyor::events::{self, Crossterm, SystemClock};
 use conveyor::log::{self, Log};
-use conveyor::open::SystemOpener;
+use conveyor::open::{DemoOpener, Opener, SystemOpener};
 use conveyor::refresh;
 use conveyor::sources::demo::{self, Demo};
 use conveyor::sources::fetch::{
@@ -69,6 +69,8 @@ fn main() -> ExitCode {
                 log,
                 move || CliGh::default().with_log(gh_log.clone()),
                 move || CliKubectl::default().with_log(kube_log.clone()),
+                SystemOpener::default(),
+                false,
             )
         }
         Command::Demo => tui(
@@ -77,6 +79,8 @@ fn main() -> ExitCode {
             Log::default(),
             Demo::default,
             Demo::default,
+            DemoOpener::default(),
+            true,
         ),
         Command::Help | Command::Version | Command::Log => Ok(()),
     };
@@ -116,6 +120,8 @@ fn tui<G, K>(
     log: Log,
     gh: impl Fn() -> G,
     kube: impl Fn() -> K,
+    opener: impl Opener,
+    demo: bool,
 ) -> io::Result<()>
 where
     G: Github + Send + 'static,
@@ -190,13 +196,14 @@ where
     spawn_terminal_events(tx);
     let mut app = App::new(config);
     app.notice = config_error;
+    app.demo = demo;
     app.utc_offset_secs = chrono::Local::now().offset().local_minus_utc();
     let mut terminal = ratatui::init();
     let result = run(
         &mut terminal,
         &mut app,
         rx.into_iter(),
-        &SystemOpener::default(),
+        &opener,
         |request| match request {
             Request::Refresh(stage, tab) => {
                 if let Some(refresh) = refreshers.get(&stage) {

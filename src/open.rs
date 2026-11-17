@@ -105,3 +105,20 @@ impl Opener for SystemOpener {
         check(&args[0], child.wait()?)
     }
 }
+
+#[derive(Default)]
+pub struct DemoOpener {
+    system: SystemOpener,
+}
+
+impl Opener for DemoOpener {
+    fn open(&self, _url: &str) -> io::Result<()> {
+        Err(io::Error::other(
+            "demo: acme/* is made up, so nothing was opened",
+        ))
+    }
+
+    fn copy(&self, text: &str) -> io::Result<()> {
+        self.system.copy(text)
+    }
+}

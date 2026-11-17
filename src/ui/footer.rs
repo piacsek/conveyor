@@ -1,6 +1,7 @@
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::text::Span;
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
 use crate::app::App;
@@ -25,6 +26,8 @@ pub(crate) fn footer_text(app: &App) -> String {
     }
 }
 
+const DEMO: &str = "demo ";
+
 pub fn logo() -> String {
     format!(
         "\u{25aa}\u{2500}\u{25aa}\u{2500}\u{25aa}\u{25b8} conveyor v{}",
@@ -38,13 +41,21 @@ pub(crate) fn draw_footer(frame: &mut Frame, app: &App, area: Rect) {
     } else {
         footer_text(app)
     };
+    let marker = if app.demo { DEMO } else { "" };
     let logo = logo();
-    let logo_width = logo.chars().count() as u16 + 1;
+    let width = (marker.chars().count() + logo.chars().count()) as u16 + 1;
     let [left, right] =
-        Layout::horizontal([Constraint::Fill(1), Constraint::Length(logo_width)]).areas(area);
+        Layout::horizontal([Constraint::Fill(1), Constraint::Length(width)]).areas(area);
     frame.render_widget(Paragraph::new(text), left);
     frame.render_widget(
-        Paragraph::new(Span::styled(logo, dim())).right_aligned(),
+        Paragraph::new(Line::from(vec![
+            Span::styled(
+                marker,
+                Style::new().fg(Color::Magenta).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(logo, dim()),
+        ]))
+        .right_aligned(),
         right,
     );
 }
