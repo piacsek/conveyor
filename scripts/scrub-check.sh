@@ -11,15 +11,22 @@ if [ ! -f "$list" ] || [ ! -r "$list" ]; then
   exit 1
 fi
 found=0
-for where in --untracked --cached; do
-  status=0
-  git grep "$where" -niIF -f "$list" || status=$?
+search() {
+  local what="$1" status=0
+  shift
+  "$@" || status=$?
   case "$status" in
     0) found=1 ;;
     1) ;;
-    *) echo "scrub-check: git grep $where failed" >&2; exit 1 ;;
+    *) echo "scrub-check: $what failed" >&2; exit 1 ;;
   esac
-done
+}
+listed_paths() {
+  git ls-files -z --cached --others --exclude-standard | tr '\0' '\n' | grep -iF -f "$list"
+}
+search "git grep --untracked" git grep --untracked -niIF -f "$list"
+search "git grep --cached" git grep --cached -niIF -f "$list"
+search "the path check" listed_paths
 if [ "$found" = 1 ]; then
   echo "scrub-check: denylisted terms found (see above)" >&2
   exit 1

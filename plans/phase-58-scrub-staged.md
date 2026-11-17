@@ -49,6 +49,10 @@ exactly like a machine with no denylist.
 | readable file | a listed term in a tracked or untracked, not ignored, file | the matches, exit 1 |
 | readable file | a listed term only in the index | the matches, exit 1 |
 | readable file | a listed term only in an ignored file | `clean`, exit 0 |
+| readable file | a listed term in the path of a tracked, staged or untracked, not ignored, file | the paths, exit 1 |
+| readable file | a listed term only in the path of an ignored file | `clean`, exit 0 |
+| empty file | any | `git grep` fails, exit 1 |
+| readable file | a listed term in a file written after the gates ran, before `git add -A` | `ship.sh` scrubs again after `git add -A`: nothing committed or pushed, the files stay staged |
 
 ## Tasks
 

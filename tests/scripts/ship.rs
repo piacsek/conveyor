@@ -168,6 +168,24 @@ fn ship_commits_and_pushes_nothing_when_a_new_file_holds_a_listed_term() {
 }
 
 #[test]
+fn ship_commits_and_pushes_nothing_when_what_it_staged_holds_a_listed_term_the_gates_never_saw() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = ship_sandbox(dir.path());
+    link_conveyor_dev(dir.path(), &another_build(dir.path()));
+    denylist(dir.path(), "zz-secret-term\n");
+    fs::write(work.join("notes.md"), "notes about zz-secret-term\n").unwrap();
+
+    let output = ship(dir.path(), "docs: notes");
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert_eq!(
+        calls(dir.path()),
+        ["cargo fmt", "gates.sh ", "dev-install.sh "]
+    );
+    assert!(!pushed(dir.path()));
+}
+
+#[test]
 fn the_template_holds_a_summary_and_the_changes() {
     let template = Path::new(env!("CARGO_MANIFEST_DIR")).join(".github/pull_request_template.md");
 
@@ -182,6 +200,7 @@ fn ship_sandbox(root: &Path) -> PathBuf {
     git(root, &["init", "-q", "--bare", "origin.git"]);
     git(&work, &["remote", "add", "origin", "../origin.git"]);
     link_script(&work, "ship.sh");
+    link_script(&work, "scrub-check.sh");
     symlink(recorder(), work.join("scripts/gates.sh")).unwrap();
     symlink(recorder(), work.join("scripts/dev-install.sh")).unwrap();
     fs::create_dir_all(root.join("bin")).unwrap();
@@ -238,7 +257,6 @@ fn pushed_subject(root: &Path) -> String {
 fn scrubbing_gates(work: &Path) {
     fs::remove_file(work.join("scripts/gates.sh")).unwrap();
     link_script(work, "gates.sh");
-    link_script(work, "scrub-check.sh");
     link_script(work, "script-tests-skippable.sh");
 }
 

@@ -122,6 +122,56 @@ fn no_default_denylist_skips_the_scrub() {
     );
 }
 
+#[test]
+fn a_listed_term_only_in_the_name_of_an_untracked_file_fails_the_scrub() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "zz-secret-term\n");
+    fs::write(work.join("-ZZ-Secret-Term notes.md"), "clean\n").unwrap();
+
+    let output = scrub(&work, Some(&list));
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stdout(&output).contains("-ZZ-Secret-Term notes.md\n"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn a_listed_term_only_in_the_name_of_a_staged_file_fails_the_scrub() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "zz-secret-term\n");
+    fs::create_dir_all(work.join("docs")).unwrap();
+    fs::write(work.join("docs/zz-secret-term.md"), "clean\n").unwrap();
+    git(&work, &["add", "docs/zz-secret-term.md"]);
+
+    let output = scrub(&work, Some(&list));
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stdout(&output).contains("docs/zz-secret-term.md\n"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn a_listed_term_only_in_the_name_of_an_ignored_file_leaves_the_scrub_clean() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "zz-secret-term\n");
+    fs::create_dir_all(work.join("target")).unwrap();
+    fs::write(work.join("target/zz-secret-term.md"), "clean\n").unwrap();
+
+    let output = scrub(&work, Some(&list));
+
+    assert!(output.status.success(), "{}", stdout(&output));
+    assert_eq!(stdout(&output), "scrub-check: clean\n");
+}
+
 fn scrub_sandbox(root: &Path) -> PathBuf {
     let work = repository(root);
     link_script(&work, "scrub-check.sh");

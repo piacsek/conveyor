@@ -16,6 +16,7 @@ else
   scripts/dev-install.sh
 fi
 git add -A
+scripts/scrub-check.sh
 git commit -q -m "$message"
 git push -q -u origin "$branch"
 git log --oneline -1
