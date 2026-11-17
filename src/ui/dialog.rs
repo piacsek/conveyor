@@ -6,7 +6,7 @@ use ratatui::widgets::{Block, Clear, Padding, Paragraph};
 use crate::app::{Menu, Pending};
 use crate::config::UpdateMethod;
 use crate::model::prs::StatusChange;
-use crate::text::{cells, wrap};
+use crate::text::{cells, display_width, wrap};
 use crate::ui::style::dim;
 
 const HINT: &str = "y confirms · any other key cancels";
@@ -45,7 +45,7 @@ pub(crate) fn draw_confirm(frame: &mut Frame, area: Rect, pending: &Pending, lab
     let inner = lines
         .iter()
         .chain(&hint)
-        .map(|line| line.chars().count())
+        .map(|line| display_width(line))
         .max()
         .unwrap_or(0)
         .min(room);
