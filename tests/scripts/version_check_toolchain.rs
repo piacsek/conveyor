@@ -184,7 +184,7 @@ fn a_head_without_the_toolchain_file_counts_as_a_new_channel() {
 }
 
 #[test]
-fn a_machine_without_jq_refuses_a_new_channel_instead_of_passing_it() {
+fn a_machine_without_jq_is_refused_before_anything_is_judged() {
     let dir = tempfile::tempdir().unwrap();
     let work = pinned(dir.path());
     committed(&work, "rust-toolchain.toml", &toolchain("1.99.0"));
@@ -205,7 +205,7 @@ fn a_machine_without_jq_refuses_a_new_channel_instead_of_passing_it() {
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
         stderr(&output),
-        "version check: jq is not on PATH: the check reads the locked rust-overlay revision in flake.lock with jq when rust-toolchain.toml changes the Rust channel, so install jq and run it again\n"
+        "version check: jq is not on PATH: the check reads what cargo metadata answers and the locked rust-overlay revision in flake.lock with jq, so install jq and run it again\n"
     );
 }
 
