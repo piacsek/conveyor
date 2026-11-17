@@ -856,6 +856,12 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   alike (one `u128` to `u64` in `tests/events.rs` takes `try_from`); `text::scroll` clamps an `i32` scroll offset to `0..=u16::MAX`; `u16` to `i32` goes
   through `i32::from`; `text::clock` adds its offset in `i128`. The rest of `clippy::pedantic`
   stays off. Fragment `kind: internal`.
+  Time and tokens (backfilled after the release, so unlike a branch's own line it holds ready,
+  merge and release; times UTC): start 2026-11-17 04:56:47Z, draft PR 05:02:19Z, ready 05:19Z,
+  merged 05:19:31Z, released v0.34.1 05:21:50Z, start to release 25m03s; 1 review round
+  (clean). Tokens: builder 115,897 and Claude reviewer 93,701 (measured, `subagent_tokens` of
+  the last completion notice), Codex reviewer unknown, orchestrator unknown (one session shared
+  with phases 54 and 55).
 - Phase 54 (`plans/phase-54-worker-panics.md`, closes #93): a panic on a background thread
   no longer breaks the terminal or leaves anything waiting. Reproduced first: a panic in the
   Merge queue fetcher ran ratatui's hook, which left the alternate screen and raw mode from
@@ -869,6 +875,11 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   main thread only. New `FailureKind::Crashed`. Decisions: the thread keeps running after a
   crash (no restart, no cap); the Deployed column fails as a whole, as for any reader panic;
   no `panic = "abort"` in any profile, pinned by a test. Fragment `kind: fix`.
+  Time and tokens (backfilled, as for phase 53): start 2026-11-17 04:56:47Z, draft PR
+  05:06:49Z, ready 05:36Z, merged 05:36:16Z, released v0.34.2 05:37:58Z, start to release
+  41m11s, part of it catching up with `main` after phases 53 and 55 merged; 1 review round (one test
+  tightened, one finding declined). Tokens: builder 138,798 and Claude reviewer 121,972
+  (measured, as for phase 53), Codex reviewer unknown, orchestrator unknown (shared).
 - Phase 55 (`plans/phase-55-contributing.md`, #109, closes #99): a place for early users.
   `.github/CONTRIBUTING.md` points to `AGENTS.md`, `scripts/gates.sh`, `scripts/ship.sh` and
   the fragment rule. It lives under `.github/` because a top-level file feeds the binary by
@@ -883,6 +894,12 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   items opened as starter issues: #111 (wide characters, `good first issue`), #112
   (`merge_method` per `[[repo]]`, `good first issue`), #113 (approve, `help wanted`), #114
   (Main builds tabs, `help wanted`).
+  Time and tokens (backfilled, as for phase 53): start 2026-11-17 04:56:47Z, draft PR
+  05:02:22Z, ready 05:17Z, merged 05:26:54Z, no release (docs only), start to merge 30m07s,
+  part of it catching up with `main` after phase 53 merged; 1 review round (three wording
+  fixes). Tokens: builder 155,003 (measured, as for phase 53; it rose across rounds, 126,609,
+  then 134,457, so it is a running total) and Claude reviewer 90,368 (measured), Codex reviewer
+  unknown, orchestrator unknown (shared).
 
 ## Deferred / backlog (discuss at retros)
 
