@@ -89,7 +89,7 @@ src/ui/changelog.rs the `c` pane: wrapped to its width (bullets hang), headings 
 src/log.rs       the call log: its path, per program name, rotated on open
 src/text.rs      text helpers: truncation and wrapping with `…`, ages, durations and clock times, ANSI stripping
 rust-toolchain.toml           the one Rust version (rustfmt and clippy with it) that local gates and CI run; see Development
-flake.nix, flake.lock         the Nix flake: the binary built from `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md` and `src/` with the locked nixpkgs' Rust; feeds the binary
+flake.nix, flake.lock         the Nix flake: the binary built from `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md` and `src/` with the Rust `rust-toolchain.toml` names, through the locked `rust-overlay`; feeds the binary
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
@@ -377,13 +377,26 @@ Without tmux the last gate is a plain `cargo test` and a notice that the e2e tes
 
 The gates and CI run the same Rust: `rust-toolchain.toml` pins it for every `cargo` that
 rustup provides, and the workflows install the same version. A toolchain bump is one pull
-request that changes the channel there, the `toolchain:` of `ci.yml` and `release.yml` (and, for new components, their `components:`), and
-`rust-version` in `Cargo.toml` (its `major.minor`); `tests/toolchain.rs` fails while any of
-them differs.
+request that changes the channel there, the `toolchain:` of `ci.yml` and `release.yml` (and, for new components, their `components:`),
+`rust-version` in `Cargo.toml` (its `major.minor`), and the locked `rust-overlay` in
+`flake.lock`, updated without Nix on the host by:
+
+```bash
+docker run --rm -v "$PWD":/src -w /src nixos/nix sh -c "git config --global --add safe.directory /src; nix --extra-experimental-features 'nix-command flakes' flake update rust-overlay"
+```
+
+`tests/toolchain.rs` fails while any of the first four differs, and the `version` check refuses
+a channel change that keeps the locked `rust-overlay` revision, so
+the update must actually move the `rust-overlay` revision: on a day the overlay has not moved
+since the lock, the check refuses the bump until it does, at most about a day since the overlay
+commits daily.
 The `tag` job of `release.yml` stays on the runner image's `stable` on purpose (why: `.github/AGENTS.md`).
-The Nix flake pins no Rust: it builds with the `rustc` of its locked nixpkgs, and cargo refuses one
-below `rust-version`, so a lock too old for a toolchain bump fails the flake jobs instead of
-building; bump it with `nix flake update` in the same pull request.
+The Nix flake reads the same file: `fromRustupToolchainFile ./rust-toolchain.toml` from its
+locked `rust-overlay`, so `flake.nix` names no version and a bump needs no hash, but the overlay
+only knows the Rust releases up to its locked commit, hence the lock update in every bump.
+`tests/toolchain.rs` fails while `flake.nix` stops reading the file or names any Rust version
+itself, or the file loses `profile = "minimal"` (the default profile's `rust-docs` doubled the
+macOS `flake` job).
 
 Outside CI (`CI` unset), `gates.sh` leaves out the `scripts` test target (`tests/scripts/`,
 about half of a warm run: 50 s against 23 s for the test step, measured 2026-11-12) when
@@ -472,8 +485,9 @@ kind: fix
 **The `version` check enforces these rules on every pull request into `main`.** It is a required
 check, so a pull request it refuses cannot merge. It refuses one that sets the version in
 `Cargo.toml` or `Cargo.lock` or leaves either in a shape the release cannot rewrite, changes
-`CHANGELOG.md`, edits, deletes or renames a fragment, adds a malformed or repeated one, or feeds
-the binary without one, naming the file and what to do instead. The full list, how it reads a
+`CHANGELOG.md`, edits, deletes or renames a fragment, adds a malformed or repeated one, changes
+the Rust channel of `rust-toolchain.toml` without moving the locked `rust-overlay` of
+`flake.lock`, or feeds the binary without one, naming the file and what to do instead. The full list, how it reads a
 pull request without running it, the release run, and what to do when a run fails or a tag can
 never build are under "Releasing internals" in [`.github/AGENTS.md`](.github/AGENTS.md).
 

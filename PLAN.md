@@ -818,6 +818,23 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   finished suite, so rerun is offered. Review round 2: the demo draws no `#N` hyperlink;
   `cli::parse` refuses any argument after the first; each run's log and job times fit that run
   (`sessions.log` for Main builds run 311, `failed.log` for `#4821`). Fragment `kind: feat`.
+- Phase 52 (`plans/phase-52-flake-pinned-rust.md`, #110): the Nix flake builds with the Rust
+  `rust-toolchain.toml` names (1.98.1), not nixpkgs' (1.99.1), through
+  `rust-overlay.lib.mkRustBin` and `fromRustupToolchainFile`, so the version is still written
+  in one file and a bump needs no hash. Proven in Docker: the toolchain's `rustc --version` is
+  1.98.1 and the binary embeds its commit hash. `tests/toolchain.rs` fails while `flake.nix`
+  stops reading the file or names the channel. A bump whose release the locked overlay does not
+  know fails the `flake` job; `nix flake update rust-overlay` fixes it. `rust-toolchain.toml`
+  now asks for the `minimal` profile: the default one brought `rust-docs`, and the macOS
+  `flake` job took 3 min 33 s and 6 min 19 s; with `minimal` it takes 3 min 10 s and Linux
+  1 min 33 s (phase 51: 3 min 9 s and 1 min 49 s), so no cache. The toolchain still brings
+  rustfmt and clippy, as the file lists them. Fragment `kind: internal`. Review round 1: every
+  bump now updates the locked `rust-overlay` too (Docker command in the bump steps), and the
+  `version` check refuses a channel change that keeps the locked revision or has none;
+  `flake.nix` may name no Rust version at all. Review round 2 (unprimed): no must or should;
+  minors fixed: the check compares the channel without its quotes or a trailing comment,
+  `flake.nix` may not use `pkgs.rustPlatform`, and only a `1.`-prefixed number counts as a Rust
+  version there.
 - Phase 51 (`plans/phase-51-nix-flake.md`, #106, part of #96): conveyor installs with Nix,
   `nix --extra-experimental-features 'nix-command flakes' profile install
   github:piacsek/conveyor/stable`. `flake.nix` builds the binary with

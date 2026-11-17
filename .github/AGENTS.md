@@ -38,10 +38,32 @@ pipeline went from ~3 min 20 s to 37 s:
   (installing Nix 39 s, the build 2 min 21 s), beside a 1 min 35 s `check`. It is left out of
   the ruleset on purpose: a Nix or nixpkgs outage must never block a merge, and the `stable` job
   of the release run refuses a flake that does not build anyway. No path filter: it never blocks
-  and never slows `check`, and its inputs (`src/`, the manifests, the flake, `CHANGELOG.md`) are
+  and never slows `check`, and its inputs (`src/`, the manifests, the flake, `rust-toolchain.toml`, `CHANGELOG.md`) are
   what most pull requests touch. No Nix store cache: the build is the crate and its
   dependencies from source, which a store cache would not skip for a changed `Cargo.lock` or
   `src/`, and nothing waits on the job.
+- **The flake builds with the Rust of `rust-toolchain.toml`** (since phase 52), through the
+  locked `rust-overlay`, rustfmt and clippy included, as the file lists them, in the file's
+  `minimal` profile (the default one adds `rust-docs`, whose unpacking cost the macOS job one to
+  two minutes on #110; `dtolnay/rust-toolchain` installs `minimal` anyway). The overlay only
+  knows the Rust releases up to its locked commit, so every toolchain bump updates the locked
+  `rust-overlay` in `flake.lock` in the same pull request, without Nix on the host by:
+
+  ```bash
+  docker run --rm -v "$PWD":/src -w /src nixos/nix sh -c "git config --global --add safe.directory /src; nix --extra-experimental-features 'nix-command flakes' flake update rust-overlay"
+  ```
+
+  The `version` check refuses a channel change that keeps the locked revision (see Releasing
+  internals), so the update must actually move the `rust-overlay` revision: on a day the overlay has not moved
+  since the lock, the check refuses the bump until it does, at most about a day since the overlay
+  commits daily. Without the update this job, and `stable-build` after the merge, fail to evaluate
+  the new channel (`error: Stable <version> is not available`). The
+  `stable-build` job of the release run builds the same flake, so it never builds with another
+  Rust than the gates. Measured on #110 with the default profile: Linux 1 min 33 s and 1 min
+  44 s (1 min 49 s with nixpkgs' Rust), macOS 3 min 33 s and 6 min 19 s (3 min 9 s), the
+  toolchain alone taking 1 to 2 minutes there, mostly `rust-docs`. With `minimal`: Linux 1 min
+  33 s (the build 1 min 24 s), macOS 3 min 10 s (the build 2 min 26 s), as before the phase, so
+  no cache. `stable-build` runs the same build on Linux.
 - **Pins.** Every action stays pinned to a commit SHA with the tag in a trailing comment (see
   Releasing internals below for how to bump one).
 - **`main` is protected by a ruleset** (`main`, id 26900132, Settings → Rules): a pull
@@ -346,6 +368,19 @@ request, naming the file and what to do instead, when:
   a fragment `main` holds that the last tag does not (compared as `refuse_repeats` compares,
   naming both files: once the two land in different releases the later release run would
   refuse on every run, and with `changes/` add-only nobody could repair it);
+- it changes the `channel` under `[toolchain]` of `rust-toolchain.toml` and `flake.lock` at its
+  head locks no new `rust-overlay` revision. Both files are read from the fork point and the
+  head with `git cat-file`, nothing of the head runs: the channel with `awk`, the revision with
+  `jq` as the `locked.rev` of the node the root's `rust-overlay` input names. A
+  `rust-toolchain.toml` present on one side only counts as a channel change, absent on both as
+  none. It refuses when the head's revision equals the fork point's, or when the head has none:
+  no `flake.lock`, a lock that is not JSON, no `rust-overlay` input, or a revision other than 40
+  lower-case hex digits (which it never prints). A pull request that keeps the channel is never
+  judged by it, whatever it does to `flake.lock`, so removing the flake passes on its own, while
+  removing it in the same pull request as a channel change is refused. Without `jq` on `PATH`
+  a channel change is refused rather than passed (the `ubuntu-latest` runner carries `jq`). The
+  copy that judges is the one on `main`, so the rule applies to pull requests whose check runs
+  after phase 52 merged, not to one checked before;
 - a path it changes feeds the binary (`scripts/feeds-binary.sh`, a rename counting both of its
   paths, `CHANGELOG.md` left out since it is refused anyway) and it adds no fragment.
 
@@ -459,7 +494,9 @@ If `stable-build` or `stable` fails, `stable` stays on the release before and ev
 tries again. A
 failed `nix build` at a tag is never fixed at that tag: land the fix on `main` through a pull
 request with a fragment, and the release it makes moves `stable` past the broken one. A
-failure of `gh` or of the Nix install is fixed by starting a new run. `stable` is never pushed
+failure of `gh` or of the Nix install is fixed by starting a new run, and so is a failure to
+download the toolchain in `nix build` (`static.rust-lang.org`, reached through the overlay).
+`stable` is never pushed
 by hand.
 Check with `brew audit --strict --online --formula piacsek/tap/conveyor` after changing the
 script.

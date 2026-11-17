@@ -17,4 +17,5 @@ mod version_check;
 mod version_check_cargo;
 mod version_check_head;
 mod version_check_release;
+mod version_check_toolchain;
 mod version_workflow;

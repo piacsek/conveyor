@@ -89,6 +89,11 @@ fn a_toolchain_file_of_the_head_naming_no_installed_toolchain_is_ignored() {
     committed(&work, "src/rust-toolchain", "nonexistent-toolchain\n");
     committed(
         &work,
+        "flake.lock",
+        "{\"nodes\":{\"root\":{\"inputs\":{\"rust-overlay\":\"rust-overlay\"}},\"rust-overlay\":{\"locked\":{\"rev\":\"2222222222222222222222222222222222222222\"}}},\"root\":\"root\",\"version\":7}\n",
+    );
+    committed(
+        &work,
         "Cargo.toml",
         "[package]\nname = \"conveyor\"\nversion = \"0.0.0\"\n",
     );
