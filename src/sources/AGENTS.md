@@ -197,7 +197,7 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
 
 ## Behaviour that is easy to break
 
-- **Every `gh` and `kubectl` call is logged, nothing else from them.** `CliGh::run` and
+- **Every `gh` and `kubectl` call is logged, nothing else from them.** `CliGh::exec` and
   `CliKubectl::run` time the spawn and hand the raw `Output` to `Log::call`: argv (a
   `query=` argument becomes `query=<N chars>`), milliseconds, then `ok`, `exit N: <stderr lines
   joined by |>`, `timed out[: <stderr lines>]` (`gh`, `git` or kubectl killed at its deadline) or `did not start: <err>`. Stdout is never written: it is megabytes of JSON and
@@ -254,12 +254,15 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   `current_repo`, `log_failed`) gets `github::READ_DEADLINE` (30 s) and fails as `gh did not
   answer within 30s`; the column keeps its last rows and the next interval or `r` tries again.
   A write (`merge`, `update_branch`, `change_status`, `rerun_failed`) gets `WRITE_DEADLINE`
-  (60 s), and since GitHub may have done it anyway, its message says so and asks for `r`:
-  `gh did not answer within 60s; it may already be merged, press r`, one wording per write
-  (`aftermath` for the status changes). The checkout (`git remote -v`, `gh pr checkout`) has
+  (60 s), and since GitHub may have done it anyway, its message says so:
+  `gh did not answer within 60s; it may already be merged`, one wording per write
+  (`Aftermath::wording`). The app treats such a write as uncertain, not failed (see the failed
+  writes bullet of `src/app/AGENTS.md`). The checkout (`git remote -v`, `gh pr checkout`) has
   none: a fetch over ssh can take long on a large repository, and nothing on GitHub changes
-  that `r` would show. It still runs in its own process group, so a helper it leaves holding
-  the pipes is killed once it exits, and an ssh passphrase prompt on `/dev/tty` stops the
-  background `ssh` instead of drawing over the TUI (see the known limit in `AGENTS.md`).
+  that `r` would show. **Only a call with a deadline gets a process group of its own**: the
+  group exists so the deadline can kill it, and a checkout in one would put `ssh` in a
+  background group, stopped at a passphrase or host-key prompt on `/dev/tty` where nobody can
+  answer it. Without a deadline `runner::run` waits for the pipes as `Command::output()` does
+  (see the known limit in `AGENTS.md`).
   Tests shorten the deadlines with `CliGh::with_deadlines(read, write)`.
 - What each `S` action makes `CliGh` run (`merge`, `update_branch`, `change_status`, `checkout` and its remotes guard, `rerun_failed`, `log_failed`): see `src/app/AGENTS.md`.

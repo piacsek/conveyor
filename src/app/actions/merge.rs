@@ -2,7 +2,7 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::{Action, App, Stage};
 
-use super::{Choice, WriteKind};
+use super::{Choice, WriteKind, may_have_happened};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MergeTarget {
@@ -30,16 +30,20 @@ impl App {
         &mut self,
         number: u64,
         result: &Result<(), crate::sources::failure::Failure>,
-    ) {
+    ) -> bool {
         let write = self.finish_write(number, &WriteKind::Merge);
-        match result {
-            Ok(()) => self.land(number),
-            Err(message) => self.fail(write, message),
+        if let Err(message) = result {
+            self.fail(write, message);
         }
         self.notice = Some(match result {
             Ok(()) => format!("merge sent for #{number}"),
             Err(message) => format!("#{number}: {message}"),
         });
+        let landed = may_have_happened(result);
+        if landed {
+            self.land(number);
+        }
+        landed
     }
 
     pub(super) fn land(&mut self, number: u64) {

@@ -256,10 +256,10 @@ impl CliGh {
         self.exec(&Tool::gh(&self.program), Limit::Read, None, args, &[])
     }
 
-    fn write(&self, args: &[String], aftermath: &'static str) -> Result<String, Failure> {
+    fn write(&self, args: &[String], aftermath: Aftermath) -> Result<String, Failure> {
         self.exec(
             &Tool::gh(&self.program),
-            Limit::Write(aftermath),
+            Limit::Write(aftermath.wording()),
             None,
             args,
             &[],
@@ -303,7 +303,7 @@ impl CliGh {
                     deadline.unwrap_or_default().as_secs()
                 );
                 return Err(Failure::timed_out(match limit {
-                    Limit::Write(aftermath) => format!("{silent}; {aftermath}, press r"),
+                    Limit::Write(aftermath) => format!("{silent}; {aftermath}"),
                     _ => silent,
                 }));
             }
@@ -388,11 +388,8 @@ impl Github for CliGh {
     }
 
     fn rerun_failed(&self, repo: &str, run_id: u64) -> Result<(), Failure> {
-        self.write(
-            &Self::rerun_failed_args(repo, run_id),
-            "the run may already be rerunning",
-        )
-        .map(|_| ())
+        self.write(&Self::rerun_failed_args(repo, run_id), Aftermath::Rerun)
+            .map(|_| ())
     }
 
     fn merge(
@@ -404,7 +401,7 @@ impl Github for CliGh {
     ) -> Result<(), Failure> {
         self.write(
             &Self::merge_args(repo, number, method, head_oid),
-            "it may already be merged",
+            Aftermath::Merge,
         )
         .map(|_| ())
         .map_err(without_warnings)
@@ -418,7 +415,7 @@ impl Github for CliGh {
     ) -> Result<BranchUpdate, Failure> {
         match self.write(
             &Self::update_branch_args(repo, number, method),
-            "the branch may already be updated",
+            Aftermath::Update,
         ) {
             Ok(stdout) if stdout.contains("already up-to-date") => Ok(BranchUpdate::UpToDate),
             Ok(_) => Ok(BranchUpdate::Updated),
@@ -434,9 +431,12 @@ impl Github for CliGh {
     }
 
     fn change_status(&self, repo: &str, number: u64, change: &StatusChange) -> Result<(), Failure> {
-        self.write(&Self::status_args(repo, number, change), aftermath(change))
-            .map(|_| ())
-            .map_err(without_warnings)
+        self.write(
+            &Self::status_args(repo, number, change),
+            Aftermath::Status(change),
+        )
+        .map(|_| ())
+        .map_err(without_warnings)
     }
 
     fn checkout(&self, repo: &str, number: u64, dir: Option<&Path>) -> Result<(), Failure> {
@@ -509,15 +509,29 @@ fn gits_reason(err: Failure) -> Failure {
     }
 }
 
-fn aftermath(change: &StatusChange) -> &'static str {
-    match change {
-        StatusChange::Ready => "it may already be marked ready",
-        StatusChange::Draft => "it may already be a draft",
-        StatusChange::EnableAutoMerge { .. } => "auto-merge may already be on",
-        StatusChange::DisableAutoMerge { .. } => "auto-merge may already be off",
-        StatusChange::Enqueue { .. } => "it may already be in the merge queue",
-        StatusChange::Dequeue { .. } => "it may already be out of the merge queue",
-        StatusChange::Close => "it may already be closed",
+pub enum Aftermath<'a> {
+    Merge,
+    Update,
+    Rerun,
+    Status(&'a StatusChange),
+}
+
+impl Aftermath<'_> {
+    pub fn wording(&self) -> &'static str {
+        match self {
+            Self::Merge => "it may already be merged",
+            Self::Update => "the branch may already be updated",
+            Self::Rerun => "the run may already be rerunning",
+            Self::Status(StatusChange::Ready) => "it may already be marked ready",
+            Self::Status(StatusChange::Draft) => "it may already be a draft",
+            Self::Status(StatusChange::EnableAutoMerge { .. }) => "auto-merge may already be on",
+            Self::Status(StatusChange::DisableAutoMerge { .. }) => "auto-merge may already be off",
+            Self::Status(StatusChange::Enqueue { .. }) => "it may already be in the merge queue",
+            Self::Status(StatusChange::Dequeue { .. }) => {
+                "it may already be out of the merge queue"
+            }
+            Self::Status(StatusChange::Close) => "it may already be closed",
+        }
     }
 }
 

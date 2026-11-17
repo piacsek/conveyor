@@ -16,8 +16,10 @@ pub enum Ran {
 pub fn run(command: &mut Command, deadline: Option<Duration>) -> io::Result<Ran> {
     let mut child = {
         let _alone = super::spawning();
+        if deadline.is_some() {
+            command.process_group(0);
+        }
         command
-            .process_group(0)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()?
@@ -38,6 +40,13 @@ pub fn run(command: &mut Command, deadline: Option<Duration>) -> io::Result<Ran>
         }
         thread::sleep(POLL);
     };
+    if deadline.is_none() {
+        return Ok(Ran::Finished(Output {
+            status,
+            stdout: stdout.recv().unwrap_or_default(),
+            stderr: stderr.recv().unwrap_or_default(),
+        }));
+    }
     let mut answer = within(DRAIN, &stdout, &stderr);
     if answer.0.is_err() || answer.1.is_err() {
         kill_group(child.id());

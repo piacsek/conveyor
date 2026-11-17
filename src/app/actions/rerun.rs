@@ -1,6 +1,6 @@
 use crate::app::{Action, App, Stage};
 
-use super::{Choice, Offer, WriteKind, offer};
+use super::{Choice, Offer, WriteKind, offer, timed_out};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rerun {
@@ -81,6 +81,7 @@ impl App {
                 errors.join("; ")
             ),
         });
-        (reran > 0).then_some(stage)
+        let timed_out = results.iter().any(|(_, result)| timed_out(result));
+        (reran > 0 || timed_out).then_some(stage)
     }
 }

@@ -175,6 +175,34 @@ fn a_rerun_that_failed_for_every_run_schedules_no_reload() {
 }
 
 #[test]
+fn a_rerun_that_timed_out_still_reloads_my_prs() {
+    use conveyor::app::{Input, Request, Stage};
+    use conveyor::sources::failure::Failure;
+    let mut h = Harness::with_size(160, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![failing_in("test", 70)];
+
+    h.run(vec![
+        prs(vec![failing]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('f')),
+        Ok(Input::Rerun(vec![(
+            70,
+            Err(Failure::timed_out(
+                "gh did not answer within 60s; the run may already be rerunning".to_string(),
+            )),
+        )])),
+    ])
+    .unwrap();
+
+    assert!(
+        h.requests.contains(&Request::Refresh(Stage::Prs, 0)),
+        "{:?}",
+        h.requests
+    );
+}
+
+#[test]
 fn two_reruns_on_their_way_each_land_with_their_own_label_and_column() {
     use conveyor::app::{Request, Stage};
     use conveyor::model::builds::BuildStatus;

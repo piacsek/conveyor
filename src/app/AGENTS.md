@@ -150,10 +150,9 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   `git` is the one program besides `gh` that `CliGh` spawns: under the same spawn lock, with a
   null stdin, logged as `git`. The checkout runs with `GIT_TERMINAL_PROMPT=0`, so an https
   remote without credentials fails instead of prompting under the TUI. Known and left: the
-  checkout is the one `gh` call without a deadline, so an ssh remote whose key needs a
-  passphrase and has no agent (its `ssh` runs in a background process group and stops at the
-  prompt on `/dev/tty`) or a fetch that stalls keeps `S` refused (`checking out #N…`) until
-  it ends or conveyor quits;
+  checkout is the one `gh` call without a deadline; an ssh remote whose key needs a passphrase
+  and has no agent prompts on `/dev/tty`, and a fetch that stalls keeps `S` refused
+  (`checking out #N…`) until it ends;
   `GIT_SSH_COMMAND` is not set because it would override the user's own ssh command. A failed
   checkout shows git's own reason, the first stderr line starting with `fatal: ` or `error: `
   (`gits_reason`), else gh's last line, not gh's trailing `failed to run git: exit status N`
@@ -262,6 +261,13 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   ones). A failed fetch and a fetch that still holds the row keep it: clearing on refresh
   would bring the lost failure back on the refresh interval. How it is drawn: see
   `src/ui/AGENTS.md`.
+  **A write that timed out is uncertain, not failed** (`FailureKind::TimedOut`, `gh did not
+  answer within 60s; it may already be merged` and the like): GitHub may have done it and only
+  the answer was lost. It marks the card like any failure, and it also gets what a success
+  gets for safety (`may_have_happened` in `failures.rs`): a merge, an enqueue or enabling
+  auto-merge sets `merge_landing`, so `u` and `t` wait for My PRs to catch up, and every such
+  write sends its refresh and `App::follow_up` as a success would. A write that failed in time
+  does neither. The refresh does not clear the mark (rule 3 above).
 - **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
   the deploy repo (`Context::deploy_repo`: the `[[repo]]` with a deploy, else `BuildsStage::repo`).
 - **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by

@@ -41,19 +41,32 @@ was killed. Every outcome is logged as today; a timeout as `gh <argv> <ms>ms tim
 | same | fails in time | as today: the column's error, its last rows kept | as today |
 | same | times out | the column's error `gh did not answer within 30s` (kind `TimedOut`), its last rows kept, spinner gone; the next interval or `r` fetches again | the error when the column is focused, as for any failed fetch |
 | Jobs, failed log | times out | the jobs or log pane shows `gh did not answer within 30s` as its error | as for any failed jobs or log fetch |
-| Merge (`gh pr merge`) | times out | `! merge failed: gh did not answer within 60s; it may already be merged, press r` | `#N: gh did not answer within 60s; it may already be merged, press r` |
-| Update branch | times out | `! update failed: gh did not answer within 60s; the branch may already be updated, press r` | `#N: ` and the same |
-| Mark ready / convert to draft | times out | `… it may already be marked ready, press r` / `… it may already be a draft, press r` | `#N: ` and the same |
-| Enable / disable auto-merge | times out | `… auto-merge may already be on, press r` / `… auto-merge may already be off, press r` | `#N: ` and the same |
-| Add to / leave the merge queue | times out | `… it may already be in the merge queue, press r` / `… it may already be out of the merge queue, press r` | `#N: ` and the same |
-| Close | times out | `… it may already be closed, press r` | `#N: ` and the same |
-| Rerun failed jobs | times out | `! rerun failed: run <id>: gh did not answer within 60s; the run may already be rerunning, press r` | as for any failed rerun |
+| Merge (`gh pr merge`) | times out | `! merge failed: gh did not answer within 60s; it may already be merged` | `#N: gh did not answer within 60s; it may already be merged` |
+| Update branch | times out | `! update failed: gh did not answer within 60s; the branch may already be updated` | `#N: ` and the same |
+| Mark ready / convert to draft | times out | `… it may already be marked ready` / `… it may already be a draft` | `#N: ` and the same |
+| Enable / disable auto-merge | times out | `… auto-merge may already be on` / `… auto-merge may already be off` | `#N: ` and the same |
+| Add to / leave the merge queue | times out | `… it may already be in the merge queue` / `… it may already be out of the merge queue` | `#N: ` and the same |
+| Close | times out | `… it may already be closed` | `#N: ` and the same |
+| Rerun failed jobs | times out | `! rerun failed: run <id>: gh did not answer within 60s; the run may already be rerunning` | as for any failed rerun |
 | Any write | answers or fails in time | as today | as today |
 | Checkout (`git remote -v`, `gh pr checkout`) | any | as today: no deadline, a hang stays a hang (known limit) | as today |
 
-A timed-out write is a failure like any other: it ends the busy spinner, marks the card, and
-neither lands a merge (`merge_landing`) nor schedules the follow-up reload. The worker is free
-for the next write.
+A timed-out write is uncertain, not failed: GitHub may have done it and only the answer was
+lost. It ends the busy spinner and marks the card like a failure, and it also gets what a
+success gets for safety:
+
+| Write | Times out: card | Popup | Guard lifts |
+| --- | --- | --- | --- |
+| Merge | `! merge failed: … it may already be merged` | `u` and `t` (to draft) refused with `waiting for My PRs to catch up with #N` | the first My PRs fetch that started after the timeout lands; My PRs and Merge queue reload now, My PRs again 10 s later |
+| Add to the merge queue | `! … failed: … it may already be in the merge queue` | same as merge | same as merge |
+| Enable auto-merge | `! … failed: … auto-merge may already be on` | same as merge | same as merge |
+| Ready, draft, disable auto-merge, leave the queue, close | the mark with its wording | as for any failed write | no guard; My PRs (and Merge queue unless ready) reload now, My PRs again 10 s later |
+| Update branch | the mark with its wording | as for any failed write | no guard; My PRs reloads now and 10 s later |
+| Rerun failed jobs | the mark with its wording | as for any failed rerun | no guard; its column reloads now |
+
+The mark stays until `Esc`, a new write on the row, or the row leaving, as for any failed
+write; a refresh does not clear it. A write that fails in time (any other kind) neither lands
+nor reloads, as today. The worker is free for the next write.
 
 ## Decisions
 
@@ -65,7 +78,9 @@ for the next write.
   the pull request's own, so `it may already be merged` reads right in both.
 - The checkout gets no deadline (a fetch over ssh can take long on a large repository, and a
   checkout changes nothing on GitHub that `r` would show). It still runs through the runner,
-  in its own process group, so a helper it leaves behind is killed once it exits.
+  but outside a process group: the group exists only so a deadline can kill it, and a group of
+  its own would stop an ssh prompt on `/dev/tty` (passphrase, host key) where nobody can
+  answer it.
 - Tests set short deadlines through `CliGh::with_deadlines(read, write)`, a seam on `SEAMS`.
 
 ## Tasks
@@ -73,8 +88,8 @@ for the next write.
 1. A read past its deadline fails as `TimedOut` with `gh did not answer within Ns`, logged
    `timed out`, and My PRs shows it as its column error instead of `fetching…`; the runner is
    shared with `CliKubectl`.
-2. A write past its deadline says it may already have happened and to press `r`: merge, then
-   update, status changes and rerun.
+2. A write past its deadline says it may already have happened: merge, then update, status
+   changes and rerun.
 3. The checkout keeps no deadline.
 4. Docs: `src/sources/AGENTS.md`, the Known limits of `AGENTS.md`, the fragment.
 

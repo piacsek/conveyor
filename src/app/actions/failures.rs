@@ -72,3 +72,13 @@ impl App {
         });
     }
 }
+
+pub(super) fn timed_out<T>(result: &Result<T, crate::sources::failure::Failure>) -> bool {
+    result
+        .as_ref()
+        .is_err_and(|failure| failure.kind() == FailureKind::TimedOut)
+}
+
+pub(super) fn may_have_happened(result: &Result<(), crate::sources::failure::Failure>) -> bool {
+    result.is_ok() || timed_out(result)
+}

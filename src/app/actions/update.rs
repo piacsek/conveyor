@@ -4,7 +4,7 @@ use crate::app::{Action, App};
 use crate::config::UpdateMethod;
 use crate::model::prs::BranchUpdate;
 
-use super::{Choice, WriteKind};
+use super::{Choice, WriteKind, timed_out};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateTarget {
@@ -50,7 +50,7 @@ impl App {
             Ok(BranchUpdate::Conflicts) => conflicts(number),
             Err(message) => format!("update failed for #{number}: {message}"),
         });
-        matches!(result, Ok(BranchUpdate::Updated))
+        matches!(result, Ok(BranchUpdate::Updated)) || timed_out(result)
     }
 }
 
