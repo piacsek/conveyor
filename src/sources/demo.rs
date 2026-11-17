@@ -6,12 +6,20 @@ use serde_json::Value;
 use crate::config::{Config, DeployEnv, MergeMethod, UpdateMethod};
 use crate::model::prs::{BranchUpdate, StatusChange};
 use crate::sources::failure::Failure;
-use crate::sources::fetch::PRS_QUERY;
+use crate::sources::fetch::{PRS_QUERY, QUEUE_QUERY};
 use crate::sources::github::{Github, Variable};
 use crate::sources::kube::Kube;
 
 const PRS: &str = include_str!("demo/prs.json");
+const QUEUE: &str = include_str!("demo/queue.json");
+const RUNS: &str = include_str!("demo/runs.json");
+const MERGE_GROUP_RUNS: &str = include_str!("demo/merge-group-runs.json");
+const WORKFLOWS: &str = include_str!("demo/workflows.json");
+const PULLS: &str = include_str!("demo/pulls.json");
+const JOBS: &str = include_str!("demo/jobs.json");
 const CONFIG: &str = include_str!("demo/config.toml");
+const NO_COMMITS: &str = r#"{"data":{"repository":{}}}"#;
+const EMPTY_QUEUE: &str = r#"{"data":{"repository":{"mergeQueue":{"url":"https://github.com/acme/infra/queue/main","entries":{"nodes":[]}}}}}"#;
 
 pub fn config(config: Config) -> Config {
     let demo: Config = toml::from_str(CONFIG).unwrap_or_default();
@@ -48,20 +56,49 @@ fn aged(value: &mut Value, now: SystemTime) {
     }
 }
 
+fn jobs(run: &str) -> String {
+    let (status, conclusion, completed) = match run {
+        "1" | "311" => ("completed", "\"failure\"", "\"ago:1181\""),
+        "2" | "312" | "313" => ("in_progress", "null", "null"),
+        _ => ("completed", "\"success\"", "\"ago:1181\""),
+    };
+    JOBS.replace("STATUS", status)
+        .replace("CONCLUSION", conclusion)
+        .replace("COMPLETED", completed)
+        .replace("RUN", run)
+}
+
 fn no_fixture(what: &str) -> Failure {
     Failure::from(format!("demo: no fixture for {what}"))
 }
 
 impl Github for Demo {
-    fn graphql(&self, query: &str, _vars: &[(&str, Variable)]) -> Result<Value, Failure> {
-        if query == PRS_QUERY {
-            return self.answer(PRS);
+    fn graphql(&self, query: &str, vars: &[(&str, Variable)]) -> Result<Value, Failure> {
+        match query {
+            PRS_QUERY => self.answer(PRS),
+            QUEUE_QUERY if vars.iter().any(|(_, v)| *v == Variable::from("webapp")) => {
+                self.answer(QUEUE)
+            }
+            QUEUE_QUERY => self.answer(EMPTY_QUEUE),
+            _ => self.answer(NO_COMMITS),
         }
-        Err(no_fixture("this query"))
     }
 
     fn rest(&self, path: &str) -> Result<Value, Failure> {
-        Err(no_fixture(path))
+        let (route, query) = path.split_once('?').unwrap_or((path, ""));
+        match route.split('/').collect::<Vec<_>>().as_slice() {
+            [_, _, _, "actions", "workflows"] => self.answer(WORKFLOWS),
+            [_, _, _, "actions", "workflows", _, "runs"] => self.answer(RUNS),
+            [_, _, _, "actions", "runs"] if query.contains("event=merge_group") => {
+                self.answer(MERGE_GROUP_RUNS)
+            }
+            [_, _, _, "actions", "runs", run, "jobs"] => self.answer(&jobs(run)),
+            [_, _, _, "commits", sha, "pulls"] => {
+                let pulls = self.answer(PULLS)?;
+                Ok(pulls.get(*sha).cloned().unwrap_or(Value::Array(vec![])))
+            }
+            _ => Err(no_fixture(route)),
+        }
     }
 
     fn current_repo(&self) -> Result<String, Failure> {

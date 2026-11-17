@@ -1,0 +1,1 @@
+{ "workflows": [{ "id": 22, "name": "CI/CD", "path": ".github/workflows/cicd.yml" }] }
