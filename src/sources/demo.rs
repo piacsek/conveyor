@@ -21,6 +21,7 @@ const JOBS: &str = include_str!("demo/jobs.json");
 const DEPLOYMENTS: &str = include_str!("demo/deployments.json");
 const PODS: &str = include_str!("demo/pods.json");
 const FAILED_LOG: &str = include_str!("demo/failed.log");
+const SESSIONS_LOG: &str = include_str!("demo/sessions.log");
 const CONFIG: &str = include_str!("demo/config.toml");
 const EXPIRED: &str = "ERROR: Active profile expired.";
 const NO_COMMITS: &str = r#"{"data":{"repository":{}}}"#;
@@ -70,14 +71,39 @@ fn aged(value: &mut Value, now: SystemTime) {
 }
 
 fn jobs(run: &str) -> String {
-    let (status, conclusion, completed) = match run {
-        "1" | "311" => ("completed", "\"failure\"", "\"ago:1181\""),
-        "2" | "4" | "312" | "313" | "314" => ("in_progress", "null", "null"),
-        _ => ("completed", "\"success\"", "\"ago:1181\""),
+    let (started, finished, failed) = match run {
+        "1" => (1800, Some(1560), true),
+        "311" => (3600, Some(2503), true),
+        "2" => (2400, None, false),
+        "4" => (720, None, false),
+        "312" => (95, None, false),
+        "313" => (480, None, false),
+        "314" => (240, None, false),
+        "5" => (6000, Some(5520), false),
+        "6" => (87000, Some(86700), false),
+        "7" => (2400, Some(1980), false),
+        "309" => (90000, Some(89070), false),
+        "310" => (7200, Some(6198), false),
+        _ => (100000, Some(99000), false),
+    };
+    let (status, conclusion, completed) = match finished {
+        None => ("in_progress", "null".to_string(), "null".to_string()),
+        Some(end) if failed => (
+            "completed",
+            "\"failure\"".to_string(),
+            format!("\"ago:{end}\""),
+        ),
+        Some(end) => (
+            "completed",
+            "\"success\"".to_string(),
+            format!("\"ago:{end}\""),
+        ),
     };
     JOBS.replace("STATUS", status)
-        .replace("CONCLUSION", conclusion)
-        .replace("COMPLETED", completed)
+        .replace("CONCLUSION", &conclusion)
+        .replace("COMPLETED", &completed)
+        .replace("STARTED", &started.to_string())
+        .replace("AUDITED", &(started - 60).to_string())
         .replace("RUN", run)
 }
 
@@ -129,8 +155,11 @@ impl Github for Demo {
         Err(no_fixture("the current repository"))
     }
 
-    fn log_failed(&self, _repo: &str, _run_id: u64, _job_id: u64) -> Result<String, Failure> {
-        Ok(FAILED_LOG.to_string())
+    fn log_failed(&self, _repo: &str, run_id: u64, _job_id: u64) -> Result<String, Failure> {
+        match run_id {
+            311 => Ok(SESSIONS_LOG.to_string()),
+            _ => Ok(FAILED_LOG.to_string()),
+        }
     }
 
     fn rerun_failed(&self, _repo: &str, _run_id: u64) -> Result<(), Failure> {

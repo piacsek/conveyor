@@ -52,7 +52,7 @@ lives in `scripts/screenshots.sh` as shell-written JSON behind `gh` and `kubectl
 | merge, update branch, ready/draft, close, auto-merge, leave queue, rerun | no call; `Err("demo: nothing was changed")` | the failed-write mark on the card, the message in the footer |
 | check out (`c` in `S`) | no call; same error | same mark |
 | open in browser (`p`, `b`, `o`-less keys) | nothing spawned; `Opener::open` errs | footer `demo: acme/* is made up, so nothing was opened` |
-| `#N` OSC 8 link clicked in the terminal | the terminal opens the `acme/*` URL itself | GitHub's 404; out of conveyor's hands |
+| a card's `#N` | the demo draws no OSC 8 link | the number as plain text; nothing to click |
 | copy (`y`/`Y`) | copies as usual | as usual |
 | `review` tab | its own two pull requests, by other authors | two cards, none of them mine |
 | help or changelog pane open | the footer keeps the marker | `demo` at the bottom right |

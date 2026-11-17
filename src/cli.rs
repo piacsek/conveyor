@@ -17,7 +17,11 @@ where
     S: AsRef<str>,
 {
     let mut args = args.into_iter().map(|arg| arg.as_ref().to_string());
-    match args.next().as_deref() {
+    let first = args.next();
+    if let Some(extra) = args.next() {
+        return Err(format!("unknown argument '{extra}'\n{USAGE}"));
+    }
+    match first.as_deref() {
         None => Ok(Command::Tui),
         Some("config") => Ok(Command::Config),
         Some("--demo") => Ok(Command::Demo),

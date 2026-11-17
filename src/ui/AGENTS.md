@@ -65,7 +65,8 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   escape or a control character in a URL would otherwise reach the terminal. The URL of each
   row is the one `p` opens (`Build::pull_request` for a main build, which falls back to the
   `(#N)` of a squash title). A number cut by `…` on a narrow card gets no link. Not linked:
-  the `#N` in the details pane, dialogs and footer.
+  the `#N` in the details pane, dialogs and footer, and every `#N` in the demo (`app.demo`),
+  whose `acme/*` URLs are made up: the terminal would open them past `DemoOpener`.
 - **A busy PR card spins.** While a write started on a pull request is in flight
   (`App::write_on`), its card draws the footer's braille frame (`App::spinner`) in yellow in
   place of the check glyph, and its meta line starts with the action word (`Write::word`:

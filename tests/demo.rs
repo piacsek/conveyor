@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use conveyor::config::{Config, MergeMethod, Prs, Repo, Ui, UpdateMethod};
 use conveyor::model::deployed::Health;
@@ -273,6 +273,45 @@ fn a_demo_rerun_changes_nothing() {
 }
 
 #[test]
+fn the_failed_main_build_log_belongs_to_its_pull_request() {
+    let log = fetch_log(&Demo, "acme/webapp", 311, 31101).unwrap();
+
+    let text = log.join("\n");
+    assert!(text.contains("session"), "{text}");
+    assert!(!text.contains("webhook"), "{text}");
+}
+
+#[test]
+fn the_failed_my_prs_run_log_belongs_to_its_pull_request() {
+    let log = fetch_log(&Demo, "acme/webapp", 1, 101).unwrap();
+
+    let text = log.join("\n");
+    assert!(text.contains("webhook"), "{text}");
+}
+
+#[test]
+fn every_demo_main_build_and_merge_group_run_holds_its_jobs_in_time() {
+    let config = demo::config(Config::default());
+    let mut source = BuildsSource::new(config.repo[0].clone());
+    let builds = source.fetch(&Demo, SystemTime::now()).unwrap();
+    let queue = fetch_queue(&Demo, &config.repo[0]).unwrap();
+    let runs = builds
+        .iter()
+        .chain(queue.entries.iter().filter_map(|entry| entry.run.as_ref()));
+
+    let outside: Vec<u64> = runs
+        .filter(|run| {
+            fetch_jobs(&Demo, "acme/webapp", run.id)
+                .unwrap()
+                .iter()
+                .any(|job| !within(job.started_at, run) || !within(job.completed_at, run))
+        })
+        .map(|run| run.id)
+        .collect();
+    assert!(outside.is_empty(), "{outside:?}");
+}
+
+#[test]
 fn the_failed_demo_step_has_a_log() {
     let log = fetch_log(&Demo, "acme/webapp", 311, 31101).unwrap();
 
@@ -287,6 +326,16 @@ fn demo_deployed() -> conveyor::model::deployed::Deployed {
     let repo = &config.repo[0];
     let mut source = DeploySource::new(repo.name.clone(), repo.deploy[0].clone());
     source.fetch(&Demo, &Demo, SystemTime::now())
+}
+
+fn within(at: Option<SystemTime>, run: &conveyor::model::builds::Build) -> bool {
+    let slack = Duration::from_secs(1);
+    let Some(at) = at else {
+        return true;
+    };
+    let after_start = run.started_at.is_some_and(|start| at + slack >= start);
+    let before_end = !run.is_settled() || run.finished_at.is_none_or(|end| at <= end + slack);
+    after_start && before_end
 }
 
 fn nothing_changed(result: Result<(), conveyor::sources::failure::Failure>) -> String {

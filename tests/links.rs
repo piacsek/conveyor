@@ -22,6 +22,18 @@ fn every_pull_request_number_in_my_prs_links_to_its_pull_request() {
 }
 
 #[test]
+fn the_demo_links_no_pull_request_number() {
+    let mut h = Harness::new();
+    h.app.demo = true;
+
+    h.run(vec![prs(vec![pr(4821, "Retry hooks")])]).unwrap();
+
+    assert!(h.links().is_empty(), "{:?}", h.links());
+    let screen = h.screen();
+    assert!(screen.contains("#4821 Retry hooks"), "{screen}");
+}
+
+#[test]
 fn the_card_reads_and_looks_the_same_with_its_number_linked() {
     use ratatui::style::Modifier;
     let mut h = Harness::new();

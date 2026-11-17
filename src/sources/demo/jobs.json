@@ -6,7 +6,7 @@
       "name": "check",
       "status": "STATUS",
       "conclusion": CONCLUSION,
-      "started_at": "ago:1200",
+      "started_at": "ago:STARTED",
       "completed_at": COMPLETED,
       "html_url": "https://github.com/acme/webapp/actions/runs/RUN/job/RUN01",
       "steps": [
@@ -19,8 +19,8 @@
       "name": "audit",
       "status": "completed",
       "conclusion": "success",
-      "started_at": "ago:1200",
-      "completed_at": "ago:1000",
+      "started_at": "ago:STARTED",
+      "completed_at": "ago:AUDITED",
       "html_url": "https://github.com/acme/webapp/actions/runs/RUN/job/RUN02",
       "steps": []
     }
