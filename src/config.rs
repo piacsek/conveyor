@@ -319,6 +319,7 @@ pub struct Repo {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<PathBuf>,
     pub main_workflow: String,
+    pub branch: Option<String>,
     pub builds: usize,
     pub refresh_secs: u64,
     pub deploy: Vec<Deploy>,
@@ -330,6 +331,7 @@ impl Default for Repo {
             name: String::new(),
             path: None,
             main_workflow: "CI/CD".to_string(),
+            branch: None,
             builds: 10,
             refresh_secs: 30,
             deploy: Vec::new(),

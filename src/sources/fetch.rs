@@ -350,8 +350,9 @@ impl BuildsSource {
         now: std::time::SystemTime,
     ) -> Result<Vec<crate::model::builds::Build>, Failure> {
         let workflow = self.workflow(gh)?;
+        let branch = self.repo.branch.as_deref().unwrap_or("main");
         let runs = gh.rest(&format!(
-            "repos/{}/actions/workflows/{workflow}/runs?branch=main&event=push&per_page={}",
+            "repos/{}/actions/workflows/{workflow}/runs?branch={branch}&event=push&per_page={}",
             self.repo.name, self.repo.builds
         ))?;
         let mut builds = crate::model::builds::parse_runs(&runs);

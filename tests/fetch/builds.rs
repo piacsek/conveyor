@@ -155,3 +155,26 @@ fn the_default_workflow_name_falls_back_to_common_ci_workflows() {
         "{calls:?}"
     );
 }
+
+#[test]
+fn a_configured_branch_names_the_branch_of_the_main_builds_query() {
+    use conveyor::config::Repo;
+    use conveyor::sources::fetch::BuildsSource;
+    let gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    let mut source = BuildsSource::new(Repo {
+        name: "acme/webapp".to_string(),
+        main_workflow: "ci.yml".to_string(),
+        branch: Some("develop".to_string()),
+        builds: 3,
+        ..Repo::default()
+    });
+
+    source.fetch(&gh, NOW).unwrap();
+
+    let calls = gh.calls.borrow().clone();
+    assert_eq!(
+        calls[0].0,
+        "GET repos/acme/webapp/actions/workflows/ci.yml/runs?branch=develop&event=push&per_page=3"
+    );
+    assert_eq!(calls.len(), 1, "no default branch lookup: {calls:?}");
+}
