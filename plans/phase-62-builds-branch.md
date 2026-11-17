@@ -44,7 +44,9 @@ branch shows an empty column with no error, and every Deployed row there reads `
 | no | fails (`gh` error, 404, no access) | the column error with `gh`'s message; the next fetch asks again |
 | no | answers without a `default_branch` string | the column error naming the repository |
 | yes, blank or with spaces around it | not made | conveyor refuses to start, naming the file and the repository |
-| yes or no, a branch with no runs (misspelled, or not built) | made only when unset | an empty column: GitHub answers zero runs, not an error (declined in review) |
+| yes, a branch with no runs (misspelled, or not built yet) | not made | `no builds on <that branch>`: GitHub answers zero runs, not an error |
+| no, the default branch has no runs | answers `default_branch` | `no builds on <the default branch>` |
+| either, before the first fetch answered | not yet answered | `fetching…`, as before |
 
 ## Tasks
 
@@ -53,7 +55,7 @@ branch shows an empty column with no error, and every Deployed row there reads `
    out while unset.
 3. Unset: the query names the repository's default branch, read once; a failed lookup is the
    column's error. The demo and the e2e shim answer the lookup.
-4. A blank `branch` is refused at load.
+4. A blank `branch`, or one with spaces around it, is refused at load.
 5. The branch is percent-encoded in the query.
 6. README default config, `src/sources/AGENTS.md`, the fragment.
 

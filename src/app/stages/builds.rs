@@ -10,6 +10,7 @@ use super::{Context, Rows, StageView};
 pub struct BuildsStage {
     pub column: Column<Build>,
     pub repo: Option<String>,
+    pub branch: String,
 }
 
 impl StageView for BuildsStage {
@@ -24,6 +25,7 @@ impl StageView for BuildsStage {
     fn receive(&mut self, _: usize, rows: Rows, now: SystemTime) {
         if let Rows::Builds(builds) = rows {
             self.repo = Some(builds.repo);
+            self.branch = builds.branch;
             self.column.receive(builds.builds, now);
         }
     }

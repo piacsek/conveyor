@@ -280,3 +280,60 @@ fn a_branch_is_percent_encoded_in_the_main_builds_query() {
         "GET repos/acme/webapp/actions/workflows/ci.yml/runs?branch=release/1.x%2Blts%26%232&event=push&per_page=3"
     );
 }
+
+#[test]
+fn an_empty_main_builds_column_names_the_configured_branch() {
+    use conveyor::config::Repo;
+    use conveyor::sources::fetch::BuildsSource;
+    let gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    let source = BuildsSource::new(Repo {
+        name: "acme/webapp".to_string(),
+        main_workflow: "ci.yml".to_string(),
+        branch: Some("devlop".to_string()),
+        ..Repo::default()
+    });
+
+    let screen = screen_after_one_fetch(source, &gh);
+
+    assert!(screen.contains("no builds on devlop"), "{screen}");
+}
+
+#[test]
+fn an_empty_main_builds_column_names_the_default_branch_it_looked_up() {
+    use conveyor::config::Repo;
+    use conveyor::sources::fetch::BuildsSource;
+    let mut gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    gh.rest_routes = vec![
+        (
+            "repos/acme/webapp/actions/".to_string(),
+            serde_json::json!({"workflow_runs": []}),
+        ),
+        (
+            "repos/acme/webapp".to_string(),
+            serde_json::json!({"default_branch": "trunk"}),
+        ),
+    ];
+    let source = BuildsSource::new(Repo {
+        name: "acme/webapp".to_string(),
+        main_workflow: "ci.yml".to_string(),
+        ..Repo::default()
+    });
+
+    let screen = screen_after_one_fetch(source, &gh);
+
+    assert!(screen.contains("no builds on trunk"), "{screen}");
+}
+
+fn screen_after_one_fetch(
+    mut source: conveyor::sources::fetch::BuildsSource,
+    gh: &FakeGithub,
+) -> String {
+    use conveyor::app::{Input, Rows, Stage};
+    let builds = source.fetch(gh, NOW).unwrap();
+    let rows = Rows::Builds(source.into_builds(builds));
+    let mut harness = crate::support::Harness::new();
+    harness
+        .run(vec![Ok(Input::Data(Stage::Builds, 0, Ok(rows)))])
+        .unwrap();
+    harness.screen()
+}

@@ -47,7 +47,9 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   not cached, so the next fetch asks again; an empty column would read as "no builds". The
   branch is percent-encoded except `/`, so `+`, `&` and `#` reach GitHub as written. A blank
   `branch`, or one with spaces around it, is refused at load. The demo answers `repos/{o}/{n}` with `main`, and so does the e2e
-  shim's `api repos/*` route.
+  shim's `api repos/*` route. `Builds` carries the branch it read, so an empty column says
+  `no builds on <branch>`: GitHub answers a branch with no push runs (a typo included) with
+  zero runs, not an error.
   `main_workflow` may be a display name (resolved once through `actions/workflows?per_page=100`,
   matched on `name` or the file basename) or a `.yml` file used directly. The default `CI/CD`
   also tries `cicd.yml`, `CI`, `ci`, `ci.yml`, `build`, `build.yml`, `main.yml` in that order

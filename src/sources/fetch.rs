@@ -373,6 +373,7 @@ impl BuildsSource {
     pub fn into_builds(&self, builds: Vec<crate::model::builds::Build>) -> Builds {
         Builds {
             repo: self.repo.name.clone(),
+            branch: self.branch.clone().unwrap_or_default(),
             builds,
         }
     }

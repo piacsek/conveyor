@@ -114,6 +114,7 @@ pub(crate) fn draw_column(
     let now = app.now;
     let jobs = std::mem::take(&mut app.jobs);
     let repo = app.builds.repo.clone();
+    let no_builds = format!("no builds on {}", app.builds.branch);
     let linked = !app.demo;
     let icons = app.config.ui.icons;
     match stage {
@@ -164,7 +165,7 @@ pub(crate) fn draw_column(
                 area,
                 block,
                 focused,
-                "no builds on main",
+                &no_builds,
                 |i, build, on, w| {
                     let failure = failures.get(i).and_then(Option::as_ref);
                     let pull = build.pull_request(repo.as_deref()).filter(|_| linked);
