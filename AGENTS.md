@@ -124,6 +124,7 @@ tests/AGENTS.md  the testing traps hit so far, the e2e `gh` shim dispatch note
 .github/pull_request_template.md  `## Summary` and `## Changes`: the body `ship.sh` opens a draft PR with
 .github/ISSUE_TEMPLATE/       the bug report and feature request forms, and `config.yml` sending questions and deploy-source requests to Discussions
 .github/CONTRIBUTING.md       where a newcomer starts: points here, to `scripts/gates.sh`, `scripts/ship.sh` and the fragment rule, restates none of them
+.claude/skills/adversarial-review/ the `adversarial-review` skill: attack the repository, report what is bad, file the fixes as labelled issues on request; `drive-demo.sh` drives `conveyor --demo` under tmux
 ```
 
 ## Where the rest lives
@@ -436,7 +437,7 @@ is the committed code of every branch that changed what the binary is built from
 `ship.sh` skips the install, printing `skipping dev-install: <reason>`, only when both hold
 (`scripts/dev-install-skippable.sh`): `conveyor-dev` resolves to another worktree's build, and
 nothing between the merge base with `origin/main` and the working tree, untracked files
-included, is outside `tests/`, `docs/`, `plans/`, `scripts/`, `changes/`, `.github/`, an `AGENTS.md` at any depth (`src/` included),
+included, is outside `tests/`, `docs/`, `plans/`, `scripts/`, `changes/`, `.github/`, `.claude/`, an `AGENTS.md` at any depth (`src/` included),
 `PLAN.md`, `README.md`, `LICENSE` and `.gitignore`. That list lives in `scripts/feeds-binary.sh`, the one
 definition of "feeds the binary", which `dev-install-skippable.sh` calls. Everything else counts as feeding the
 binary (`src/`, `Cargo.toml`, `Cargo.lock`, the bundled `CHANGELOG.md`, any path nobody
@@ -474,7 +475,7 @@ kind: fix
   `flake.lock` feed the binary on purpose: they decide what a Nix user runs, and only a release
   moves `stable` to them. Such a pull
   request is always released, a refactor as an `internal` patch. One that touches only tests,
-  docs, plans, scripts, CI or guidelines needs none and releases nothing.
+  docs, plans, scripts, CI, guidelines or agent skills (`.claude/`) needs none and releases nothing.
 - **`changes/` is add-only.** A fragment is never edited, renamed or deleted once it is on
   `main`: "pending" means "not in the tree of the last tag", so a changed released fragment
   stops every release and a reused name can skip one silently. Put a correction in a new file.
