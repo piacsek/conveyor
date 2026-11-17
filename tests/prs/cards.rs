@@ -1,6 +1,7 @@
 use conveyor::app::Input;
 use conveyor::config::{Config, Icons};
 use conveyor::model::prs::StatusChange;
+use conveyor::text::cells;
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::three;
@@ -209,7 +210,7 @@ fn the_selection_bar_runs_down_every_line_of_the_selected_card() {
             row.starts_with("│▌"),
             "line {y} of the selected card: {screen}"
         );
-        assert_eq!(h.cell(1, y as u16).fg, Color::Cyan, "line {y} is cyan");
+        assert_eq!(h.cell(1, cells(y)).fg, Color::Cyan, "line {y} is cyan");
     }
     for y in [1, 2, 3, 7, 8, 9] {
         assert!(

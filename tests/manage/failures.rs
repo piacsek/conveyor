@@ -2,6 +2,7 @@ use std::io;
 
 use conveyor::app::{Input, Stage};
 use conveyor::model::prs::{BranchUpdate, PullRequest, StatusChange};
+use conveyor::text::cells;
 use ratatui::crossterm::event::KeyCode;
 use ratatui::style::Color;
 
@@ -378,7 +379,7 @@ fn position(screen: &str, needle: &str) -> (u16, u16) {
         .enumerate()
         .find_map(|(y, line)| {
             line.find(needle)
-                .map(|at| (line[..at].chars().count() as u16, y as u16))
+                .map(|at| (cells(line[..at].chars().count()), cells(y)))
         })
         .unwrap_or_else(|| panic!("{needle} is not on screen: {screen}"))
 }
