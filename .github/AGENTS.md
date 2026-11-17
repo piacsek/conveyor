@@ -32,6 +32,16 @@ pipeline went from ~3 min 20 s to 37 s:
 - **Trade-off taken.** `rustsec/audit-check` opened a GitHub issue when a new advisory hit
   `main`; with plain `cargo audit` a red `audit` check is the only signal. Add a `schedule`
   trigger if advisories should be caught between pushes.
+- **The `flake` job is not required.** It runs `nix build` and `--version` on `ubuntu-latest`
+  and `macos-latest` (since phase 51), so a pull request that breaks the Nix flake shows red
+  before the merge. Measured on #106: Linux 1 min 49 s (the build 1 min 39 s), macOS 3 min 9 s
+  (installing Nix 39 s, the build 2 min 21 s), beside a 1 min 35 s `check`. It is left out of
+  the ruleset on purpose: a Nix or nixpkgs outage must never block a merge, and the `stable` job
+  of the release run refuses a flake that does not build anyway. No path filter: it never blocks
+  and never slows `check`, and its inputs (`src/`, the manifests, the flake, `CHANGELOG.md`) are
+  what most pull requests touch. No Nix store cache: the build is the crate and its
+  dependencies from source, which a store cache would not skip for a changed `Cargo.lock` or
+  `src/`, and nothing waits on the job.
 - **Pins.** Every action stays pinned to a commit SHA with the tag in a trailing comment (see
   Releasing internals below for how to bump one).
 - **`main` is protected by a ruleset** (`main`, id 26900132, Settings → Rules): a pull
@@ -179,6 +189,25 @@ pipeline went from ~3 min 20 s to 37 s:
   could not keep the formula from going back (a rerun of an old `tap` after a newer release),
   nor repair a run cancelled between `publish` and `tap`. It still runs one at a time
   (`concurrency: tap`, `cancel-in-progress: false`), so two writes never race.
+- **The `stable` job of `release.yml` reconciles too.** It moves the `stable` branch, which
+  `nix profile install github:piacsek/conveyor/stable` reads, to the commit of the newest
+  release. It runs after `publish` in every run that is not cancelled (`needs: [tag, publish]`,
+  `if: !cancelled()`, `concurrency: stable` without cancelling), and
+  `scripts/stable-version.sh` decides: the newest published `complete` release above the
+  version in `Cargo.toml` on `stable` (a 404 means no `stable` yet), nothing otherwise. Only
+  then does the job check out that tag, `nix build` it, refuse unless
+  `./result/bin/conveyor --version` prints `conveyor <version>`, and push the tag's commit to
+  `refs/heads/stable`, forced because release commits are siblings, not descendants. The job's
+  own `GITHUB_TOKEN` (`contents: write` on that job only) is enough: the ruleset covers only the
+  default branch, a push with that token starts no workflow, and it force-moved `stable` across
+  a change of a workflow file between two releases. Branch cleanup never touches `stable`: it
+  is never the head of a pull request. No `github.repository` guard: a fork's `stable` follows
+  the fork's releases. Proven on the private throwaway repository on 2026-11-16: the first
+  release created `stable` (job 40 s, of which the build of the small proof crate 22 s; conveyor's
+  own build takes about 1 min 40 s on Linux, see `flake` above), a full rerun left it alone, a second
+  release moved it (`forced update`), and a rerun of the first run's `stable` job left it on the
+  newer release. Nixpkgs 26.11 dropped `x86_64-darwin`, so the flake offers `x86_64-linux`,
+  `aarch64-linux` and `aarch64-darwin`; an Intel Mac keeps Homebrew or the tarball.
 - **A pull request's branch is deleted when it merges or closes.** Merged: the repository
   setting `delete_branch_on_merge`. Closed without merging: GitHub has no setting, so
   `.github/workflows/delete-closed-branch.yml` runs on `pull_request_target: closed` and
@@ -400,6 +429,11 @@ then. Its `build` and `publish` check that tag again: they finish it when its re
 unfinished and do nothing when it is already `complete`, and its `tap` only moves the formula
 forward, so rerunning an old run never rewrites a published release or the formula backwards. If `tap` fails, the next release run repairs the formula; to repair it
 now, start a new run, or run `scripts/homebrew-formula.sh <version>` by hand and push the tap.
+If `stable` fails, `stable` stays on the release before and every later run tries again. A
+failed `nix build` at a tag is never fixed at that tag: land the fix on `main` through a pull
+request with a fragment, and the release it makes moves `stable` past the broken one. A
+failure of `gh` or of the Nix install is fixed by starting a new run. `stable` is never pushed
+by hand.
 Check with `brew audit --strict --online --formula piacsek/tap/conveyor` after changing the
 script.
 
@@ -420,7 +454,7 @@ The first command only applies when a draft exists.
 
 Every action is pinned to a commit SHA with the tag in a trailing comment; bump pins with
 `gh api repos/<owner>/<repo>/git/ref/tags/<tag>`. Workflows default to `contents: read`; only
-the `tag` job (pushes the tag) and `publish` (`contents: write`, `id-token` and
+the `tag` job (pushes the tag), `stable` (pushes the `stable` branch) and `publish` (`contents: write`, `id-token` and
 `attestations: write` for `actions/attest-build-provenance`) get more. CI also runs
 `cargo audit` (a prebuilt binary via `taiki-e/install-action`; the `rustsec/audit-check` action
 compiled cargo-audit from source on every run, ~3 min of a ~3.5 min pipeline). The `check` job

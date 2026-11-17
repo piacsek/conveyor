@@ -65,7 +65,9 @@ on crates.io, and the AUR needs an account and a key.
    `stable` anyway. It runs on every pull request, with no path filter: it is not required, so
    it never blocks; it runs beside `check`, so it never slows it; and a filter would need a
    separate workflow or another action for a job whose input set (`src/`, the manifests, the
-   flake, `CHANGELOG.md`) most pull requests touch anyway.
+   flake, `CHANGELOG.md`) most pull requests touch anyway. Measured on #106: Linux 1 min 49 s,
+   macOS 3 min 9 s, beside a 1 min 35 s `check`. No Nix store cache: the time is the crate and
+   its dependencies built from source, and nothing waits on the job.
 4. **Fragment and "feeds the binary".** `flake.nix` and `flake.lock` stay off the list in
    `scripts/feeds-binary.sh`: they decide what a Nix user runs, so a flake-only change needs a
    fragment and releases a patch, which is what moves `stable` to it. This pull request ships
