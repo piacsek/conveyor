@@ -51,8 +51,9 @@ pipeline went from ~3 min 20 s to 37 s:
   `stable-build` job of the release run builds the same flake, so it never builds with another
   Rust than the gates. Measured on #110 with the default profile: Linux 1 min 33 s and 1 min
   44 s (1 min 49 s with nixpkgs' Rust), macOS 3 min 33 s and 6 min 19 s (3 min 9 s), the
-  toolchain alone taking 1 to 2 minutes there, mostly `rust-docs`, which the
-  `minimal` profile leaves out. `stable-build` runs the same build on Linux.
+  toolchain alone taking 1 to 2 minutes there, mostly `rust-docs`. With `minimal`: Linux 1 min
+  33 s (the build 1 min 24 s), macOS 3 min 10 s (the build 2 min 26 s), as before the phase, so
+  no cache. `stable-build` runs the same build on Linux.
 - **Pins.** Every action stays pinned to a commit SHA with the tag in a trailing comment (see
   Releasing internals below for how to bump one).
 - **`main` is protected by a ruleset** (`main`, id 26900132, Settings → Rules): a pull

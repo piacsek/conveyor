@@ -824,10 +824,11 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   in one file and a bump needs no hash. Proven in Docker: the toolchain's `rustc --version` is
   1.98.1 and the binary embeds its commit hash. `tests/toolchain.rs` fails while `flake.nix`
   stops reading the file or names the channel. A bump whose release the locked overlay does not
-  know fails the `flake` job; `nix flake update rust-overlay` fixes it. CI `flake` job: Linux
-  1 min 33 s (was 1 min 49 s), macOS 3 min 33 s (was 3 min 9 s); no cache. Decision: the
-  toolchain brings rustfmt and clippy as the file lists them rather than a minimal profile.
-  Fragment `kind: internal`.
+  know fails the `flake` job; `nix flake update rust-overlay` fixes it. `rust-toolchain.toml`
+  now asks for the `minimal` profile: the default one brought `rust-docs`, and the macOS
+  `flake` job took 3 min 33 s and 6 min 19 s; with `minimal` it takes 3 min 10 s and Linux
+  1 min 33 s (phase 51: 3 min 9 s and 1 min 49 s), so no cache. The toolchain still brings
+  rustfmt and clippy, as the file lists them. Fragment `kind: internal`.
 - Phase 51 (`plans/phase-51-nix-flake.md`, #106, part of #96): conveyor installs with Nix,
   `nix --extra-experimental-features 'nix-command flakes' profile install
   github:piacsek/conveyor/stable`. `flake.nix` builds the binary with
