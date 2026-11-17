@@ -1,12 +1,13 @@
 use std::io;
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::time::Instant;
+use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
 
 use crate::config::{MergeMethod, UpdateMethod};
 use crate::log::Log;
 use crate::model::prs::{BranchUpdate, StatusChange};
 use crate::sources::failure::Failure;
+use crate::sources::runner::{self, Ran};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Variable {
@@ -75,10 +76,15 @@ const DEQUEUE: &str =
 pub const MISSING: &str =
     "gh not found on PATH; install gh (brew install gh) and run gh auth login";
 
+pub const READ_DEADLINE: Duration = Duration::from_secs(30);
+pub const WRITE_DEADLINE: Duration = Duration::from_secs(60);
+
 pub struct CliGh {
     program: PathBuf,
     git: PathBuf,
     log: Log,
+    read: Duration,
+    write: Duration,
 }
 
 impl Default for CliGh {
@@ -93,6 +99,16 @@ impl CliGh {
             program,
             git: "git".into(),
             log: Log::default(),
+            read: READ_DEADLINE,
+            write: WRITE_DEADLINE,
+        }
+    }
+
+    pub fn with_deadlines(self, read: Duration, write: Duration) -> Self {
+        Self {
+            read,
+            write,
+            ..self
         }
     }
 
@@ -237,24 +253,64 @@ impl CliGh {
     }
 
     fn run(&self, args: &[String]) -> Result<String, Failure> {
-        self.exec(&Tool::gh(&self.program), None, args, &[])
+        self.exec(&Tool::gh(&self.program), Limit::Read, None, args, &[])
+    }
+
+    fn write(&self, args: &[String], aftermath: &'static str) -> Result<String, Failure> {
+        self.exec(
+            &Tool::gh(&self.program),
+            Limit::Write(aftermath),
+            None,
+            args,
+            &[],
+        )
+    }
+
+    fn deadline(&self, limit: Limit) -> (Duration, Option<&'static str>) {
+        match limit {
+            Limit::Read => (self.read, None),
+            Limit::Write(aftermath) => (self.write, Some(aftermath)),
+        }
     }
 
     fn exec(
         &self,
         tool: &Tool,
+        limit: Limit,
         dir: Option<&Path>,
         args: &[String],
         env: &[(&str, &str)],
     ) -> Result<String, Failure> {
         let started = Instant::now();
-        let output = self.output(tool.program, dir, args, env).map_err(|err| {
-            if err.kind() == io::ErrorKind::NotFound {
-                io::Error::new(io::ErrorKind::NotFound, tool.missing)
-            } else {
-                err
+        let mut command = Command::new(tool.program);
+        if let Some(dir) = dir {
+            command.current_dir(dir);
+        }
+        command
+            .args(args)
+            .envs(env.iter().copied())
+            .stdin(Stdio::null());
+        let (deadline, aftermath) = self.deadline(limit);
+        let output = match runner::run(&mut command, Some(deadline)) {
+            Ok(Ran::Finished(output)) => Ok(output),
+            Ok(Ran::TimedOut(stderr)) => {
+                self.log
+                    .timed_out(tool.name, args, started.elapsed(), &stderr);
+                let silent = format!(
+                    "{} did not answer within {}s",
+                    tool.name,
+                    deadline.as_secs()
+                );
+                return Err(Failure::timed_out(match aftermath {
+                    Some(aftermath) => format!("{silent}; {aftermath}, press r"),
+                    None => silent,
+                }));
             }
-        });
+            Err(err) if err.kind() == io::ErrorKind::NotFound => {
+                Err(io::Error::new(io::ErrorKind::NotFound, tool.missing))
+            }
+            Err(err) => Err(err),
+        };
         self.log.call(tool.name, args, started.elapsed(), &output);
         let output = output?;
         if !output.status.success() {
@@ -269,30 +325,12 @@ impl CliGh {
         String::from_utf8(output.stdout)
             .map_err(|err| Failure::from(format!("{} printed invalid UTF-8: {err}", tool.name)))
     }
+}
 
-    fn output(
-        &self,
-        program: &Path,
-        dir: Option<&Path>,
-        args: &[String],
-        env: &[(&str, &str)],
-    ) -> io::Result<std::process::Output> {
-        let mut command = Command::new(program);
-        if let Some(dir) = dir {
-            command.current_dir(dir);
-        }
-        let child = {
-            let _alone = super::spawning();
-            command
-                .args(args)
-                .envs(env.iter().copied())
-                .stdin(std::process::Stdio::null())
-                .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::piped())
-                .spawn()?
-        };
-        child.wait_with_output()
-    }
+#[derive(Clone, Copy)]
+enum Limit {
+    Read,
+    Write(&'static str),
 }
 
 struct Tool<'a> {
@@ -358,9 +396,12 @@ impl Github for CliGh {
         method: MergeMethod,
         head_oid: &str,
     ) -> Result<(), Failure> {
-        self.run(&Self::merge_args(repo, number, method, head_oid))
-            .map(|_| ())
-            .map_err(without_warnings)
+        self.write(
+            &Self::merge_args(repo, number, method, head_oid),
+            "it may already be merged",
+        )
+        .map(|_| ())
+        .map_err(without_warnings)
     }
 
     fn update_branch(
@@ -394,13 +435,20 @@ impl Github for CliGh {
             return Err(format!("{} is not a directory", dir.display()).into());
         }
         let remotes = self
-            .exec(&Tool::git(&self.git), dir, &Self::remotes_args(), &[])
+            .exec(
+                &Tool::git(&self.git),
+                Limit::Read,
+                dir,
+                &Self::remotes_args(),
+                &[],
+            )
             .map_err(|err| not_a_repository(err, repo, dir))?;
         if !remotes.lines().any(|remote| names(remote, repo)) {
             return Err(no_clone(repo, dir));
         }
         self.exec(
             &Tool::gh(&self.program),
+            Limit::Read,
             dir,
             &Self::checkout_args(repo, number),
             &[("GIT_TERMINAL_PROMPT", "0")],

@@ -1,6 +1,11 @@
 use std::path::Path;
 
-const SEAMS: &[&str] = &["check_released", "with_deadline", "with_git"];
+const SEAMS: &[&str] = &[
+    "check_released",
+    "with_deadline",
+    "with_deadlines",
+    "with_git",
+];
 
 const SUPPORT: &str = "tests/support/mod.rs";
 
