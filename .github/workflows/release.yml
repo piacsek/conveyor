@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      RUSTUP_TOOLCHAIN: stable
     outputs:
       version: ${{ steps.tag.outputs.version }}
       tag: ${{ steps.tag.outputs.tag }}
@@ -67,6 +69,7 @@ jobs:
         with:
           toolchain: 1.98.1
           targets: ${{ matrix.targets }}
+          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         if: steps.state.outputs.unfinished == 'true'
       - name: Build

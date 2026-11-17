@@ -781,6 +781,17 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   kubectl's own connection errors read `Other`, as do git's `Could not resolve host`, `TLS
   handshake timeout` and `connection reset by peer`; the `gh` rules read all of stderr, so
   echoed text holding `rate limit` would read `RateLimited`; what a card does with each kind.
+- Toolchain pin (fix from #89, #102, no phase and no plan file; 2026-11-16): `rust-toolchain.toml`
+  pins 1.98.1 with rustfmt and clippy, so `scripts/gates.sh` runs what `check` runs (the local
+  default had been a newer stable). The `toolchain:` inputs of `ci.yml` and `release.yml` stay;
+  `tests/toolchain.rs` keeps them, the file and `rust-version` equal, so a bump is one pull
+  request. Decision: the `tag` job sets `RUSTUP_TOOLCHAIN: stable` and keeps the runner image's
+  preinstalled stable, as before; without it rustup would download 1.98.1 there first, a new
+  network step in the job that pushes the tag, and the merge of this pull request starts a
+  release run. `version` was already immune (its cargo runs from a scratch directory with
+  `RUSTUP_TOOLCHAIN` set); `build` installs rustfmt and clippy in its toolchain step, so cargo downloads nothing there
+  (`tests/toolchain.rs` keeps that step's `components:` equal to the file's).
+  Fragment `kind: internal`.
 
 ## Deferred / backlog (discuss at retros)
 
