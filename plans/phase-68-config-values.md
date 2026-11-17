@@ -56,10 +56,10 @@ without a word. Phases 60 and 65 are reserved, 64, 66 and 67 run in parallel, so
   and killed that column's fetcher after its first fetch.
 - A blank `context` or `namespace` stays allowed: `kubectl --context "" -n ""` uses the current
   context and its namespace (checked against a scratch kubeconfig), so leaving them out works.
-- Ignored settings are refused with what conveyor reads instead. Main builds reading only the
-  first repository is #114 (phase 66), so a second repository's `builds`, `main_workflow`,
-  `branch` and `refresh_secs` are left to it (`tests/config.rs` already sets a later
-  repository's `refresh_secs`, which #114 may start reading).
+- Ignored settings are refused with what conveyor reads instead. Since phase 66 (#114) every
+  `[[repo]]`'s `builds`, `main_workflow`, `branch` and `refresh_secs` is read, so each
+  repository is held to the ranges and none of them is an ignored setting; only the Deployed
+  column still reads one `[[repo.deploy]]`.
 
 ## Settings, ranges and errors
 

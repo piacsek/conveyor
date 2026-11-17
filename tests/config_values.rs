@@ -128,6 +128,29 @@ fn two_repositories_differing_only_in_case_are_one() {
     );
 }
 
+#[test]
+fn every_repository_is_held_to_the_ranges() {
+    let first = "[[repo]]\nname = \"acme/webapp\"\n";
+
+    assert!(
+        refused(&format!(
+            "{first}[[repo]]\nname = \"acme/infra\"\nbuilds = 0\n"
+        ))
+        .contains("[[repo]] builds of acme/infra is 0; use 1 to 100")
+    );
+    assert!(
+        refused(&format!(
+            "{first}[[repo]]\nname = \"acme/infra\"\nrefresh_secs = 5\n"
+        ))
+        .contains("[[repo]] refresh_secs of acme/infra is 5; use 10 to 86400")
+    );
+}
+
+fn refused(text: &str) -> String {
+    let dir = tempfile::tempdir().unwrap();
+    load(&write(&dir, text)).unwrap_err().to_string()
+}
+
 fn refused_env(env: &str) -> String {
     let dir = tempfile::tempdir().unwrap();
     let text =

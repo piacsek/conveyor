@@ -99,15 +99,15 @@ previous_tab = "shift-tab"
 # builds = "Main"
 # deployed = "Envs"
 
-[[repo]]                      # optional; default is the repository of the current directory; one Merge queue tab each, which Main builds follows; Deployed the first with [[repo.deploy]]
+[[repo]]                      # optional; default is the repository of the current directory; one Merge queue tab each, which Main builds follows; Deployed the one with [[repo.deploy]]
 name = "owner/name"
 path = "~/projects/name"      # optional; the local clone `S` then `c` checks a pull request out in
 main_workflow = "CI/CD"       # workflow name or file, e.g. ci.yml
 # branch = "main"             # optional; the branch Main builds reads, default the repository's default branch
 builds = 10                   # runs shown in the Main builds column, 1 to 100
-refresh_secs = 30
+refresh_secs = 30             # 10 to 86400
 
-[[repo.deploy]]               # optional, one at most; the Deployed column
+[[repo.deploy]]               # optional, on one [[repo]] at most; the Deployed column
 system = "api"
 refresh_secs = 120
 
