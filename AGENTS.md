@@ -359,7 +359,9 @@ The Nix flake reads the same file: `rust-bin.fromRustupToolchainFile ./rust-tool
 from its locked `rust-overlay`, so `flake.nix` names no version and a bump needs no hash. The
 overlay only knows the Rust releases up to its locked commit: when the `flake` job of a bump
 fails to evaluate the new channel, run `nix flake update rust-overlay` in the same pull request.
-`tests/toolchain.rs` fails while `flake.nix` stops reading the file or names the channel itself.
+`tests/toolchain.rs` fails while `flake.nix` stops reading the file or names the channel itself,
+or the file loses `profile = "minimal"` (the default profile's `rust-docs` doubled the macOS
+`flake` job).
 
 Outside CI (`CI` unset), `gates.sh` leaves out the `scripts` test target (`tests/scripts/`,
 about half of a warm run: 50 s against 23 s for the test step, measured 2026-11-12) when

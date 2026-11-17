@@ -22,9 +22,13 @@ place the version is written.
   `cargo-auditable`, a build tool of `buildRustPackage`, not conveyor.
 
 ## Decisions
-- The toolchain fetches the components the file lists (rustfmt and clippy) rather than a
-  minimal profile: one definition, read as rustup reads it, and the two components are a few
-  prebuilt tarballs. A minimal profile would need the channel read out of the file by hand.
+- The toolchain fetches the components the file lists (rustfmt and clippy): one definition,
+  read as rustup reads it, and the two are small prebuilt tarballs.
+- `rust-toolchain.toml` asks for the `minimal` profile. Without it the flake took rustup's
+  default profile, `rust-docs` included, and the macOS `flake` job spent 1 to 2 minutes
+  unpacking it (6 min 19 s once, against 3 min 9 s before the phase). CI's
+  `dtolnay/rust-toolchain` already installs `minimal`, so the gates lose nothing; a local
+  rustup no longer installs the docs for this toolchain.
 - No cache on the `flake` job unless fetching the toolchain more than doubles its time.
 - The other copies of the version stay (`toolchain:` and `components:` in `ci.yml` and
   `release.yml`, `rust-version` in `Cargo.toml`); `tests/toolchain.rs` already guards them.
@@ -33,4 +37,5 @@ place the version is written.
 1. `tests/toolchain.rs`: `flake.nix` reads `rust-toolchain.toml` through
    `fromRustupToolchainFile` and names no `major.minor` of its own (red first), then the flake
    and its lock, the guidelines and the fragment (`kind: internal`).
-2. Measure the `flake` job on the pull request against phase 51's times and write them down.
+2. `tests/toolchain.rs`: the file asks for the `minimal` profile (red first), then the file.
+3. Measure the `flake` job on the pull request against phase 51's times and write them down.

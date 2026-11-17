@@ -43,14 +43,16 @@ pipeline went from ~3 min 20 s to 37 s:
   dependencies from source, which a store cache would not skip for a changed `Cargo.lock` or
   `src/`, and nothing waits on the job.
 - **The flake builds with the Rust of `rust-toolchain.toml`** (since phase 52), through the
-  locked `rust-overlay`, rustfmt and clippy included, as the file lists them. On a toolchain
+  locked `rust-overlay`, rustfmt and clippy included, as the file lists them, in the file's
+  `minimal` profile (the default one adds `rust-docs`, whose unpacking cost the macOS job one to
+  two minutes on #110; `dtolnay/rust-toolchain` installs `minimal` anyway). On a toolchain
   bump this job is where an overlay lock older than the new release shows: evaluating the
   channel fails, and `nix flake update rust-overlay` in the bump's pull request fixes it. The
   `stable-build` job of the release run builds the same flake, so it never builds with another
-  Rust than the gates. Measured on #110: Linux 1 min 33 s (the build 1 min 26 s, against 1 min
-  39 s with nixpkgs' Rust), macOS 3 min 33 s (the build 2 min 59 s, against 2 min 21 s): the
-  prebuilt toolchain comes from the Rust release servers instead of `cache.nixos.org`, well
-  short of doubling, so still no cache. `stable-build` runs the same build on Linux.
+  Rust than the gates. Measured on #110 with the default profile: Linux 1 min 33 s and 1 min
+  44 s (1 min 49 s with nixpkgs' Rust), macOS 3 min 33 s and 6 min 19 s (3 min 9 s), the
+  toolchain alone taking 1 to 2 minutes there, mostly `rust-docs`, which the
+  `minimal` profile leaves out. `stable-build` runs the same build on Linux.
 - **Pins.** Every action stays pinned to a commit SHA with the tag in a trailing comment (see
   Releasing internals below for how to bump one).
 - **`main` is protected by a ruleset** (`main`, id 26900132, Settings → Rules): a pull

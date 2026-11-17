@@ -40,6 +40,14 @@ fn the_flake_names_no_rust_version_of_its_own() {
     assert!(!read("flake.nix").contains(&major_minor(&channel())));
 }
 
+#[test]
+fn the_toolchain_leaves_out_the_docs_the_flake_would_unpack() {
+    assert_eq!(
+        toolchain_file().get("profile").and_then(|p| p.as_str()),
+        Some("minimal")
+    );
+}
+
 fn read(path: &str) -> String {
     let full = Path::new(env!("CARGO_MANIFEST_DIR")).join(path);
     std::fs::read_to_string(&full).unwrap_or_else(|e| panic!("{}: {e}", full.display()))
