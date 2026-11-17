@@ -106,7 +106,7 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   however many environments are down. The rows still land together: a healthy row waits for
   the slowest one, because a column takes all its rows in one `Rows::Deployed`. A panic in a
   reader thread is passed on to the fetcher thread (`resume_unwind`), as it was when the read
-  ran there. With an
+  ran there, which catches it: the whole column shows `crashed: <msg>` for that fetch. With an
   expired session every environment's kubectl starts at once, so a login plugin may be started
   once per environment at the same moment. A row whose Deployment call
   failed keeps its last sha and pull request (`keep_last_known`) but not its last health or

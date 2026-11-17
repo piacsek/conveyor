@@ -5,6 +5,7 @@ use std::time::{Duration, Instant, SystemTime};
 use ratatui::crossterm::event::{self, Event};
 
 use crate::app::Input;
+use crate::crash;
 
 const TICK: Duration = Duration::from_millis(250);
 
@@ -43,6 +44,18 @@ impl Clock for SystemClock {
 }
 
 pub fn forward(source: &mut impl EventSource, clock: &impl Clock, tx: &Sender<io::Result<Input>>) {
+    if let Err(failure) = crash::catch(|| forward_until_stopped(source, clock, tx)) {
+        let _ = tx.send(Err(io::Error::other(format!(
+            "terminal events stopped: {failure}"
+        ))));
+    }
+}
+
+fn forward_until_stopped(
+    source: &mut impl EventSource,
+    clock: &impl Clock,
+    tx: &Sender<io::Result<Input>>,
+) {
     let mut deadline = clock.instant() + TICK;
     loop {
         let now = clock.instant();

@@ -40,11 +40,7 @@ impl Failure {
     }
 
     pub fn crashed(payload: &(dyn Any + Send)) -> Self {
-        let said = payload
-            .downcast_ref::<&str>()
-            .copied()
-            .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
-            .unwrap_or("a panic with no message");
+        let said = crate::crash::said(payload);
         Self {
             kind: FailureKind::Crashed,
             message: format!("crashed: {said}"),
