@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use conveyor::text::{cells, elapsed, scroll, truncate, wrap};
+use conveyor::text::{cells, elapsed, pad_right, scroll, truncate, wrap};
 
 const WIDE: &str = "acme: 修复 🚀 deploy";
 
@@ -9,6 +9,12 @@ fn truncate_counts_a_wide_character_as_two_cells() {
     assert_eq!(truncate(WIDE, 20), WIDE);
     assert_eq!(truncate(WIDE, 18), "acme: 修复 🚀 dep…");
     assert_eq!(truncate(WIDE, 10), "acme: 修…");
+}
+
+#[test]
+fn pad_right_fills_up_to_the_width_in_cells() {
+    assert_eq!(pad_right("修复", 6), "修复  ");
+    assert_eq!(pad_right(WIDE, 10), "acme: 修… ");
 }
 
 #[test]

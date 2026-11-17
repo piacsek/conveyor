@@ -75,11 +75,9 @@ pub fn wrap(text: &str, width: usize, lines: usize) -> Vec<String> {
 }
 
 pub fn pad_right(text: &str, width: usize) -> String {
-    let count = text.chars().count();
     let mut padded = truncate(text, width);
-    if count < width {
-        padded.extend(std::iter::repeat_n(' ', width - count));
-    }
+    let used = display_width(&padded);
+    padded.extend(std::iter::repeat_n(' ', width.saturating_sub(used)));
     padded
 }
 
