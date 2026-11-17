@@ -230,7 +230,7 @@ nearest the code the guideline is about.
      of earlier findings or what was decided about them. Never post the review on the PR.
   4. The phase outcome is in `PLAN.md` and, when the branch feeds the binary, its fragment
      `changes/<branch>.md` is on it (no version bump, no `CHANGELOG.md` edit). The outcome ends
-     with its "Time and tokens" line (see that bullet). Re-read the PR title and body, fix what
+     with its "Time and tokens" entry (see that bullet). Re-read the PR title and body, fix what
      went stale, `gh pr ready`, wait for CI green.
   5. Squash-merge, the only method `main` allows. Watch the `release` run the
      merge starts to green; with a fragment, check the release holds the six assets and the
@@ -244,12 +244,13 @@ nearest the code the guideline is about.
   one commit per task through `scripts/ship.sh` (the fixes of a review round are the exception:
   one commit per round, see "Review before ready"), no pause between tasks, a pause only for the
   end-of-phase retro. Retro outcomes go to `PLAN.md` (facts, decisions, the "Time and tokens"
-  line) and here (rules).
-- **Time and tokens.** Every phase outcome in `PLAN.md` ends with one line, `Time and tokens:`,
-  written with the outcome, so it is on the branch before `gh pr ready`. The orchestrator (the
-  main session) owns the numbers and hands them to the builder to write: the builder cannot see
-  the reviewers' usage. It records only what is known by then:
-  - Time: build start (the worktree's creation), draft PR opened, the end of the clean review
+  entry) and here (rules).
+- **Time and tokens.** Every phase outcome in `PLAN.md` ends with one entry starting with
+  `Time and tokens:`, written with the outcome, so it is on the branch before `gh pr ready`.
+  The orchestrator (the main session) owns the numbers and hands them to the builder to write:
+  the builder cannot see the reviewers' usage. It records only what is known by then:
+  - Time: build start (the worktree's creation, the oldest entry of `git reflog show
+    --date=iso <branch>`, its last line), draft PR opened, the end of the clean review
     round, the wall time from start to that end, and the number of review rounds. Absolute
     times with a timezone (`2026-11-17 04:56Z`), never "about an hour".
   - Tokens: one figure per agent (builder, each reviewer, the orchestrator), each marked
@@ -259,10 +260,11 @@ nearest the code the guideline is about.
     agent's last notice; the Codex reviewer and the orchestrator's own session report none from
     the inside.
   - After the merge: a branch cannot record its own ready, merge or release, and nobody writes
-    them back into `PLAN.md`. The report of step 6 gives them: ready as the orchestrator ran
-    `gh pr ready`, merge and release read from GitHub (`gh pr view <N> --json mergedAt`,
+    them back into `PLAN.md`. The report of step 6 gives them, read from GitHub (`gh api
+    repos/<owner>/<repo>/issues/<N>/timeline --jq
+    '.[]|select(.event=="ready_for_review").created_at'`, `gh pr view <N> --json mergedAt`,
     `gh release view <tag> --json publishedAt`), and the total from build start to release, or
-    "no release" for a branch that feeds nothing into the binary.
+    to merge with "no release" for a branch that feeds nothing into the binary.
 - **One worktree per branch, by default.** Start every phase or fix in its own worktree off
   `origin/main`: `git worktree add -b <branch> .claude/worktrees/<branch> origin/main`, then
   `git branch --unset-upstream` so the first `ship.sh` push creates `origin/<branch>` instead of
