@@ -19,6 +19,7 @@ const PULLS: &str = include_str!("demo/pulls.json");
 const JOBS: &str = include_str!("demo/jobs.json");
 const DEPLOYMENTS: &str = include_str!("demo/deployments.json");
 const PODS: &str = include_str!("demo/pods.json");
+const FAILED_LOG: &str = include_str!("demo/failed.log");
 const CONFIG: &str = include_str!("demo/config.toml");
 const EXPIRED: &str = "ERROR: Active profile expired.";
 const NO_COMMITS: &str = r#"{"data":{"repository":{}}}"#;
@@ -79,6 +80,10 @@ fn jobs(run: &str) -> String {
         .replace("RUN", run)
 }
 
+fn nothing_changed() -> Failure {
+    Failure::from("demo: nothing was changed".to_string())
+}
+
 fn no_fixture(what: &str) -> Failure {
     Failure::from(format!("demo: no fixture for {what}"))
 }
@@ -117,27 +122,27 @@ impl Github for Demo {
     }
 
     fn log_failed(&self, _repo: &str, _run_id: u64, _job_id: u64) -> Result<String, Failure> {
-        Err(no_fixture("the log"))
+        Ok(FAILED_LOG.to_string())
     }
 
     fn rerun_failed(&self, _repo: &str, _run_id: u64) -> Result<(), Failure> {
-        Err(no_fixture("a rerun"))
+        Err(nothing_changed())
     }
 
     fn merge(&self, _: &str, _: u64, _: MergeMethod, _: &str) -> Result<(), Failure> {
-        Err(no_fixture("a merge"))
+        Err(nothing_changed())
     }
 
     fn update_branch(&self, _: &str, _: u64, _: UpdateMethod) -> Result<BranchUpdate, Failure> {
-        Err(no_fixture("an update"))
+        Err(nothing_changed())
     }
 
     fn change_status(&self, _: &str, _: u64, _: &StatusChange) -> Result<(), Failure> {
-        Err(no_fixture("a status change"))
+        Err(nothing_changed())
     }
 
     fn checkout(&self, _: &str, _: u64, _: Option<&Path>) -> Result<(), Failure> {
-        Err(no_fixture("a checkout"))
+        Err(nothing_changed())
     }
 }
 

@@ -1,9 +1,11 @@
 use std::time::SystemTime;
 
-use conveyor::config::{Config, Prs, Repo, Ui};
+use conveyor::config::{Config, MergeMethod, Prs, Repo, Ui, UpdateMethod};
 use conveyor::model::deployed::Health;
+use conveyor::model::prs::StatusChange;
 use conveyor::sources::demo::{self, Demo};
-use conveyor::sources::fetch::{BuildsSource, DeploySource, fetch_jobs, fetch_queue};
+use conveyor::sources::fetch::{BuildsSource, DeploySource, fetch_jobs, fetch_log, fetch_queue};
+use conveyor::sources::github::Github;
 
 #[test]
 fn the_demo_watches_its_own_repositories_instead_of_the_users() {
@@ -169,9 +171,64 @@ fn the_demo_uat_cannot_be_read() {
     );
 }
 
+#[test]
+fn a_demo_merge_changes_nothing() {
+    let merged = Demo.merge("acme/webapp", 4821, MergeMethod::Squash, "b7e4d2c9");
+
+    assert_eq!(
+        nothing_changed(merged.map(|_| ())),
+        "demo: nothing was changed"
+    );
+}
+
+#[test]
+fn a_demo_branch_update_changes_nothing() {
+    let updated = Demo.update_branch("acme/webapp", 4821, UpdateMethod::Merge);
+
+    assert_eq!(
+        nothing_changed(updated.map(|_| ())),
+        "demo: nothing was changed"
+    );
+}
+
+#[test]
+fn a_demo_status_change_changes_nothing() {
+    let changed = Demo.change_status("acme/webapp", 4790, &StatusChange::Ready);
+
+    assert_eq!(nothing_changed(changed), "demo: nothing was changed");
+}
+
+#[test]
+fn a_demo_checkout_changes_nothing() {
+    let checked_out = Demo.checkout("acme/webapp", 4821, None);
+
+    assert_eq!(nothing_changed(checked_out), "demo: nothing was changed");
+}
+
+#[test]
+fn a_demo_rerun_changes_nothing() {
+    let rerun = Demo.rerun_failed("acme/webapp", 311);
+
+    assert_eq!(nothing_changed(rerun), "demo: nothing was changed");
+}
+
+#[test]
+fn the_failed_demo_step_has_a_log() {
+    let log = fetch_log(&Demo, "acme/webapp", 311, 31101).unwrap();
+
+    assert_eq!(
+        log.last().map(String::as_str),
+        Some("error: test failed, to rerun pass `--lib`")
+    );
+}
+
 fn demo_deployed() -> conveyor::model::deployed::Deployed {
     let config = demo::config(Config::default());
     let repo = &config.repo[0];
     let mut source = DeploySource::new(repo.name.clone(), repo.deploy[0].clone());
     source.fetch(&Demo, &Demo, SystemTime::now())
+}
+
+fn nothing_changed(result: Result<(), conveyor::sources::failure::Failure>) -> String {
+    result.unwrap_err().message().to_string()
 }
