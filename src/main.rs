@@ -16,7 +16,7 @@ use conveyor::events::{self, Crossterm, SystemClock};
 use conveyor::log::{self, Log};
 use conveyor::open::SystemOpener;
 use conveyor::refresh;
-use conveyor::sources::demo::Demo;
+use conveyor::sources::demo::{self, Demo};
 use conveyor::sources::fetch::{
     BuildsSource, DeploySource, fetch_jobs, fetch_log, fetch_prs, fetch_queue, repos, rerun_failed,
 };
@@ -72,7 +72,7 @@ fn main() -> ExitCode {
             )
         }
         Command::Demo => tui(
-            config,
+            demo::config(config),
             config_error,
             Log::default(),
             Demo::default,

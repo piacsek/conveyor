@@ -3,7 +3,7 @@ use std::time::{Duration, SystemTime};
 
 use serde_json::Value;
 
-use crate::config::{DeployEnv, MergeMethod, UpdateMethod};
+use crate::config::{Config, DeployEnv, MergeMethod, UpdateMethod};
 use crate::model::prs::{BranchUpdate, StatusChange};
 use crate::sources::failure::Failure;
 use crate::sources::fetch::PRS_QUERY;
@@ -11,6 +11,16 @@ use crate::sources::github::{Github, Variable};
 use crate::sources::kube::Kube;
 
 const PRS: &str = include_str!("demo/prs.json");
+const CONFIG: &str = include_str!("demo/config.toml");
+
+pub fn config(config: Config) -> Config {
+    let demo: Config = toml::from_str(CONFIG).unwrap_or_default();
+    Config {
+        prs: demo.prs,
+        repo: demo.repo,
+        ..config
+    }
+}
 
 #[derive(Default)]
 pub struct Demo;

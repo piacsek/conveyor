@@ -1,0 +1,40 @@
+[[prs.tab]]
+name = "mine"
+query = "is:pr is:open author:@me"
+
+[[prs.tab]]
+name = "review"
+query = "is:pr is:open review-requested:@me"
+
+[[repo]]
+name = "acme/webapp"
+
+[[repo.deploy]]
+system = "api"
+
+[[repo.deploy.env]]
+name = "dev"
+context = "ctx-dev"
+namespace = "api"
+deployment = "api"
+
+[[repo.deploy.env]]
+name = "staging"
+context = "ctx-staging"
+namespace = "api"
+deployment = "api"
+
+[[repo.deploy.env]]
+name = "prod"
+context = "ctx-prod"
+namespace = "api"
+deployment = "api"
+
+[[repo.deploy.env]]
+name = "uat"
+context = "ctx-uat"
+namespace = "api"
+deployment = "api"
+
+[[repo]]
+name = "acme/infra"
