@@ -61,6 +61,7 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 54 | [a crashed background worker shows up where its result would have](plans/phase-54-worker-panics.md) | v0.34.2 |
 | 55 | [a place for early users to ask, report and pick up work (#99)](plans/phase-55-contributing.md) | none |
 | 56 | [each phase's outcome, hurdles and numbers live with its plan](plans/phase-56-plans-split.md) | none |
+| 57 | [the sweep gathers its own data and asks for itself](plans/phase-57-sweep-tooling.md) | none |
 
 ## Backlog (discussed at the sweeps and retros)
 

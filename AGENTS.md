@@ -115,6 +115,8 @@ plans/unphased.md             releases and fixes that had no phase
 scripts/homebrew-formula.sh   prints the tap formula for a released version
 scripts/formula-version.sh    the `tap` job's decision; never a version below the formula's
 scripts/stable-version.sh     the `stable-build` and `stable` jobs' decision, asked by both: the release the `stable` branch moves to, never below the version it holds
+scripts/sweep-report.sh       `[<first phase>]`: the sweep's data from `plans/`, as Markdown; counts and groups, judges nothing
+scripts/sweep-issue.sh        the `issue` job of `sweep.yml`: opens "Sweep due before phase N" with the report once the next phase is a multiple of 5, never twice
 scripts/screenshots.sh        renders docs/details.png, plus one `shoot` per extra view, from `conveyor --demo` (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
@@ -129,6 +131,7 @@ tests/AGENTS.md  the testing traps hit so far, the e2e `gh` shim dispatch note
 .github/pull_request_template.md  `## Summary` and `## Changes`: the body `ship.sh` opens a draft PR with
 .github/ISSUE_TEMPLATE/       the bug report and feature request forms, and `config.yml` sending questions and deploy-source requests to Discussions
 .github/CONTRIBUTING.md       where a newcomer starts: points here, to `scripts/gates.sh`, `scripts/ship.sh` and the fragment rule, restates none of them
+.claude/skills/sweep/          the `sweep` skill: runs `scripts/sweep-report.sh`, finds repeats and trends, proposes what each becomes, writes `### Sweep` on the user's yes
 .claude/skills/adversarial-review/ the `adversarial-review` skill: attack the repository, report what is bad, file the fixes as labelled issues on request; `drive-demo.sh` drives `conveyor --demo` under tmux
 ```
 
@@ -263,8 +266,14 @@ nearest the code the guideline is about.
   plan: read the `## Hurdles` of every phase since the last sweep and `plans/metrics.md`, and
   look for a tag that keeps coming back, a `→ none` that happened twice, and the review rounds
   and tokens drifting up. Each finding becomes a rule in the nearest `AGENTS.md`, a backlog
-  item or an issue, or is declined with its reason; the sweep's outcome opens that phase's
-  `## Outcome`. The retrospective checkpoints of `plans/original-plan.md` are its starting list.
+  item or an issue, or is declined with its reason; the sweep's outcome is the `### Sweep`
+  section that opens that phase's `## Outcome` (from phase 60, `tests/plans.rs` fails without it).
+  The retrospective checkpoints of `plans/original-plan.md` are its starting list.
+  `scripts/sweep-report.sh [<first phase>]` gathers the data (hurdles counted and grouped by tag,
+  every `→ none`, the metrics rows and their empty cells, from the phase after the last sweep);
+  the `sweep` workflow opens an issue "Sweep due before phase N" with that report once phase N−1
+  is on `main`. The report only counts: telling that two hurdles are the same problem, and what
+  becomes of each, is the sweep's judgment, which the `sweep` skill (`/sweep`) walks through.
 - **Time and tokens.** Every phase from 53 has one row in `plans/metrics.md`, written with the
   outcome, so it is on the branch before `gh pr ready`; its Notes cell carries what a number
   needs to be read right (a session shared between phases, a running total).

@@ -13,6 +13,7 @@ mod release_unfinished;
 mod script_tests_skippable;
 mod ship;
 mod stable_version;
+mod sweep;
 mod version_check;
 mod version_check_cargo;
 mod version_check_head;

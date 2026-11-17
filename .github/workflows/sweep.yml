@@ -1,0 +1,25 @@
+name: sweep
+
+on:
+  push:
+    branches: [main]
+    paths: ['plans/**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sweep
+  cancel-in-progress: false
+
+jobs:
+  issue:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/sweep-issue.sh

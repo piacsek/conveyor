@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 
 const FIRST_PHASE_WITH_HURDLES: u32 = 40;
 const FIRST_PHASE_WITH_METRICS: u32 = 53;
+const FIRST_SWEEP: u32 = 60;
+const SWEEP_EVERY: u32 = 5;
 const TAGS: [&str; 7] = [
     "review-loop",
     "ci",
@@ -119,6 +121,36 @@ fn every_recent_phase_plan_has_well_formed_hurdles() {
          tags {TAGS:?}, or the section is \"- none recorded\":\n{}",
         problems.join("\n")
     );
+}
+
+fn opens_with_a_sweep(n: u32) -> bool {
+    n >= FIRST_SWEEP && n.is_multiple_of(SWEEP_EVERY)
+}
+
+#[test]
+fn every_sweep_phase_holds_its_sweep_in_its_outcome() {
+    let missing: Vec<String> = phases()
+        .into_iter()
+        .filter(|(n, _)| opens_with_a_sweep(*n))
+        .filter(|(_, path)| {
+            section(&read(path), "## Outcome")
+                .is_none_or(|lines| !lines.iter().any(|line| line.trim_end() == "### Sweep"))
+        })
+        .map(|(_, path)| path.display().to_string())
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "a phase whose number is a multiple of {SWEEP_EVERY} opens its `## Outcome` with `### Sweep`: {missing:?}"
+    );
+}
+
+#[test]
+fn sweeps_are_due_from_phase_60_every_fifth_phase() {
+    assert!(!opens_with_a_sweep(55));
+    assert!(!opens_with_a_sweep(59));
+    assert!(opens_with_a_sweep(60));
+    assert!(!opens_with_a_sweep(61));
+    assert!(opens_with_a_sweep(65));
 }
 
 #[test]

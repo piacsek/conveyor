@@ -43,6 +43,11 @@ What has gone wrong in the tests before, and how the suites are set up to avoid 
   does). Treat a green PR run as no proof against this class: it is timing-dependent.
   `tests/scripts/` needs no mutex because it writes no executable: every shim is a symlink
   to a tracked script, and the scripts under test are symlinked into the scratch directory.
+- **`awk` is `mawk` here and `gawk` in a UTF-8 locale on the CI runner.** `mawk` counts bytes,
+  `gawk` counts characters, so a script that measured `" → "` as 5 (its UTF-8 bytes) passed
+  locally and failed `check` on #127. Measure a non-ASCII separator with `length()` and find it
+  with `index()`, and before pushing a script that handles one, run its tests once with `gawk`
+  first on `PATH` as `awk` and `LC_ALL=C.UTF-8`.
 - **A scratch repository's `scripts/` are symlinks to the real scripts.** `link_script` links
   them, so a test that writes to one of those paths (`committed(&work, "scripts/<name>.sh", …)`)
   writes through the link and overwrites the tracked script in the worktree, and every later
