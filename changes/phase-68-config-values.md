@@ -10,3 +10,5 @@ kind: fix
   namespace or deployment, is refused at start instead of failing later in its column.
 - Two `[[repo]]` of one name (in any case) are refused at start instead of showing twice, and two
   environments of one name in a deploy instead of sharing one card's selection and marks.
+- A second `[[repo.deploy]]`, or a deploy on a later repository, is refused at start, naming the
+  one conveyor reads, instead of being ignored without a word.

@@ -51,8 +51,9 @@ without a word. Phases 60 and 65 are reserved, 64, 66 and 67 run in parallel, so
   (always the column bar) are both choices that work; only the overflow is broken, and 1000
   keeps `1000 * 4` inside `u16`, so the multiplication at `src/ui/mod.rs:63` stays as it is.
 - Ignored settings are refused with what conveyor reads instead. Main builds reading only the
-  first repository is #114 (phase 66), so a second repository's `builds`, `main_workflow` and
-  `branch` are left to it.
+  first repository is #114 (phase 66), so a second repository's `builds`, `main_workflow`,
+  `branch` and `refresh_secs` are left to it (`tests/config.rs` already sets a later
+  repository's `refresh_secs`, which #114 may start reading).
 
 ## Settings, ranges and errors
 
@@ -75,7 +76,6 @@ without a word. Phases 60 and 65 are reserved, 64, 66 and 67 run in parallel, so
 | two envs of one name in a deploy | refused | `two [[repo.deploy.env]] of acme/webapp are named "prod"` |
 | a second `[[repo.deploy]]` on a repository | refused | `acme/webapp has a second [[repo.deploy]]; conveyor reads only the first` |
 | a `[[repo.deploy]]` on a later repository | refused | `the [[repo.deploy]] of acme/infra is ignored: conveyor reads only the one of acme/webapp` |
-| a later `[[repo]] refresh_secs` that differs from the first's | refused | `the refresh_secs of acme/infra is ignored: Merge queue and Main builds refresh every 30 s, the refresh_secs of acme/webapp` |
 
 The drawing site: a column 2 cells wide or less draws its tab bar without panicking
 (`saturating_sub` in `tab_bar`).
@@ -86,8 +86,7 @@ The drawing site: a column 2 cells wide or less draws its tab bar without panick
 3. `details_percent` and `min_column_width`.
 4. `[[repo]] name` shaped `owner/name`; no blank env field.
 5. Duplicate repository and env names.
-6. Ignored settings: a second deploy, a deploy on a later repository, a later repository's
-   `refresh_secs`.
+6. Ignored settings: a second deploy, a deploy on a later repository.
 7. `tab_bar` in a column 2 cells wide.
 8. Fragment, README and `AGENTS.md` facts.
 

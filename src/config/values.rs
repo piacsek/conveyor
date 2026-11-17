@@ -15,6 +15,17 @@ pub(super) fn check(config: &Config) -> Result<(), String> {
     if let Some(repo) = repeated(&config.repo, |a, b| a.name.eq_ignore_ascii_case(&b.name)) {
         return Err(format!("two [[repo]] are named \"{}\"", repo.name));
     }
+    check_read(&config.repo)
+}
+
+fn check_read(repos: &[Repo]) -> Result<(), String> {
+    let mut deployed = repos.iter().filter(|repo| !repo.deploy.is_empty());
+    if let (Some(read), Some(ignored)) = (deployed.next(), deployed.next()) {
+        return Err(format!(
+            "the [[repo.deploy]] of {} is ignored: conveyor reads only the one of {}",
+            ignored.name, read.name
+        ));
+    }
     Ok(())
 }
 
@@ -57,6 +68,12 @@ fn check_repo(repo: &Repo) -> Result<(), String> {
         repo.builds,
         &PAGE,
     )?;
+    if repo.deploy.len() > 1 {
+        return Err(format!(
+            "{} has a second [[repo.deploy]]; conveyor reads only the first",
+            repo.name
+        ));
+    }
     for deploy in &repo.deploy {
         refresh(
             &format!("[[repo.deploy]] refresh_secs of {}", repo.name),

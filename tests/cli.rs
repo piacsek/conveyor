@@ -450,6 +450,32 @@ fn config_refuses_two_environments_of_one_name() {
     );
 }
 
+#[test]
+fn config_refuses_a_second_deploy_it_would_ignore() {
+    let (code, stderr) = refusal(&format!("{ONE_DEPLOY}[[repo.deploy]]\n"));
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("acme/webapp has a second [[repo.deploy]]; conveyor reads only the first"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_a_deploy_on_a_later_repository_it_would_ignore() {
+    let (code, stderr) = refusal(&format!(
+        "{ONE_DEPLOY}[[repo]]\nname = \"acme/infra\"\n[[repo.deploy]]\n"
+    ));
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains(
+            "the [[repo.deploy]] of acme/infra is ignored: conveyor reads only the one of acme/webapp"
+        ),
+        "{stderr}"
+    );
+}
+
 const ONE_DEPLOY: &str = "[[repo]]\nname = \"acme/webapp\"\n[[repo.deploy]]\n";
 
 const CONFIG_V0: &str = include_str!("fixtures/config-v0.toml");
