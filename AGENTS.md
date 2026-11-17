@@ -88,7 +88,7 @@ src/ui/changelog.rs the `c` pane: wrapped to its width (bullets hang), headings 
 src/log.rs       the call log: its path, per program name, rotated on open
 src/text.rs      text helpers: truncation and wrapping with `…`, ages, durations and clock times, ANSI stripping
 rust-toolchain.toml           the one Rust version (rustfmt and clippy with it) that local gates and CI run; see Development
-flake.nix, flake.lock         the Nix flake: the binary built from `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md` and `src/` with the locked nixpkgs' Rust; feeds the binary
+flake.nix, flake.lock         the Nix flake: the binary built from `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md` and `src/` with the Rust `rust-toolchain.toml` names, through the locked `rust-overlay`; feeds the binary
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
@@ -355,9 +355,11 @@ request that changes the channel there, the `toolchain:` of `ci.yml` and `releas
 `rust-version` in `Cargo.toml` (its `major.minor`); `tests/toolchain.rs` fails while any of
 them differs.
 The `tag` job of `release.yml` stays on the runner image's `stable` on purpose (why: `.github/AGENTS.md`).
-The Nix flake pins no Rust: it builds with the `rustc` of its locked nixpkgs, and cargo refuses one
-below `rust-version`, so a lock too old for a toolchain bump fails the flake jobs instead of
-building; bump it with `nix flake update` in the same pull request.
+The Nix flake reads the same file: `rust-bin.fromRustupToolchainFile ./rust-toolchain.toml`
+from its locked `rust-overlay`, so `flake.nix` names no version and a bump needs no hash. The
+overlay only knows the Rust releases up to its locked commit: when the `flake` job of a bump
+fails to evaluate the new channel, run `nix flake update rust-overlay` in the same pull request.
+`tests/toolchain.rs` fails while `flake.nix` stops reading the file or names the channel itself.
 
 Outside CI (`CI` unset), `gates.sh` leaves out the `scripts` test target (`tests/scripts/`,
 about half of a warm run: 50 s against 23 s for the test step, measured 2026-11-12) when

@@ -42,6 +42,12 @@ pipeline went from ~3 min 20 s to 37 s:
   what most pull requests touch. No Nix store cache: the build is the crate and its
   dependencies from source, which a store cache would not skip for a changed `Cargo.lock` or
   `src/`, and nothing waits on the job.
+- **The flake builds with the Rust of `rust-toolchain.toml`** (since phase 52), through the
+  locked `rust-overlay`, rustfmt and clippy included, as the file lists them. On a toolchain
+  bump this job is where an overlay lock older than the new release shows: evaluating the
+  channel fails, and `nix flake update rust-overlay` in the bump's pull request fixes it. The
+  `stable-build` job of the release run builds the same flake, so it never builds with another
+  Rust than the gates.
 - **Pins.** Every action stays pinned to a commit SHA with the tag in a trailing comment (see
   Releasing internals below for how to bump one).
 - **`main` is protected by a ruleset** (`main`, id 26900132, Settings → Rules): a pull

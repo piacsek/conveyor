@@ -30,6 +30,16 @@ fn rust_version_is_the_major_minor_of_the_pinned_toolchain() {
     assert_eq!(rust_version(), major_minor(&channel()));
 }
 
+#[test]
+fn the_flake_builds_with_the_toolchain_the_file_names() {
+    assert!(read("flake.nix").contains("rust-bin.fromRustupToolchainFile ./rust-toolchain.toml"));
+}
+
+#[test]
+fn the_flake_names_no_rust_version_of_its_own() {
+    assert!(!read("flake.nix").contains(&major_minor(&channel())));
+}
+
 fn read(path: &str) -> String {
     let full = Path::new(env!("CARGO_MANIFEST_DIR")).join(path);
     std::fs::read_to_string(&full).unwrap_or_else(|e| panic!("{}: {e}", full.display()))
