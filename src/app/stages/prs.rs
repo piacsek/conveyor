@@ -120,6 +120,7 @@ impl StageView for PrsStage {
         }
         let pr = self.column().selected().ok_or("nothing selected")?;
         Ok(Menu {
+            subject: pr.key(),
             title: format!("Manage {}", self.label(&pr.repo, pr.number)),
             offers: self.offers(pr, context),
         })

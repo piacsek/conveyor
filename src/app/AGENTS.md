@@ -94,10 +94,9 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   (`worker::Task::crashed`: the card mark for a write, every run of a rerun, the jobs or log
   pane), then takes the next request. A pull request's row key is its repository and number together
   (`column::pull_key`), so the same number in two repositories is two rows: its own selection,
-  busy spinner, mark and merge wait. A Merge queue row is still keyed by its number alone, and
-  `QueueStage::holds` looks through every tab, so the same number queued in two configured
-  repositories shares the busy spinner and the failure mark. `X`, `M` and `U` were removed in v0.21.0; `S` replaced them.
-  A letter re-derives the menu: a different title (another row selected) or a different offer
+  busy spinner, mark and merge wait. `X`, `M` and `U` were removed in v0.21.0; `S` replaced them.
+  A letter re-derives the menu: another row selected (`Menu::subject`, its row key; not the
+  title, which can gain a repository name on a refresh) or a different offer
   under the letter says `the pull request changed; press S again` (`the run changed` in Main
   builds), and an offer that turned into a refusal says its reason. A refresh that lands while
   the popup is open does not redraw its offers: a dim offer that became possible stays dim until

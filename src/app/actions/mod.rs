@@ -41,6 +41,7 @@ pub struct Offer {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Menu {
+    pub subject: u64,
     pub title: String,
     pub offers: Vec<Offer>,
 }
@@ -120,7 +121,7 @@ impl App {
                 self.notice = Some(message);
                 return Action::Continue;
             }
-            Ok(fresh) if fresh.title != menu.title => {
+            Ok(fresh) if fresh.subject != menu.subject => {
                 self.notice = Some(self.stage(self.focus).changed());
                 return Action::Continue;
             }

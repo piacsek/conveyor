@@ -98,6 +98,9 @@ scripts/ship.sh               gates + dev-install (unless skippable) + commit + 
 scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
 scripts/script-tests-skippable.sh exit 0 with the reason when `gates.sh` may leave out the `scripts` test target, else 1 with the first path that needs it
 scripts/feeds-binary.sh       reads paths on stdin, prints the ones that feed the binary; the one list of what does not (`tests/`, `docs/`, `changes/`, …)
+scripts/flake-inputs.sh       reads NUL-separated paths on stdin, prints the ones the flake build reads the same way; the one list of what the `flake` job of `ci.yml` builds for
+scripts/flake-build-needed.sh `<base>`: the `paths` job of `ci.yml`; `build=true` when a flake input changed since the base or nothing can be decided (the reason on stderr), else `build=false`
+scripts/flake-ok.sh           `<paths result> <build> <flake result>`: the `flake-ok` gate of `ci.yml`; passes when the build succeeded or was rightly skipped
 scripts/fragments.sh          sourced, not run: reads the pending fragments and refuses a malformed or repeated one, at the commit its caller names
 scripts/version-check.sh      `<base> <head>`: the `version` job of `version.yml`; reads the head as git objects, runs nothing from it
 scripts/next-version.sh       prints the version the pending fragments ask for, nothing when none is pending
@@ -165,8 +168,6 @@ Pointing reviewers here is not priming, since the list is in the repo. A limit j
 review finding is declined for good; a reviewer may still report one as must when it shows new
 impact.
 
-- **A Merge queue row is keyed by its number alone**: the same number queued in two configured
-  repositories shares the busy spinner and the failure mark (`src/app/AGENTS.md`, the `S` popup).
 - **Widths are counted in characters, not display width**: wide characters (CJK, emoji) can be
   clipped at a dialog's border, and the footer cuts titles the same way (`src/ui/AGENTS.md`,
   dialogs; `PLAN.md` backlog).
@@ -180,10 +181,15 @@ impact.
 - **The `version` check judges "feeds the binary" by path only**, can be pointed by cargo at
   manifests outside its copy, and refuses a fragment name git would quote
   (`.github/AGENTS.md`, `version.yml`).
-- **`check` builds and tests on Linux only**: a macOS-only break fails in the release run
-  (`.github/AGENTS.md`).
+- **`check` builds and tests on Linux only**: the tests never run on macOS, and a macOS-only
+  break of the release build itself fails in the release run; the flake's macOS leg catches a
+  plain macOS build break (`.github/AGENTS.md`).
 - **No tag ruleset guards `v*` tags**: the owner can still push or delete one by hand
   (`.github/AGENTS.md`).
+- **A Nix outage blocks merges that touch the flake's inputs while the ruleset requires
+  `flake-ok`**: a Nix, nixpkgs or `cache.nixos.org` outage then holds them until the ruleset is
+  disabled; requiring it is the owner's step by hand (`.github/AGENTS.md`, the flake build, has
+  the command that shows whether it is required).
 
 ## Documentation rule
 
@@ -434,7 +440,7 @@ Outside CI (`CI` unset), `gates.sh` leaves out the `scripts` test target (`tests
 about half of a warm run: 50 s against 23 s for the test step, measured 2026-11-12) when
 `scripts/script-tests-skippable.sh` finds nothing between the merge base with `origin/main` and
 the working tree, untracked files included, under `scripts/`, `tests/scripts/`,
-`tests/fixtures/`, `.github/`, `changes/`, or in `Cargo.toml`, `Cargo.lock` or `CHANGELOG.md`:
+`tests/fixtures/`, `.github/`, `changes/`, or in `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md` or `flake.nix`:
 the paths those tests read from this repository. It then runs `cargo test --lib --bins` with a
 `--test` for every other target it finds as `tests/*.rs` or `tests/*/main.rs`, and
 `cargo test --doc`, and prints `==> skipping the script tests: <reason>; CI runs them`. No

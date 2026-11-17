@@ -61,7 +61,8 @@ and the confirm dialog read the same for both. Phase 60 is the sweep, so this is
 | Only `acme/webapp` rows in the tab | `Manage #12` | `Manage #12` (unchanged) |
 | Footer progress and result lines | `merging #12…` | `merging #12…` (unchanged) |
 | `y` on `webapp#12` | `copied #12` | `copied #12` (unchanged) |
-| `acme/webapp#12` and the fork `me/webapp#12` in one tab, `S` on the fork | `Manage webapp#12` | `Manage me/webapp#12` |
+| `acme/webapp#12` and the fork `me/webapp#12` in one tab, `S` on the fork | `Manage #12` | `Manage me/webapp#12` |
+| Popup open on `webapp#12`, a refresh adds `acme/infra#7`, then a letter | acts | acts (the fresh title reads `Manage webapp#12`; the row key is compared, not the title) |
 
 ## Tasks
 1. Selection: `receive` of `acme/webapp#12` and `acme/infra#12`, `j`, the same rows again; the
@@ -78,4 +79,22 @@ and the confirm dialog read the same for both. Phase 60 is the sweep, so this is
 
 ## Outcome
 
+Shipped in #133 over two review rounds. A My PRs row is keyed by its repository and number
+together (`column::pull_key`), so selection, the busy spinner, failure marks and the merge wait
+belong to one pull request; write results carry their whole target. While the active tab lists
+more than one repository, the `S` popup and the confirm dialog name the repository
+(`Manage infra#12`), with the owner when two share a short name (`Manage me/webapp#12`). A
+letter in the popup now checks that the same row is selected (`Menu::subject`) instead of
+comparing titles, since the title can gain a repository name on a refresh. The "A pull request
+number is the row key" known limit is gone whole: Merge queue rows are still keyed by number,
+but nothing writes to them (`S` refuses there) and each tab is one repository. The demo gains
+`acme/infra#4821` and `docs/confirm.png`. Not covered: a long repository label clips `#N` off
+the popup title at narrow widths. Backlog: a merge result landing after a My PRs tab switch is
+recorded against the tab now shown.
+
 ## Hurdles
+
+- `test-seam` The `y` notice printed the row hash (`copied #13499…`) after the key change; the test's `contains("copied #1")` matched a hash starting with 1, so review round 1 found it, and the test now asserts the whole notice → code
+- `test-seam` The e2e demo test and the `confirm_layout` and `manage_layout` snapshots pinned the old popup wording (`Manage #4821`), so the first ship of the label failed twice before they were updated → code
+- `tooling` The first `ship.sh` of the phase was piped through `tail`, which the rule forbids; later ships wrote to a log file → none
+- `review-loop` Round 1 asked for a Merge queue known limit (number-only keys sharing the spinner and mark) that cannot happen, since `S` refuses in Merge queue; round 2 removed it again → none

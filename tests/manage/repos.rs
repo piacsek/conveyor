@@ -2,8 +2,8 @@ use conveyor::app::{Input, Mode, Request};
 use conveyor::model::prs::{PullRequest, StatusChange};
 use ratatui::crossterm::event::KeyCode;
 
-use crate::helpers::{draft, line_after, open, status_changed, tall};
-use crate::support::{key, merge_target, prs};
+use crate::helpers::{draft, line_after, open, status, status_changed, tall};
+use crate::support::{key, merge_target, prs, status_target};
 
 #[test]
 fn a_refresh_keeps_the_selection_on_the_pull_request_of_the_other_repository() {
@@ -148,6 +148,53 @@ fn the_confirm_dialog_names_the_owner_when_two_repositories_share_a_name() {
 }
 
 #[test]
+fn a_refresh_that_brings_another_repository_leaves_the_open_popup_acting() {
+    let mut h = tall();
+
+    h.run(vec![
+        prs(vec![open(12, "Bump the api client")]),
+        key(KeyCode::Char('S')),
+        prs(vec![
+            open(12, "Bump the api client"),
+            in_infra(open(7, "Drop the users table")),
+        ]),
+        key(KeyCode::Char('t')),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        h.requests,
+        vec![status(12, "Bump the api client", StatusChange::Draft)]
+    );
+}
+
+#[test]
+fn a_result_for_one_repository_leaves_the_same_write_on_the_other_busy() {
+    let mut h = tall();
+
+    h.run(vec![
+        prs(same_draft()),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('t')),
+        infra_ready_failed(),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(
+        line_after(&screen, "#12 Drop the users table").contains("! mark ready failed: HTTP 422"),
+        "{screen}"
+    );
+    assert!(
+        line_after(&screen, "#12 Retry webhooks").contains("marking ready…"),
+        "{screen}"
+    );
+}
+
+#[test]
 fn a_confirmed_merge_goes_to_the_pull_request_of_the_other_repository() {
     let mut h = tall();
 
@@ -198,4 +245,13 @@ fn in_fork(mut pull: PullRequest) -> PullRequest {
     pull.repo = "me/webapp".to_string();
     pull.url = format!("https://github.com/me/webapp/pull/{}", pull.number);
     pull
+}
+
+fn infra_ready_failed() -> std::io::Result<Input> {
+    let mut target = status_target(12, "", StatusChange::Ready);
+    target.repo = "acme/infra".to_string();
+    Ok(Input::StatusChanged(
+        target,
+        Err("HTTP 422".to_string().into()),
+    ))
 }
