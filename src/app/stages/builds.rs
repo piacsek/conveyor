@@ -31,6 +31,10 @@ impl BuildsStage {
         &self.tabs[self.active]
     }
 
+    pub fn tab(&self, tab: usize) -> &BuildsTab {
+        self.tabs.get(tab).unwrap_or(self.active())
+    }
+
     pub fn column_mut(&mut self) -> &mut Column<Build> {
         &mut self.tabs[self.active].column
     }

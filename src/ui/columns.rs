@@ -187,6 +187,7 @@ pub(crate) fn draw_column(
             )
         }
         Stage::Deployed => {
+            let deploy_branch = app.context().deploy_builds().branch.clone();
             let behind: Vec<Option<usize>> = app
                 .deployed
                 .column
@@ -208,10 +209,7 @@ pub(crate) fn draw_column(
                         .map(|pull| (pull.number, pull.url.clone()))
                         .filter(|_| linked);
                     let behind = behind.get(i).copied().flatten();
-                    (
-                        deployed_row(row, behind, &app.builds.active().branch, now, on, w),
-                        pull,
-                    )
+                    (deployed_row(row, behind, &deploy_branch, now, on, w), pull)
                 },
             )
         }

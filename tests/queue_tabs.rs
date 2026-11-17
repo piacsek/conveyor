@@ -1,11 +1,13 @@
 mod support;
 
 use conveyor::app::{Request, Stage};
-use conveyor::config::{Config, Repo};
+use conveyor::config::{Config, Deploy, Repo};
 use conveyor::model::builds::BuildStatus;
 use conveyor::model::queue::QueueEntry;
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, build, builds_in, entry, failed_in, job, jobs, key, queue_in};
+use support::{
+    Harness, build, builds_in, deployed, deployment, entry, failed_in, job, jobs, key, queue_in,
+};
 
 #[test]
 fn tab_on_merge_queue_asks_for_the_second_repository() {
@@ -243,9 +245,63 @@ fn main_builds_shows_the_repository_of_the_active_queue_tab() {
     assert!(!screen.contains("Retry webhooks"), "{screen}");
 }
 
+#[test]
+fn deployed_counts_the_builds_of_the_deploy_repository_while_the_queue_shows_another() {
+    let mut h = Harness::with_config(160, 24, deploy_first());
+    h.run(vec![
+        builds_in(
+            0,
+            "acme/monorepo",
+            vec![
+                build(26, BuildStatus::Success, Some((14, "bob", "Speed up CI"))),
+                build(25, BuildStatus::Success, Some((13, "carol", "Rate limits"))),
+                build(
+                    24,
+                    BuildStatus::Success,
+                    Some((12, "alice", "Retry webhooks")),
+                ),
+            ],
+        ),
+        builds_in(
+            1,
+            "acme/infra",
+            vec![build(
+                9,
+                BuildStatus::Success,
+                Some((40, "bob", "Bump nodes")),
+            )],
+        ),
+        deployed(vec![deployment(
+            "prod",
+            24,
+            Some((12, "alice", "Retry webhooks")),
+        )]),
+        key(KeyCode::Char('l')),
+    ])
+    .unwrap();
+
+    h.run(vec![key(KeyCode::Tab)]).unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("Main infra (1)"), "{screen}");
+    assert!(screen.contains("↓2"), "{screen}");
+}
+
 fn two_repos() -> Config {
     Config {
         repo: vec![repo("acme/monorepo"), repo("acme/infra")],
+        ..Config::default()
+    }
+}
+
+fn deploy_first() -> Config {
+    let mut monorepo = repo("acme/monorepo");
+    monorepo.deploy = vec![Deploy {
+        system: "api".to_string(),
+        ..Deploy::default()
+    }];
+    Config {
+        repo: vec![monorepo, repo("acme/infra")],
         ..Config::default()
     }
 }
