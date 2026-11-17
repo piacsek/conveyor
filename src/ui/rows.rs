@@ -10,7 +10,7 @@ use crate::model::deployed::{Deployment, Health};
 use crate::model::jobs::Job;
 use crate::model::prs::{Check, CheckConclusion, MergeState, PullRequest, ReviewDecision};
 use crate::model::queue::QueueEntry;
-use crate::text::{age, duration, short_repo, truncate, wrap};
+use crate::text::{age, display_width, duration, short_repo, truncate, wrap};
 use crate::ui::card::{card, meta};
 use crate::ui::style::{
     INDENT, build_glyph, check_word, conclusion_glyph, dim, glyph, health_icon, pr_glyph, sha8,
@@ -106,11 +106,12 @@ fn pr_checks(pr: &PullRequest, width: usize) -> Vec<Span<'static>> {
     for check in unhappy {
         let (glyph, color) = conclusion_glyph(check.conclusion);
         let text = format!("{glyph} {}", truncate(&check.name, room.saturating_sub(2)));
-        let used = text.chars().count();
-        if used + 1 > room {
+        let separator = usize::from(!spans.is_empty());
+        let used = display_width(&text);
+        if separator + used > room {
             break;
         }
-        if !spans.is_empty() {
+        if separator == 1 {
             spans.push(Span::styled(" ", dim()));
             room -= 1;
         }

@@ -8,3 +8,4 @@ mod popup;
 mod repos;
 mod tabs;
 mod uncertain;
+mod wide_titles;

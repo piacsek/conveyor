@@ -1,5 +1,5 @@
 {"data":{"search":{"issueCount":4,"nodes":[
- {"number":4821,"title":"Retry webhook delivery with backoff","url":"https://github.com/acme/webapp/pull/4821",
+ {"number":4821,"title":"🔁 Retry webhook delivery with backoff","url":"https://github.com/acme/webapp/pull/4821",
   "isDraft":false,"updatedAt":"ago:300","headRefName":"webhook-retry-backoff",
   "repository":{"nameWithOwner":"acme/webapp"},"author":{"login":"me"},"reviewDecision":"APPROVED",
   "mergeStateStatus":"BLOCKED","additions":12,"deletions":3,"mergeQueueEntry":null,"isMergeQueueEnabled":true,
