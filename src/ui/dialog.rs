@@ -6,7 +6,7 @@ use ratatui::widgets::{Block, Clear, Padding, Paragraph};
 use crate::app::{Menu, Pending};
 use crate::config::UpdateMethod;
 use crate::model::prs::StatusChange;
-use crate::text::wrap;
+use crate::text::{cells, wrap};
 use crate::ui::style::dim;
 
 const HINT: &str = "y confirms · any other key cancels";
@@ -57,8 +57,8 @@ pub(crate) fn draw_confirm(frame: &mut Frame, area: Rect, pending: &Pending) {
             .map(|line| Line::from(Span::styled(line, dim()))),
     );
     let dialog = area.centered(
-        Constraint::Length(inner as u16 + 4),
-        Constraint::Length(height as u16),
+        Constraint::Length(cells(inner).saturating_add(4)),
+        Constraint::Length(cells(height)),
     );
     frame.render_widget(Clear, dialog);
     frame.render_widget(
@@ -116,8 +116,8 @@ pub(crate) fn draw_manage(frame: &mut Frame, area: Rect, menu: &Menu) {
         })
         .collect();
     let dialog = area.centered(
-        Constraint::Length(inner as u16 + 4),
-        Constraint::Length(height as u16),
+        Constraint::Length(cells(inner).saturating_add(4)),
+        Constraint::Length(cells(height)),
     );
     frame.render_widget(Clear, dialog);
     frame.render_widget(

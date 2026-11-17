@@ -846,6 +846,16 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   `docs/details.png` (unchanged) and shoots `docs/plain.png` without it. Decisions: a draft is
   still told by its icon and colour only (no `draft` word back on the meta line); `→` echoes
   the `⇥N` queue position on the same line. Fragment `kind: feat`.
+- Phase 53 (`plans/phase-53-cast-lints.md`, closes #90): the gates fail on an `as` cast that
+  can lose a value and on any `unsafe`. `Cargo.toml` gains `[lints]`: `unsafe_code = "forbid"`
+  and `cast_possible_truncation`, `cast_sign_loss`, `cast_possible_wrap` and `cast_lossless` at
+  `warn`, which `-D warnings` in `scripts/gates.sh` turns into errors. With the pinned clippy
+  they found 16 warnings on 14 lines under `src/` (the issue's 32 counted each twice, once for
+  the lib and once for its test build) and 7 lines under `tests/`. `text::cells` turns a count
+  into a `u16` width and saturates, used at every `usize` to `u16` site, `src/` and `tests/`
+  alike (one `u128` to `u64` in `tests/events.rs` takes `try_from`); `text::scroll` clamps an `i32` scroll offset to `0..=u16::MAX`; `u16` to `i32` goes
+  through `i32::from`; `text::clock` adds its offset in `i128`. The rest of `clippy::pedantic`
+  stays off. Fragment `kind: internal`.
 
 ## Deferred / backlog (discuss at retros)
 

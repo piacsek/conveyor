@@ -18,6 +18,15 @@ toml = "1"
 insta = "1"
 tempfile = "3"
 
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+cast_possible_truncation = "warn"
+cast_sign_loss = "warn"
+cast_possible_wrap = "warn"
+cast_lossless = "warn"
+
 [profile.release]
 lto = true
 codegen-units = 1

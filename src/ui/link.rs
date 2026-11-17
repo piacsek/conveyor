@@ -4,13 +4,14 @@ use ratatui::buffer::{Buffer, CellDiffOption};
 use ratatui::layout::{Position, Rect};
 
 use crate::open::web_url;
+use crate::text::cells;
 
 fn linkable(url: &str) -> bool {
     web_url(url).is_ok() && url.bytes().all(|byte| byte.is_ascii_graphic())
 }
 
 fn find(buffer: &Buffer, area: Rect, label: &str) -> Option<Position> {
-    let width = label.chars().count() as u16;
+    let width = cells(label.chars().count());
     area.positions().find(|at| {
         at.x + width <= area.right()
             && label

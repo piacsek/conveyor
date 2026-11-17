@@ -1,4 +1,5 @@
 use conveyor::changelog::{CHANGELOG, check, check_released};
+use conveyor::text::cells;
 
 #[test]
 fn the_changelog_has_a_real_entry_for_the_crate_version() {
@@ -129,10 +130,12 @@ fn headings_are_bold_without_their_markdown() {
 
     let screen = h.screen();
     assert!(!screen.contains("│#"), "{screen}");
-    let row = screen
-        .lines()
-        .position(|line| line.contains(&format!("│v{} (", newest_release())))
-        .unwrap() as u16;
+    let row = cells(
+        screen
+            .lines()
+            .position(|line| line.contains(&format!("│v{} (", newest_release())))
+            .unwrap(),
+    );
     assert!(
         h.cell(1, row)
             .modifier

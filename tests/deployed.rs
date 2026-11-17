@@ -5,6 +5,7 @@ use std::time::{Duration, UNIX_EPOCH};
 use conveyor::app::Stage;
 use conveyor::model::builds::BuildStatus;
 use conveyor::model::deployed::{Health, Pod, parse_deployment, parse_pods};
+use conveyor::text::cells;
 use ratatui::crossterm::event::KeyCode;
 use ratatui::style::Color;
 use support::{Harness, build, builds, condition, deployed, deployment, failed, key, waiting};
@@ -539,8 +540,10 @@ fn p_says_which_lookup_failed_and_y_says_nothing_is_selected() {
 }
 
 fn condition_row(screen: &str, text: &str) -> u16 {
-    screen
-        .lines()
-        .position(|line| line.starts_with(&format!("│{text}")))
-        .unwrap_or_else(|| panic!("no `{text}` line: {screen}")) as u16
+    cells(
+        screen
+            .lines()
+            .position(|line| line.starts_with(&format!("│{text}")))
+            .unwrap_or_else(|| panic!("no `{text}` line: {screen}")),
+    )
 }

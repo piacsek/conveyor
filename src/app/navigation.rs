@@ -1,6 +1,7 @@
 use std::time::SystemTime;
 
 use super::{Action, App, Listing, Mode, Request, Stage};
+use crate::text;
 
 impl App {
     pub fn filter(&self) -> Option<&str> {
@@ -65,18 +66,18 @@ impl App {
         } else {
             (&mut self.details_scroll, self.details_page)
         };
-        let step = (page / 2).max(1) as i32;
+        let step = i32::from((page / 2).max(1));
         let next = i32::from(*scroll) + half_pages * step;
-        *scroll = next.clamp(0, i32::from(u16::MAX)) as u16;
+        *scroll = text::scroll(next);
     }
 
     pub(super) fn half_changelog(&self) -> i32 {
-        (self.changelog_page / 2).max(1) as i32
+        i32::from((self.changelog_page / 2).max(1))
     }
 
     pub(super) fn scroll_changelog(&mut self, lines: i32) {
         let next = i32::from(self.changelog_scroll) + lines;
-        self.changelog_scroll = next.clamp(0, i32::from(u16::MAX)) as u16;
+        self.changelog_scroll = text::scroll(next);
     }
 
     pub(super) fn with_focused(&mut self, act: impl Fn(&mut dyn Listing)) {

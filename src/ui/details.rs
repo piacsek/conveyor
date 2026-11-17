@@ -12,7 +12,7 @@ use crate::model::deployed::{Deployment, Pod, Rollout};
 use crate::model::jobs::Job;
 use crate::model::prs::PullRequest;
 use crate::model::queue::QueueEntry;
-use crate::text::{age, clock, duration, elapsed, wrap};
+use crate::text::{age, cells, clock, duration, elapsed, wrap};
 use crate::ui::rows::build_label;
 use crate::ui::style::{build_glyph, check_word, conclusion_glyph, dim, sha8, status_word};
 
@@ -117,7 +117,7 @@ pub(crate) fn scrolled(area: Rect, lines: usize, wanted: u16) -> (u16, (u16, Str
     let page = area.height.saturating_sub(2);
     let overflow = match page {
         0 => 0,
-        page => (lines as u16).saturating_sub(page),
+        page => cells(lines).saturating_sub(page),
     };
     let scroll = wanted.min(overflow);
     let arrows = match (scroll > 0, scroll < overflow) {
