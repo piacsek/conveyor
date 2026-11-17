@@ -39,6 +39,19 @@ fn the_ends_of_the_page_range_load() {
     assert!(loaded.is_ok(), "{loaded:?}");
 }
 
+#[test]
+fn the_ends_of_the_layout_ranges_load() {
+    let dir = tempfile::tempdir().unwrap();
+    let narrow = "[ui]\ndetails_percent = 10\nmin_column_width = 0\n";
+    let wide = "[ui]\ndetails_percent = 90\nmin_column_width = 1000\n";
+
+    let narrow = load(&write(&dir, narrow));
+    let wide = load(&write(&dir, wide));
+
+    assert!(narrow.is_ok(), "{narrow:?}");
+    assert!(wide.is_ok(), "{wide:?}");
+}
+
 fn write(dir: &tempfile::TempDir, text: &str) -> std::path::PathBuf {
     let path = dir.path().join("config.toml");
     std::fs::write(&path, text).unwrap();

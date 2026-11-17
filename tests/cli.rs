@@ -380,6 +380,28 @@ fn config_refuses_a_number_of_builds_github_would_not_answer() {
     );
 }
 
+#[test]
+fn config_refuses_a_details_pane_that_leaves_no_room_for_the_columns() {
+    let (code, stderr) = refusal("[ui]\ndetails_percent = 500\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[ui] details_percent is 500; use 10 to 90"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_a_column_width_too_wide_to_count() {
+    let (code, stderr) = refusal("[ui]\nmin_column_width = 16384\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[ui] min_column_width is 16384; use 1000 or less"),
+        "{stderr}"
+    );
+}
+
 const CONFIG_V0: &str = include_str!("fixtures/config-v0.toml");
 
 fn fixture(name: &str) -> std::path::PathBuf {
