@@ -4,6 +4,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
 use crate::app::{Failure, JobsState};
+use crate::config::Icons;
 use crate::model::builds::{Build, BuildStatus};
 use crate::model::deployed::{Deployment, Health};
 use crate::model::jobs::Job;
@@ -28,6 +29,7 @@ pub(crate) fn build_label(build: &Build) -> (String, String) {
 
 pub(crate) fn pr_row(
     pr: &PullRequest,
+    icons: Icons,
     busy: Option<(char, &str)>,
     failure: Option<&Failure>,
     now: SystemTime,
@@ -61,7 +63,7 @@ pub(crate) fn pr_row(
     card(
         selected,
         busy.map_or_else(|| glyph(pr.checks), |(spinner, _)| (spinner, Color::Yellow)),
-        Some(pr_glyph(pr.is_draft, pr.queue_position.is_some())),
+        Some(pr_glyph(icons, pr.is_draft, pr.queue_position.is_some())),
         format!("#{} {}", pr.number, pr.title),
         right,
         failure_line(failure, width)

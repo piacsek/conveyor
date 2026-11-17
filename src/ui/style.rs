@@ -1,5 +1,6 @@
 use ratatui::style::{Color, Modifier, Style};
 
+use crate::config::Icons;
 use crate::model::builds::BuildStatus;
 use crate::model::deployed::Health;
 use crate::model::prs::{CheckConclusion, CheckState};
@@ -22,13 +23,17 @@ pub(crate) fn glyph(checks: CheckState) -> (char, Color) {
     }
 }
 
-pub(crate) fn pr_glyph(is_draft: bool, queued: bool) -> (char, Color) {
-    if is_draft {
-        ('\u{f4dd}', Color::DarkGray)
+pub(crate) fn pr_glyph(icons: Icons, is_draft: bool, queued: bool) -> (char, Color) {
+    let (plain, nerd, color) = if is_draft {
+        ('≈', '\u{f4dd}', Color::DarkGray)
     } else if queued {
-        ('\u{f4db}', Color::Yellow)
+        ('→', '\u{f4db}', Color::Yellow)
     } else {
-        ('\u{f407}', Color::Green)
+        ('↑', '\u{f407}', Color::Green)
+    };
+    match icons {
+        Icons::Plain => (plain, color),
+        Icons::Nerd => (nerd, color),
     }
 }
 

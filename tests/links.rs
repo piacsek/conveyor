@@ -43,10 +43,7 @@ fn the_card_reads_and_looks_the_same_with_its_number_linked() {
 
     let screen = h.screen();
     let rows: Vec<&str> = screen.lines().collect();
-    assert!(
-        rows[1].starts_with("│▌ ✓ \u{f407} #4821 Retry hooks"),
-        "{screen}"
-    );
+    assert!(rows[1].starts_with("│▌ ✓ ↑ #4821 Retry hooks"), "{screen}");
     assert!(
         h.cell(7, 1).modifier.contains(Modifier::BOLD),
         "the selected number stays bold"

@@ -1,4 +1,5 @@
 use conveyor::app::Input;
+use conveyor::config::{Config, Icons};
 use conveyor::model::prs::StatusChange;
 use ratatui::crossterm::event::KeyCode;
 
@@ -45,27 +46,64 @@ fn cards_stack_a_title_a_dim_meta_line_and_the_unhappy_checks_under_a_selection_
     let screen = h.screen();
     let rows: Vec<&str> = screen.lines().collect();
     assert!(rows[0].contains("My PRs (2)"), "{screen}");
-    assert!(
-        rows[1].starts_with("│▌ ✓ \u{f407} #4821 Retry hooks"),
-        "{screen}"
-    );
+    assert!(rows[1].starts_with("│▌ ✓ ↑ #4821 Retry hooks"), "{screen}");
     assert!(rows[1].contains("2h│"), "{screen}");
     assert!(
         rows[2].starts_with("│▌   webapp · webhook-retry · +12 −3"),
         "{screen}"
     );
     assert!(rows[3].starts_with("│▌   checks: success"), "{screen}");
-    assert!(
-        rows[4].starts_with("│  ✓ \u{f407} #4830 Rate limits"),
-        "{screen}"
-    );
+    assert!(rows[4].starts_with("│  ✓ ↑ #4830 Rate limits"), "{screen}");
     assert!(!screen.contains("1 ✓"), "no row numbers: {screen}");
 }
 
 #[test]
-fn a_pull_request_icon_is_green_when_open_and_grey_when_draft() {
+fn an_open_pull_request_draws_a_green_up_arrow_by_default() {
     use ratatui::style::Color;
     let mut h = Harness::new();
+
+    h.run(vec![prs(vec![pr(1, "a")])]).unwrap();
+
+    let screen = h.screen();
+    let rows: Vec<&str> = screen.lines().collect();
+    assert!(rows[1].starts_with("│▌ ✓ ↑ #1 a"), "{screen}");
+    assert_eq!(h.cell(5, 1).fg, Color::Green);
+}
+
+#[test]
+fn a_draft_draws_a_grey_approximately_sign_by_default() {
+    use ratatui::style::Color;
+    let mut h = Harness::new();
+    let mut draft = pr(1, "a");
+    draft.is_draft = true;
+
+    h.run(vec![prs(vec![draft])]).unwrap();
+
+    let screen = h.screen();
+    let rows: Vec<&str> = screen.lines().collect();
+    assert!(rows[1].starts_with("│▌ ✓ ≈ #1 a"), "{screen}");
+    assert_eq!(h.cell(5, 1).fg, Color::DarkGray);
+}
+
+#[test]
+fn a_pull_request_in_the_merge_queue_draws_a_yellow_right_arrow_by_default() {
+    use ratatui::style::Color;
+    let mut h = Harness::new();
+    let mut queued = pr(1, "a");
+    queued.queue_position = Some(2);
+
+    h.run(vec![prs(vec![queued])]).unwrap();
+
+    let screen = h.screen();
+    let rows: Vec<&str> = screen.lines().collect();
+    assert!(rows[1].starts_with("│▌ ✓ → #1 a"), "{screen}");
+    assert_eq!(h.cell(5, 1).fg, Color::Yellow);
+}
+
+#[test]
+fn with_nerd_icons_a_pull_request_icon_is_green_when_open_and_grey_when_draft() {
+    use ratatui::style::Color;
+    let mut h = Harness::with_config(160, 12, nerd());
     let open = pr(1, "a");
     let mut draft = pr(2, "b");
     draft.is_draft = true;
@@ -82,9 +120,9 @@ fn a_pull_request_icon_is_green_when_open_and_grey_when_draft() {
 }
 
 #[test]
-fn a_pull_request_in_the_merge_queue_shows_the_merge_queue_icon_in_yellow() {
+fn with_nerd_icons_a_pull_request_in_the_merge_queue_shows_the_merge_queue_icon_in_yellow() {
     use ratatui::style::Color;
-    let mut h = Harness::new();
+    let mut h = Harness::with_config(160, 12, nerd());
     let mut queued = pr(1, "a");
     queued.queue_position = Some(2);
 
@@ -197,7 +235,7 @@ fn only_the_focused_column_highlights_its_selected_card() {
 
     let screen = h.screen();
     let rows: Vec<&str> = screen.lines().collect();
-    assert!(rows[1].starts_with("│▌ ✓ \u{f407} #1 a"), "{screen}");
+    assert!(rows[1].starts_with("│▌ ✓ ↑ #1 a"), "{screen}");
     assert_eq!(
         screen.matches('▌').count(),
         3,
@@ -306,4 +344,10 @@ fn card(screen: &str, title: &str) -> (String, String) {
         .position(|line| line.contains(title))
         .expect("a card with that title");
     (lines[at].to_string(), lines[at + 1].to_string())
+}
+
+fn nerd() -> Config {
+    let mut config = Config::default();
+    config.ui.icons = Icons::Nerd;
+    config
 }
