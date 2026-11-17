@@ -70,7 +70,8 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   **The request timeout is not a limit on the call, so the process has one.**
   `--request-timeout=10s` bounds one HTTP request, and kubectl retries API discovery: against a
   proxy that stopped answering, each call took 40 s (three failed attempts 10 s apart, then the
-  error) and the column sat on `fetching…`. `CliKubectl::run` spawns kubectl in its own process
+  error) and the column sat on `fetching…`. `CliKubectl::run` hands kubectl to `runner::run`
+  (`runner.rs`, shared with `CliGh`), which spawns it in its own process
   group (`process_group(0)`), drains both pipes on threads and at `kube::DEADLINE` (15 s) kills
   the **group** (`kill -KILL -- -<pid>`, the one way to signal a group without a new
   dependency or `unsafe`): the row reads `kubectl did not answer within 15s` and the log line
@@ -199,7 +200,7 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
 - **Every `gh` and `kubectl` call is logged, nothing else from them.** `CliGh::run` and
   `CliKubectl::run` time the spawn and hand the raw `Output` to `Log::call`: argv (a
   `query=` argument becomes `query=<N chars>`), milliseconds, then `ok`, `exit N: <stderr lines
-  joined by |>`, `timed out[: <stderr lines>]` (kubectl killed at its deadline) or `did not start: <err>`. Stdout is never written: it is megabytes of JSON and
+  joined by |>`, `timed out[: <stderr lines>]` (`gh`, `git` or kubectl killed at its deadline) or `did not start: <err>`. Stdout is never written: it is megabytes of JSON and
   the job logs. A new runner of an external program takes a `Log` the same way. The file is
   `<program>.log` after `argv[0]`, so `conveyor` and `conveyor-dev` keep separate files; only
   the TUI opens it (and rotates the old one to `.1`), so `conveyor config` and `conveyor log`
@@ -210,7 +211,7 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   a non-absolute `HOME` gives up. A relative `CONVEYOR_LOG` is an explicit choice and is used as
   given.
 - **Every `gh` and `kubectl` is spawned under one lock.** `sources::spawning()` is held across
-  the `spawn()` call and nothing else, in `CliGh::output` and `CliKubectl::output`. On macOS
+  the `spawn()` call and nothing else, in `runner::run`, which both `CliGh` and `CliKubectl` call. On macOS
   Rust creates a child's pipes with `pipe()` and marks them close-on-exec afterwards, so a
   thread that spawns at that instant hands its child the other child's pipe ends (Linux has
   `pipe2(O_CLOEXEC)` and is immune, so CI cannot see it). The pipe then stays open for as long
@@ -233,7 +234,7 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   | `RateLimited` | `gh` failed and its stderr holds `rate limit`, in any case |
   | `NotSignedIn` | `gh` failed and its stderr holds `gh auth login` or `HTTP 401` |
   | `Offline` | `gh` failed and its stderr holds `error connecting to` or `dial tcp` |
-  | `TimedOut` | the kubectl deadline killed the process (`Failure::timed_out`) |
+  | `TimedOut` | a `gh` or kubectl deadline killed the process (`Failure::timed_out`) |
   | `Other` | anything else, and every `From<String>`: a parse error, a message conveyor wrote |
 
   Only a failed `gh` is classified by its text (`Failure::said_by_gh`, through `Tool::said`);
@@ -242,7 +243,23 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   `Failure::reworded`, which keeps the kind. The status code is no key: a 403 is also a
   permission error and GraphQL answers a rate limit with 200, so the rule reads the words.
   Nothing draws a kind yet; every card, footer and log line reads the message as before.
-- **`gh` never inherits the terminal.** `CliGh::run` gives it a null stdin, so a `gh` that
+- **`gh` never inherits the terminal.** `CliGh::exec` gives it a null stdin, so a `gh` that
   wants to prompt (no auth, `HOME` pointing elsewhere) fails fast instead of hanging the
   fetch thread behind `fetching…`.
+- **Every `gh` call but the checkout has a deadline.** A stalled connection, a hung proxy or a
+  credential helper used to hold `gh` (and the fetcher or worker thread waiting on it) for as
+  long as it ran: the column stayed on `fetching…` and `r` did nothing, and one hung merge held
+  every later merge of the session. `CliGh::exec` runs `gh` through `runner::run`, the same
+  process group, pipe draining and group kill as kubectl (above). A read (`graphql`, `rest`,
+  `current_repo`, `log_failed`) gets `github::READ_DEADLINE` (30 s) and fails as `gh did not
+  answer within 30s`; the column keeps its last rows and the next interval or `r` tries again.
+  A write (`merge`, `update_branch`, `change_status`, `rerun_failed`) gets `WRITE_DEADLINE`
+  (60 s), and since GitHub may have done it anyway, its message says so and asks for `r`:
+  `gh did not answer within 60s; it may already be merged, press r`, one wording per write
+  (`aftermath` for the status changes). The checkout (`git remote -v`, `gh pr checkout`) has
+  none: a fetch over ssh can take long on a large repository, and nothing on GitHub changes
+  that `r` would show. It still runs in its own process group, so a helper it leaves holding
+  the pipes is killed once it exits, and an ssh passphrase prompt on `/dev/tty` stops the
+  background `ssh` instead of drawing over the TUI (see the known limit in `AGENTS.md`).
+  Tests shorten the deadlines with `CliGh::with_deadlines(read, write)`.
 - What each `S` action makes `CliGh` run (`merge`, `update_branch`, `change_status`, `checkout` and its remotes guard, `rerun_failed`, `log_failed`): see `src/app/AGENTS.md`.

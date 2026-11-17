@@ -149,9 +149,11 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   is built from the rows on screen and runs nothing, so the refusal lands in the footer.
   `git` is the one program besides `gh` that `CliGh` spawns: under the same spawn lock, with a
   null stdin, logged as `git`. The checkout runs with `GIT_TERMINAL_PROMPT=0`, so an https
-  remote without credentials fails instead of prompting under the TUI. Known and left: an ssh
-  remote whose key needs a passphrase and has no agent prompts on `/dev/tty`, and a fetch
-  that stalls has no deadline, so `S` stays refused (`checking out #N…`) until it ends;
+  remote without credentials fails instead of prompting under the TUI. Known and left: the
+  checkout is the one `gh` call without a deadline, so an ssh remote whose key needs a
+  passphrase and has no agent (its `ssh` runs in a background process group and stops at the
+  prompt on `/dev/tty`) or a fetch that stalls keeps `S` refused (`checking out #N…`) until
+  it ends or conveyor quits;
   `GIT_SSH_COMMAND` is not set because it would override the user's own ssh command. A failed
   checkout shows git's own reason, the first stderr line starting with `fatal: ` or `error: `
   (`gits_reason`), else gh's last line, not gh's trailing `failed to run git: exit status N`
