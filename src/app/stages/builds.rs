@@ -6,58 +6,99 @@ use crate::model::builds::{Build, BuildStatus};
 
 use super::{Context, Rows, StageView};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct BuildsStage {
+    tabs: Vec<BuildsTab>,
+    active: usize,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct BuildsTab {
     pub column: Column<Build>,
     pub repo: Option<String>,
     pub branch: String,
 }
 
-impl StageView for BuildsStage {
-    fn listing(&self) -> &dyn Listing {
-        &self.column
-    }
-
-    fn listing_mut(&mut self) -> &mut dyn Listing {
-        &mut self.column
-    }
-
-    fn receive(&mut self, _: usize, rows: Rows, now: SystemTime) {
-        if let Rows::Builds(builds) = rows {
-            self.repo = Some(builds.repo);
-            self.branch = builds.branch;
-            self.column.receive(builds.builds, now);
+impl BuildsStage {
+    pub fn new(tabs: usize) -> Self {
+        Self {
+            tabs: vec![BuildsTab::default(); tabs.max(1)],
+            active: 0,
         }
     }
 
+    pub fn active(&self) -> &BuildsTab {
+        &self.tabs[self.active]
+    }
+
+    pub fn column_mut(&mut self) -> &mut Column<Build> {
+        &mut self.tabs[self.active].column
+    }
+
+    pub fn follow(&mut self, tab: usize) {
+        if tab < self.tabs.len() {
+            self.active = tab;
+        }
+    }
+}
+
+impl StageView for BuildsStage {
+    fn listing(&self) -> &dyn Listing {
+        &self.active().column
+    }
+
+    fn listing_mut(&mut self) -> &mut dyn Listing {
+        self.column_mut()
+    }
+
+    fn receive(&mut self, tab: usize, rows: Rows, now: SystemTime) {
+        if let (Rows::Builds(builds), Some(tab)) = (rows, self.tabs.get_mut(tab)) {
+            tab.repo = Some(builds.repo);
+            tab.branch = builds.branch;
+            tab.column.receive(builds.builds, now);
+        }
+    }
+
+    fn listing_in_mut(&mut self, tab: usize) -> Option<&mut dyn Listing> {
+        self.tabs
+            .get_mut(tab)
+            .map(|tab| &mut tab.column as &mut dyn Listing)
+    }
+
+    fn holds(&self, key: u64) -> bool {
+        self.tabs.iter().any(|tab| tab.column.holds(key))
+    }
+
     fn pull_target(&self) -> Result<(u64, String), String> {
-        self.column
+        self.active()
+            .column
             .selected()
             .ok_or_else(|| "nothing selected".to_string())?
-            .pull_request(self.repo.as_deref())
+            .pull_request(self.active().repo.as_deref())
             .ok_or_else(|| "no pull request for this run".to_string())
     }
 
     fn build_url(&self, _: &Context) -> Result<String, String> {
-        self.column
+        self.active()
+            .column
             .selected()
             .map(|build| build.url.clone())
             .ok_or_else(|| "nothing selected".to_string())
     }
 
     fn selected_run(&self) -> Option<&Build> {
-        self.column.selected()
+        self.active().column.selected()
     }
 
     fn runs(&self) -> Vec<&Build> {
-        self.column.all().iter().collect()
+        self.active().column.all().iter().collect()
     }
 
     fn menu(&self, _: &Context) -> Result<Menu, String> {
-        if self.column.error.is_some() {
+        if self.active().column.error.is_some() {
             return Err("the last refresh failed; press r and try again".to_string());
         }
-        let build = self.column.selected().ok_or("nothing selected")?;
+        let build = self.active().column.selected().ok_or("nothing selected")?;
         Ok(Menu {
             subject: build.key(),
             title: format!("Manage run {}", build.run_number),
@@ -72,9 +113,15 @@ impl StageView for BuildsStage {
 
 impl BuildsStage {
     fn rerun_target(&self) -> Result<Rerun, String> {
-        let build = self.column.selected().ok_or("nothing selected")?;
+        let build = self.active().column.selected().ok_or("nothing selected")?;
         let label = format!("run {}", build.run_number);
-        let newest = self.column.all().iter().map(|b| b.run_number).max();
+        let newest = self
+            .active()
+            .column
+            .all()
+            .iter()
+            .map(|b| b.run_number)
+            .max();
         if newest != Some(build.run_number) {
             return Err("only the newest main build can be rerun".to_string());
         }
@@ -84,7 +131,7 @@ impl BuildsStage {
         if !matches!(build.status, BuildStatus::Failure | BuildStatus::Cancelled) {
             return Err("nothing failed to rerun".to_string());
         }
-        let repo = self.repo.clone().ok_or("no repository known")?;
+        let repo = self.active().repo.clone().ok_or("no repository known")?;
         Ok(Rerun {
             repo,
             run_ids: vec![build.id],

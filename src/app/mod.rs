@@ -152,7 +152,7 @@ impl App {
         Self {
             prs: PrsStage::new(config.prs.tabs().into_iter().map(|tab| tab.name).collect()),
             queue: QueueStage::new(repo_tabs(&config)),
-            builds: BuildsStage::default(),
+            builds: BuildsStage::new(repo_tabs(&config).len()),
             deployed: DeployedStage::default(),
             focus: Stage::Prs,
             mode: Mode::Normal,

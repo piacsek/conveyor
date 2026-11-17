@@ -5,7 +5,7 @@ use conveyor::config::{Config, Repo};
 use conveyor::model::builds::BuildStatus;
 use conveyor::model::queue::QueueEntry;
 use ratatui::crossterm::event::KeyCode;
-use support::{Harness, build, entry, failed_in, job, jobs, key, queue_in};
+use support::{Harness, build, builds_in, entry, failed_in, job, jobs, key, queue_in};
 
 #[test]
 fn tab_on_merge_queue_asks_for_the_second_repository() {
@@ -207,6 +207,40 @@ fn a_monorepo_refresh_does_not_ask_again_for_the_jobs_of_a_hidden_infra_run() {
     h.run(vec![queue_in(0, "acme/monorepo", vec![])]).unwrap();
 
     assert!(h.requests.is_empty(), "{:?}", h.requests);
+}
+
+#[test]
+fn main_builds_shows_the_repository_of_the_active_queue_tab() {
+    let mut h = Harness::with_config(160, 24, two_repos());
+    h.run(vec![
+        builds_in(
+            1,
+            "acme/infra",
+            vec![build(
+                9,
+                BuildStatus::Success,
+                Some((40, "bob", "Bump nodes")),
+            )],
+        ),
+        builds_in(
+            0,
+            "acme/monorepo",
+            vec![build(
+                7,
+                BuildStatus::Success,
+                Some((12, "alice", "Retry webhooks")),
+            )],
+        ),
+        key(KeyCode::Char('l')),
+    ])
+    .unwrap();
+
+    h.run(vec![key(KeyCode::Tab)]).unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("Main infra (1)"), "{screen}");
+    assert!(screen.contains("Bump nodes"), "{screen}");
+    assert!(!screen.contains("Retry webhooks"), "{screen}");
 }
 
 fn two_repos() -> Config {

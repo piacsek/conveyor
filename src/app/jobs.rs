@@ -108,6 +108,7 @@ impl App {
 
     fn failing_run_without_jobs(&self) -> Option<u64> {
         self.builds
+            .active()
             .column
             .all()
             .iter()

@@ -50,9 +50,9 @@ pub(crate) fn column_title(app: &App, stage: Stage) -> String {
                 app,
                 stage,
                 "Main",
-                app.builds.repo.as_deref().map(short_repo),
+                app.builds.active().repo.as_deref().map(short_repo),
             ),
-            &app.builds.column,
+            &app.builds.active().column,
             marks,
         ),
         Stage::Deployed => titled(
@@ -113,8 +113,8 @@ pub(crate) fn draw_column(
     let focused = stage == app.focus;
     let now = app.now;
     let jobs = std::mem::take(&mut app.jobs);
-    let repo = app.builds.repo.clone();
-    let no_builds = format!("no builds on {}", app.builds.branch);
+    let repo = app.builds.active().repo.clone();
+    let no_builds = format!("no builds on {}", app.builds.active().branch);
     let linked = !app.demo;
     let icons = app.config.ui.icons;
     match stage {
@@ -158,10 +158,10 @@ pub(crate) fn draw_column(
             },
         ),
         Stage::Builds => {
-            let failures = marks(app, Stage::Builds, &app.builds.column);
+            let failures = marks(app, Stage::Builds, &app.builds.active().column);
             draw_list(
                 frame,
-                &mut app.builds.column,
+                app.builds.column_mut(),
                 area,
                 block,
                 focused,
@@ -209,7 +209,7 @@ pub(crate) fn draw_column(
                         .filter(|_| linked);
                     let behind = behind.get(i).copied().flatten();
                     (
-                        deployed_row(row, behind, &app.builds.branch, now, on, w),
+                        deployed_row(row, behind, &app.builds.active().branch, now, on, w),
                         pull,
                     )
                 },

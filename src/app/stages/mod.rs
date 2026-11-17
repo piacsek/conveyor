@@ -75,6 +75,7 @@ pub struct Context<'a> {
 impl Context<'_> {
     pub fn main_build(&self, sha: &str) -> Option<&Build> {
         self.builds
+            .active()
             .column
             .all()
             .iter()
@@ -90,6 +91,7 @@ impl Context<'_> {
     pub fn behind_main(&self, row: &Deployment) -> Option<usize> {
         let sha = row.sha.as_ref()?;
         self.builds
+            .active()
             .column
             .all()
             .iter()
@@ -104,7 +106,7 @@ impl Context<'_> {
             .iter()
             .find(|repo| !repo.deploy.is_empty())
             .map(|repo| repo.name.clone())
-            .or_else(|| self.builds.repo.clone())
+            .or_else(|| self.builds.active().repo.clone())
     }
 }
 
