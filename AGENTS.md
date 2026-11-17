@@ -100,6 +100,7 @@ scripts/script-tests-skippable.sh exit 0 with the reason when `gates.sh` may lea
 scripts/feeds-binary.sh       reads paths on stdin, prints the ones that feed the binary; the one list of what does not (`tests/`, `docs/`, `changes/`, …)
 scripts/flake-inputs.sh       reads paths on stdin, prints the ones the flake build reads; the one list of what the `flake` job of `ci.yml` builds for
 scripts/flake-build-needed.sh `<base>`: the `paths` job of `ci.yml`; `build=true` when a flake input changed since the base or nothing can be decided, else `build=false`
+scripts/flake-ok.sh           `<paths result> <build> <flake result>`: the `flake-ok` gate of `ci.yml`; passes when the build succeeded or was rightly skipped
 scripts/fragments.sh          sourced, not run: reads the pending fragments and refuses a malformed or repeated one, at the commit its caller names
 scripts/version-check.sh      `<base> <head>`: the `version` job of `version.yml`; reads the head as git objects, runs nothing from it
 scripts/next-version.sh       prints the version the pending fragments ask for, nothing when none is pending
