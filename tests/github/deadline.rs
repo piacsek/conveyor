@@ -2,8 +2,9 @@ use std::fs;
 use std::time::Duration;
 
 use conveyor::app::{Input, Rows, Stage};
-use conveyor::config::{Config, MergeMethod};
+use conveyor::config::{Config, MergeMethod, UpdateMethod};
 use conveyor::log::Log;
+use conveyor::model::prs::StatusChange;
 use conveyor::sources::failure::{Failure, FailureKind};
 use conveyor::sources::fetch::fetch_prs;
 use conveyor::sources::github::{CliGh, Github};
@@ -71,6 +72,133 @@ fn a_merge_past_its_deadline_says_it_may_already_be_merged() {
     );
 }
 
+#[test]
+fn an_update_past_its_deadline_says_the_branch_may_already_be_updated() {
+    let failure = past_the_write_deadline(|gh| {
+        gh.update_branch("acme/api", 12, UpdateMethod::Merge)
+            .map(|_| ())
+    });
+
+    assert_eq!(failure.kind(), FailureKind::TimedOut);
+    assert_eq!(
+        failure.to_string(),
+        "gh did not answer within 2s; the branch may already be updated, press r"
+    );
+}
+
+#[test]
+fn marking_ready_past_its_deadline_says_it_may_already_be_marked_ready() {
+    let change = StatusChange::Ready;
+
+    let failure = past_the_write_deadline(|gh| gh.change_status("acme/api", 12, &change));
+
+    assert_eq!(failure.kind(), FailureKind::TimedOut);
+    assert_eq!(
+        failure.to_string(),
+        "gh did not answer within 2s; it may already be marked ready, press r"
+    );
+}
+
+#[test]
+fn converting_to_draft_past_its_deadline_says_it_may_already_be_a_draft() {
+    let change = StatusChange::Draft;
+
+    let failure = past_the_write_deadline(|gh| gh.change_status("acme/api", 12, &change));
+
+    assert_eq!(failure.kind(), FailureKind::TimedOut);
+    assert_eq!(
+        failure.to_string(),
+        "gh did not answer within 2s; it may already be a draft, press r"
+    );
+}
+
+#[test]
+fn enabling_auto_merge_past_its_deadline_says_auto_merge_may_already_be_on() {
+    let change = StatusChange::EnableAutoMerge {
+        node_id: "PR_kwacme12".into(),
+        method: MergeMethod::Squash,
+        head_oid: "8c1f2a7d".into(),
+    };
+
+    let failure = past_the_write_deadline(|gh| gh.change_status("acme/api", 12, &change));
+
+    assert_eq!(failure.kind(), FailureKind::TimedOut);
+    assert_eq!(
+        failure.to_string(),
+        "gh did not answer within 2s; auto-merge may already be on, press r"
+    );
+}
+
+#[test]
+fn disabling_auto_merge_past_its_deadline_says_auto_merge_may_already_be_off() {
+    let change = StatusChange::DisableAutoMerge {
+        node_id: "PR_kwacme12".into(),
+    };
+
+    let failure = past_the_write_deadline(|gh| gh.change_status("acme/api", 12, &change));
+
+    assert_eq!(failure.kind(), FailureKind::TimedOut);
+    assert_eq!(
+        failure.to_string(),
+        "gh did not answer within 2s; auto-merge may already be off, press r"
+    );
+}
+
+#[test]
+fn adding_to_the_merge_queue_past_its_deadline_says_it_may_already_be_in_the_merge_queue() {
+    let change = StatusChange::Enqueue {
+        node_id: "PR_kwacme12".into(),
+        head_oid: "8c1f2a7d".into(),
+    };
+
+    let failure = past_the_write_deadline(|gh| gh.change_status("acme/api", 12, &change));
+
+    assert_eq!(failure.kind(), FailureKind::TimedOut);
+    assert_eq!(
+        failure.to_string(),
+        "gh did not answer within 2s; it may already be in the merge queue, press r"
+    );
+}
+
+#[test]
+fn leaving_the_merge_queue_past_its_deadline_says_it_may_already_be_out_of_the_merge_queue() {
+    let change = StatusChange::Dequeue {
+        node_id: "PR_kwacme12".into(),
+    };
+
+    let failure = past_the_write_deadline(|gh| gh.change_status("acme/api", 12, &change));
+
+    assert_eq!(failure.kind(), FailureKind::TimedOut);
+    assert_eq!(
+        failure.to_string(),
+        "gh did not answer within 2s; it may already be out of the merge queue, press r"
+    );
+}
+
+#[test]
+fn closing_past_its_deadline_says_it_may_already_be_closed() {
+    let change = StatusChange::Close;
+
+    let failure = past_the_write_deadline(|gh| gh.change_status("acme/api", 12, &change));
+
+    assert_eq!(failure.kind(), FailureKind::TimedOut);
+    assert_eq!(
+        failure.to_string(),
+        "gh did not answer within 2s; it may already be closed, press r"
+    );
+}
+
+#[test]
+fn a_rerun_past_its_deadline_says_the_run_may_already_be_rerunning() {
+    let failure = past_the_write_deadline(|gh| gh.rerun_failed("acme/api", 1026));
+
+    assert_eq!(failure.kind(), FailureKind::TimedOut);
+    assert_eq!(
+        failure.to_string(),
+        "gh did not answer within 2s; the run may already be rerunning, press r"
+    );
+}
+
 const SHORT: Duration = Duration::from_secs(1);
 const LONG: Duration = Duration::from_secs(2);
 
@@ -89,4 +217,11 @@ fn time_out_once_ready(
         }
         deadline *= 2;
     }
+}
+
+fn past_the_write_deadline(call: impl Fn(&CliGh) -> Result<(), Failure>) -> Failure {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let gh = shim(&dir, "exec sleep 5").with_deadlines(SHORT, LONG);
+    call(&gh).unwrap_err()
 }

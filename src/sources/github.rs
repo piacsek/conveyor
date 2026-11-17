@@ -252,7 +252,7 @@ impl CliGh {
         .to_vec()
     }
 
-    fn run(&self, args: &[String]) -> Result<String, Failure> {
+    fn read(&self, args: &[String]) -> Result<String, Failure> {
         self.exec(&Tool::gh(&self.program), Limit::Read, None, args, &[])
     }
 
@@ -366,27 +366,31 @@ impl Github for CliGh {
         query: &str,
         vars: &[(&str, Variable)],
     ) -> Result<serde_json::Value, Failure> {
-        let stdout = self.run(&Self::graphql_args(query, vars))?;
+        let stdout = self.read(&Self::graphql_args(query, vars))?;
         serde_json::from_str(&stdout)
             .map_err(|err| Failure::from(format!("gh returned invalid JSON: {err}")))
     }
 
     fn rest(&self, path: &str) -> Result<serde_json::Value, Failure> {
-        let stdout = self.run(&Self::rest_args(path))?;
+        let stdout = self.read(&Self::rest_args(path))?;
         serde_json::from_str(&stdout)
             .map_err(|err| Failure::from(format!("gh returned invalid JSON: {err}")))
     }
 
     fn current_repo(&self) -> Result<String, Failure> {
-        Ok(self.run(&Self::current_repo_args())?.trim().to_string())
+        Ok(self.read(&Self::current_repo_args())?.trim().to_string())
     }
 
     fn log_failed(&self, repo: &str, run_id: u64, job_id: u64) -> Result<String, Failure> {
-        self.run(&Self::log_failed_args(repo, run_id, job_id))
+        self.read(&Self::log_failed_args(repo, run_id, job_id))
     }
 
     fn rerun_failed(&self, repo: &str, run_id: u64) -> Result<(), Failure> {
-        self.run(&Self::rerun_failed_args(repo, run_id)).map(|_| ())
+        self.write(
+            &Self::rerun_failed_args(repo, run_id),
+            "the run may already be rerunning",
+        )
+        .map(|_| ())
     }
 
     fn merge(
@@ -410,7 +414,10 @@ impl Github for CliGh {
         number: u64,
         method: UpdateMethod,
     ) -> Result<BranchUpdate, Failure> {
-        match self.run(&Self::update_branch_args(repo, number, method)) {
+        match self.write(
+            &Self::update_branch_args(repo, number, method),
+            "the branch may already be updated",
+        ) {
             Ok(stdout) if stdout.contains("already up-to-date") => Ok(BranchUpdate::UpToDate),
             Ok(_) => Ok(BranchUpdate::Updated),
             Err(err)
@@ -425,7 +432,7 @@ impl Github for CliGh {
     }
 
     fn change_status(&self, repo: &str, number: u64, change: &StatusChange) -> Result<(), Failure> {
-        self.run(&Self::status_args(repo, number, change))
+        self.write(&Self::status_args(repo, number, change), aftermath(change))
             .map(|_| ())
             .map_err(without_warnings)
     }
@@ -497,6 +504,18 @@ fn gits_reason(err: Failure) -> Failure {
     match reason {
         Some(line) => err.reworded(line),
         None => err,
+    }
+}
+
+fn aftermath(change: &StatusChange) -> &'static str {
+    match change {
+        StatusChange::Ready => "it may already be marked ready",
+        StatusChange::Draft => "it may already be a draft",
+        StatusChange::EnableAutoMerge { .. } => "auto-merge may already be on",
+        StatusChange::DisableAutoMerge { .. } => "auto-merge may already be off",
+        StatusChange::Enqueue { .. } => "it may already be in the merge queue",
+        StatusChange::Dequeue { .. } => "it may already be out of the merge queue",
+        StatusChange::Close => "it may already be closed",
     }
 }
 
