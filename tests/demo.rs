@@ -173,6 +173,16 @@ fn the_demo_main_builds_are_four_runs_newest_first_with_their_pull_requests() {
 }
 
 #[test]
+fn the_demo_main_builds_of_acme_infra_are_empty() {
+    let config = demo::config(Config::default());
+    let mut source = BuildsSource::new(config.repo[1].clone());
+
+    let builds = source.fetch(&Demo, SystemTime::now()).unwrap();
+
+    assert!(builds.is_empty(), "{builds:?}");
+}
+
+#[test]
 fn a_failed_demo_run_names_its_failed_step() {
     let jobs = fetch_jobs(&Demo, "acme/webapp", 311).unwrap();
 

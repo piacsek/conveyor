@@ -26,6 +26,7 @@ const CONFIG: &str = include_str!("demo/config.toml");
 const EXPIRED: &str = "ERROR: Active profile expired.";
 const REPOSITORY: &str = r#"{"default_branch":"main"}"#;
 const NO_COMMITS: &str = r#"{"data":{"repository":{}}}"#;
+const NO_RUNS: &str = r#"{"total_count":0,"workflow_runs":[]}"#;
 const EMPTY_QUEUE: &str = r#"{"data":{"repository":{"mergeQueue":{"url":"https://github.com/acme/infra/queue/main","entries":{"nodes":[]}}}}}"#;
 
 pub fn config(config: Config) -> Config {
@@ -140,7 +141,8 @@ impl Github for Demo {
         match route.split('/').collect::<Vec<_>>().as_slice() {
             [_, _, _] => self.answer(REPOSITORY),
             [_, _, _, "actions", "workflows"] => self.answer(WORKFLOWS),
-            [_, _, _, "actions", "workflows", _, "runs"] => self.answer(RUNS),
+            [_, _, "webapp", "actions", "workflows", _, "runs"] => self.answer(RUNS),
+            [_, _, _, "actions", "workflows", _, "runs"] => self.answer(NO_RUNS),
             [_, _, _, "actions", "runs"] if query.contains("event=merge_group") => {
                 self.answer(MERGE_GROUP_RUNS)
             }
