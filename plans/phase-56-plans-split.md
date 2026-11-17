@@ -45,11 +45,12 @@ Shipped as described in the design, docs and tests only, so no fragment and no r
 were written for phases 40 to 55 from their outcomes and review notes; earlier phases carry
 their outcome only. Deviations from the autonomous flow: the work ran from a cloud session on
 its assigned branch instead of a fresh worktree, was committed and pushed with `scripts/gates.sh`
-and `git` instead of `scripts/ship.sh` (which opens a draft PR, and none was asked for), and had
-no `/pr-review`, which this session cannot run; both are left to the owner.
+and `git` instead of `scripts/ship.sh` (which opens a draft PR, and none was asked for yet), and
+had no `/pr-review`, which this session cannot run. The draft PR, #119, was opened once the user
+asked; the review is left to the owner.
 
 ## Hurdles
 
 - `process` Phase 43 closed with no outcome in `PLAN.md`, unnoticed until the outcomes moved; `tests/plans.rs` now fails on a phase plan without `## Outcome` → rule in `AGENTS.md`
 - `process` Phase 52's outcome has no "Time and tokens" entry although #116 made it a rule before #110 merged → none
-- `tooling` The cloud session has no `/pr-review` skill and no Codex, and opens no PR unasked, so the review loop did not run → none
+- `tooling` The cloud session has no `/pr-review` skill and no Codex, so the review loop did not run → none
