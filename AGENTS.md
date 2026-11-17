@@ -32,6 +32,8 @@ src/config.rs    the config: its tables, defaults, path and `CONVEYOR_CONFIG` ov
 src/sources/     everything that reaches out to an external service, and nothing else
 src/sources/github.rs the Github trait and CliGh, which spawns `gh` (and `git` for the checkout guard), error mapping
 src/sources/kube.rs   the Kube trait and CliKubectl, which spawns `kubectl` under a deadline that kills it
+src/sources/demo.rs   Demo: the Github and Kube of `--demo`, answering from the built-in fixture; spawns and logs nothing, every write fails
+src/sources/demo/     that fixture: JSON with `ago:<secs>` times, the failed step's log, the demo's `[prs]` and `[[repo]]`
 src/sources/failure.rs Failure: what a failed call said and which kind of failure it was
 src/sources/fetch.rs  what each stage fetches, the sha → pull request cache, Deployed read per environment on parallel threads
 src/sources/queries/  GraphQL documents, `include_str!`ed
@@ -80,7 +82,7 @@ src/ui/AGENTS.md  cards, glyphs and icons, dialogs, the details, help and change
 src/refresh.rs   one fetcher thread per stage, sleeping until the interval or a refresh
 src/worker.rs    one thread per kind of request (jobs, log, rerun, merge, update, status, checkout): each request in, one input back
 src/events.rs    the terminal events thread: key presses and resizes as inputs, a tick every 250 ms by deadline
-src/open.rs      opening a URL and copying to the clipboard: the OS seam, not a service, so it stays out of `sources/`
+src/open.rs      opening a URL and copying to the clipboard: the OS seam, not a service, so it stays out of `sources/`; DemoOpener refuses to open
 src/changelog.rs the bundled CHANGELOG.md and the rules a release entry must meet
 src/ui/changelog.rs the `c` pane: wrapped to its width (bullets hang), headings bold without their `#`, scrolled like the details pane
 src/log.rs       the call log: its path, per program name, rotated on open

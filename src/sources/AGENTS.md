@@ -167,6 +167,24 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   branch carries direct pushes ran to thousands of calls an hour against a 5,000/hour limit.
 - Lenient parsing: see `src/model/AGENTS.md`.
 
+## The demo (`--demo`)
+
+- **`Demo` is both `Github` and `Kube`, and reaches nothing.** It answers from JSON under
+  `src/sources/demo/` (`include_str!`), ported from the old `scripts/screenshots.sh` shims. A
+  string `ago:<secs>` becomes the UTC time that many seconds before the call, so ages stay alive
+  across refreshes. `graphql` matches `PRS_QUERY` and `QUEUE_QUERY` (the queue only for
+  `name = "webapp"`, an empty queue for any other repository) and answers any other query with
+  a `repository` holding no commits, so `Pulls::prefetch` falls through to REST
+  `commits/{sha}/pulls`, which `pulls.json` answers by sha. `rest` routes by path segments;
+  jobs exist for any run id, failed for 1 and 311, running for 2, 312 and 313.
+- **`Kube` answers per environment name** from `deployments.json` and `pods.json`; any other
+  environment (`uat`) fails with `ERROR: Active profile expired.`, so the demo shows an error row.
+- **Every write and the checkout fail with `demo: nothing was changed`**, which marks the card
+  like any failed write. `log_failed` answers `failed.log`, in `gh`'s tab-separated shape.
+- **`demo::config` keeps the user's config and replaces `[prs]` and `[[repo]]`** with
+  `demo/config.toml`; `[ui]` and `[keys]` still apply. The demo runs with `Log::default()`: no
+  log file is opened, rotated or written.
+
 ## Behaviour that is easy to break
 
 - **Every `gh` and `kubectl` call is logged, nothing else from them.** `CliGh::run` and
