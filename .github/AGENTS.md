@@ -47,7 +47,10 @@ pipeline went from ~3 min 20 s to 37 s:
   bump this job is where an overlay lock older than the new release shows: evaluating the
   channel fails, and `nix flake update rust-overlay` in the bump's pull request fixes it. The
   `stable-build` job of the release run builds the same flake, so it never builds with another
-  Rust than the gates.
+  Rust than the gates. Measured on #110: Linux 1 min 33 s (the build 1 min 26 s, against 1 min
+  39 s with nixpkgs' Rust), macOS 3 min 33 s (the build 2 min 59 s, against 2 min 21 s): the
+  prebuilt toolchain comes from the Rust release servers instead of `cache.nixos.org`, well
+  short of doubling, so still no cache. `stable-build` runs the same build on Linux.
 - **Pins.** Every action stays pinned to a commit SHA with the tag in a trailing comment (see
   Releasing internals below for how to bump one).
 - **`main` is protected by a ruleset** (`main`, id 26900132, Settings → Rules): a pull
