@@ -1,5 +1,6 @@
 mod dev_install;
 mod feeds_binary;
+mod flake_build_needed;
 mod flake_inputs;
 mod flake_workflow;
 mod formula_version;
