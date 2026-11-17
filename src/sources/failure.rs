@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::{fmt, io};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -7,6 +8,7 @@ pub enum FailureKind {
     NotSignedIn,
     Offline,
     TimedOut,
+    Crashed,
     Other,
 }
 
@@ -34,6 +36,18 @@ impl Failure {
         Self {
             kind: FailureKind::TimedOut,
             message,
+        }
+    }
+
+    pub fn crashed(payload: &(dyn Any + Send)) -> Self {
+        let said = payload
+            .downcast_ref::<&str>()
+            .copied()
+            .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+            .unwrap_or("a panic with no message");
+        Self {
+            kind: FailureKind::Crashed,
+            message: format!("crashed: {said}"),
         }
     }
 

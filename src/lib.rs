@@ -2,6 +2,7 @@ pub mod app;
 pub mod changelog;
 pub mod cli;
 pub mod config;
+pub mod crash;
 pub mod events;
 pub mod log;
 pub mod model;
