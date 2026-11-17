@@ -24,7 +24,12 @@ impl App {
             self.notice = Some("merge cancelled".to_string());
             return Action::Continue;
         }
-        if let Err(message) = self.reconfirm('m', target.number, Choice::Merge(target.clone())) {
+        if let Err(message) = self.reconfirm(
+            'm',
+            &target.repo,
+            target.number,
+            Choice::Merge(target.clone()),
+        ) {
             self.notice = Some(message);
             return Action::Continue;
         }

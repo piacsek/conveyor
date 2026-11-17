@@ -27,7 +27,12 @@ impl App {
             self.notice = Some("update cancelled".to_string());
             return Action::Continue;
         }
-        if let Err(message) = self.reconfirm('u', target.number, Choice::Update(target.clone())) {
+        if let Err(message) = self.reconfirm(
+            'u',
+            &target.repo,
+            target.number,
+            Choice::Update(target.clone()),
+        ) {
             self.notice = Some(message);
             return Action::Continue;
         }

@@ -31,8 +31,12 @@ impl App {
             StatusChange::Enqueue { .. } => 'm',
             _ => 'x',
         };
-        if let Err(message) = self.reconfirm(letter, target.number, Choice::Status(target.clone()))
-        {
+        if let Err(message) = self.reconfirm(
+            letter,
+            &target.repo,
+            target.number,
+            Choice::Status(target.clone()),
+        ) {
             self.notice = Some(message);
             return Action::Continue;
         }

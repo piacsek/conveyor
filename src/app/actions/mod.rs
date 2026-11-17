@@ -52,6 +52,16 @@ pub enum Pending {
     Status(StatusTarget),
 }
 
+impl Pending {
+    pub fn pull(&self) -> (&str, u64) {
+        match self {
+            Pending::Merge(target) => (&target.repo, target.number),
+            Pending::UpdateBranch(target) => (&target.repo, target.number),
+            Pending::Status(target) => (&target.repo, target.number),
+        }
+    }
+}
+
 impl App {
     pub(super) fn confirm(&mut self, key: KeyEvent) -> Action {
         let Mode::Confirm(pending) = std::mem::take(&mut self.mode) else {
@@ -151,9 +161,15 @@ impl App {
         Action::Continue
     }
 
-    fn reconfirm(&self, key: char, number: u64, expected: Choice) -> Result<(), String> {
+    fn reconfirm(
+        &self,
+        key: char,
+        repo: &str,
+        number: u64,
+        expected: Choice,
+    ) -> Result<(), String> {
         let menu = self.menu()?;
-        if menu.title != format!("Manage #{number}") {
+        if menu.title != format!("Manage {}", self.prs.label(repo, number)) {
             return Err(self.prs.changed());
         }
         match menu.offers.into_iter().find(|offer| offer.key == key) {

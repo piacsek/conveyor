@@ -1,5 +1,6 @@
 ---
 source: tests/snapshots.rs
+assertion_line: 261
 expression: versionless(h.screen())
 ---
 My PRs (3) │ Merge queue │ Main builds │ Deployed                               
@@ -7,11 +8,11 @@ My PRs (3) │ Merge queue │ Main builds │ Deployed
 │▌ ✗ ↑ #4821 Retry webhook delivery with backoff                             2h│
 │▌   webapp · webhook-retry-backoff · approved · +12 −3                        │
 │▌   ✗ api / test                                                              │
-│  ● ↑ #4830 A┌Confirm───────────────────────────────────────────┐           2h│
-│    auth     │ merge #4821 Retry webhook delivery with backoff? │             │
-│    checks: p│                                                  │             │
-│  ○ ≈ #4790 S│ y confirms · any other key cancels               │           2h│
-│    webapp   └──────────────────────────────────────────────────┘             │
+│  ● ↑ #483┌Confirm─────────────────────────────────────────────────┐        2h│
+│    auth  │ merge webapp#4821 Retry webhook delivery with backoff? │          │
+│    checks│                                                        │          │
+│  ○ ≈ #479│ y confirms · any other key cancels                     │        2h│
+│    webapp└────────────────────────────────────────────────────────┘          │
 │    checks: none                                                              │
 │                                                                              │
 │                                                                              │

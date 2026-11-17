@@ -1,4 +1,4 @@
-use conveyor::app::{Input, Mode};
+use conveyor::app::{Input, Mode, Request};
 use conveyor::model::prs::{PullRequest, StatusChange};
 use ratatui::crossterm::event::KeyCode;
 
@@ -77,6 +77,60 @@ fn a_merge_sent_in_one_repository_leaves_the_other_free_to_change() {
     let screen = h.screen();
     assert!(screen.contains("t  convert to draft"), "{screen}");
     assert!(!screen.contains("waiting for My PRs"), "{screen}");
+}
+
+#[test]
+fn the_popup_names_the_repository_when_the_tab_holds_more_than_one() {
+    let mut h = tall();
+
+    h.run(vec![
+        prs(same_number()),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("Manage infra#12"), "{screen}");
+}
+
+#[test]
+fn the_confirm_dialog_names_the_repository_when_the_tab_holds_more_than_one() {
+    let mut h = tall();
+
+    h.run(vec![
+        prs(same_number()),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(
+        screen.contains("merge infra#12 Drop the users table?"),
+        "{screen}"
+    );
+}
+
+#[test]
+fn a_confirmed_merge_goes_to_the_pull_request_of_the_other_repository() {
+    let mut h = tall();
+
+    h.run(vec![
+        prs(same_number()),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    let merged = h.requests.iter().find_map(|request| match request {
+        Request::Merge(target) => Some(target.repo.clone()),
+        _ => None,
+    });
+    assert_eq!(merged.as_deref(), Some("acme/infra"));
 }
 
 fn same_draft() -> Vec<PullRequest> {

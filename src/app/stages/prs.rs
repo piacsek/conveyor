@@ -7,6 +7,7 @@ use crate::app::{
 };
 use crate::config::UpdateMethod;
 use crate::model::prs::{MergeState, PullRequest, StatusChange};
+use crate::text::short_repo;
 
 use super::{Context, Rows, StageView};
 
@@ -32,6 +33,15 @@ impl PrsStage {
 
     pub fn column_mut(&mut self) -> &mut Column<PullRequest> {
         &mut self.tabs[self.active]
+    }
+
+    pub fn label(&self, repo: &str, number: u64) -> String {
+        let rows = self.column().all();
+        if rows.iter().any(|pr| pr.repo != repo) {
+            format!("{}#{number}", short_repo(repo))
+        } else {
+            format!("#{number}")
+        }
     }
 }
 
@@ -99,7 +109,7 @@ impl StageView for PrsStage {
         }
         let pr = self.column().selected().ok_or("nothing selected")?;
         Ok(Menu {
-            title: format!("Manage #{}", pr.number),
+            title: format!("Manage {}", self.label(&pr.repo, pr.number)),
             offers: self.offers(pr, context),
         })
     }
