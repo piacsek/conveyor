@@ -330,6 +330,23 @@ fn a_landed_rerun_refreshes_the_main_builds_repository_shown() {
 }
 
 #[test]
+fn a_rerun_landing_after_a_queue_switch_refreshes_the_repository_it_started_on() {
+    let mut h = Harness::with_config(160, 24, two_repos());
+    h.run(on_infra_builds()).unwrap();
+
+    h.run(vec![
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('f')),
+        key(KeyCode::Char('h')),
+        key(KeyCode::BackTab),
+        rerun_done(vec![(1025, Ok(()))]),
+    ])
+    .unwrap();
+
+    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Builds, 1)));
+}
+
+#[test]
 fn a_hidden_repository_result_asks_nothing_for_the_shown_running_build() {
     let mut h = Harness::with_config(160, 24, two_repos());
     h.run(vec![

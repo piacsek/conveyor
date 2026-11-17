@@ -86,6 +86,8 @@ fn jobs(run: &str) -> String {
         "7" => (2400, Some(1980), false),
         "309" => (90000, Some(89070), false),
         "310" => (7200, Some(6198), false),
+        "905" => (2700, Some(2280), false),
+        "904" => (9000, Some(8460), false),
         _ => (100000, Some(99000), false),
     };
     let (status, conclusion, completed) = match finished {

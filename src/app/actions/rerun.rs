@@ -28,6 +28,7 @@ impl App {
             WriteKind::Rerun {
                 run_ids: rerun.run_ids.clone(),
                 label: rerun.label,
+                tab: self.stage(self.focus).active_tab(),
             },
         );
         Action::Rerun {
@@ -39,14 +40,14 @@ impl App {
     pub fn receive_rerun(
         &mut self,
         results: Vec<(u64, Result<(), crate::sources::failure::Failure>)>,
-    ) -> Option<Stage> {
+    ) -> Option<(Stage, usize)> {
         let index = self.writes.iter().position(|write| {
             matches!(&write.kind, WriteKind::Rerun { run_ids, .. }
                 if results.iter().any(|(run_id, _)| run_ids.contains(run_id)))
         })?;
         let write = self.writes.remove(index);
         let stage = write.stage;
-        let WriteKind::Rerun { label, .. } = write.kind.clone() else {
+        let WriteKind::Rerun { label, tab, .. } = write.kind.clone() else {
             return None;
         };
         let mut ordered: Vec<_> = results.iter().collect();
@@ -99,6 +100,6 @@ impl App {
                 errors.join("; ")
             ),
         });
-        (reran > 0 || unsure > 0).then_some(stage)
+        (reran > 0 || unsure > 0).then_some((stage, tab))
     }
 }

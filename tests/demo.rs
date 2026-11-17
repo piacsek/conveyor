@@ -317,9 +317,12 @@ fn every_demo_main_build_and_merge_group_run_holds_its_jobs_in_time() {
     let config = demo::config(Config::default());
     let mut source = BuildsSource::new(config.repo[0].clone());
     let builds = source.fetch(&Demo, SystemTime::now()).unwrap();
+    let mut infra = BuildsSource::new(config.repo[1].clone());
+    let infra_builds = infra.fetch(&Demo, SystemTime::now()).unwrap();
     let queue = fetch_queue(&Demo, &config.repo[0]).unwrap();
     let runs = builds
         .iter()
+        .chain(infra_builds.iter())
         .chain(queue.entries.iter().filter_map(|entry| entry.run.as_ref()));
 
     let outside: Vec<u64> = runs

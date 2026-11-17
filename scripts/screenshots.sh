@@ -53,9 +53,11 @@ shoot() {
   t respawn-pane -k -t "$shot_window" "env -u XDG_CONFIG_HOME -u CONVEYOR_CONFIG -u XDG_STATE_HOME -u CONVEYOR_LOG HOME='$home' '$bin' --demo"
   sleep 1.5
   local key
+  set -f
   for key in $keys; do
     t send-keys -t "$shot_window" "$key"
   done
+  set +f
   [ -n "$keys" ] && sleep 0.5
   t capture-pane -e -p -t "$shot_window" | python3 "$home/truecolor.py" >"$home/$name.ansi"
   render "$name" --padding 20,64,20,20 --window

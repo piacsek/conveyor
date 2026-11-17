@@ -58,8 +58,8 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   (`column`, `repo`, `branch`) per `[[repo]]` and draws no tab bar; `App::switch_tab` sets its
   active tab to the queue's, whichever column switched, and the tab keys in Main builds do
   nothing. `refresh::spawn_each` runs one fetcher per repository, each on that `[[repo]]`'s
-  `refresh_secs`, all in the background, so a queue switch sends no Main builds refresh; `r`,
-  `R` and a rerun's follow-up ask for the active tab. A switch clears the filter of the tab
+  `refresh_secs`, all in the background, so a queue switch sends no Main builds refresh; `r`
+  and `R` ask for the active tab, a rerun's follow-up for the tab it started on. A switch clears the filter of the tab
   left and the tab shown with `Column::clear_filter`, so each keeps its selected build. A
   result ages the runs of its own tab (`StageView::runs_in`), the queue's too, while jobs are
   still asked for the shown tab's runs only. Deployed reads the builds of the deploy

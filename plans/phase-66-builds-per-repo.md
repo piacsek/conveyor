@@ -75,6 +75,28 @@ Main builds follows the Merge queue's active tab.
 
 ## Outcome
 
+- Main builds keeps one tab per `[[repo]]` (`BuildsTab`: column, repo, branch) and shows the
+  Merge queue's active tab, whichever column switched it; it draws no tab bar, and the tab keys
+  in Main builds do nothing.
+- `refresh::spawn_each` runs one fetcher per repository, each on that `[[repo]]`'s
+  `refresh_secs`, behind one `Sender<usize>`, so a switch shows the last builds at once and
+  sends no fetch. Deployed reads the deploy repository's tab (`Context::deploy_builds`).
+- `r` and `R` ask for the tab shown; a rerun's follow-up asks for the
+  tab the rerun started on (`WriteKind::Rerun` records it). A result ages the runs of its own
+  tab (`StageView::runs_in`, the queue's too); jobs are asked for the shown tab's runs only.
+- A queue switch clears the Main builds filter with `Column::clear_filter` on the tab left and
+  the tab shown, so each keeps its selected build.
+- The demo's `acme/infra` has two builds of its own with matching job times; `docs/infra.png`
+  shows the queue switched to it, from a new `shoot` line. `docs/details.png` is unchanged.
+- Review: round 1 found five should findings (all fixed), round 2 was clean with three minor
+  findings, fixed before ready. CI green on every push.
+
 ## Hurdles
 
 - `process` The `spawn_each` routing test was written after the code; a reviewer broke the router and saw the test fail, so it stands → none
+- `review-loop` `BuildsStage` kept the trait's `active_tab` default of 0, so `r`, `R` and a rerun's follow-up refreshed the first repository; no test asked for the shown tab → code
+- `review-loop` `age_jobs` aged the shown tab's runs on every result, so a hidden repository's result asked for jobs of the runs on screen; the queue had the same gap → code
+- `review-loop` a queue switch cleared the hidden builds tab's filter with `set_filter(None)`, which kept the filtered index and so selected another build → code
+- `test-seam` the background e2e test waited for one repository's call and asserted the other was already logged, a race; the shim's pull request JSON also meant no builds fetch succeeded, so the test now waits for each workflows lookup and says so in its name → code
+- `test-seam` the first red test for the filter finding passed by accident because the filtered build was already first; filtering the second build made it fail for the right reason → none
+- `review-loop` a rerun's follow-up refreshed the tab shown when it landed, not the tab it started on (round 2, minor) → code
