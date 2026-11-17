@@ -146,7 +146,7 @@ fn a_stable_branch_naming_no_version_stops_the_job() {
     assert_eq!(stdout(&output), "");
     assert_eq!(
         stderr(&output),
-        "Cargo.toml on the stable branch names no version; point stable at a release tag by hand\n"
+        "Cargo.toml on the stable branch names no version; delete the stable branch and the next release run recreates it at the newest release\n"
     );
 }
 

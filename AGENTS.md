@@ -99,7 +99,7 @@ scripts/version-check.sh      `<base> <head>`: the `version` job of `version.yml
 scripts/next-version.sh       prints the version the pending fragments ask for, nothing when none is pending
 scripts/release-commit.sh     `<version>`: writes the release into `Cargo.toml`, `Cargo.lock` and `CHANGELOG.md` and confirms it reads back; commits nothing
 scripts/release-rewrite.sh    sourced, not run: the release rewrite both `release-commit.sh` and `version-check.sh` use
-scripts/releases.sh           sourced, not run: the state of a tag's release
+scripts/releases.sh           sourced, not run: the state of a tag's release, and the newest complete release above a version (`formula-version.sh` and `stable-version.sh`)
 scripts/release-unfinished.sh `<tag>`: whether `build` and `publish` still have work, so a rerun never rebuilds a published release
 scripts/previous-tag.sh       `<tag>`: the highest `vX.Y.Z` tag below it, read with `gh`, which `publish` names as the previous release for the generated notes
 scripts/release-tag.sh        the `tag` job of `release.yml` (refuses outside GitHub Actions): resume an unfinished tag, else tag what is pending, else nothing

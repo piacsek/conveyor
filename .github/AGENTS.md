@@ -202,12 +202,15 @@ pipeline went from ~3 min 20 s to 37 s:
   Nix, nothing of the tag run) starts only when `stable-build` succeeded with a version, asks
   `stable-version.sh` again, and pushes the tag's commit to `refs/heads/stable`, forced
   (release commits are siblings, not descendants), only when the answer is still the version
-  that built. Only `stable` holds `concurrency: stable` (no cancelling), so the second ask and
-  the push of two runs never interleave; builds may overlap, they write nothing. The second ask
-  covers what changed between the jobs: another run moved `stable` meanwhile (the answer is
-  then empty) or a newer release was published (another version, which that release's own run
-  moves to). GitHub keeps one waiting job per group, so a `stable` job queued behind two others
-  can be cancelled; the newer run's job moves `stable` instead. The job's own `GITHUB_TOKEN` is
+  that built. Two runs never overlap anyway: the workflow's own `concurrency: release` runs
+  them one at a time, and a newer waiting run replaces an older waiting one before it starts,
+  so its `stable-build` and `stable` never run at all (the newer run reconciles `stable`
+  instead). `concurrency: stable` (no cancelling) on the `stable` job is a second guard, so
+  the second ask and the push of two runs could not interleave even if the workflow group
+  changed. The second ask makes the push depend on `stable` as it is at push time, not as it
+  was before the build: should another run have moved it, the answer is empty, and should a
+  newer release have been published, it names that version, which that release's own run
+  moves to. The job's own `GITHUB_TOKEN` is
   enough: the ruleset covers only the default branch, a push with that token starts no
   workflow, and it force-moved `stable` across a change of a workflow file between two
   releases. Branch cleanup never touches `stable`: it is never the head of a pull request. No

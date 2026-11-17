@@ -92,7 +92,7 @@ on crates.io, and the AUR needs an account and a key.
 | the newest release is a draft or short of an asset | passed over for the newest complete one above `stable`, if any |
 | the tag's flake does not build, or `--version` differs | the job fails and `stable` stays where it was; every later run retries until a newer release builds |
 | the newest complete release predates the flake (only if the first release after the merge never publishes) | `nix build` finds no flake and fails, as above, until that release is finished |
-| `stable`'s `Cargo.toml` names no `X.Y.Z` version | exit 1, fix by hand |
+| `stable`'s `Cargo.toml` names no `X.Y.Z` version | exit 1; delete the `stable` branch and the next release run recreates it at the newest complete release (the 404 row) |
 | `gh` cannot read `stable` or the releases | exit 1, nothing pushed; the next run retries |
 
 Order: until the merge of this pull request is released, `stable` does not exist and the README
