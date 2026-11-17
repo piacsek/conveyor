@@ -40,7 +40,14 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   `gh-readonly-queue/main/pr-<N>-<base sha>`; their `displayTitle` is the workflow name.
   Rulesets returned nothing for the probed repo (classic protection); the GraphQL object is the source.
 - What a merge-group run means for its queue entry (`attach_runs`): see `src/model/AGENTS.md`.
-- **Main builds**: `repos/{r}/actions/workflows/{id or file}/runs?branch=main&event=push&per_page=N`.
+- **Main builds**: `repos/{r}/actions/workflows/{id or file}/runs?branch={branch}&event=push&per_page=N`.
+  `{branch}` is `branch` under the `[[repo]]` when set, else the repository's `default_branch`,
+  read once from `repos/{r}` after the workflow resolves and cached on `BuildsSource` beside it.
+  A failed lookup, or an answer without a `default_branch` string, is the column's error and is
+  not cached, so the next fetch asks again; an empty column would read as "no builds". The
+  branch is percent-encoded except `/`, so `+`, `&` and `#` reach GitHub as written. A blank
+  `branch` is refused at load. The demo answers `repos/{o}/{n}` with `main`, and so does the e2e
+  shim's `api repos/*` route.
   `main_workflow` may be a display name (resolved once through `actions/workflows?per_page=100`,
   matched on `name` or the file basename) or a `.yml` file used directly. The default `CI/CD`
   also tries `cicd.yml`, `CI`, `ci`, `ci.yml`, `build`, `build.yml`, `main.yml` in that order
