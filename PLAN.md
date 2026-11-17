@@ -82,7 +82,5 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
   "waiting for My PRs to catch up" guard while the first tab still shows the stale pull request.
 - Follow one PR across columns: `f` on a PR highlights its sha/number in queue, builds, deployed.
 - Desktop/tmux notification on queue state change or main build failure (tmux-agents `watch` pattern).
-- Main builds tabs (#114), one per `[[repo]]`, following the Merge queue's active tab (phase 42 gave
-  the queue its tabs; decided with the user on 2026-11-14).
 - Deployed tabs, one per application of the monorepo, switched independently of the queue.
 - Native GitHub client if `gh` latency becomes a problem (measure first; each call ~0.3–1 s).

@@ -53,9 +53,15 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   no `[[repo]]` is one tab, the current directory's repository. Same keys and per-tab state as
   My PRs (`QueueStage` holds a `Column` and a `repo` per tab); the queue fetcher fetches
   `config.repo[tab]` on the first `[[repo]]`'s `refresh_secs`. The title names the active
-  tab's repository. A write's follow-up refresh asks for the queue's active tab only. Columns
-  switch independently: Main builds reads the first `[[repo]]`, Deployed the first with a
-  `[[repo.deploy]]`, whatever the queue shows.
+  tab's repository. A write's follow-up refresh asks for the queue's active tab only.
+- **Main builds follows the Merge queue's active tab.** `BuildsStage` holds a `BuildsTab`
+  (`column`, `repo`, `branch`) per `[[repo]]` and draws no tab bar; `App::switch_tab` sets its
+  active tab to the queue's, whichever column switched, and the tab keys in Main builds do
+  nothing. `refresh::spawn_each` runs one fetcher per repository, each on that `[[repo]]`'s
+  `refresh_secs`, all in the background, so a queue switch sends no Main builds refresh; `r`
+  and a rerun's follow-up ask for the active tab. Deployed reads the builds of the deploy
+  repository's tab (`Context::deploy_builds`: the first `[[repo]]` with a `[[repo.deploy]]`,
+  else the first tab), whatever the queue shows.
 - **`L` is read-only, and the log has a pane of its own.** It asks `gh run view <run> --job
   <job> --log-failed` for the first failed job of the selected run (Main builds or Merge
   queue), keeps the last `LOG_TAIL` lines per job id in `App.logs`, and toggles `App.log_open`.
@@ -278,7 +284,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   write sends its refresh and `App::follow_up` as a success would. A write that failed in time
   does neither. The refresh does not clear the mark (rule 3 above).
 - **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
-  the deploy repo (`Context::deploy_repo`: the `[[repo]]` with a deploy, else `BuildsStage::repo`).
+  the deploy repo (`Context::deploy_repo`: the `[[repo]]` with a deploy, else the repository of `Context::deploy_builds`).
 - **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by
   whatever GitHub App or CI posted the check, not by GitHub, and `open`/`xdg-open` would launch
   `file://` paths, app bundles or any custom URL scheme handler. `open::web_url` is the one
@@ -319,7 +325,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
 - **Keys act on the focused column.** `App::with_focused` dispatches navigation to the
   column of `app.focus`; `p`/`y` use `pull_target` (the pull request of the row — the
   associated one, else the `(#N)` the run's squash title already showed on the card, built
-  from `BuildsStage::repo`; an `Err` message when neither exists, never the run itself),
+  from the active `BuildsTab::repo`; an `Err` message when neither exists, never the run itself),
   `b`/`Y` use `build_url`. `Enter` and `o` do nothing: opening a browser on `Enter` surprised
   the user, and the open UX is to be revisited.
   `run()` reports work back through `FnMut(Request)`; `r` sends one `Request::Refresh`, `R`
