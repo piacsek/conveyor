@@ -83,6 +83,19 @@ fn an_environment_needs_every_field() {
     );
 }
 
+#[test]
+fn two_repositories_differing_only_in_case_are_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let text = "[[repo]]\nname = \"acme/webapp\"\n[[repo]]\nname = \"Acme/WebApp\"\n";
+
+    let err = load(&write(&dir, text)).unwrap_err().to_string();
+
+    assert!(
+        err.contains("two [[repo]] are named \"Acme/WebApp\""),
+        "{err}"
+    );
+}
+
 fn refused_env(env: &str) -> String {
     let dir = tempfile::tempdir().unwrap();
     let text =

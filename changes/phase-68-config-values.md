@@ -8,3 +8,5 @@ kind: fix
   instead of hiding the columns or wrapping the width around.
 - A `[[repo]]` name that is not `owner/name`, or an environment with a blank name, context,
   namespace or deployment, is refused at start instead of failing later in its column.
+- Two `[[repo]]` of one name (in any case) are refused at start instead of showing twice, and two
+  environments of one name in a deploy instead of sharing one card's selection and marks.

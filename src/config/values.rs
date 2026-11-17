@@ -11,7 +11,11 @@ const MAX_COLUMN_WIDTH: u16 = 1000;
 pub(super) fn check(config: &Config) -> Result<(), String> {
     check_prs(&config.prs)?;
     check_ui(&config.ui)?;
-    config.repo.iter().try_for_each(check_repo)
+    config.repo.iter().try_for_each(check_repo)?;
+    if let Some(repo) = repeated(&config.repo, |a, b| a.name.eq_ignore_ascii_case(&b.name)) {
+        return Err(format!("two [[repo]] are named \"{}\"", repo.name));
+    }
+    Ok(())
 }
 
 fn check_prs(prs: &Prs) -> Result<(), String> {
@@ -61,6 +65,12 @@ fn check_repo(repo: &Repo) -> Result<(), String> {
         for env in &deploy.env {
             check_env(env, &repo.name)?;
         }
+        if let Some(env) = repeated(&deploy.env, |a, b| a.name == b.name) {
+            return Err(format!(
+                "two [[repo.deploy.env]] of {} are named \"{}\"",
+                repo.name, env.name
+            ));
+        }
     }
     Ok(())
 }
@@ -83,6 +93,14 @@ fn check_env(env: &DeployEnv, repo: &str) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+fn repeated<T>(items: &[T], same: impl Fn(&T, &T) -> bool) -> Option<&T> {
+    items
+        .iter()
+        .enumerate()
+        .find(|(i, item)| items[..*i].iter().any(|other| same(other, item)))
+        .map(|(_, item)| item)
 }
 
 fn owner_and_name(name: &str) -> bool {

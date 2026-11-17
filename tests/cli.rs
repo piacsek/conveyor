@@ -426,6 +426,30 @@ fn config_refuses_an_environment_with_a_blank_context() {
     );
 }
 
+#[test]
+fn config_refuses_two_repositories_of_one_name() {
+    let (code, stderr) =
+        refusal("[[repo]]\nname = \"acme/webapp\"\n[[repo]]\nname = \"acme/webapp\"\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("two [[repo]] are named \"acme/webapp\""),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_two_environments_of_one_name() {
+    let env = "[[repo.deploy.env]]\nname = \"prod\"\ncontext = \"ctx\"\nnamespace = \"api\"\ndeployment = \"api\"\n";
+    let (code, stderr) = refusal(&format!("{ONE_DEPLOY}{env}{env}"));
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("two [[repo.deploy.env]] of acme/webapp are named \"prod\""),
+        "{stderr}"
+    );
+}
+
 const ONE_DEPLOY: &str = "[[repo]]\nname = \"acme/webapp\"\n[[repo.deploy]]\n";
 
 const CONFIG_V0: &str = include_str!("fixtures/config-v0.toml");
