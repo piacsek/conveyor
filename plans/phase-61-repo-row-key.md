@@ -60,6 +60,8 @@ and the confirm dialog read the same for both. Phase 60 is the sweep, so this is
 | `m` then the confirm dialog on `infra#12` | `merge #12 Drop the users table?` | `merge infra#12 Drop the users table?` |
 | Only `acme/webapp` rows in the tab | `Manage #12` | `Manage #12` (unchanged) |
 | Footer progress and result lines | `merging #12…` | `merging #12…` (unchanged) |
+| `y` on `webapp#12` | `copied #12` | `copied #12` (unchanged) |
+| `acme/webapp#12` and the fork `me/webapp#12` in one tab, `S` on the fork | `Manage webapp#12` | `Manage me/webapp#12` |
 
 ## Tasks
 1. Selection: `receive` of `acme/webapp#12` and `acme/infra#12`, `j`, the same rows again; the

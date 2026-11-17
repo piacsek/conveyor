@@ -39,8 +39,7 @@ fn y_copies_the_url_and_the_footer_confirms_it() {
         h.opener.copied(),
         vec!["https://github.com/acme/webapp/pull/1".to_string()]
     );
-    let screen = h.screen();
-    assert!(screen.contains("copied #1"), "{screen}");
+    assert_eq!(h.app.notice.as_deref(), Some("copied #1"));
 
     h.run(vec![key(KeyCode::Char('j'))]).unwrap();
     assert!(!h.screen().contains("copied #1"), "cleared by the next key");

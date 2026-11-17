@@ -128,7 +128,8 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   prompt, only the usual notice or refresh age underneath; it used to hold the question and was
   easy to miss. A new sensitive action adds a `Pending` variant and an arm in `dialog::question`. The question
   names the pull request the way the popup title does (`PrsStage::label`): `#N`, or `infra#N`
-  while the active My PRs tab lists more than one repository. Widths are counted in characters,
+  while the active My PRs tab lists more than one repository (`me/webapp#N` when two of them
+  share a short name). Widths are counted in characters,
   like the rest of the UI, so a title of wide characters (CJK, emoji) can be clipped at the
   dialog's right border.
 - **Overlays show what lands under them.** The help and changelog panes replace the footer

@@ -72,6 +72,9 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
   serve a squash-only and a merge-commit-only repo at once); a write result that lands while the other prompt is open is
   hidden by that prompt (the failure half is done in phase 39: a failure stays on its card; a
   success is still hidden); the footer cuts titles by characters, not display width (#111).
+- A merge sent from one My PRs tab whose result lands after the user switched tabs is recorded
+  against the tab now shown (`src/app/actions/merge.rs`, `land()`): that tab's refresh lifts the
+  "waiting for My PRs to catch up" guard while the first tab still shows the stale pull request.
 - Follow one PR across columns: `f` on a PR highlights its sha/number in queue, builds, deployed.
 - Desktop/tmux notification on queue state change or main build failure (tmux-agents `watch` pattern).
 - Main builds tabs (#114), one per `[[repo]]`, following the Merge queue's active tab (phase 42 gave

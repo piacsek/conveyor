@@ -114,6 +114,40 @@ fn the_confirm_dialog_names_the_repository_when_the_tab_holds_more_than_one() {
 }
 
 #[test]
+fn the_popup_names_the_owner_when_two_repositories_share_a_name() {
+    let mut h = tall();
+
+    h.run(vec![
+        prs(same_name()),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("Manage me/webapp#12"), "{screen}");
+}
+
+#[test]
+fn the_confirm_dialog_names_the_owner_when_two_repositories_share_a_name() {
+    let mut h = tall();
+
+    h.run(vec![
+        prs(same_name()),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+    ])
+    .unwrap();
+
+    let screen = h.screen();
+    assert!(
+        screen.contains("merge me/webapp#12 Drop the users table?"),
+        "{screen}"
+    );
+}
+
+#[test]
 fn a_confirmed_merge_goes_to_the_pull_request_of_the_other_repository() {
     let mut h = tall();
 
@@ -150,5 +184,18 @@ fn same_number() -> Vec<PullRequest> {
 fn in_infra(mut pull: PullRequest) -> PullRequest {
     pull.repo = "acme/infra".to_string();
     pull.url = format!("https://github.com/acme/infra/pull/{}", pull.number);
+    pull
+}
+
+fn same_name() -> Vec<PullRequest> {
+    vec![
+        open(12, "Bump the api client"),
+        in_fork(open(12, "Drop the users table")),
+    ]
+}
+
+fn in_fork(mut pull: PullRequest) -> PullRequest {
+    pull.repo = "me/webapp".to_string();
+    pull.url = format!("https://github.com/me/webapp/pull/{}", pull.number);
     pull
 }

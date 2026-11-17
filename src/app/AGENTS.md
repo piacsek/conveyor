@@ -70,7 +70,8 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   footer notice, no request.
 - **`S` is the one write key.** It opens `Mode::Manage(Menu)`: a popup titled `Manage #N`
   (My PRs; `Manage infra#N`, the short repository name, while the active tab lists more than one
-  repository, its filter ignored: `PrsStage::label`) or `Manage run N` (Main builds) with one `Offer` per action, `key  label`, built by
+  repository, its filter ignored, and the full `owner/name` when two of those repositories share
+  a short name: `PrsStage::label`) or `Manage run N` (Main builds) with one `Offer` per action, `key  label`, built by
   `App::menu` from the rows on screen. An offer that does not apply keeps its line, dim, with the
   reason after a `·` (`m  merge · #12 is a draft`), and its letter does nothing, so the popup
   explains itself instead of hiding actions. Any key that is not an offer closes it (`nothing
@@ -93,7 +94,9 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   (`worker::Task::crashed`: the card mark for a write, every run of a rerun, the jobs or log
   pane), then takes the next request. A pull request's row key is its repository and number together
   (`column::pull_key`), so the same number in two repositories is two rows: its own selection,
-  busy spinner, mark and merge wait. `X`, `M` and `U` were removed in v0.21.0; `S` replaced them.
+  busy spinner, mark and merge wait. A Merge queue row is still keyed by its number alone, and
+  `QueueStage::holds` looks through every tab, so the same number queued in two configured
+  repositories shares the busy spinner and the failure mark. `X`, `M` and `U` were removed in v0.21.0; `S` replaced them.
   A letter re-derives the menu: a different title (another row selected) or a different offer
   under the letter says `the pull request changed; press S again` (`the run changed` in Main
   builds), and an offer that turned into a refusal says its reason. A refresh that lands while

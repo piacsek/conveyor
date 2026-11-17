@@ -36,8 +36,19 @@ impl PrsStage {
     }
 
     pub fn label(&self, repo: &str, number: u64) -> String {
-        let rows = self.column().all();
-        if rows.iter().any(|pr| pr.repo != repo) {
+        let others: Vec<&str> = self
+            .column()
+            .all()
+            .iter()
+            .map(|pr| pr.repo.as_str())
+            .filter(|other| *other != repo)
+            .collect();
+        if others
+            .iter()
+            .any(|other| short_repo(other) == short_repo(repo))
+        {
+            format!("{repo}#{number}")
+        } else if !others.is_empty() {
             format!("{}#{number}", short_repo(repo))
         } else {
             format!("#{number}")
@@ -87,7 +98,7 @@ impl StageView for PrsStage {
     fn pull_target(&self) -> Result<(u64, String), String> {
         self.column()
             .selected()
-            .map(|pr| (pr.key(), pr.url.clone()))
+            .map(|pr| (pr.number, pr.url.clone()))
             .ok_or_else(|| "nothing selected".to_string())
     }
 

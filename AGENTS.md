@@ -165,6 +165,8 @@ Pointing reviewers here is not priming, since the list is in the repo. A limit j
 review finding is declined for good; a reviewer may still report one as must when it shows new
 impact.
 
+- **A Merge queue row is keyed by its number alone**: the same number queued in two configured
+  repositories shares the busy spinner and the failure mark (`src/app/AGENTS.md`, the `S` popup).
 - **Widths are counted in characters, not display width**: wide characters (CJK, emoji) can be
   clipped at a dialog's border, and the footer cuts titles the same way (`src/ui/AGENTS.md`,
   dialogs; `PLAN.md` backlog).
