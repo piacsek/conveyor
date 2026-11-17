@@ -260,7 +260,7 @@ fn tab_bar(names: &[String], active: usize, width: u16) -> Option<Line<'static>>
             used += count;
             spans.push(Span::styled(text, style));
         } else {
-            let cut = take_width(&text, width - used - 1);
+            let cut = take_width(&text, width.saturating_sub(used + 1));
             spans.push(Span::styled(format!("{cut}…"), style));
             break;
         }

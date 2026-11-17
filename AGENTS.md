@@ -46,6 +46,7 @@ from the code, and its rules from the `AGENTS.md` of its directory.
 src/main.rs      CLI dispatch, config load, wiring
 src/cli.rs       the subcommands and flags; hand-rolled, no clap
 src/config.rs    the config: its tables, defaults, path and `CONVEYOR_CONFIG` override
+src/config/values.rs the ranges and shapes a loaded value must meet, and the settings conveyor would ignore
 src/sources/     everything that reaches out to an external service, and nothing else
 src/sources/github.rs the Github trait and CliGh, which spawns `gh` (and `git` for the checkout guard), error mapping
 src/sources/kube.rs   the Kube trait and CliKubectl, which spawns `kubectl` under a deadline that kills it
@@ -175,8 +176,10 @@ The two bullets about `src/cli.rs` and `src/config.rs` stay here; every other on
 - **`--help`/`-h`/`help` and `--version`/`-V`/`version`** print to stdout and exit 0 before
   the config is read, so a broken config never hides them.
 - **Config is loaded before any subcommand runs.** Missing file = `Config::default()`; an
-  unreadable file or unknown key is an error naming the file (`deny_unknown_fields` on every
-  table). `conveyor config` exits 1 on it and doubles as the reference for defaults.
+  unreadable file, an unknown key (`deny_unknown_fields` on every table), a value out of its
+  range or a setting conveyor would ignore (`src/config/values.rs`) is an error naming the file.
+  A value is refused only when something named breaks with it (a panic, an overflow, a call
+  GitHub refuses, the rate limit, a row collision, a setting never read); a tidy bound is not one. `conveyor config` exits 1 on it and doubles as the reference for defaults.
 
 ## Known limits
 

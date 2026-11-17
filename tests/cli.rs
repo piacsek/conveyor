@@ -313,6 +313,190 @@ fn config_leaves_the_branch_out_while_it_is_unset() {
     assert!(!stdout.contains("branch"), "{stdout}");
 }
 
+#[test]
+fn config_refuses_my_prs_refreshing_more_often_than_every_five_seconds() {
+    let (code, stderr) = refusal("[prs]\nrefresh_secs = 4\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("config.toml: [prs] refresh_secs is 4; use 5 or more"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_a_repository_refreshing_more_often_than_every_five_seconds() {
+    let (code, stderr) = refusal("[[repo]]\nname = \"acme/webapp\"\nrefresh_secs = 4\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[[repo]] refresh_secs of acme/webapp is 4; use 5 or more"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_a_deploy_refreshing_more_often_than_every_five_seconds() {
+    let (code, stderr) =
+        refusal("[[repo]]\nname = \"acme/webapp\"\n[[repo.deploy]]\nrefresh_secs = 4\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[[repo.deploy]] refresh_secs of acme/webapp is 4; use 5 or more"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_a_my_prs_limit_github_would_not_answer() {
+    let (code, stderr) = refusal("[prs]\nlimit = 101\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[prs] limit is 101; use 1 to 100"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_a_tab_limit_github_would_not_answer() {
+    let (code, stderr) = refusal("[[prs.tab]]\nname = \"mine\"\nquery = \"is:pr\"\nlimit = 0\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[[prs.tab]] limit of \"mine\" is 0; use 1 to 100"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_a_number_of_builds_github_would_not_answer() {
+    let (code, stderr) = refusal("[[repo]]\nname = \"acme/webapp\"\nbuilds = 0\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[[repo]] builds of acme/webapp is 0; use 1 to 100"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_a_details_pane_that_leaves_no_room_for_the_columns() {
+    let (code, stderr) = refusal("[ui]\ndetails_percent = 500\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[ui] details_percent is 500; use 1 to 99"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_a_column_width_too_wide_to_count() {
+    let (code, stderr) = refusal("[ui]\nmin_column_width = 16384\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[ui] min_column_width is 16384; use 16383 or less"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_a_repository_name_without_its_owner() {
+    let (code, stderr) = refusal("[[repo]]\nname = \"not-a-repo\"\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[[repo]] name \"not-a-repo\" is not owner/name"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_an_environment_with_a_blank_deployment() {
+    let (code, stderr) = refusal(&format!(
+        "{ONE_DEPLOY}[[repo.deploy.env]]\nname = \"prod\"\nnamespace = \"api\"\n"
+    ));
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[[repo.deploy.env]] \"prod\" of acme/webapp has a blank deployment"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_two_repositories_nothing_tells_apart() {
+    let (code, stderr) =
+        refusal("[[repo]]\nname = \"acme/webapp\"\n[[repo]]\nname = \"acme/webapp\"\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains(
+            "two [[repo]] named \"acme/webapp\" follow the same branch and main_workflow"
+        ),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_two_environments_of_one_name() {
+    let env = "[[repo.deploy.env]]\nname = \"prod\"\ncontext = \"ctx\"\nnamespace = \"api\"\ndeployment = \"api\"\n";
+    let (code, stderr) = refusal(&format!("{ONE_DEPLOY}{env}{env}"));
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("two [[repo.deploy.env]] of acme/webapp are named \"prod\""),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_a_second_deploy_it_would_ignore() {
+    let (code, stderr) = refusal(&format!("{ONE_DEPLOY}[[repo.deploy]]\n"));
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("acme/webapp has a second [[repo.deploy]]; conveyor reads only the first"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_a_deploy_on_two_repositories() {
+    let (code, stderr) = refusal(&format!(
+        "{ONE_DEPLOY}{PROD}[[repo]]\nname = \"acme/infra\"\n[[repo.deploy]]\n{PROD}"
+    ));
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains(
+            "the [[repo.deploy]] of acme/infra is ignored: conveyor reads only the one of acme/webapp"
+        ),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refusing_a_deploy_on_one_repository_listed_twice_names_the_entry() {
+    let (code, stderr) = refusal(&format!(
+        "{ONE_DEPLOY}{PROD}[[repo]]\nname = \"acme/webapp\"\nbranch = \"develop\"\n[[repo.deploy]]\n{PROD}"
+    ));
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains(
+            "the [[repo.deploy]] of acme/webapp ([[repo]] number 2) is ignored: conveyor reads only the one of acme/webapp ([[repo]] number 1)"
+        ),
+        "{stderr}"
+    );
+}
+
+const ONE_DEPLOY: &str = "[[repo]]\nname = \"acme/webapp\"\n[[repo.deploy]]\n";
+
+const PROD: &str = "[[repo.deploy.env]]\nname = \"prod\"\ndeployment = \"api\"\n";
+
 const CONFIG_V0: &str = include_str!("fixtures/config-v0.toml");
 
 fn fixture(name: &str) -> std::path::PathBuf {
@@ -381,4 +565,13 @@ fn write_config(dir: &tempfile::TempDir, text: &str) -> std::path::PathBuf {
     let path = dir.path().join("config.toml");
     std::fs::write(&path, text).unwrap();
     path
+}
+
+fn refusal(text: &str) -> (Option<i32>, String) {
+    let dir = tempfile::tempdir().unwrap();
+    let out = config_command(&write_config(&dir, text));
+    (
+        out.status.code(),
+        String::from_utf8_lossy(&out.stderr).into_owned(),
+    )
 }

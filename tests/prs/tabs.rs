@@ -424,6 +424,15 @@ fn three_tabs() -> Config {
     config
 }
 
+#[test]
+fn a_column_two_cells_wide_draws_its_tabs() {
+    let mut h = Harness::with_config(2, 12, two_tabs());
+
+    let ran = h.run(vec![prs_in(0, three())]);
+
+    assert!(ran.is_ok());
+}
+
 fn two_tabs() -> Config {
     let mut config = Config::default();
     config.prs.tab = vec![tab("mine"), tab("review")];

@@ -70,10 +70,13 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 64 | [titles with emoji or CJK characters keep inside their dialog and card (#111)](plans/phase-64-display-width.md) | |
 | 66 | [Main builds follows the Merge queue's repository (#114)](plans/phase-66-builds-per-repo.md) | |
 | 67 | [the release scripts read `cargo metadata` with a JSON parser (#126)](plans/phase-67-cargo-metadata.md) | |
+| 68 | [a config value that would break conveyor or be ignored is refused at load (#122)](plans/phase-68-config-values.md) | |
 
 ## Backlog (discussed at the sweeps and retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
+- The Merge queue refreshes every tab on the first `[[repo]]`'s `refresh_secs`
+  (`spawn_queue_fetcher` takes one interval); Main builds already follows each repository's.
 - More `S` actions: `gh pr review --approve` (#113); reopen if the query ever lists closed pull requests.
 - Merge follow-ups from the phase 20 review: `merge_method` per `[[repo]]` (#112) (one global value cannot
   serve a squash-only and a merge-commit-only repo at once); a write result that lands while the other prompt is open is

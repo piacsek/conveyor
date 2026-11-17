@@ -67,13 +67,14 @@ Keys act on the focused column; `?` shows what `p` and `b` open there. Narrow te
 show one column at a time, named in a bar on top.
 
 Configuration is `~/.config/conveyor/config.toml` (`$XDG_CONFIG_HOME` and `CONVEYOR_CONFIG`
-are honoured). Every key is optional, unknown keys are an error, and these are the defaults:
+are honoured). Every key is optional, unknown keys and values out of range are an error, and these
+are the defaults:
 
 ```toml
 [prs]
 query = "is:pr is:open archived:false (author:@me OR assignee:@me)"
-limit = 20
-refresh_secs = 60
+limit = 20                    # 1 to 100
+refresh_secs = 60             # 5 or more, like every refresh_secs
 merge_method = "squash"
 update_method = "merge"
 background_tabs = true        # every My PRs tab refreshes on the interval, not only the one shown
@@ -81,11 +82,11 @@ background_tabs = true        # every My PRs tab refreshes on the interval, not 
 # [[prs.tab]]                 # optional, instead of query; one My PRs tab each
 # name = "review"
 # query = "is:pr is:open review-requested:@me"
-# limit = 10                  # optional; falls back to [prs].limit
+# limit = 10                  # optional, 1 to 100; falls back to [prs].limit
 
 [ui]
-min_column_width = 36
-details_percent = 40
+min_column_width = 36         # 0 to 16383
+details_percent = 40          # 1 to 99
 icons = "plain"               # or "nerd": GitHub's pull request icons, needs a Nerd Font
 
 [ui.keys]
@@ -98,23 +99,23 @@ previous_tab = "shift-tab"
 # builds = "Main"
 # deployed = "Envs"
 
-[[repo]]                      # optional; default is the repository of the current directory; one Merge queue tab each, which Main builds follows; Deployed the first with [[repo.deploy]]
+[[repo]]                      # optional; default is the repository of the current directory; one Merge queue tab each (all on the first one's refresh_secs), which Main builds follows; Deployed the one with [[repo.deploy]]
 name = "owner/name"
 path = "~/projects/name"      # optional; the local clone `S` then `c` checks a pull request out in
 main_workflow = "CI/CD"       # workflow name or file, e.g. ci.yml
-# branch = "main"             # optional; the branch Main builds reads, default the repository's default branch
-builds = 10                   # runs shown in the Main builds column
-refresh_secs = 30
+# branch = "main"             # optional; the branch Main builds reads, default the repository's default branch; repeat a [[repo]] to follow another
+builds = 10                   # runs shown in the Main builds column, 1 to 100
+refresh_secs = 30             # 5 or more
 
-[[repo.deploy]]               # optional; the Deployed column
+[[repo.deploy]]               # optional, on one [[repo]] at most; the Deployed column
 system = "api"
 refresh_secs = 120
 
-[[repo.deploy.env]]
+[[repo.deploy.env]]           # one or more
 name = "staging"
 fetcher = "kubectl"           # the only fetcher so far
-context = "my-staging-context"
-namespace = "api"
+context = "my-staging-context" # optional; kubectl's current context
+namespace = "api"             # optional; the context's namespace
 deployment = "api"
 ```
 
@@ -125,6 +126,11 @@ pull request icon of `icons = "nerd"`, a Nerd Font glyph, drawn by a terminal fo
 it. Set the terminal's font to a Nerd Font (for example
 `brew install --cask font-fira-code-nerd-font`, then pick "FiraCode Nerd Font"), or set
 `icons = "plain"` under `[ui]` (the default) to draw plain arrows instead.
+
+**conveyor ignores my config and the footer names the config file.** The config does not load,
+so conveyor started on the defaults; the footer names the key or value that is wrong and, for a
+value out of its range, what to write instead. A `refresh_secs` below 5, which earlier versions accepted, is one: write 5 or
+more. `conveyor config` prints the same message, and prints the config once it is fixed.
 
 ## Development
 
