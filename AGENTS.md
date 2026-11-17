@@ -184,10 +184,14 @@ impact.
 - **The `version` check judges "feeds the binary" by path only**, can be pointed by cargo at
   manifests outside its copy, and refuses a fragment name git would quote
   (`.github/AGENTS.md`, `version.yml`).
-- **`check` builds and tests on Linux only**: a macOS-only break fails in the release run
-  (`.github/AGENTS.md`).
+- **`check` builds and tests on Linux only**: the tests never run on macOS, and a macOS-only
+  break of the release build itself fails in the release run; the flake's macOS leg catches a
+  plain macOS build break (`.github/AGENTS.md`).
 - **No tag ruleset guards `v*` tags**: the owner can still push or delete one by hand
   (`.github/AGENTS.md`).
+- **A Nix outage blocks merges that touch the flake's inputs**: `flake-ok` is required, so a
+  Nix, nixpkgs or `cache.nixos.org` outage holds them until the ruleset is disabled
+  (`.github/AGENTS.md`, the flake build).
 
 ## Documentation rule
 
