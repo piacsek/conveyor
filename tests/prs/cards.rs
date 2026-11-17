@@ -1,6 +1,6 @@
 use conveyor::app::Input;
 use conveyor::config::{Config, Icons};
-use conveyor::model::prs::StatusChange;
+use conveyor::model::prs::{Check, CheckConclusion, StatusChange};
 use conveyor::text::cells;
 use ratatui::crossterm::event::KeyCode;
 
@@ -354,4 +354,29 @@ fn nerd() -> Config {
     let mut config = Config::default();
     config.ui.icons = Icons::Nerd;
     config
+}
+
+#[test]
+fn a_check_that_no_longer_fits_after_a_wide_one_is_left_off_the_card() {
+    let mut h = Harness::new();
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![
+        Check {
+            name: "修复修复修复修复修复修复".to_string(),
+            conclusion: CheckConclusion::Failure,
+            ..Default::default()
+        },
+        Check {
+            name: "api / test".to_string(),
+            conclusion: CheckConclusion::Failure,
+            ..Default::default()
+        },
+    ];
+
+    h.run(vec![prs(vec![failing]), key(KeyCode::Char('q'))])
+        .unwrap();
+
+    let screen = h.screen();
+    assert!(screen.contains("✗ 修"), "{screen}");
+    assert!(!screen.contains("✗ api"), "{screen}");
 }
