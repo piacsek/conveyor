@@ -2,12 +2,20 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 list="${CONVEYOR_DENYLIST:-$HOME/.config/conveyor-dev/denylist}"
-if [ -z "${CONVEYOR_DENYLIST:-}" ] && [ ! -e "$list" ] && [ ! -L "$list" ]; then
+nearest="$list"
+while [ ! -e "$nearest" ] && [ ! -L "$nearest" ]; do
+  nearest="$(dirname "$nearest")"
+done
+if [ -z "${CONVEYOR_DENYLIST:-}" ] && [ "$nearest" != "$list" ] && [ -d "$nearest" ] && [ -x "$nearest" ]; then
   echo "scrub-check: no denylist at $list, skipped"
   exit 0
 fi
 if [ ! -f "$list" ] || [ ! -r "$list" ]; then
   echo "scrub-check: $list is not a readable file" >&2
+  exit 1
+fi
+if [ ! -s "$list" ]; then
+  echo "scrub-check: $list is empty" >&2
   exit 1
 fi
 found=0
@@ -45,7 +53,7 @@ if [ "${1:-}" = --outgoing ]; then
     label="commit $(git rev-parse --short "$commit")"
     [ "$commit" = "$head" ] && label="$label (HEAD)"
     message="$(read_log git log -1 --format=%B "$commit")"
-    paths="$(read_log git diff-tree -r --root --cc --no-commit-id --name-only --no-renames --diff-filter=d "$commit")"
+    paths="$(read_log git -c core.quotePath=false diff-tree -r --root --cc --no-commit-id --name-only --no-renames --diff-filter=d "$commit")"
     diff="$(read_log git diff-tree -r --root --cc -p -U0 --no-color --no-ext-diff --no-commit-id "$commit")"
     search "the outgoing check" matches "$label message" "$message"
     search "the outgoing check" matches "$label path" "$paths"

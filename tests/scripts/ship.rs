@@ -255,6 +255,28 @@ fn after_a_refused_branch_name_a_rename_ships() {
 }
 
 #[test]
+fn after_a_refused_merge_message_an_amended_merge_ships() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = ship_sandbox(dir.path());
+    link_conveyor_dev(dir.path(), &another_build(dir.path()));
+    denylist(dir.path(), "zz-secret-term\n");
+    merging_main(&work);
+    let refused = first_ship(dir.path(), "Merge the zz-secret-term fix");
+    git(&work, &["commit", "-q", "--amend", "-m", "Merge main"]);
+
+    let output = first_ship(dir.path(), "Merge main");
+
+    assert!(
+        stderr(&refused).contains("git commit --amend"),
+        "{}",
+        stderr(&refused)
+    );
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(pushed_subject(dir.path()), "Merge main");
+    assert_eq!(pushed_parents(dir.path()), 2);
+}
+
+#[test]
 fn ship_pushes_nothing_from_a_branch_named_after_a_listed_term() {
     let dir = tempfile::tempdir().unwrap();
     let work = ship_sandbox(dir.path());
@@ -405,4 +427,29 @@ fn local_subject(work: &Path) -> String {
     .output()
     .unwrap();
     stdout(&output).trim().to_string()
+}
+
+fn merging_main(work: &Path) {
+    fs::write(work.join("README.md"), "topic\n").unwrap();
+    git(work, &["commit", "-qam", "topic work"]);
+    git(work, &["checkout", "-q", "main"]);
+    fs::write(work.join("AGENTS.md"), "main\n").unwrap();
+    git(work, &["commit", "-qam", "main work"]);
+    git(work, &["update-ref", "refs/remotes/origin/main", "HEAD"]);
+    git(work, &["checkout", "-q", "topic"]);
+    git(
+        work,
+        &["merge", "-q", "--no-ff", "--no-commit", "origin/main"],
+    );
+}
+
+fn pushed_parents(root: &Path) -> usize {
+    let output = isolated(
+        Command::new("git")
+            .current_dir(root.join("origin.git"))
+            .args(["log", "-1", "--format=%P", "topic"]),
+    )
+    .output()
+    .unwrap();
+    stdout(&output).split_whitespace().count()
 }

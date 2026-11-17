@@ -1,5 +1,5 @@
 use std::fs;
-use std::os::unix::fs::symlink;
+use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -42,7 +42,7 @@ fn a_listed_term_only_in_an_ignored_file_leaves_the_scrub_clean() {
 fn a_denylist_git_grep_cannot_use_fails_the_scrub() {
     let dir = tempfile::tempdir().unwrap();
     let work = scrub_sandbox(dir.path());
-    let list = denylist(dir.path(), "");
+    let list = denylist(dir.path(), "\n");
 
     let output = scrub(&work, Some(&list));
 
@@ -441,6 +441,89 @@ fn a_listed_term_that_is_part_of_a_blob_hash_passes_the_outgoing_scrub() {
     assert_eq!(stdout(&output), "scrub-check: clean\n");
 }
 
+#[test]
+fn an_empty_denylist_fails_the_outgoing_scrub() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "");
+
+    let output = scrub_outgoing(&work, &list);
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stderr(&output).contains(&format!("scrub-check: {} is empty", list.display())),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn a_default_denylist_under_a_directory_without_search_permission_fails_the_scrub() {
+    if running_as_root() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let parent = default_denylist(dir.path()).parent().unwrap().to_path_buf();
+    fs::create_dir_all(&parent).unwrap();
+    fs::set_permissions(&parent, fs::Permissions::from_mode(0o600)).unwrap();
+
+    let output = scrub(&work, None);
+
+    fs::set_permissions(&parent, fs::Permissions::from_mode(0o700)).unwrap();
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stderr(&output).contains(&format!(
+            "scrub-check: {} is not a readable file",
+            default_denylist(dir.path()).display()
+        )),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn a_default_denylist_whose_parent_is_a_file_fails_the_scrub() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let parent = default_denylist(dir.path()).parent().unwrap().to_path_buf();
+    fs::create_dir_all(parent.parent().unwrap()).unwrap();
+    fs::write(&parent, "").unwrap();
+
+    let output = scrub(&work, None);
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stderr(&output).contains(&format!(
+            "scrub-check: {} is not a readable file",
+            default_denylist(dir.path()).display()
+        )),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn a_non_ascii_listed_name_renamed_away_before_head_fails_the_outgoing_scrub() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "zz-s\u{e9}cret\n");
+    fs::write(work.join("zz-s\u{e9}cret.md"), "").unwrap();
+    git(&work, &["add", "-A"]);
+    git(&work, &["commit", "-qm", "notes"]);
+    git(&work, &["mv", "zz-s\u{e9}cret.md", "notes.md"]);
+    git(&work, &["commit", "-qm", "rename"]);
+
+    let output = scrub_outgoing(&work, &list);
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stdout(&output).contains("path: zz-s\u{e9}cret.md\n"),
+        "{}",
+        stdout(&output)
+    );
+}
+
 fn scrub_sandbox(root: &Path) -> PathBuf {
     let work = repository(root);
     link_script(&work, "scrub-check.sh");
@@ -496,4 +579,9 @@ fn short(work: &Path, rev: &str) -> String {
         .output()
         .unwrap();
     stdout(&output).trim().to_string()
+}
+
+fn running_as_root() -> bool {
+    let output = Command::new("id").arg("-u").output().unwrap();
+    stdout(&output).trim() == "0"
 }

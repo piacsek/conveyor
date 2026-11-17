@@ -45,13 +45,18 @@ exactly like a machine with no denylist.
 | default path absent, variable unset | any | `skipped`, exit 0 |
 | variable set, path absent or not a readable file | any | names the path, exit 1 |
 | default path present, not a readable file | any | names the path, exit 1 |
+| default path under a directory without search permission, or under a file | any | names the path, exit 1 |
 | readable file | no listed term in index, tracked or untracked files | `clean`, exit 0 |
 | readable file | a listed term in a tracked or untracked, not ignored, file | the matches, exit 1 |
 | readable file | a listed term only in the index | the matches, exit 1 |
 | readable file | a listed term only in an ignored file | `clean`, exit 0 |
 | readable file | a listed term in the path of a tracked, staged or untracked, not ignored, file | the paths, exit 1 |
 | readable file | a listed term only in the path of an ignored file | `clean`, exit 0 |
-| empty file | any | `git grep` fails, exit 1 |
+| empty file | any | says it is empty, exit 1, in both modes |
+| only blank lines | any | `git grep` fails, exit 1 |
+| readable file | a non-ASCII listed name, renamed away before HEAD by an outgoing commit | `--outgoing` names the unquoted path, exit 1 |
+| readable file | a listed term in the message of an outgoing merge | not pushed; `ship.sh` says to keep the merge and `git commit --amend` |
+| any | nothing staged, commits no remote has | `ship.sh` makes no commit and pushes them as they are |
 | readable file | a listed term in a file written after the gates ran, before `git add -A` | `ship.sh` scrubs again after `git add -A`: nothing committed or pushed, the files stay staged |
 | readable file | a listed term only in the commit message | committed, not pushed, no PR opened; `--outgoing` names the commit and `message`; `ship.sh` says to `git reset --soft HEAD~1` and ship again |
 | readable file | a listed term in the branch name | committed, not pushed; `--outgoing` says `branch name`; `ship.sh` says to reset and `git branch -m` |
@@ -77,4 +82,31 @@ exactly like a machine with no denylist.
 
 ## Outcome
 
+- `scripts/scrub-check.sh` scrubs what `ship.sh` publishes three times: as the first gate and
+  again after `git add -A` it reads the contents and paths of the index and of the tracked and
+  untracked files that are not ignored; between `git commit` and `git push`, `--outgoing` reads
+  the branch name and, per commit no remote has, its message, the paths it adds or keeps and the
+  lines it adds (merge resolutions and symlink targets included), never removed lines or
+  deleted paths. Each match names the stream and the commit.
+- Redesigned after round 2 (two strikes): scrubbing the tree before the commit could not see the
+  message, so the check moved to what the push adds, read with `git diff-tree --cc`, not
+  `git log` (which walks past a deletion-only HEAD).
+- The denylist resolution fails closed: the default path is skipped only when its absence is
+  confirmed by walking up to a searchable directory; an empty list fails in both modes.
+- A refused push keeps the commit local with advice that works: `git reset --soft HEAD~1` for a
+  plain commit, `git commit --amend` for a merge, after which `ship.sh` pushes the unpushed
+  commits without a new one when nothing is staged.
+- Not covered, by decision: binary contents, author and committer, the PR body, pushes without
+  `ship.sh`. A rename is read as all lines added, so moving a file whose contents hold a term
+  `main` already has is refused.
+
 ## Hurdles
+
+- `review-loop` round 1 found the gap between the gates and the commit, and paths the scrub never read → code
+- `review-loop` round 2 found the commit message unread, which led to the redesign that scrubs what is pushed → code
+- `review-loop` round 3 found the redesign reading removed lines and its reset advice not working → code
+- `review-loop` round 4 was clean; its four minor findings were fixed after it → code
+- `review-loop` the unsearchable parent of the default denylist was declined in three rounds and fixed on the fourth → code
+- `tooling` the first ship was piped through tail, against the rule → none
+- `process` code was written before its test and backed out to see the test red → none
+- `tooling` a sibling agent overwrote the PR body file in the shared scratchpad; files there now carry the phase in their name → none
