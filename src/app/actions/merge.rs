@@ -1,6 +1,6 @@
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
-use crate::app::{Action, App, Stage};
+use crate::app::{Action, App, Stage, pull_key};
 
 use super::{Choice, WriteKind};
 
@@ -10,6 +10,12 @@ pub struct MergeTarget {
     pub repo: String,
     pub title: String,
     pub head_oid: String,
+}
+
+impl MergeTarget {
+    pub fn key(&self) -> u64 {
+        pull_key(&self.repo, self.number)
+    }
 }
 
 impl App {
@@ -22,16 +28,17 @@ impl App {
             self.notice = Some(message);
             return Action::Continue;
         }
-        self.start_write(target.number, WriteKind::Merge);
+        self.start_write(target.key(), WriteKind::Merge(target.number));
         Action::Merge(target)
     }
 
     pub fn receive_merged(
         &mut self,
-        number: u64,
+        target: &MergeTarget,
         result: &Result<(), crate::sources::failure::Failure>,
     ) {
-        let write = self.finish_write(number, &WriteKind::Merge);
+        let number = target.number;
+        let write = self.finish_write(target.key(), &WriteKind::Merge(number));
         match result {
             Ok(()) => self.land(number),
             Err(message) => self.fail(write, message),

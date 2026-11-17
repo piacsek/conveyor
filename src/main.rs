@@ -175,17 +175,17 @@ where
     let merge_method = config.prs.merge_method;
     let merges = worker::spawn(tx.clone(), move |target: MergeTarget| {
         let result = merges_gh.merge(&target.repo, target.number, merge_method, &target.head_oid);
-        Input::Merged(target.number, result)
+        Input::Merged(target, result)
     });
     let updates_gh = gh();
     let updates = worker::spawn(tx.clone(), move |target: UpdateTarget| {
         let result = updates_gh.update_branch(&target.repo, target.number, target.method);
-        Input::BranchUpdated(target.number, result)
+        Input::BranchUpdated(target, result)
     });
     let statuses_gh = gh();
     let statuses = worker::spawn(tx.clone(), move |target: StatusTarget| {
         let result = statuses_gh.change_status(&target.repo, target.number, &target.change);
-        Input::StatusChanged(target.number, target.change, result)
+        Input::StatusChanged(target, result)
     });
     let checkouts_gh = gh();
     let home = env::var_os("HOME").map(PathBuf::from);

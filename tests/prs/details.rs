@@ -2,7 +2,7 @@ use ratatui::crossterm::event::KeyCode;
 
 use conveyor::text::cells;
 
-use crate::support::{Harness, NOW, key, pr, prs, tick_at};
+use crate::support::{Harness, NOW, key, pr, prs, status_target, tick_at};
 
 const LONG_REASON: &str = "Pull request #4821 cannot be marked ready for review because the \
     repository requires every commit to be signed and the head commit 8c1f2a7d of retry-hooks \
@@ -173,8 +173,7 @@ fn draft(number: u64, title: &str) -> conveyor::model::prs::PullRequest {
 
 fn status_changed(result: Result<(), &str>) -> std::io::Result<conveyor::app::Input> {
     Ok(conveyor::app::Input::StatusChanged(
-        4821,
-        conveyor::model::prs::StatusChange::Ready,
+        status_target(4821, "", conveyor::model::prs::StatusChange::Ready),
         result.map_err(|err| err.to_string().into()),
     ))
 }

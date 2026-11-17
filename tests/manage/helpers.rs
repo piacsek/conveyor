@@ -24,8 +24,7 @@ pub fn status_changed(
     result: Result<(), &str>,
 ) -> std::io::Result<Input> {
     Ok(Input::StatusChanged(
-        number,
-        change,
+        status_target(number, "", change),
         result.map_err(|err| err.to_string().into()),
     ))
 }

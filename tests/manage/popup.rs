@@ -5,7 +5,7 @@ use conveyor::model::prs::StatusChange;
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::{open, queueable, status, status_changed, tall};
-use crate::support::{build, builds, failed, key, prs};
+use crate::support::{build, builds, failed, key, merge_target, prs};
 
 #[test]
 fn shift_s_opens_a_manage_popup_listing_every_action_for_the_pull_request() {
@@ -453,7 +453,7 @@ fn right_after_a_merge_lands_converting_to_draft_waits_for_a_refresh() {
         key(KeyCode::Char('S')),
         key(KeyCode::Char('m')),
         key(KeyCode::Char('y')),
-        Ok(Input::Merged(1, Ok(()))),
+        Ok(Input::Merged(merge_target(1, ""), Ok(()))),
         key(KeyCode::Char('S')),
         key(KeyCode::Char('t')),
     ])

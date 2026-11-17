@@ -1,6 +1,6 @@
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
-use crate::app::{Action, App};
+use crate::app::{Action, App, pull_key};
 use crate::model::prs::StatusChange;
 
 use super::{Choice, WriteKind};
@@ -12,6 +12,12 @@ pub struct StatusTarget {
     pub title: String,
     pub head_oid: String,
     pub change: StatusChange,
+}
+
+impl StatusTarget {
+    pub fn key(&self) -> u64 {
+        pull_key(&self.repo, self.number)
+    }
 }
 
 impl App {
@@ -34,17 +40,20 @@ impl App {
     }
 
     pub(super) fn send_status(&mut self, target: StatusTarget) -> Action {
-        self.start_write(target.number, WriteKind::Status(target.change.clone()));
+        self.start_write(
+            target.key(),
+            WriteKind::Status(target.number, target.change.clone()),
+        );
         Action::ChangeStatus(target)
     }
 
     pub fn receive_status(
         &mut self,
-        number: u64,
-        change: &StatusChange,
+        target: &StatusTarget,
         result: &Result<(), crate::sources::failure::Failure>,
     ) -> bool {
-        let write = self.finish_write(number, &WriteKind::Status(change.clone()));
+        let (number, change) = (target.number, &target.change);
+        let write = self.finish_write(target.key(), &WriteKind::Status(number, change.clone()));
         if let Err(message) = result {
             self.fail(write, message);
         }
