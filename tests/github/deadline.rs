@@ -2,7 +2,7 @@ use std::fs;
 use std::time::Duration;
 
 use conveyor::app::{Input, Rows, Stage};
-use conveyor::config::{Config, MergeMethod};
+use conveyor::config::{Config, MergeMethod, UpdateMethod};
 use conveyor::log::Log;
 use conveyor::model::prs::StatusChange;
 use conveyor::sources::failure::FailureKind;
@@ -75,72 +75,113 @@ fn a_read_runs_in_a_process_group_of_its_own_that_its_deadline_can_kill() {
 }
 
 #[test]
-fn a_merge_past_its_deadline_says_it_may_already_be_merged() {
+fn a_merge_past_its_deadline_says_it_may_be_merged() {
     let _serialized = serialized();
     let dir = tempfile::tempdir().unwrap();
-    let gh = shim(&dir, "exec sleep 5").with_deadlines(SHORT, LONG);
+    let gh = shim(&dir, "exec sleep 5").with_deadlines(LONG, SHORT);
 
     let failure = gh
         .merge("acme/api", 12, MergeMethod::Squash, "8c1f2a7d")
         .unwrap_err();
 
     assert_eq!(failure.kind(), FailureKind::TimedOut);
-    assert_eq!(
-        failure.to_string(),
-        "gh did not answer within 2s; it may already be merged"
-    );
+    assert_eq!(failure.to_string(), "may be merged: no answer in 1s");
 }
 
 #[test]
-fn a_timed_out_update_says_the_branch_may_already_be_updated() {
-    assert_eq!(
-        Aftermath::Update.wording(),
-        "the branch may already be updated"
-    );
+fn every_other_write_past_its_deadline_is_timed_out() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let gh = shim(&dir, "exec sleep 5").with_deadlines(LONG, BRIEF);
+
+    let (update, rerun, statuses) = std::thread::scope(|scope| {
+        let update = scope.spawn(|| gh.update_branch("acme/api", 12, UpdateMethod::Merge));
+        let rerun = scope.spawn(|| gh.rerun_failed("acme/api", 4821));
+        let statuses = [
+            StatusChange::Ready,
+            StatusChange::Draft,
+            auto_merge(true),
+            auto_merge(false),
+            queue(true),
+            queue(false),
+            StatusChange::Close,
+        ]
+        .map(|change| {
+            let gh = &gh;
+            scope.spawn(move || gh.change_status("acme/api", 12, &change))
+        });
+        (
+            update.join().unwrap(),
+            rerun.join().unwrap(),
+            statuses.map(|status| status.join().unwrap()),
+        )
+    });
+    let [
+        ready,
+        draft,
+        auto_merge_on,
+        auto_merge_off,
+        enqueue,
+        dequeue,
+        close,
+    ] = statuses;
+
+    assert_eq!(update.unwrap_err().kind(), FailureKind::TimedOut);
+    assert_eq!(rerun.unwrap_err().kind(), FailureKind::TimedOut);
+    assert_eq!(ready.unwrap_err().kind(), FailureKind::TimedOut);
+    assert_eq!(draft.unwrap_err().kind(), FailureKind::TimedOut);
+    assert_eq!(auto_merge_on.unwrap_err().kind(), FailureKind::TimedOut);
+    assert_eq!(auto_merge_off.unwrap_err().kind(), FailureKind::TimedOut);
+    assert_eq!(enqueue.unwrap_err().kind(), FailureKind::TimedOut);
+    assert_eq!(dequeue.unwrap_err().kind(), FailureKind::TimedOut);
+    assert_eq!(close.unwrap_err().kind(), FailureKind::TimedOut);
 }
 
 #[test]
-fn a_timed_out_rerun_says_the_run_may_already_be_rerunning() {
-    assert_eq!(
-        Aftermath::Rerun.wording(),
-        "the run may already be rerunning"
-    );
+fn a_timed_out_update_says_the_branch_may_be_updated() {
+    assert_eq!(Aftermath::Update.wording(), "branch may be updated");
 }
 
 #[test]
-fn a_timed_out_status_change_says_what_may_already_have_happened() {
+fn a_timed_out_rerun_says_it_may_be_rerunning() {
+    assert_eq!(Aftermath::Rerun.wording(), "may be rerunning");
+}
+
+#[test]
+fn a_timed_out_status_change_says_what_may_have_happened() {
     assert_eq!(
         Aftermath::Status(&StatusChange::Ready).wording(),
-        "it may already be marked ready"
+        "may be marked ready"
     );
     assert_eq!(
         Aftermath::Status(&StatusChange::Draft).wording(),
-        "it may already be a draft"
+        "may be a draft"
     );
     assert_eq!(
         Aftermath::Status(&auto_merge(true)).wording(),
-        "auto-merge may already be on"
+        "auto-merge may be on"
     );
     assert_eq!(
         Aftermath::Status(&auto_merge(false)).wording(),
-        "auto-merge may already be off"
+        "auto-merge may be off"
     );
     assert_eq!(
         Aftermath::Status(&queue(true)).wording(),
-        "it may already be in the merge queue"
+        "may be in the queue"
     );
     assert_eq!(
         Aftermath::Status(&queue(false)).wording(),
-        "it may already be out of the merge queue"
+        "may be out of the queue"
     );
     assert_eq!(
         Aftermath::Status(&StatusChange::Close).wording(),
-        "it may already be closed"
+        "may be closed"
     );
 }
 
 const SHORT: Duration = Duration::from_secs(1);
 const LONG: Duration = Duration::from_secs(2);
+const BRIEF: Duration = Duration::from_millis(100);
 
 fn auto_merge(on: bool) -> StatusChange {
     if on {

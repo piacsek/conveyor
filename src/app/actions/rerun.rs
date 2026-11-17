@@ -72,8 +72,10 @@ impl App {
                 )),
             ),
         }
+        let timed_out = results.iter().any(|(_, result)| timed_out(result));
         self.notice = Some(match (reran, errors.is_empty()) {
             (_, true) => format!("rerun requested: {label}"),
+            (0, false) if timed_out => errors.join("; "),
             (0, false) => format!("rerun failed: {}", errors.join("; ")),
             _ => format!(
                 "rerun requested for {reran} of {} runs; {}",
@@ -81,7 +83,6 @@ impl App {
                 errors.join("; ")
             ),
         });
-        let timed_out = results.iter().any(|(_, result)| timed_out(result));
         (reran > 0 || timed_out).then_some(stage)
     }
 }

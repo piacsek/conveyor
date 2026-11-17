@@ -254,9 +254,9 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   `current_repo`, `log_failed`) gets `github::READ_DEADLINE` (30 s) and fails as `gh did not
   answer within 30s`; the column keeps its last rows and the next interval or `r` tries again.
   A write (`merge`, `update_branch`, `change_status`, `rerun_failed`) gets `WRITE_DEADLINE`
-  (60 s), and since GitHub may have done it anyway, its message says so:
-  `gh did not answer within 60s; it may already be merged`, one wording per write
-  (`Aftermath::wording`). The app treats such a write as uncertain, not failed (see the failed
+  (60 s), and since GitHub may have done it anyway, its message leads with it:
+  `may be merged: no answer in 60s`, one wording per write (`Aftermath::wording`), short
+  enough for a card of about 44 characters. The app treats such a write as uncertain, not failed (see the failed
   writes bullet of `src/app/AGENTS.md`). The checkout (`git remote -v`, `gh pr checkout`) has
   none: a fetch over ssh can take long on a large repository, and nothing on GitHub changes
   that `r` would show. **Only a call with a deadline gets a process group of its own**: the

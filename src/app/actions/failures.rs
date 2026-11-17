@@ -17,8 +17,15 @@ pub struct Failure {
 
 impl Failure {
     pub fn line(&self) -> String {
-        let message: Vec<&str> = self.message.split_whitespace().collect();
-        format!("! {} failed: {}", self.action, message.join(" "))
+        let message = self
+            .message
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        if self.kind == FailureKind::TimedOut {
+            return format!("! {message}");
+        }
+        format!("! {} failed: {message}", self.action)
     }
 }
 

@@ -250,8 +250,8 @@ fn a_checkout_slower_than_every_deadline_still_finishes() {
     let _serialized = serialized();
     let dir = tempfile::tempdir().unwrap();
     let clone = clone_dir(&dir);
-    let (gh, calls) = shims(&dir, &format!("sleep 1\n{ORIGIN}"), "sleep 1");
-    let gh = gh.with_deadlines(Duration::from_millis(200), Duration::from_millis(200));
+    let (gh, calls) = shims(&dir, &format!("sleep 0.3\n{ORIGIN}"), "sleep 0.3");
+    let gh = gh.with_deadlines(Duration::from_millis(100), Duration::from_millis(100));
 
     let checkout = gh.checkout("acme/webapp", 42, Some(&clone));
 

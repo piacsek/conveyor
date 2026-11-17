@@ -60,6 +60,7 @@ impl App {
             Ok(BranchUpdate::Updated) => format!("branch of #{number} updated"),
             Ok(BranchUpdate::UpToDate) => format!("#{number} is already up to date"),
             Ok(BranchUpdate::Conflicts) => conflicts(number),
+            Err(message) if timed_out(result) => format!("#{number}: {message}"),
             Err(message) => format!("update failed for #{number}: {message}"),
         });
         matches!(result, Ok(BranchUpdate::Updated)) || timed_out(result)

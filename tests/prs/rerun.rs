@@ -189,7 +189,7 @@ fn a_rerun_that_timed_out_still_reloads_my_prs() {
         Ok(Input::Rerun(vec![(
             70,
             Err(Failure::timed_out(
-                "gh did not answer within 60s; the run may already be rerunning".to_string(),
+                "may be rerunning: no answer in 60s".to_string(),
             )),
         )])),
     ])

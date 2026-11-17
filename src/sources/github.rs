@@ -297,14 +297,10 @@ impl CliGh {
             Ok(Ran::TimedOut(stderr)) => {
                 self.log
                     .timed_out(tool.name, args, started.elapsed(), &stderr);
-                let silent = format!(
-                    "{} did not answer within {}s",
-                    tool.name,
-                    deadline.unwrap_or_default().as_secs()
-                );
+                let secs = deadline.unwrap_or_default().as_secs();
                 return Err(Failure::timed_out(match limit {
-                    Limit::Write(aftermath) => format!("{silent}; {aftermath}"),
-                    _ => silent,
+                    Limit::Write(aftermath) => format!("{aftermath}: no answer in {secs}s"),
+                    _ => format!("{} did not answer within {secs}s", tool.name),
                 }));
             }
             Err(err) if err.kind() == io::ErrorKind::NotFound => {
@@ -519,18 +515,16 @@ pub enum Aftermath<'a> {
 impl Aftermath<'_> {
     pub fn wording(&self) -> &'static str {
         match self {
-            Self::Merge => "it may already be merged",
-            Self::Update => "the branch may already be updated",
-            Self::Rerun => "the run may already be rerunning",
-            Self::Status(StatusChange::Ready) => "it may already be marked ready",
-            Self::Status(StatusChange::Draft) => "it may already be a draft",
-            Self::Status(StatusChange::EnableAutoMerge { .. }) => "auto-merge may already be on",
-            Self::Status(StatusChange::DisableAutoMerge { .. }) => "auto-merge may already be off",
-            Self::Status(StatusChange::Enqueue { .. }) => "it may already be in the merge queue",
-            Self::Status(StatusChange::Dequeue { .. }) => {
-                "it may already be out of the merge queue"
-            }
-            Self::Status(StatusChange::Close) => "it may already be closed",
+            Self::Merge => "may be merged",
+            Self::Update => "branch may be updated",
+            Self::Rerun => "may be rerunning",
+            Self::Status(StatusChange::Ready) => "may be marked ready",
+            Self::Status(StatusChange::Draft) => "may be a draft",
+            Self::Status(StatusChange::EnableAutoMerge { .. }) => "auto-merge may be on",
+            Self::Status(StatusChange::DisableAutoMerge { .. }) => "auto-merge may be off",
+            Self::Status(StatusChange::Enqueue { .. }) => "may be in the queue",
+            Self::Status(StatusChange::Dequeue { .. }) => "may be out of the queue",
+            Self::Status(StatusChange::Close) => "may be closed",
         }
     }
 }

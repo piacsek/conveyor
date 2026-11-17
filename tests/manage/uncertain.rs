@@ -6,7 +6,7 @@ use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::{draft, line_after, open, queueable, status_changed, tall};
 use crate::support::{
-    NOW, fetching, key, merge_target, prs, status_target, tick_at, update_target,
+    Harness, NOW, fetching, key, merge_target, prs, status_target, tick_at, update_target,
 };
 
 #[test]
@@ -18,12 +18,12 @@ fn a_timed_out_enqueue_keeps_its_mark_and_holds_update_until_my_prs_refreshes() 
         key(KeyCode::Char('S')),
         key(KeyCode::Char('m')),
         key(KeyCode::Char('y')),
-        timed_out_status(1, enqueue(1), "it may already be in the merge queue"),
+        timed_out_status(1, enqueue(1), "may be in the queue"),
     ])
     .unwrap();
 
     assert!(
-        line_after(&h.screen(), "#1 Retry webhooks").contains("! add to the merge queue failed"),
+        line_after(&h.screen(), "#1 Retry webhooks").contains("! may be in the queue: no answer"),
         "{}",
         h.screen()
     );
@@ -64,7 +64,7 @@ fn a_timed_out_enqueue_keeps_its_mark_and_holds_update_until_my_prs_refreshes() 
         h.app
             .failure_on(Stage::Prs, pull_key("acme/webapp", 1))
             .map(|mark| mark.message.as_str()),
-        Some("gh did not answer within 60s; it may already be in the merge queue")
+        Some("may be in the queue: no answer in 60s")
     );
 }
 
@@ -79,7 +79,7 @@ fn a_timed_out_merge_reloads_both_columns_and_holds_update() {
         key(KeyCode::Char('y')),
         Ok(Input::Merged(
             merge_target(1, ""),
-            Err(timed_out("it may already be merged")),
+            Err(timed_out("may be merged")),
         )),
         prs(vec![open(1, "Retry webhooks")]),
         key(KeyCode::Char('S')),
@@ -104,7 +104,7 @@ fn a_timed_out_status_change_reloads_my_prs_now_and_ten_seconds_later() {
         prs(vec![draft(12, "Retry webhooks")]),
         key(KeyCode::Char('S')),
         key(KeyCode::Char('t')),
-        timed_out_status(12, StatusChange::Ready, "it may already be marked ready"),
+        timed_out_status(12, StatusChange::Ready, "may be marked ready"),
         tick_at(NOW + 9),
     ])
     .unwrap();
@@ -128,7 +128,7 @@ fn a_timed_out_branch_update_reloads_my_prs() {
         key(KeyCode::Char('u')),
         Ok(Input::BranchUpdated(
             update_target(1, "", UpdateMethod::Merge),
-            Err::<BranchUpdate, _>(timed_out("the branch may already be updated")),
+            Err::<BranchUpdate, _>(timed_out("branch may be updated")),
         )),
     ])
     .unwrap();
@@ -169,7 +169,7 @@ fn a_timed_out_enqueue_holds_update_only_on_the_pull_request_of_its_own_reposito
         key(KeyCode::Char('S')),
         key(KeyCode::Char('m')),
         key(KeyCode::Char('y')),
-        timed_out_in_infra(enqueue(12), "it may already be in the merge queue"),
+        timed_out_in_infra(enqueue(12), "may be in the queue"),
         prs(same_number()),
         key(KeyCode::Char('S')),
     ])
@@ -195,6 +195,64 @@ fn a_timed_out_enqueue_holds_update_only_on_the_pull_request_of_its_own_reposito
     );
 }
 
+#[test]
+fn a_timed_out_write_leads_its_card_with_what_may_have_happened_at_four_columns() {
+    let mut h = Harness::with_size(200, 20);
+    let mut queued = open(1, "Retry webhooks");
+    queued.queue_position = Some(2);
+
+    h.run(vec![
+        prs(vec![queued]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('e')),
+        timed_out_status(1, dequeue(1), "may be out of the queue"),
+    ])
+    .unwrap();
+
+    let card = line_after(&h.screen(), "#1 Retry webhooks");
+    assert!(
+        card.contains("! may be out of the queue: no answer in 60s"),
+        "{}",
+        h.screen()
+    );
+    assert!(!card.contains("failed"), "{}", h.screen());
+}
+
+#[test]
+fn a_timed_out_update_tells_the_footer_and_the_details_what_may_have_happened() {
+    let mut h = tall();
+    let mut behind = open(1, "Retry webhooks");
+    behind.merge_state = MergeState::Behind;
+
+    h.run(vec![
+        prs(vec![behind]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('u')),
+        Ok(Input::BranchUpdated(
+            update_target(1, "", UpdateMethod::Merge),
+            Err::<BranchUpdate, _>(timed_out("branch may be updated")),
+        )),
+    ])
+    .unwrap();
+
+    assert!(
+        h.screen()
+            .contains("#1: branch may be updated: no answer in 60s"),
+        "{}",
+        h.screen()
+    );
+
+    h.run(vec![key(KeyCode::Char('d'))]).unwrap();
+
+    assert!(
+        h.screen()
+            .contains("update sent at 08:00:00: branch may be"),
+        "{}",
+        h.screen()
+    );
+    assert!(!h.screen().contains("failed"), "{}", h.screen());
+}
+
 fn enqueue(number: u64) -> StatusChange {
     StatusChange::Enqueue {
         node_id: format!("PR_node{number}"),
@@ -202,8 +260,14 @@ fn enqueue(number: u64) -> StatusChange {
     }
 }
 
+fn dequeue(number: u64) -> StatusChange {
+    StatusChange::Dequeue {
+        node_id: format!("PR_node{number}"),
+    }
+}
+
 fn timed_out(aftermath: &str) -> Failure {
-    Failure::timed_out(format!("gh did not answer within 60s; {aftermath}"))
+    Failure::timed_out(format!("{aftermath}: no answer in 60s"))
 }
 
 fn timed_out_status(number: u64, change: StatusChange, aftermath: &str) -> std::io::Result<Input> {

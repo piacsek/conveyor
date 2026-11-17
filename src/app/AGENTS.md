@@ -266,9 +266,10 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   ones). A failed fetch and a fetch that still holds the row keep it: clearing on refresh
   would bring the lost failure back on the refresh interval. How it is drawn: see
   `src/ui/AGENTS.md`.
-  **A write that timed out is uncertain, not failed** (`FailureKind::TimedOut`, `gh did not
-  answer within 60s; it may already be merged` and the like): GitHub may have done it and only
-  the answer was lost. It marks the card like any failure, and it also gets what a success
+  **A write that timed out is uncertain, not failed** (`FailureKind::TimedOut`, `may be merged:
+  no answer in 60s` and the like): GitHub may have done it and only the answer was lost. It
+  marks the card like any failure, but the mark, the footer notice and the details pane never
+  say "failed" (`src/ui/AGENTS.md`), and it also gets what a success
   gets for safety (`may_have_happened` in `failures.rs`): a merge, an enqueue or enabling
   auto-merge sets `merge_landing`, so `u` and `t` wait for My PRs to catch up, and every such
   write sends its refresh and `App::follow_up` as a success would. A write that failed in time

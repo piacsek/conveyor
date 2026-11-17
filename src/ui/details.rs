@@ -12,6 +12,7 @@ use crate::model::deployed::{Deployment, Pod, Rollout};
 use crate::model::jobs::Job;
 use crate::model::prs::PullRequest;
 use crate::model::queue::QueueEntry;
+use crate::sources::failure::FailureKind;
 use crate::text::{age, cells, clock, duration, elapsed, wrap};
 use crate::ui::rows::build_label;
 use crate::ui::style::{build_glyph, check_word, conclusion_glyph, dim, sha8, status_word};
@@ -100,8 +101,13 @@ fn failure_lines(app: &App, width: usize) -> Vec<Line<'static>> {
     let Some(failure) = app.selected_failure() else {
         return Vec::new();
     };
+    let outcome = if failure.kind == FailureKind::TimedOut {
+        "sent"
+    } else {
+        "failed"
+    };
     let text = format!(
-        "{} failed at {}: {}",
+        "{} {outcome} at {}: {}",
         failure.action,
         clock(failure.at, app.utc_offset_secs),
         failure.message
