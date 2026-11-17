@@ -332,6 +332,7 @@ fn fresh(at: std::time::SystemTime, now: std::time::SystemTime) -> bool {
 pub struct BuildsSource {
     repo: Repo,
     workflow: Option<String>,
+    branch: Option<String>,
     pulls: Pulls,
 }
 
@@ -339,6 +340,7 @@ impl BuildsSource {
     pub fn new(repo: Repo) -> Self {
         Self {
             pulls: Pulls::new(repo.name.clone()),
+            branch: repo.branch.clone(),
             repo,
             workflow: None,
         }
@@ -350,7 +352,7 @@ impl BuildsSource {
         now: std::time::SystemTime,
     ) -> Result<Vec<crate::model::builds::Build>, Failure> {
         let workflow = self.workflow(gh)?;
-        let branch = self.repo.branch.as_deref().unwrap_or("main");
+        let branch = self.branch(gh)?;
         let runs = gh.rest(&format!(
             "repos/{}/actions/workflows/{workflow}/runs?branch={branch}&event=push&per_page={}",
             self.repo.name, self.repo.builds
@@ -373,6 +375,25 @@ impl BuildsSource {
             repo: self.repo.name.clone(),
             builds,
         }
+    }
+
+    fn branch(&mut self, gh: &impl Github) -> Result<String, Failure> {
+        if let Some(branch) = &self.branch {
+            return Ok(branch.clone());
+        }
+        let repository = gh.rest(&format!("repos/{}", self.repo.name))?;
+        let branch = repository
+            .get("default_branch")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                format!(
+                    "{} answered no default branch; set branch under its [[repo]]",
+                    self.repo.name
+                )
+            })?
+            .to_string();
+        self.branch = Some(branch.clone());
+        Ok(branch)
     }
 
     fn workflow(&mut self, gh: &impl Github) -> Result<String, Failure> {

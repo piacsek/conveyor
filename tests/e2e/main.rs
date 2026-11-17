@@ -213,6 +213,7 @@ fn dispatching_shim(home: &Path) -> String {
              *'/commits/'*) cat '{dir}/commit.json';; \
              *'/pulls/'*) cat '{dir}/pull.json';; \
              *'actions/runs?'*) echo '{{\"workflow_runs\":[]}}';; \
+             'api repos/'*) echo '{{\"default_branch\":\"main\"}}';; \
              *) cat '{dir}/prs.json';; esac"
         ),
     )
