@@ -792,6 +792,13 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   `RUSTUP_TOOLCHAIN` set); `build` installs rustfmt and clippy in its toolchain step, so cargo downloads nothing there
   (`tests/toolchain.rs` keeps that step's `components:` equal to the file's).
   Fragment `kind: internal`.
+- Phase 48 (`plans/phase-48-esc-help-wording.md`, #104): the help view and the README key table
+  read `Esc  close details / zoom, dismiss a failed action's error, clear the filter` instead of
+  `close details / zoom / mark / filter`, so a user who sees a red failure line on a card learns
+  that `Esc` dismisses it. Wording only; the order is what `Esc` does per press.
+  `scripts/screenshots.sh` also shoots the help view as `docs/help.png`, for pull requests, not
+  the README. Fragment `kind: fix`. Review round 1: `Esc` does not clear a Deployed card's own
+  read error, so the wording names the failed action instead of "a card's error".
 
 ## Deferred / backlog (discuss at retros)
 

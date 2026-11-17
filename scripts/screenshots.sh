@@ -225,3 +225,5 @@ shoot() {
 
 shoot details 160 26 "d"
 echo "wrote $out/details.png"
+shoot help 160 26 "?"
+echo "wrote $out/help.png"

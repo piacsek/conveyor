@@ -55,6 +55,19 @@ fn the_help_names_the_focused_column_and_says_what_p_and_b_do_there() {
 }
 
 #[test]
+fn the_help_says_esc_dismisses_the_error_on_a_card() {
+    let mut h = Harness::with_size(160, 18);
+
+    h.run(vec![prs(three()), key(KeyCode::Char('?'))]).unwrap();
+
+    let screen = h.screen();
+    assert!(
+        screen.contains("close details / zoom, dismiss a failed action's error, clear the filter"),
+        "{screen}"
+    );
+}
+
+#[test]
 fn question_mark_shows_the_key_help_and_any_key_returns() {
     let mut h = Harness::with_size(160, 18);
 
@@ -72,7 +85,6 @@ fn question_mark_shows_the_key_help_and_any_key_returns() {
         "z",
         "zoom",
         "Esc",
-        "close details / zoom / mark / filter",
         "log of the failed step",
         "S",
         "manage: merge, update, rerun, status",
