@@ -1,5 +1,7 @@
 use std::time::{Duration, SystemTime};
 
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+
 pub fn cells(count: usize) -> u16 {
     u16::try_from(count).unwrap_or(u16::MAX)
 }
@@ -8,17 +10,51 @@ pub fn scroll(offset: i32) -> u16 {
     u16::try_from(offset.max(0)).unwrap_or(u16::MAX)
 }
 
+pub fn display_width(text: &str) -> usize {
+    UnicodeWidthStr::width(text.replace(char::is_control, "").as_str())
+}
+
+pub fn take_width(text: &str, width: usize) -> &str {
+    let mut fits = "";
+    for end in cut_points(text) {
+        if display_width(&text[..end]) > width {
+            break;
+        }
+        fits = &text[..end];
+    }
+    fits
+}
+
+fn cut_points(text: &str) -> impl Iterator<Item = usize> + '_ {
+    let mut flag_halves = 0;
+    text.char_indices()
+        .zip(text.chars().skip(1))
+        .filter(move |&((_, before), after)| {
+            flag_halves = if is_flag_half(before) {
+                flag_halves + 1
+            } else {
+                0
+            };
+            before != '\u{200d}'
+                && !(is_flag_half(after) && flag_halves % 2 == 1)
+                && UnicodeWidthChar::width(after).is_some_and(|w| w > 0)
+        })
+        .map(|((at, before), _)| at + before.len_utf8())
+        .chain([text.len()])
+}
+
+fn is_flag_half(c: char) -> bool {
+    ('\u{1f1e6}'..='\u{1f1ff}').contains(&c)
+}
+
 pub fn truncate(text: &str, width: usize) -> String {
-    let count = text.chars().count();
-    if count <= width {
+    if display_width(text) <= width {
         return text.to_string();
     }
     if width == 0 {
         return String::new();
     }
-    let mut cut: String = text.chars().take(width - 1).collect();
-    cut.push('…');
-    cut
+    format!("{}…", take_width(text, width - 1))
 }
 
 pub fn wrap(text: &str, width: usize, lines: usize) -> Vec<String> {
@@ -29,16 +65,18 @@ pub fn wrap(text: &str, width: usize, lines: usize) -> Vec<String> {
     let mut current = String::new();
     for word in text.split_whitespace() {
         let mut word = word.to_string();
-        while word.chars().count() > width {
+        while display_width(&word) > width {
             if !current.is_empty() {
                 wrapped.push(std::mem::take(&mut current));
             }
-            wrapped.push(word.chars().take(width).collect());
-            word = word.chars().skip(width).collect();
+            let first = cut_points(&word).next().unwrap_or(word.len());
+            let at = take_width(&word, width).len().max(first);
+            wrapped.push(word[..at].to_string());
+            word = word[at..].to_string();
         }
         if current.is_empty() {
             current = word;
-        } else if current.chars().count() + 1 + word.chars().count() <= width {
+        } else if display_width(&current) + 1 + display_width(&word) <= width {
             current.push(' ');
             current.push_str(&word);
         } else {
@@ -59,11 +97,9 @@ pub fn wrap(text: &str, width: usize, lines: usize) -> Vec<String> {
 }
 
 pub fn pad_right(text: &str, width: usize) -> String {
-    let count = text.chars().count();
     let mut padded = truncate(text, width);
-    if count < width {
-        padded.extend(std::iter::repeat_n(' ', width - count));
-    }
+    let used = display_width(&padded);
+    padded.extend(std::iter::repeat_n(' ', width.saturating_sub(used)));
     padded
 }
 

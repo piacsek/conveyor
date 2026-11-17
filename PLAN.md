@@ -63,11 +63,12 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 56 | [each phase's outcome, hurdles and numbers live with its plan](plans/phase-56-plans-split.md) | none |
 | 57 | [the sweep gathers its own data and asks for itself](plans/phase-57-sweep-tooling.md) | none |
 | 58 | [the privacy scrub checks what is about to be committed (#120)](plans/phase-58-scrub-staged.md) | none |
-| 59 | [a `gh` call that never returns no longer freezes its column (#124)](plans/phase-59-gh-deadline.md) | |
+| 59 | [a `gh` call that never returns no longer freezes its column (#124)](plans/phase-59-gh-deadline.md)| v0.35.1 |
 | 61 | [two pull requests with the same number in different repositories stay apart (#121)](plans/phase-61-repo-row-key.md) | v0.34.5 |
 | 62 | [Main builds reads the repository's own default branch (#123)](plans/phase-62-builds-branch.md) | v0.35.0 |
 | 63 | [the flake build runs only when its inputs change, and gates the merge (#117)](plans/phase-63-flake-gate.md) | none |
 | 66 | [Main builds follows the Merge queue's repository (#114)](plans/phase-66-builds-per-repo.md) | |
+| 64 | [titles with emoji or CJK characters keep inside their dialog and card (#111)](plans/phase-64-display-width.md) | |
 | 67 | [the release scripts read `cargo metadata` with a JSON parser (#126)](plans/phase-67-cargo-metadata.md) | |
 
 ## Backlog (discussed at the sweeps and retros)
@@ -77,7 +78,8 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 - Merge follow-ups from the phase 20 review: `merge_method` per `[[repo]]` (#112) (one global value cannot
   serve a squash-only and a merge-commit-only repo at once); a write result that lands while the other prompt is open is
   hidden by that prompt (the failure half is done in phase 39: a failure stays on its card; a
-  success is still hidden); the footer cuts titles by characters, not display width (#111).
+  success is still hidden). Done: widths are measured in terminal cells, not characters (#111,
+  phase 64).
 - A merge sent from one My PRs tab whose result lands after the user switched tabs is recorded
   against the tab now shown (`src/app/actions/merge.rs`, `land()`): that tab's refresh lifts the
   "waiting for My PRs to catch up" guard while the first tab still shows the stale pull request.

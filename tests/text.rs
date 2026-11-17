@@ -1,11 +1,71 @@
 use std::time::Duration;
 
-use conveyor::text::{cells, elapsed, scroll, wrap};
+use conveyor::text::{cells, elapsed, pad_right, scroll, truncate, wrap};
+
+const WIDE: &str = "acme: 修复 🚀 deploy";
+
+#[test]
+fn truncate_counts_a_wide_character_as_two_cells() {
+    assert_eq!(truncate(WIDE, 20), WIDE);
+    assert_eq!(truncate(WIDE, 18), "acme: 修复 🚀 dep…");
+    assert_eq!(truncate(WIDE, 10), "acme: 修…");
+}
+
+#[test]
+fn pad_right_fills_up_to_the_width_in_cells() {
+    assert_eq!(pad_right("修复", 6), "修复  ");
+    assert_eq!(pad_right(WIDE, 10), "acme: 修… ");
+}
+
+#[test]
+fn truncate_counts_a_symbol_with_its_emoji_selector_as_two_cells() {
+    assert_eq!(truncate("♻️ refactor", 5), "♻️ r…");
+    assert_eq!(truncate("❤️❤️❤️❤️❤️ fix", 4), "❤️…");
+}
+
+#[test]
+fn pad_right_counts_a_symbol_with_its_emoji_selector_as_two_cells() {
+    assert_eq!(pad_right("♻️ refactor", 5), "♻️ r…");
+    assert_eq!(pad_right("♻️", 4), "♻️  ");
+}
+
+#[test]
+fn truncate_never_cuts_inside_a_joined_emoji() {
+    assert_eq!(truncate("👨‍👩‍👧 family", 6), "👨‍👩‍👧 fa…");
+    assert_eq!(truncate("👨‍👩‍👧 family", 2), "…");
+}
+
+#[test]
+fn wrap_hard_cuts_a_word_of_selector_emoji_at_its_width_in_cells() {
+    assert_eq!(wrap("❤️❤️❤️❤️", 4, 3), vec!["❤️❤️", "❤️❤️"]);
+}
+
+#[test]
+fn wrap_keeps_a_selector_emoji_wider_than_the_line_whole() {
+    assert_eq!(wrap("❤️", 1, 2), vec!["❤️"]);
+}
+
+#[test]
+fn truncate_never_cuts_inside_a_flag() {
+    assert_eq!(truncate("🇺🇸🇺🇸", 3), "🇺🇸…");
+    assert_eq!(truncate("🇺🇸🇺🇸🇺🇸", 4), "🇺🇸…");
+    assert_eq!(truncate("🇨🇦 deploy", 2), "…");
+}
+
+#[test]
+fn pad_right_counts_a_control_character_as_no_cell() {
+    assert_eq!(pad_right("a\tb", 4), "a\tb  ");
+}
 
 #[test]
 fn wrap_fills_words_greedily_up_to_the_width() {
     assert_eq!(wrap("one two three", 9, 3), vec!["one two", "three"]);
     assert_eq!(wrap("one two three", 40, 2), vec!["one two three"]);
+}
+
+#[test]
+fn wrap_fills_a_line_up_to_its_width_in_cells() {
+    assert_eq!(wrap(WIDE, 10, 3), vec!["acme: 修复", "🚀 deploy"]);
 }
 
 #[test]
@@ -26,6 +86,16 @@ fn wrap_marks_the_last_line_when_it_runs_out_of_lines() {
 fn wrap_hard_cuts_a_word_longer_than_the_width() {
     assert_eq!(wrap("abcdefghij", 4, 3), vec!["abcd", "efgh", "ij"]);
     assert_eq!(wrap("abcdefghij", 4, 2), vec!["abcd", "efg…"]);
+}
+
+#[test]
+fn wrap_hard_cuts_a_wide_word_at_its_width_in_cells() {
+    assert_eq!(wrap("修复修复修复", 5, 3), vec!["修复", "修复", "修复"]);
+}
+
+#[test]
+fn wrap_puts_a_character_wider_than_the_line_on_a_line_of_its_own() {
+    assert_eq!(wrap("修复", 1, 3), vec!["修", "复"]);
 }
 
 #[test]

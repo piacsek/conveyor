@@ -5,7 +5,7 @@ use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 
 use crate::app::{App, Column, Failure, Row, Stage, Write};
-use crate::text::{cells, short_repo};
+use crate::text::{cells, display_width, short_repo, take_width};
 use crate::ui::help::{column_name, custom_title};
 use crate::ui::link::link;
 use crate::ui::rows::{build_row, deployed_row, pr_row, queue_row};
@@ -223,12 +223,12 @@ fn tab_bar(names: &[String], active: usize, width: u16) -> Option<Line<'static>>
     }
     let width = usize::from(width.saturating_sub(2));
     const SEPARATOR: &str = " │ ";
-    let gap = SEPARATOR.chars().count();
+    let gap = display_width(SEPARATOR);
     let shown = |start: usize| {
         let lead = if start > 0 { 1 + gap } else { 0 };
         lead + names[start..=active]
             .iter()
-            .map(|name| name.chars().count())
+            .map(|name| display_width(name))
             .sum::<usize>()
             + (active - start) * gap
     };
@@ -251,16 +251,16 @@ fn tab_bar(names: &[String], active: usize, width: u16) -> Option<Line<'static>>
         };
         parts.push((name.clone(), style));
     }
-    let total: usize = parts.iter().map(|(text, _)| text.chars().count()).sum();
+    let total: usize = parts.iter().map(|(text, _)| display_width(text)).sum();
     let mut used = 0;
     let mut spans = Vec::new();
     for (text, style) in parts {
-        let count = text.chars().count();
+        let count = display_width(&text);
         if total <= width || used + count < width {
             used += count;
             spans.push(Span::styled(text, style));
         } else {
-            let cut: String = text.chars().take(width - used - 1).collect();
+            let cut = take_width(&text, width - used - 1);
             spans.push(Span::styled(format!("{cut}…"), style));
             break;
         }
