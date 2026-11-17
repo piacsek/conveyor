@@ -40,3 +40,29 @@ release_state() {
   done <<<"$RELEASE_ASSETS"
   echo complete
 }
+
+newer() {
+  local a1 a2 a3 b1 b2 b3
+  IFS=. read -r a1 a2 a3 <<<"$1"
+  IFS=. read -r b1 b2 b3 <<<"$2"
+  [ "$a1" -ne "$b1" ] && { [ "$a1" -gt "$b1" ]; return; }
+  [ "$a2" -ne "$b2" ] && { [ "$a2" -gt "$b2" ]; return; }
+  [ "$a3" -gt "$b3" ]
+}
+
+newest_complete_release_above() {
+  local current="$1" tags versions version state
+  tags="$(gh release list --exclude-drafts --limit 100 --json tagName --jq '.[].tagName')"
+  versions="$(sed -n 's/^v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)$/\1/p' <<<"$tags" | sort -t. -k1,1nr -k2,2nr -k3,3nr)"
+  while IFS= read -r version; do
+    [ -n "$version" ] || continue
+    if [ -n "$current" ] && ! newer "$version" "$current"; then
+      return 0
+    fi
+    state="$(release_state "v$version")"
+    if [ "$state" = complete ]; then
+      echo "version=$version"
+      return 0
+    fi
+  done <<<"$versions"
+}

@@ -112,6 +112,13 @@ fn the_readme_default_config_loads() {
     assert!(loaded.is_ok(), "{:?}", loaded.err());
 }
 
+#[test]
+fn the_readme_nix_install_works_without_the_experimental_features_enabled() {
+    assert!(README.contains(
+        "\nnix --extra-experimental-features 'nix-command flakes' profile install github:piacsek/conveyor/stable\n"
+    ));
+}
+
 fn toml_block() -> String {
     README
         .split("```toml\n")
