@@ -11,6 +11,7 @@ mod next_version;
 mod previous_tag;
 mod release_commit;
 mod release_commit_cargo;
+mod release_rewrite;
 mod release_tag;
 mod release_unfinished;
 mod script_tests_skippable;

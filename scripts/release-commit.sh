@@ -9,6 +9,10 @@ if ! [[ "$version" =~ ^$number\.$number\.$number$ ]]; then
   echo "usage: scripts/release-commit.sh X.Y.Z" >&2
   exit 1
 fi
+if command -v cargo >/dev/null 2>&1 && ! command -v jq >/dev/null 2>&1; then
+  echo "jq is not on PATH: the release asks cargo metadata which version cargo reads and reads its answer with jq, so install jq and run it again" >&2
+  exit 1
+fi
 last="$(last_tag)"
 if ! awk -v next_version="$version" -v last="${last#v}" 'BEGIN {
   split(next_version, a, ".")
