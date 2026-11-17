@@ -49,12 +49,14 @@ records="$(
           body = substr(rest, tick + 1)
           sub(/^ +/, "", body)
           what = body; where = ""
-          for (at = length(body); at > 0; at--) {
-            if (substr(body, at, 5) == " \342\206\222 ") {
-              what = substr(body, 1, at - 1)
-              where = substr(body, at + 5)
-              break
-            }
+          sep = " \342\206\222 "
+          last = 0
+          for (rest = body; (at = index(rest, sep)) > 0; rest = substr(rest, at + length(sep))) {
+            last += at + (last > 0 ? length(sep) - 1 : 0)
+          }
+          if (last > 0) {
+            what = substr(body, 1, last - 1)
+            where = substr(body, last + length(sep))
           }
           printf "%s\t%s\t%s\t%s\n", phase, tag, what, where
         }

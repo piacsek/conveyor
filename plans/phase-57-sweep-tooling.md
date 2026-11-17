@@ -64,3 +64,4 @@ pull request timeline. PR 2, the skill, follows once PR 1 is on `main`.
 
 - `ci` The `version` check judges a pull request with `main`'s `feeds-binary.sh`, so a new path outside the binary takes a pull request of its own before anything can live there → none
 - `tooling` The tools of this cloud session cannot read a pull request's `ready_for_review` time, so phase 56's row keeps `unknown` → none
+- `ci` `sweep-report.sh` measured `" → "` in bytes, which `mawk` here counts and the runner's `gawk` in a UTF-8 locale does not, so `check` failed on #127 → rule in `tests/AGENTS.md`
