@@ -62,6 +62,7 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 55 | [a place for early users to ask, report and pick up work (#99)](plans/phase-55-contributing.md) | none |
 | 56 | [each phase's outcome, hurdles and numbers live with its plan](plans/phase-56-plans-split.md) | none |
 | 57 | [the sweep gathers its own data and asks for itself](plans/phase-57-sweep-tooling.md) | none |
+| 59 | [a `gh` call that never returns no longer freezes its column (#124)](plans/phase-59-gh-deadline.md) | |
 
 ## Backlog (discussed at the sweeps and retros)
 
