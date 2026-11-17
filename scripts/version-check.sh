@@ -14,6 +14,10 @@ if ! command -v cargo >/dev/null 2>&1; then
   say "cargo is not on PATH: the check asks cargo for the version in Cargo.toml, so install Rust and run it again"
   exit 1
 fi
+if ! command -v jq >/dev/null 2>&1; then
+  say "jq is not on PATH: the check reads what cargo metadata answers and the locked rust-overlay revision in flake.lock with jq, so install jq and run it again"
+  exit 1
+fi
 if ! head="$(git rev-parse --quiet --verify "$2^{commit}")"; then
   say "$2 is not a commit here: fetch the pull request first (git fetch origin pull/<number>/head)"
   exit 1
@@ -159,7 +163,7 @@ if metadata; then
   package="$(root_package "$tree" <"$scratch/metadata")"
   case "$package" in
     unreadable)
-      refuse "cargo metadata answered in a shape the check does not know: the check reads its output only when it starts the way cargo writes it, so run it again with the cargo this check was written for"
+      refuse "cargo metadata answered with something the check cannot read: it reads one JSON document with a \`packages\` array holding at most one package at the root, whose name and version are strings, so run it again with a cargo that answers \`cargo metadata --format-version 1\` that way"
       ;;
     "")
       refuse "Cargo.toml has no package of its own (cargo reads a virtual manifest): the package conveyor belongs at the root, where the release workflow writes its version"
@@ -298,15 +302,11 @@ overlay_update='without Nix: `docker run --rm -v "$PWD":/src -w /src nixos/nix s
 base_channel="$(channel_at "$fork")"
 head_channel="$(channel_at "$head")"
 if [ "$head_channel" != "$base_channel" ]; then
-  if ! command -v jq >/dev/null 2>&1; then
-    refuse "jq is not on PATH: the check reads the locked rust-overlay revision in flake.lock with jq when rust-toolchain.toml changes the Rust channel, so install jq and run it again"
-  else
-    head_overlay="$(overlay_at "$head")"
-    if [ -z "$head_overlay" ]; then
-      refuse "rust-toolchain.toml changes the Rust channel and flake.lock holds no locked rust-overlay revision (40 hex digits under the node the root's \`rust-overlay\` input names): the Nix flake builds that channel through rust-overlay, so lock it in this pull request ($overlay_update)"
-    elif [ "$head_overlay" = "$(overlay_at "$fork")" ]; then
-      refuse "rust-toolchain.toml changes the Rust channel and flake.lock keeps the locked rust-overlay revision: the Nix flake builds that channel through rust-overlay, which knows no Rust released after its locked revision, so update it in this pull request ($overlay_update)"
-    fi
+  head_overlay="$(overlay_at "$head")"
+  if [ -z "$head_overlay" ]; then
+    refuse "rust-toolchain.toml changes the Rust channel and flake.lock holds no locked rust-overlay revision (40 hex digits under the node the root's \`rust-overlay\` input names): the Nix flake builds that channel through rust-overlay, so lock it in this pull request ($overlay_update)"
+  elif [ "$head_overlay" = "$(overlay_at "$fork")" ]; then
+    refuse "rust-toolchain.toml changes the Rust channel and flake.lock keeps the locked rust-overlay revision: the Nix flake builds that channel through rust-overlay, which knows no Rust released after its locked revision, so update it in this pull request ($overlay_update)"
   fi
 fi
 

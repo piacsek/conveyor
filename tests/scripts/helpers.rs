@@ -141,3 +141,21 @@ pub fn piped_on(search_path: &std::ffi::OsStr, script: &str, input: &str) -> Out
         .unwrap();
     child.wait_with_output().unwrap()
 }
+
+pub fn without_jq(root: &Path) -> PathBuf {
+    let bin = root.join("bin");
+    fs::create_dir_all(&bin).unwrap();
+    let path = std::env::var_os("PATH").unwrap();
+    for dir in std::env::split_paths(&path) {
+        let Ok(entries) = fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            if name != "jq" && fs::symlink_metadata(bin.join(&name)).is_err() {
+                std::os::unix::fs::symlink(entry.path(), bin.join(&name)).unwrap();
+            }
+        }
+    }
+    bin
+}
