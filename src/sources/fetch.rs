@@ -382,7 +382,15 @@ impl BuildsSource {
         if let Some(branch) = &self.branch {
             return Ok(branch.clone());
         }
-        let repository = gh.rest(&format!("repos/{}", self.repo.name))?;
+        let repository = gh
+            .rest(&format!("repos/{}", self.repo.name))
+            .map_err(|failure| {
+                let said = format!(
+                    "reading the default branch of {}: {failure}; set branch under its [[repo]]",
+                    self.repo.name
+                );
+                failure.reworded(said)
+            })?;
         let branch = repository
             .get("default_branch")
             .and_then(|v| v.as_str())

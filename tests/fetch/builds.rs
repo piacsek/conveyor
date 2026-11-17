@@ -233,7 +233,10 @@ fn a_failed_default_branch_lookup_is_the_column_error_and_is_asked_again() {
     let first = source.fetch(&gh, NOW).unwrap_err().to_string();
     source.fetch(&gh, NOW).unwrap_err();
 
-    assert_eq!(first, "gh: Not Found (HTTP 404)");
+    assert_eq!(
+        first,
+        "reading the default branch of acme/webapp: gh: Not Found (HTTP 404); set branch under its [[repo]]"
+    );
     let calls = gh.calls.borrow().clone();
     assert_eq!(calls.len(), 2, "{calls:?}");
     assert_eq!(calls[1].0, "GET repos/acme/webapp");

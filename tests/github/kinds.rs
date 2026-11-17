@@ -185,6 +185,27 @@ fn a_signed_out_gh_fails_main_builds_as_not_signed_in_with_its_own_words() {
 }
 
 #[test]
+fn a_signed_out_default_branch_lookup_keeps_its_kind_and_names_the_lookup() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let gh = shim(&dir, SIGNED_OUT);
+    let mut source = BuildsSource::new(Repo {
+        main_workflow: "ci.yml".to_string(),
+        ..acme_api()
+    });
+
+    let failure = source.fetch(&gh, SystemTime::now()).unwrap_err();
+
+    assert_eq!(failure.kind(), FailureKind::NotSignedIn);
+    assert_eq!(
+        failure.to_string(),
+        format!(
+            "reading the default branch of acme/api: {SIGNED_OUT_SAID}; set branch under its [[repo]]"
+        )
+    );
+}
+
+#[test]
 fn a_signed_out_gh_without_a_configured_repo_is_not_signed_in_and_says_why() {
     let _serialized = serialized();
     let dir = tempfile::tempdir().unwrap();

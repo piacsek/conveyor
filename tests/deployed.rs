@@ -77,6 +77,28 @@ fn deployed_cards_give_each_field_its_own_line_with_the_title_before_the_author(
 }
 
 #[test]
+fn a_deployment_at_the_newest_build_names_the_branch_main_builds_read() {
+    let mut h = Harness::with_size(160, 20);
+    let trunk_builds = Ok(conveyor::app::Input::Data(
+        Stage::Builds,
+        0,
+        Ok(conveyor::app::Rows::Builds(
+            conveyor::model::builds::Builds {
+                repo: "acme/webapp".to_string(),
+                branch: "trunk".to_string(),
+                builds: main_builds(),
+            },
+        )),
+    ));
+
+    h.run(vec![trunk_builds, deployed(envs())]).unwrap();
+
+    let col = column(&h.screen(), 3);
+    assert!(col[1].contains("✓ staging"), "{}", h.screen());
+    assert!(col[1].contains("at trunk"), "{}", h.screen());
+}
+
+#[test]
 fn a_crashlooping_pod_puts_a_yellow_warning_after_the_glyph_and_its_reason_on_the_card() {
     let mut h = Harness::with_size(160, 20);
     let mut staging = deployment("staging", 26, Some((4840, "bob", "Speed up CI")));

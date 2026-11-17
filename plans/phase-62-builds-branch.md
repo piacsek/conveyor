@@ -41,12 +41,14 @@ branch shows an empty column with no error, and every Deployed row there reads `
 | --- | --- | --- |
 | yes | not made | the runs of the configured branch |
 | no | answers `default_branch` | the runs of that branch; the lookup is not repeated |
-| no | fails (`gh` error, 404, no access) | the column error with `gh`'s message; the next fetch asks again |
+| no | fails (`gh` error, 404, no access) | the column error: `reading the default branch of <repo>: <gh's text>; set branch under its [[repo]]`, keeping the failure's kind; the next fetch asks again |
 | no | answers without a `default_branch` string | the column error naming the repository |
 | yes, blank or with spaces around it | not made | conveyor refuses to start, naming the file and the repository |
 | yes, a branch with no runs (misspelled, or not built yet) | not made | `no builds on <that branch>`: GitHub answers zero runs, not an error |
 | no, the default branch has no runs | answers `default_branch` | `no builds on <the default branch>` |
 | either, before the first fetch answered | not yet answered | `fetching…`, as before |
+| either, a Deployed row at the newest build | answered | the Deployed card reads `at <the branch Main builds read>` (`at main` for `main`) |
+| either, a Deployed row before Main builds answered | not yet answered | no `at …` and no `↓N`: nothing is known to be behind |
 
 ## Tasks
 
@@ -61,4 +63,29 @@ branch shows an empty column with no error, and every Deployed row there reads `
 
 ## Outcome
 
+- `[[repo]]` takes an optional `branch`; unset, `BuildsSource` reads `default_branch` from
+  `repos/<owner>/<repo>` once, after the workflow resolves, and caches it beside the workflow.
+- A failed lookup is the column error `reading the default branch of <repo>: <gh's text>; set
+  branch under its [[repo]]`, keeping the failure's kind; it is not cached. An answer without a
+  `default_branch` string is the column error naming the repository.
+- A blank `branch`, or one with spaces around it, is refused at load, naming the file and the
+  repository. `conveyor config` leaves the key out while unset (toml skips `None` by itself).
+- The branch is percent-encoded in the query except `/`.
+- `Builds` carries the branch it read: an empty column reads `no builds on <branch>` and a
+  Deployed row at the newest build reads `at <branch>`. The column title, the help text and the
+  "no main build found" messages still say main.
+- The README default config shows the key commented out, so a copied config keeps the lookup.
+- The demo answers the lookup with `main` and so does the e2e `gh` shim; tests that are not
+  about the branch pin `branch = "main"`.
+- Not covered: a misspelled branch is not caught (GitHub answers zero runs, not an error); no
+  screenshot shows the empty-column text, since the demo always has builds.
+- Review: three rounds, the third clean (no must, no should); two minor findings fixed after it.
+
 ## Hurdles
+
+- `tooling` the scratchpad is shared with the sibling agents, so ship logs mixed between phases and `pgrep -f scripts/ship.sh` matched other worktrees' ships → none
+- `process` `ship.sh` runs `git add -A`, so an edit made while a ship runs would be committed with it, even a red test → none
+- `tooling` the text guard hook blocked a `grep` meant to find em dashes in the PR body, because the pattern held one → none
+- `review-loop` the README default config showed `branch = "main"` as a live line, pinning a copied config to `main` (round 1) → code
+- `review-loop` an empty Main builds column said `no builds on main` whatever branch was read (round 2) → code
+- `review-loop` the Deployed card's `at main` was declined twice, then fixed once `Builds` carried the branch (round 3) → code

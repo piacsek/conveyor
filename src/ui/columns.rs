@@ -208,7 +208,10 @@ pub(crate) fn draw_column(
                         .map(|pull| (pull.number, pull.url.clone()))
                         .filter(|_| linked);
                     let behind = behind.get(i).copied().flatten();
-                    (deployed_row(row, behind, now, on, w), pull)
+                    (
+                        deployed_row(row, behind, &app.builds.branch, now, on, w),
+                        pull,
+                    )
                 },
             )
         }

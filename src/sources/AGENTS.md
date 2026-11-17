@@ -72,7 +72,7 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   when behind (deliberately not the `●` that means "running" in Main builds; a Deployed row
   never reports a rollout in flight, only which sha is live), `○` for a sha that is not in the
   builds list and `✗` on error. `behind_main` is the sha's index in the
-  Main builds column (0 = `at main`), so it needs that column loaded and only sees the last
+  Main builds column (0 = `at <branch>`, the branch Main builds read), so it needs that column loaded and only sees the last
   `builds` runs. kubectl may itself start a teleport browser login when the session is
   expired; `DEADLINE` (below) returns the row to an error instead of hanging, and it kills that
   login with kubectl, so a login cannot be finished through conveyor: log in from a shell.
