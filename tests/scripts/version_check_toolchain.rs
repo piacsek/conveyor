@@ -1,8 +1,7 @@
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::helpers::{committed, fragment, git, isolated, stderr, stdout, which};
+use crate::helpers::{committed, fragment, git, isolated, stderr, stdout, which, without_jq};
 use crate::version_check::{main_with_a_release, version_check};
 
 const LOCKED: &str = "1111111111111111111111111111111111111111";
@@ -217,24 +216,6 @@ fn pinned(root: &Path) -> PathBuf {
     git(&work, &["checkout", "-qB", "pull"]);
     fragment(&work, "topic", "kind: internal\n");
     work
-}
-
-fn without_jq(root: &Path) -> PathBuf {
-    let bin = root.join("bin");
-    fs::create_dir_all(&bin).unwrap();
-    let path = std::env::var_os("PATH").unwrap();
-    for dir in std::env::split_paths(&path) {
-        let Ok(entries) = fs::read_dir(&dir) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            let name = entry.file_name();
-            if name != "jq" && fs::symlink_metadata(bin.join(&name)).is_err() {
-                std::os::unix::fs::symlink(entry.path(), bin.join(&name)).unwrap();
-            }
-        }
-    }
-    bin
 }
 
 fn toolchain(channel: &str) -> String {
