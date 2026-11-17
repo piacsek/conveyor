@@ -1,6 +1,7 @@
 use crate::app::{Action, App, Stage};
+use crate::sources::failure::FailureKind;
 
-use super::{Choice, Offer, WriteKind, offer};
+use super::{Choice, Offer, WriteKind, offer, timed_out};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rerun {
@@ -48,7 +49,9 @@ impl App {
         let WriteKind::Rerun { label, .. } = write.kind.clone() else {
             return None;
         };
-        let errors: Vec<String> = results
+        let mut ordered: Vec<_> = results.iter().collect();
+        ordered.sort_by_key(|(_, result)| timed_out(result));
+        let errors: Vec<String> = ordered
             .iter()
             .filter_map(|(run_id, result)| {
                 result
@@ -57,30 +60,45 @@ impl App {
                     .map(|message| format!("run {run_id}: {message}"))
             })
             .collect();
+        let unsure = results
+            .iter()
+            .filter(|(_, result)| timed_out(result))
+            .count();
+        let failed = errors.len() - unsure;
         let reran = results.len() - errors.len();
-        let first = results.iter().find_map(|(_, result)| result.clone().err());
-        match (reran, first) {
-            (_, None) => {}
-            (0, Some(first)) => self.fail(Some(write), &first.reworded(errors.join("; "))),
-            (_, Some(first)) => self.fail(
+        let failures = results
+            .iter()
+            .filter_map(|(_, result)| result.as_ref().err());
+        let cause = failures
+            .clone()
+            .find(|failure| failure.kind() != FailureKind::TimedOut)
+            .or_else(|| failures.clone().next())
+            .cloned();
+        match cause {
+            None => {}
+            Some(cause) if failed == 0 => self.fail(Some(write), &cause),
+            Some(cause) if reran == 0 && unsure == 0 => {
+                self.fail(Some(write), &cause.reworded(errors.join("; ")))
+            }
+            Some(cause) => self.fail(
                 Some(write),
-                &first.reworded(format!(
-                    "{} of {} runs failed: {}",
-                    errors.len(),
+                &cause.reworded(format!(
+                    "{failed} of {} runs failed: {}",
                     results.len(),
                     errors.join("; ")
                 )),
             ),
         }
-        self.notice = Some(match (reran, errors.is_empty()) {
-            (_, true) => format!("rerun requested: {label}"),
-            (0, false) => format!("rerun failed: {}", errors.join("; ")),
+        self.notice = Some(match (reran, failed) {
+            _ if errors.is_empty() => format!("rerun requested: {label}"),
+            (0, 0) => errors.join("; "),
+            (0, _) => format!("rerun failed: {}", errors.join("; ")),
             _ => format!(
                 "rerun requested for {reran} of {} runs; {}",
                 results.len(),
                 errors.join("; ")
             ),
         });
-        (reran > 0).then_some(stage)
+        (reran > 0 || unsure > 0).then_some(stage)
     }
 }

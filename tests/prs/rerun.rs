@@ -175,6 +175,32 @@ fn a_rerun_that_failed_for_every_run_schedules_no_reload() {
 }
 
 #[test]
+fn a_rerun_that_timed_out_still_reloads_my_prs() {
+    use conveyor::app::{Input, Request, Stage};
+    use conveyor::sources::failure::Failure;
+    let mut h = Harness::with_size(160, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![failing_in("test", 70)];
+
+    h.run(vec![
+        prs(vec![failing]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('f')),
+        Ok(Input::Rerun(vec![(
+            70,
+            Err(Failure::unanswered("may be rerunning", 60)),
+        )])),
+    ])
+    .unwrap();
+
+    assert!(
+        h.requests.contains(&Request::Refresh(Stage::Prs, 0)),
+        "{:?}",
+        h.requests
+    );
+}
+
+#[test]
 fn two_reruns_on_their_way_each_land_with_their_own_label_and_column() {
     use conveyor::app::{Request, Stage};
     use conveyor::model::builds::BuildStatus;
@@ -272,6 +298,96 @@ fn a_rerun_that_failed_for_several_runs_marks_the_card_with_the_kind_of_the_firs
     );
 }
 
+#[test]
+fn a_rerun_with_one_run_requested_and_one_timed_out_says_it_may_be_rerunning() {
+    let h = rerun_at_narrowest(vec![(70, Ok(())), (80, Err(timed_out()))]);
+
+    let mark = line_after(&h.screen(), "#4821 Retry hooks");
+    assert!(mark.contains("! may be rerunning "), "{mark}");
+    assert_eq!(
+        h.app.notice.as_deref(),
+        Some("rerun requested for 1 of 2 runs; run 80: may be rerunning: no answer in 60s")
+    );
+    assert!(!h.screen().contains("failed"), "{}", h.screen());
+}
+
+#[test]
+fn a_rerun_with_one_run_failed_and_one_timed_out_counts_only_the_failed_one() {
+    use conveyor::app::{Stage, pull_key};
+    use conveyor::sources::failure::{Failure, FailureKind};
+    let h = rerun_at_narrowest(vec![
+        (70, Err(Failure::said_by_gh("HTTP 403".to_string()))),
+        (80, Err(timed_out())),
+    ]);
+
+    let card = line_after(&h.screen(), "#4821 Retry hooks");
+    assert!(card.contains("! rerun failed: 1 of 2 runs"), "{card}");
+    let mark = h
+        .app
+        .failure_on(Stage::Prs, pull_key("acme/webapp", 4821))
+        .unwrap();
+    assert_eq!(mark.kind, FailureKind::Other);
+    assert_eq!(
+        mark.line(),
+        "! rerun failed: 1 of 2 runs failed: run 70: HTTP 403; run 80: may be rerunning: no answer in 60s"
+    );
+    assert_eq!(
+        h.app.notice.as_deref(),
+        Some("rerun failed: run 70: HTTP 403; run 80: may be rerunning: no answer in 60s")
+    );
+}
+
+#[test]
+fn a_rerun_whose_every_run_timed_out_never_says_failed() {
+    let h = rerun_at_narrowest(vec![(70, Err(timed_out())), (80, Err(timed_out()))]);
+
+    let mark = line_after(&h.screen(), "#4821 Retry hooks");
+    assert!(mark.contains("! may be rerunning "), "{mark}");
+    assert_eq!(
+        h.app.notice.as_deref(),
+        Some(
+            "run 70: may be rerunning: no answer in 60s; run 80: may be rerunning: no answer in 60s"
+        )
+    );
+    assert!(!h.screen().contains("failed"), "{}", h.screen());
+}
+
+#[test]
+fn a_rerun_names_its_failed_runs_before_the_ones_that_may_be_rerunning() {
+    use conveyor::app::{Input, Stage, pull_key};
+    use conveyor::sources::failure::Failure;
+    let mut h = Harness::with_size(200, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![
+        failing_in("lint", 111111),
+        failing_in("test", 222222),
+        failing_in("e2e", 333333),
+    ];
+
+    h.run(vec![
+        prs(vec![failing]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('f')),
+        Ok(Input::Rerun(vec![
+            (111111, Ok(())),
+            (222222, Err(timed_out())),
+            (333333, Err(Failure::said_by_gh("HTTP 403".to_string()))),
+        ])),
+    ])
+    .unwrap();
+
+    let card = line_after(&h.screen(), "#4821 Retry hooks");
+    assert!(card.contains("1 of 3 runs failed: run 333"), "{card}");
+    let mark = h
+        .app
+        .failure_on(Stage::Prs, pull_key("acme/webapp", 4821))
+        .unwrap();
+    assert_eq!(
+        mark.message,
+        "1 of 3 runs failed: run 333333: HTTP 403; run 222222: may be rerunning: no answer in 60s"
+    );
+}
+
 const SIGNED_OUT: &str = "gh: Bad credentials (HTTP 401)";
 
 const RATE_LIMITED: &str = "gh: API rate limit exceeded for user ID 1. (HTTP 403)";
@@ -307,4 +423,24 @@ fn failing_in(name: &str, run_id: u64) -> conveyor::model::prs::Check {
         run_finished: true,
         ..Default::default()
     }
+}
+
+fn timed_out() -> conveyor::sources::failure::Failure {
+    conveyor::sources::failure::Failure::unanswered("may be rerunning", 60)
+}
+
+fn rerun_at_narrowest(
+    results: Vec<(u64, Result<(), conveyor::sources::failure::Failure>)>,
+) -> Harness {
+    let mut h = Harness::with_size(144, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![failing_in("test", 70), failing_in("e2e", 80)];
+    h.run(vec![
+        prs(vec![failing]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('f')),
+        Ok(conveyor::app::Input::Rerun(results)),
+    ])
+    .unwrap();
+    h
 }

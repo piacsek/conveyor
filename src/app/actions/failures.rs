@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 
 use crate::app::{App, Stage};
-use crate::sources::failure::FailureKind;
+use crate::sources::failure::{FailureKind, Unanswered};
 
 use super::Write;
 
@@ -12,13 +12,21 @@ pub struct Failure {
     pub action: String,
     pub kind: FailureKind,
     pub message: String,
+    pub unanswered: Option<Unanswered>,
     pub at: SystemTime,
 }
 
 impl Failure {
     pub fn line(&self) -> String {
-        let message: Vec<&str> = self.message.split_whitespace().collect();
-        format!("! {} failed: {}", self.action, message.join(" "))
+        if let Some(unanswered) = self.unanswered {
+            return format!("! {}", unanswered.aftermath);
+        }
+        let message = self
+            .message
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        format!("! {} failed: {message}", self.action)
     }
 }
 
@@ -68,7 +76,18 @@ impl App {
             action: write.action(),
             kind: cause.kind(),
             message: cause.to_string(),
+            unanswered: cause.unanswered_write(),
             at: self.now,
         });
     }
+}
+
+pub(super) fn timed_out<T>(result: &Result<T, crate::sources::failure::Failure>) -> bool {
+    result
+        .as_ref()
+        .is_err_and(|failure| failure.kind() == FailureKind::TimedOut)
+}
+
+pub(super) fn may_have_happened(result: &Result<(), crate::sources::failure::Failure>) -> bool {
+    result.is_ok() || timed_out(result)
 }

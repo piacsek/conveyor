@@ -15,6 +15,7 @@ mod writes;
 
 pub use checkout::CheckoutTarget;
 pub use failures::Failure;
+use failures::{may_have_happened, timed_out};
 pub use merge::MergeTarget;
 pub use rerun::Rerun;
 pub(super) use rerun::rerun_offer;

@@ -3,7 +3,7 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use crate::app::{Action, App, pull_key};
 use crate::model::prs::StatusChange;
 
-use super::{Choice, WriteKind};
+use super::{Choice, WriteKind, may_have_happened};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatusTarget {
@@ -65,10 +65,11 @@ impl App {
             Ok(()) => done(number, change),
             Err(message) => format!("#{number}: {message}"),
         });
-        if result.is_ok() && change.lands_a_merge() {
+        let happened = may_have_happened(result);
+        if happened && change.lands_a_merge() {
             self.land(target.key());
         }
-        result.is_ok()
+        happened
     }
 }
 

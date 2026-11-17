@@ -398,3 +398,20 @@ fn pull_ref((number, author, title): (u64, &str, &str)) -> PullRef {
         url: format!("https://github.com/acme/webapp/pull/{number}"),
     }
 }
+
+pub fn time_out_once_ready<C, T>(
+    ready: &std::path::Path,
+    mut client: C,
+    with: impl Fn(C, Duration) -> C,
+    call: impl Fn(&C) -> T,
+) -> T {
+    let mut deadline = Duration::from_millis(300);
+    loop {
+        client = with(client, deadline);
+        let answer = call(&client);
+        if ready.exists() || deadline > Duration::from_secs(30) {
+            return answer;
+        }
+        deadline *= 2;
+    }
+}

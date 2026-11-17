@@ -1,12 +1,13 @@
 use std::io;
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::time::Instant;
+use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
 
 use crate::config::{MergeMethod, UpdateMethod};
 use crate::log::Log;
 use crate::model::prs::{BranchUpdate, StatusChange};
 use crate::sources::failure::Failure;
+use crate::sources::runner::{self, Ran};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Variable {
@@ -75,10 +76,15 @@ const DEQUEUE: &str =
 pub const MISSING: &str =
     "gh not found on PATH; install gh (brew install gh) and run gh auth login";
 
+pub const READ_DEADLINE: Duration = Duration::from_secs(30);
+pub const WRITE_DEADLINE: Duration = Duration::from_secs(60);
+
 pub struct CliGh {
     program: PathBuf,
     git: PathBuf,
     log: Log,
+    read: Duration,
+    write: Duration,
 }
 
 impl Default for CliGh {
@@ -93,6 +99,16 @@ impl CliGh {
             program,
             git: "git".into(),
             log: Log::default(),
+            read: READ_DEADLINE,
+            write: WRITE_DEADLINE,
+        }
+    }
+
+    pub fn with_deadlines(self, read: Duration, write: Duration) -> Self {
+        Self {
+            read,
+            write,
+            ..self
         }
     }
 
@@ -236,25 +252,62 @@ impl CliGh {
         .to_vec()
     }
 
-    fn run(&self, args: &[String]) -> Result<String, Failure> {
-        self.exec(&Tool::gh(&self.program), None, args, &[])
+    fn read(&self, args: &[String]) -> Result<String, Failure> {
+        self.exec(&Tool::gh(&self.program), Limit::Read, None, args, &[])
+    }
+
+    fn write(&self, args: &[String], aftermath: Aftermath) -> Result<String, Failure> {
+        self.exec(
+            &Tool::gh(&self.program),
+            Limit::Write(aftermath.wording()),
+            None,
+            args,
+            &[],
+        )
+    }
+
+    fn deadline(&self, limit: Limit) -> Option<Duration> {
+        match limit {
+            Limit::Read => Some(self.read),
+            Limit::Download | Limit::Write(_) => Some(self.write),
+            Limit::Unbounded => None,
+        }
     }
 
     fn exec(
         &self,
         tool: &Tool,
+        limit: Limit,
         dir: Option<&Path>,
         args: &[String],
         env: &[(&str, &str)],
     ) -> Result<String, Failure> {
         let started = Instant::now();
-        let output = self.output(tool.program, dir, args, env).map_err(|err| {
-            if err.kind() == io::ErrorKind::NotFound {
-                io::Error::new(io::ErrorKind::NotFound, tool.missing)
-            } else {
-                err
+        let mut command = Command::new(tool.program);
+        if let Some(dir) = dir {
+            command.current_dir(dir);
+        }
+        command
+            .args(args)
+            .envs(env.iter().copied())
+            .stdin(Stdio::null());
+        let deadline = self.deadline(limit);
+        let output = match runner::run(&mut command, deadline) {
+            Ok(Ran::Finished(output)) => Ok(output),
+            Ok(Ran::TimedOut(stderr)) => {
+                self.log
+                    .timed_out(tool.name, args, started.elapsed(), &stderr);
+                let secs = deadline.unwrap_or_default().as_secs();
+                return Err(match limit {
+                    Limit::Write(aftermath) => Failure::unanswered(aftermath, secs),
+                    _ => Failure::timed_out(format!("{} did not answer within {secs}s", tool.name)),
+                });
             }
-        });
+            Err(err) if err.kind() == io::ErrorKind::NotFound => {
+                Err(io::Error::new(io::ErrorKind::NotFound, tool.missing))
+            }
+            Err(err) => Err(err),
+        };
         self.log.call(tool.name, args, started.elapsed(), &output);
         let output = output?;
         if !output.status.success() {
@@ -269,30 +322,14 @@ impl CliGh {
         String::from_utf8(output.stdout)
             .map_err(|err| Failure::from(format!("{} printed invalid UTF-8: {err}", tool.name)))
     }
+}
 
-    fn output(
-        &self,
-        program: &Path,
-        dir: Option<&Path>,
-        args: &[String],
-        env: &[(&str, &str)],
-    ) -> io::Result<std::process::Output> {
-        let mut command = Command::new(program);
-        if let Some(dir) = dir {
-            command.current_dir(dir);
-        }
-        let child = {
-            let _alone = super::spawning();
-            command
-                .args(args)
-                .envs(env.iter().copied())
-                .stdin(std::process::Stdio::null())
-                .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::piped())
-                .spawn()?
-        };
-        child.wait_with_output()
-    }
+#[derive(Clone, Copy)]
+enum Limit {
+    Read,
+    Download,
+    Write(&'static str),
+    Unbounded,
 }
 
 struct Tool<'a> {
@@ -328,27 +365,34 @@ impl Github for CliGh {
         query: &str,
         vars: &[(&str, Variable)],
     ) -> Result<serde_json::Value, Failure> {
-        let stdout = self.run(&Self::graphql_args(query, vars))?;
+        let stdout = self.read(&Self::graphql_args(query, vars))?;
         serde_json::from_str(&stdout)
             .map_err(|err| Failure::from(format!("gh returned invalid JSON: {err}")))
     }
 
     fn rest(&self, path: &str) -> Result<serde_json::Value, Failure> {
-        let stdout = self.run(&Self::rest_args(path))?;
+        let stdout = self.read(&Self::rest_args(path))?;
         serde_json::from_str(&stdout)
             .map_err(|err| Failure::from(format!("gh returned invalid JSON: {err}")))
     }
 
     fn current_repo(&self) -> Result<String, Failure> {
-        Ok(self.run(&Self::current_repo_args())?.trim().to_string())
+        Ok(self.read(&Self::current_repo_args())?.trim().to_string())
     }
 
     fn log_failed(&self, repo: &str, run_id: u64, job_id: u64) -> Result<String, Failure> {
-        self.run(&Self::log_failed_args(repo, run_id, job_id))
+        self.exec(
+            &Tool::gh(&self.program),
+            Limit::Download,
+            None,
+            &Self::log_failed_args(repo, run_id, job_id),
+            &[],
+        )
     }
 
     fn rerun_failed(&self, repo: &str, run_id: u64) -> Result<(), Failure> {
-        self.run(&Self::rerun_failed_args(repo, run_id)).map(|_| ())
+        self.write(&Self::rerun_failed_args(repo, run_id), Aftermath::Rerun)
+            .map(|_| ())
     }
 
     fn merge(
@@ -358,9 +402,12 @@ impl Github for CliGh {
         method: MergeMethod,
         head_oid: &str,
     ) -> Result<(), Failure> {
-        self.run(&Self::merge_args(repo, number, method, head_oid))
-            .map(|_| ())
-            .map_err(without_warnings)
+        self.write(
+            &Self::merge_args(repo, number, method, head_oid),
+            Aftermath::Merge,
+        )
+        .map(|_| ())
+        .map_err(without_warnings)
     }
 
     fn update_branch(
@@ -369,7 +416,10 @@ impl Github for CliGh {
         number: u64,
         method: UpdateMethod,
     ) -> Result<BranchUpdate, Failure> {
-        match self.run(&Self::update_branch_args(repo, number, method)) {
+        match self.write(
+            &Self::update_branch_args(repo, number, method),
+            Aftermath::Update,
+        ) {
             Ok(stdout) if stdout.contains("already up-to-date") => Ok(BranchUpdate::UpToDate),
             Ok(_) => Ok(BranchUpdate::Updated),
             Err(err)
@@ -384,9 +434,12 @@ impl Github for CliGh {
     }
 
     fn change_status(&self, repo: &str, number: u64, change: &StatusChange) -> Result<(), Failure> {
-        self.run(&Self::status_args(repo, number, change))
-            .map(|_| ())
-            .map_err(without_warnings)
+        self.write(
+            &Self::status_args(repo, number, change),
+            Aftermath::Status(change),
+        )
+        .map(|_| ())
+        .map_err(without_warnings)
     }
 
     fn checkout(&self, repo: &str, number: u64, dir: Option<&Path>) -> Result<(), Failure> {
@@ -394,13 +447,20 @@ impl Github for CliGh {
             return Err(format!("{} is not a directory", dir.display()).into());
         }
         let remotes = self
-            .exec(&Tool::git(&self.git), dir, &Self::remotes_args(), &[])
+            .exec(
+                &Tool::git(&self.git),
+                Limit::Unbounded,
+                dir,
+                &Self::remotes_args(),
+                &[],
+            )
             .map_err(|err| not_a_repository(err, repo, dir))?;
         if !remotes.lines().any(|remote| names(remote, repo)) {
             return Err(no_clone(repo, dir));
         }
         self.exec(
             &Tool::gh(&self.program),
+            Limit::Unbounded,
             dir,
             &Self::checkout_args(repo, number),
             &[("GIT_TERMINAL_PROMPT", "0")],
@@ -449,6 +509,30 @@ fn gits_reason(err: Failure) -> Failure {
     match reason {
         Some(line) => err.reworded(line),
         None => err,
+    }
+}
+
+pub enum Aftermath<'a> {
+    Merge,
+    Update,
+    Rerun,
+    Status(&'a StatusChange),
+}
+
+impl Aftermath<'_> {
+    pub fn wording(&self) -> &'static str {
+        match self {
+            Self::Merge => "may be merged",
+            Self::Update => "branch may be updated",
+            Self::Rerun => "may be rerunning",
+            Self::Status(StatusChange::Ready) => "may be marked ready",
+            Self::Status(StatusChange::Draft) => "may be a draft",
+            Self::Status(StatusChange::EnableAutoMerge { .. }) => "auto-merge may be on",
+            Self::Status(StatusChange::DisableAutoMerge { .. }) => "auto-merge may be off",
+            Self::Status(StatusChange::Enqueue { .. }) => "may be in the queue",
+            Self::Status(StatusChange::Dequeue { .. }) => "may be out of the queue",
+            Self::Status(StatusChange::Close) => "may be closed",
+        }
     }
 }
 

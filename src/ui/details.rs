@@ -100,12 +100,14 @@ fn failure_lines(app: &App, width: usize) -> Vec<Line<'static>> {
     let Some(failure) = app.selected_failure() else {
         return Vec::new();
     };
-    let text = format!(
-        "{} failed at {}: {}",
-        failure.action,
-        clock(failure.at, app.utc_offset_secs),
-        failure.message
-    );
+    let at = clock(failure.at, app.utc_offset_secs);
+    let text = match failure.unanswered {
+        Some(unanswered) => format!(
+            "{}: {}; gh did not answer within {}s (no answer by {at})",
+            failure.action, unanswered.aftermath, unanswered.secs
+        ),
+        None => format!("{} failed at {at}: {}", failure.action, failure.message),
+    };
     wrap(&text, width, usize::MAX)
         .into_iter()
         .map(|line| Line::styled(line, Style::default().fg(Color::Red)))

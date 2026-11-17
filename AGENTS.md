@@ -49,6 +49,7 @@ src/config.rs    the config: its tables, defaults, path and `CONVEYOR_CONFIG` ov
 src/sources/     everything that reaches out to an external service, and nothing else
 src/sources/github.rs the Github trait and CliGh, which spawns `gh` (and `git` for the checkout guard), error mapping
 src/sources/kube.rs   the Kube trait and CliKubectl, which spawns `kubectl` under a deadline that kills it
+src/sources/runner.rs runs one program, drains its pipes and, under a deadline, in its own process group that it kills at the deadline; `CliGh` and `CliKubectl` both call it
 src/sources/demo.rs   Demo: the Github and Kube of `--demo`, answering from the built-in fixture; spawns and logs nothing, every write fails
 src/sources/demo/     that fixture: JSON with `ago:<secs>` times, the failed step's log, the demo's `[prs]` and `[[repo]]`
 src/sources/failure.rs Failure: what a failed call said and which kind of failure it was
@@ -191,7 +192,11 @@ impact.
   it; a failure stays on its card (`src/app/AGENTS.md`, "A failed write marks the card";
   `plans/phase-39-failed-write-marks.md`).
 - **A checkout can hang on ssh**: a key that needs a passphrase and has no agent prompts on
-  `/dev/tty`, and a stalled fetch has no deadline (`src/app/AGENTS.md`, the checkout).
+  `/dev/tty`, and a stalled fetch has no deadline: the checkout is the one `gh` call without
+  one (`src/app/AGENTS.md`, the checkout; `src/sources/AGENTS.md`).
+- **A hung `gh` or `kubectl` outlives a closed terminal**: a call with a deadline runs in its own
+  process group, so the terminal's hangup does not reach it and it runs until it exits by itself
+  (`src/sources/AGENTS.md`, "A call in a process group of its own outlives a closed terminal").
 - **Some commits cost a call on every refresh**: a sha the batch answers `null` for and REST
   answers 422, and an upper-case sha (`src/sources/AGENTS.md`, `Pulls`).
 - **The `version` check judges "feeds the binary" by path only**, can be pointed by cargo at

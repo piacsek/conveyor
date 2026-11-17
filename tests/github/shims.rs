@@ -20,3 +20,20 @@ pub fn shim(dir: &tempfile::TempDir, script: &str) -> CliGh {
     fs::set_permissions(&gh, fs::Permissions::from_mode(0o755)).unwrap();
     CliGh::with_program(gh)
 }
+
+pub const RECORD_PGID: &str = "ps -o pgid= -p $$ > \"$0.pgid\"";
+
+pub fn own_pgid() -> String {
+    let output = std::process::Command::new("ps")
+        .args(["-o", "pgid=", "-p", &std::process::id().to_string()])
+        .output()
+        .unwrap();
+    String::from_utf8(output.stdout).unwrap().trim().to_string()
+}
+
+pub fn recorded_pgid(dir: &tempfile::TempDir) -> String {
+    fs::read_to_string(dir.path().join("bin/gh.pgid"))
+        .unwrap()
+        .trim()
+        .to_string()
+}

@@ -4,7 +4,7 @@ use crate::app::{Action, App, pull_key};
 use crate::config::UpdateMethod;
 use crate::model::prs::BranchUpdate;
 
-use super::{Choice, WriteKind};
+use super::{Choice, WriteKind, timed_out};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateTarget {
@@ -60,9 +60,10 @@ impl App {
             Ok(BranchUpdate::Updated) => format!("branch of #{number} updated"),
             Ok(BranchUpdate::UpToDate) => format!("#{number} is already up to date"),
             Ok(BranchUpdate::Conflicts) => conflicts(number),
+            Err(message) if timed_out(result) => format!("#{number}: {message}"),
             Err(message) => format!("update failed for #{number}: {message}"),
         });
-        matches!(result, Ok(BranchUpdate::Updated))
+        matches!(result, Ok(BranchUpdate::Updated)) || timed_out(result)
     }
 }
 

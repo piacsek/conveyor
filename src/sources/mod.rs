@@ -3,6 +3,7 @@ pub mod failure;
 pub mod fetch;
 pub mod github;
 pub mod kube;
+mod runner;
 
 use std::sync::{Mutex, MutexGuard};
 

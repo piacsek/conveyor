@@ -7,3 +7,4 @@ mod parallel;
 mod popup;
 mod repos;
 mod tabs;
+mod uncertain;

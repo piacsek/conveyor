@@ -1,10 +1,11 @@
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
+use std::time::Duration;
 
 use conveyor::sources::failure::FailureKind;
 use conveyor::sources::github::{CliGh, Github};
 
-use crate::shims::{serialized, shim};
+use crate::shims::{RECORD_PGID, own_pgid, recorded_pgid, serialized, shim};
 
 #[test]
 fn checkout_argv_names_the_pull_request_and_its_repository() {
@@ -242,6 +243,33 @@ fn a_checkout_refused_for_a_rejected_token_keeps_its_kind_in_the_line_it_reports
         err.to_string(),
         "Try authenticating with:  gh auth login -h github.com"
     );
+}
+
+#[test]
+fn a_checkout_slower_than_every_deadline_still_finishes() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let clone = clone_dir(&dir);
+    let (gh, calls) = shims(&dir, &format!("sleep 0.3\n{ORIGIN}"), "sleep 0.3");
+    let gh = gh.with_deadlines(Duration::from_millis(100), Duration::from_millis(100));
+
+    let checkout = gh.checkout("acme/webapp", 42, Some(&clone));
+
+    assert!(checkout.is_ok(), "{checkout:?}");
+    let log = fs::read_to_string(calls).unwrap();
+    assert_eq!(log.lines().count(), 2);
+}
+
+#[test]
+fn a_checkout_runs_in_the_terminal_s_process_group_so_an_ssh_prompt_can_be_answered() {
+    let _serialized = serialized();
+    let dir = tempfile::tempdir().unwrap();
+    let clone = clone_dir(&dir);
+    let (gh, _calls) = shims(&dir, ORIGIN, RECORD_PGID);
+
+    gh.checkout("acme/webapp", 42, Some(&clone)).unwrap();
+
+    assert_eq!(recorded_pgid(&dir), own_pgid());
 }
 
 const ORIGIN: &str = r"printf 'origin\tgit@github.com:acme/webapp.git (fetch)\norigin\tgit@github.com:acme/webapp.git (push)\n'";

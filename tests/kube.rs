@@ -1,3 +1,5 @@
+mod support;
+
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
@@ -12,6 +14,7 @@ use conveyor::sources::failure::FailureKind;
 use conveyor::sources::fetch::DeploySource;
 use conveyor::sources::github::CliGh;
 use conveyor::sources::kube::{CliKubectl, Kube, MISSING};
+use support::time_out_once_ready;
 
 static SHIMS: Mutex<()> = Mutex::new(());
 
@@ -138,7 +141,12 @@ fn a_helper_kubectl_started_is_killed_with_it_at_the_deadline() {
         "sleep 30 &\necho $! > \"$0.pid\"\n: > \"$0.ready\"\nwait",
     );
 
-    time_out_once_ready(&dir, kubectl);
+    let _ = time_out_once_ready(
+        &dir.path().join("bin/kubectl.ready"),
+        kubectl,
+        CliKubectl::with_deadline,
+        |kubectl| kubectl.deployment(&env()),
+    );
 
     assert!(!alive_after(&dir, Duration::from_secs(2)));
 }
@@ -166,7 +174,12 @@ fn a_timed_out_call_is_logged_with_what_kubectl_had_said() {
     )
     .with_log(Log::open(&file));
 
-    time_out_once_ready(&dir, kubectl);
+    let _ = time_out_once_ready(
+        &dir.path().join("bin/kubectl.ready"),
+        kubectl,
+        CliKubectl::with_deadline,
+        |kubectl| kubectl.deployment(&env()),
+    );
 
     let text = fs::read_to_string(&file).unwrap();
     assert!(
@@ -452,19 +465,6 @@ fn deployed_by(kubectl: CliKubectl) -> App {
         ))),
     );
     app
-}
-
-fn time_out_once_ready(dir: &tempfile::TempDir, mut kubectl: CliKubectl) {
-    let ready = dir.path().join("bin/kubectl.ready");
-    let mut deadline = Duration::from_millis(300);
-    loop {
-        kubectl = kubectl.with_deadline(deadline);
-        let _ = kubectl.deployment(&env());
-        if ready.exists() || deadline > Duration::from_secs(30) {
-            return;
-        }
-        deadline *= 2;
-    }
 }
 
 fn alive_after(dir: &tempfile::TempDir, patience: Duration) -> bool {

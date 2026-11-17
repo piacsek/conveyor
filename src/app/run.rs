@@ -55,8 +55,7 @@ where
                 }
             }
             Input::Merged(target, result) => {
-                app.receive_merged(&target, &result);
-                if result.is_ok() {
+                if app.receive_merged(&target, &result) {
                     request(app.refresh_request(Stage::Prs));
                     request(app.refresh_request(Stage::Queue));
                 }
