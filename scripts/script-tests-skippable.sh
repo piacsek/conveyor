@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-read_by_the_script_tests='^(scripts|tests/scripts|tests/fixtures|\.github|changes)/|^(Cargo\.toml|Cargo\.lock|CHANGELOG\.md)$'
+read_by_the_script_tests='^(scripts|tests/scripts|tests/fixtures|\.github|changes)/|^(Cargo\.toml|Cargo\.lock|CHANGELOG\.md|flake\.nix)$'
 
 run() {
   echo "$*"

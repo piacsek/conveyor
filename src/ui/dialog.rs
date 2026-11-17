@@ -13,31 +13,31 @@ const HINT: &str = "y confirms · any other key cancels";
 const MAX_INNER: usize = 56;
 const MAX_LINES: usize = 3;
 
-fn question(pending: &Pending) -> String {
+fn question(pending: &Pending, label: &str) -> String {
     match pending {
-        Pending::Merge(target) => format!("merge #{} {}", target.number, target.title),
+        Pending::Merge(target) => format!("merge {label} {}", target.title),
         Pending::UpdateBranch(target) => {
             let verb = match target.method {
                 UpdateMethod::Merge => "update",
                 UpdateMethod::Rebase => "rebase",
             };
-            format!("{verb} branch of #{} {}", target.number, target.title)
+            format!("{verb} branch of {label} {}", target.title)
         }
         Pending::Status(target) => match target.change {
             StatusChange::EnableAutoMerge { .. } => {
-                format!("enable auto-merge for #{} {}", target.number, target.title)
+                format!("enable auto-merge for {label} {}", target.title)
             }
             StatusChange::Enqueue { .. } => {
-                format!("add to the merge queue #{} {}", target.number, target.title)
+                format!("add to the merge queue {label} {}", target.title)
             }
-            _ => format!("close #{} {}", target.number, target.title),
+            _ => format!("close {label} {}", target.title),
         },
     }
 }
 
-pub(crate) fn draw_confirm(frame: &mut Frame, area: Rect, pending: &Pending) {
+pub(crate) fn draw_confirm(frame: &mut Frame, area: Rect, pending: &Pending, label: &str) {
     let room = usize::from(area.width.saturating_sub(8)).min(MAX_INNER);
-    let mut lines = wrap(&question(pending), room.saturating_sub(1), MAX_LINES);
+    let mut lines = wrap(&question(pending, label), room.saturating_sub(1), MAX_LINES);
     if let Some(last) = lines.last_mut() {
         last.push('?');
     }

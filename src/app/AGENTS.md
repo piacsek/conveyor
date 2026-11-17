@@ -69,7 +69,9 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   the thing a key opens where the user has to scroll to find it. No failed job known yet →
   footer notice, no request.
 - **`S` is the one write key.** It opens `Mode::Manage(Menu)`: a popup titled `Manage #N`
-  (My PRs) or `Manage run N` (Main builds) with one `Offer` per action, `key  label`, built by
+  (My PRs; `Manage infra#N`, the short repository name, while the active tab lists more than one
+  repository, its filter ignored, and the full `owner/name` when two of those repositories share
+  a short name: `PrsStage::label`) or `Manage run N` (Main builds) with one `Offer` per action, `key  label`, built by
   `App::menu` from the rows on screen. An offer that does not apply keeps its line, dim, with the
   reason after a `·` (`m  merge · #12 is a draft`), and its letter does nothing, so the popup
   explains itself instead of hiding actions. Any key that is not an offer closes it (`nothing
@@ -85,14 +87,16 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   pull requests can each have a write running. `App::writes` holds one `Write` per write in
   flight (`src/app/actions/writes.rs`): the row key it was started on (`subject`), the stage
   and the kind, which owns the footer `progress` and the card `word`; each result removes its
-  own entry, a pull request result by number and kind, a rerun by its run ids. Each kind still
+  own entry, a pull request result by its target's key and kind, a rerun by its run ids. Each kind still
   has one worker thread in `main`, so two writes of the same kind run one after the other, each
   row busy until its own answer. A worker catches a panic around one request
   (`crash::catch`) and answers that request with `crashed: <msg>` as its failure
   (`worker::Task::crashed`: the card mark for a write, every run of a rerun, the jobs or log
-  pane), then takes the next request. The same pull request number in two repositories shares a key:
-  one blocks the other. `X`, `M` and `U` were removed in v0.21.0; `S` replaced them.
-  A letter re-derives the menu: a different title (another row selected) or a different offer
+  pane), then takes the next request. A pull request's row key is its repository and number together
+  (`column::pull_key`), so the same number in two repositories is two rows: its own selection,
+  busy spinner, mark and merge wait. `X`, `M` and `U` were removed in v0.21.0; `S` replaced them.
+  A letter re-derives the menu: another row selected (`Menu::subject`, its row key; not the
+  title, which can gain a repository name on a refresh) or a different offer
   under the letter says `the pull request changed; press S again` (`the run changed` in Main
   builds), and an offer that turned into a refusal says its reason. A refresh that lands while
   the popup is open does not redraw its offers: a dim offer that became possible stays dim until
@@ -187,7 +191,8 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   new attempt. The e2e `gh` shim appends `run rerun …` argv to `reruns.log`; keep any new write
   action behind the same shim so a test can never reach the real `gh`.
 - **`m` merges a pull request, and it asks first.** It sets
-  `Mode::Confirm(Pending::Merge)` and the confirm dialog asks `merge #N <title>?`. Only a bare `y`
+  `Mode::Confirm(Pending::Merge)` and the confirm dialog asks `merge #N <title>?` (with the short repository
+  before `#N` when the popup title has it). Only a bare `y`
   goes on, every other key cancels (`merge cancelled`), and the Confirm arm sits before the
   `Ctrl-d`/`Ctrl-u` arms so nothing slips past the prompt. `y` works the target out
   again through `App::reconfirm` (the same `menu()` the popup used, so a My PRs refresh that

@@ -12,29 +12,29 @@ pub struct Write {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WriteKind {
-    Merge,
-    Update,
-    Status(StatusChange),
-    Checkout,
+    Merge(u64),
+    Update(u64),
+    Status(u64, StatusChange),
+    Checkout(u64),
     Rerun { run_ids: Vec<u64>, label: String },
 }
 
 impl Write {
     pub fn progress(&self) -> String {
         match &self.kind {
-            WriteKind::Merge => format!("merging #{}…", self.subject),
-            WriteKind::Update => format!("updating #{}…", self.subject),
-            WriteKind::Status(change) => progress(self.subject, change),
-            WriteKind::Checkout => format!("checking out #{}…", self.subject),
+            WriteKind::Merge(number) => format!("merging #{number}…"),
+            WriteKind::Update(number) => format!("updating #{number}…"),
+            WriteKind::Status(number, change) => progress(*number, change),
+            WriteKind::Checkout(number) => format!("checking out #{number}…"),
             WriteKind::Rerun { label, .. } => format!("rerunning {label}…"),
         }
     }
 
     pub fn action(&self) -> String {
         match &self.kind {
-            WriteKind::Merge => "merge",
-            WriteKind::Update => "update",
-            WriteKind::Status(change) => match change {
+            WriteKind::Merge(_) => "merge",
+            WriteKind::Update(_) => "update",
+            WriteKind::Status(_, change) => match change {
                 StatusChange::Ready => "mark ready",
                 StatusChange::Draft => "convert to draft",
                 StatusChange::EnableAutoMerge { .. } => "enable auto-merge",
@@ -43,7 +43,7 @@ impl Write {
                 StatusChange::Enqueue { .. } => "add to the merge queue",
                 StatusChange::Close => "close",
             },
-            WriteKind::Checkout => "check out",
+            WriteKind::Checkout(_) => "check out",
             WriteKind::Rerun { .. } => "rerun",
         }
         .to_string()
@@ -51,9 +51,9 @@ impl Write {
 
     pub fn word(&self) -> String {
         match &self.kind {
-            WriteKind::Merge => "merging…",
-            WriteKind::Update => "updating…",
-            WriteKind::Status(change) => match change {
+            WriteKind::Merge(_) => "merging…",
+            WriteKind::Update(_) => "updating…",
+            WriteKind::Status(_, change) => match change {
                 StatusChange::Ready => "marking ready…",
                 StatusChange::Draft => "converting to draft…",
                 StatusChange::EnableAutoMerge { .. } => "enabling auto-merge…",
@@ -62,7 +62,7 @@ impl Write {
                 StatusChange::Enqueue { .. } => "adding to the merge queue…",
                 StatusChange::Close => "closing…",
             },
-            WriteKind::Checkout => "checking out…",
+            WriteKind::Checkout(_) => "checking out…",
             WriteKind::Rerun { .. } => "rerunning…",
         }
         .to_string()

@@ -1,7 +1,7 @@
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::{highlighted_row, three};
-use crate::support::{Harness, key, pr, prs};
+use crate::support::{Harness, key, pr, prs, status_target};
 
 #[test]
 fn j_k_arrows_gg_and_g_move_the_highlight_and_clamp() {
@@ -230,8 +230,7 @@ fn marked_first(
         key(KeyCode::Char('S')),
         key(KeyCode::Char('t')),
         Ok(conveyor::app::Input::StatusChanged(
-            1,
-            conveyor::model::prs::StatusChange::Ready,
+            status_target(1, "", conveyor::model::prs::StatusChange::Ready),
             Err("HTTP 422".to_string().into()),
         )),
     ];

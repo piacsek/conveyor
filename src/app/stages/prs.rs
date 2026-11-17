@@ -7,6 +7,7 @@ use crate::app::{
 };
 use crate::config::UpdateMethod;
 use crate::model::prs::{MergeState, PullRequest, StatusChange};
+use crate::text::short_repo;
 
 use super::{Context, Rows, StageView};
 
@@ -32,6 +33,26 @@ impl PrsStage {
 
     pub fn column_mut(&mut self) -> &mut Column<PullRequest> {
         &mut self.tabs[self.active]
+    }
+
+    pub fn label(&self, repo: &str, number: u64) -> String {
+        let others: Vec<&str> = self
+            .column()
+            .all()
+            .iter()
+            .map(|pr| pr.repo.as_str())
+            .filter(|other| *other != repo)
+            .collect();
+        if others
+            .iter()
+            .any(|other| short_repo(other) == short_repo(repo))
+        {
+            format!("{repo}#{number}")
+        } else if !others.is_empty() {
+            format!("{}#{number}", short_repo(repo))
+        } else {
+            format!("#{number}")
+        }
     }
 }
 
@@ -77,7 +98,7 @@ impl StageView for PrsStage {
     fn pull_target(&self) -> Result<(u64, String), String> {
         self.column()
             .selected()
-            .map(|pr| (pr.key(), pr.url.clone()))
+            .map(|pr| (pr.number, pr.url.clone()))
             .ok_or_else(|| "nothing selected".to_string())
     }
 
@@ -99,7 +120,8 @@ impl StageView for PrsStage {
         }
         let pr = self.column().selected().ok_or("nothing selected")?;
         Ok(Menu {
-            title: format!("Manage #{}", pr.number),
+            subject: pr.key(),
+            title: format!("Manage {}", self.label(&pr.repo, pr.number)),
             offers: self.offers(pr, context),
         })
     }
@@ -129,7 +151,7 @@ impl PrsStage {
                 "convert to draft",
                 Err(format!("#{} is in the merge queue", pr.number)),
             )
-        } else if context.landing(pr.number) {
+        } else if context.landing(pr.key()) {
             offer('t', "convert to draft", Err(waiting(pr.number)))
         } else {
             offer('t', "convert to draft", status(StatusChange::Draft))
@@ -214,7 +236,7 @@ impl PrsStage {
 
     fn update_target(&self, context: &Context) -> Result<UpdateTarget, String> {
         let pr = self.column().selected().ok_or("nothing selected")?;
-        if context.landing(pr.number) {
+        if context.landing(pr.key()) {
             return Err(waiting(pr.number));
         }
         if pr.queue_position.is_some() {

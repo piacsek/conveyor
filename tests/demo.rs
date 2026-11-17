@@ -108,6 +108,16 @@ fn my_demo_pull_request_in_the_queue_is_queued_in_my_prs_at_the_same_position() 
 }
 
 #[test]
+fn my_demo_pull_requests_share_a_number_across_two_repositories() {
+    let config = demo::config(Config::default());
+
+    let mine = fetch_prs(&Demo, &config, 0).unwrap();
+
+    let infra = mine.iter().find(|pr| pr.repo == "acme/infra").unwrap();
+    assert_eq!(infra.number, 4821);
+}
+
+#[test]
 fn only_my_queued_demo_pull_request_is_queued_in_my_prs() {
     let config = demo::config(Config::default());
 

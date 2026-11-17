@@ -1,10 +1,10 @@
-use conveyor::app::{Input, Stage};
+use conveyor::app::{Input, Stage, pull_key};
 use conveyor::config::{Config, PrsTab};
 use conveyor::model::prs::{MergeState, PullRequest, StatusChange};
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::{draft, line_after, open, status_changed};
-use crate::support::{Harness, key, prs_in};
+use crate::support::{Harness, key, merge_target, prs_in};
 
 #[test]
 fn a_mark_survives_a_switch_and_a_refresh_of_a_tab_without_its_row() {
@@ -47,7 +47,11 @@ fn a_mark_stays_while_another_tab_still_holds_its_row() {
     h.run(vec![prs_in(0, vec![open(14, "Bump serde")])])
         .unwrap();
 
-    assert!(h.app.failure_on(Stage::Prs, 12).is_some());
+    assert!(
+        h.app
+            .failure_on(Stage::Prs, pull_key("acme/webapp", 12))
+            .is_some()
+    );
 }
 
 #[test]
@@ -60,7 +64,11 @@ fn a_mark_drops_once_no_tab_holds_its_row() {
     h.run(vec![prs_in(0, vec![open(14, "Bump serde")])])
         .unwrap();
 
-    assert!(h.app.failure_on(Stage::Prs, 12).is_none());
+    assert!(
+        h.app
+            .failure_on(Stage::Prs, pull_key("acme/webapp", 12))
+            .is_none()
+    );
 }
 
 #[test]
@@ -82,7 +90,11 @@ fn a_write_that_fails_after_a_switch_still_marks_its_row() {
     )])
     .unwrap();
 
-    assert!(h.app.failure_on(Stage::Prs, 12).is_some());
+    assert!(
+        h.app
+            .failure_on(Stage::Prs, pull_key("acme/webapp", 12))
+            .is_some()
+    );
 }
 
 #[test]
@@ -170,7 +182,7 @@ fn merged_then_switched() -> Vec<std::io::Result<Input>> {
         key(KeyCode::Char('S')),
         key(KeyCode::Char('m')),
         key(KeyCode::Char('y')),
-        Ok(Input::Merged(1, Ok(()))),
+        Ok(Input::Merged(merge_target(1, ""), Ok(()))),
         key(KeyCode::Tab),
     ]
 }

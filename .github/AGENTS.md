@@ -8,7 +8,8 @@ internals (Releasing internals, below). What a pull request author needs to rele
 
 `.github/workflows/ci.yml` runs on every push to `main` and every pull request: a `check` job
 (fmt, clippy `-D warnings`, `cargo test -- --include-ignored`, both with `--locked`, with tmux installed for the e2e
-suite) and an `audit` job (`cargo audit`). Learnings from the 2026-09-14 speed-up, when the
+suite), an `audit` job (`cargo audit`), and the flake build behind its `paths` and `flake-ok`
+jobs (below). Learnings from the 2026-09-14 speed-up, when the
 pipeline went from ~3 min 20 s to 37 s:
 
 - **Measure before touching anything.** Per-step timings are one call away:
@@ -32,16 +33,43 @@ pipeline went from ~3 min 20 s to 37 s:
 - **Trade-off taken.** `rustsec/audit-check` opened a GitHub issue when a new advisory hit
   `main`; with plain `cargo audit` a red `audit` check is the only signal. Add a `schedule`
   trigger if advisories should be caught between pushes.
-- **The `flake` job is not required.** It runs `nix build` and `--version` on `ubuntu-latest`
-  and `macos-latest` (since phase 51), so a pull request that breaks the Nix flake shows red
-  before the merge. Measured on #106: Linux 1 min 49 s (the build 1 min 39 s), macOS 3 min 9 s
-  (installing Nix 39 s, the build 2 min 21 s), beside a 1 min 35 s `check`. It is left out of
-  the ruleset on purpose: a Nix or nixpkgs outage must never block a merge, and the `stable` job
-  of the release run refuses a flake that does not build anyway. No path filter: it never blocks
-  and never slows `check`, and its inputs (`src/`, the manifests, the flake, `rust-toolchain.toml`, `CHANGELOG.md`) are
-  what most pull requests touch. No Nix store cache: the build is the crate and its
-  dependencies from source, which a store cache would not skip for a changed `Cargo.lock` or
-  `src/`, and nothing waits on the job.
+- **The flake build reports as one gate job, `flake-ok`, and runs only when its inputs change**
+  (since phase 63, #117). Three jobs: `paths` runs `scripts/flake-build-needed.sh` against the
+  base (`HEAD^1` of GitHub's merge commit on a pull request, `github.event.before` on a push)
+  and outputs `build=true` or `build=false`; `flake` runs `nix build` and `--version` on
+  `ubuntu-latest` and `macos-latest` unless that output is `false`; `flake-ok`
+  (`needs: [paths, flake]`, `if: always()`) runs `scripts/flake-ok.sh` and passes only when the
+  build succeeded, or was skipped because `paths` succeeded and said `false`. A failed or
+  cancelled leg fails it, and so does a run cancelled before the build. The inputs are the one
+  list in `scripts/flake-inputs.sh`: `src/`, `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`,
+  `rust-toolchain.toml`, `flake.nix`, `flake.lock`, `ci.yml` and the three flake scripts;
+  `tests/scripts/flake_inputs.rs` fails while a path `flake.nix` names is missing from it, or
+  while `flake.nix` names `./.` anywhere but the fileset's `root` or builds a path with
+  `+ "/…"`. The paths travel NUL-separated (`git diff -z`, `grep -z`), so a name git would
+  quote still matches. A failure to decide (no base, a base the shallow checkout lacks, a
+  failing `git` or `grep`, a failed `paths` job) builds, never skips, and `paths` logs the
+  reason on stderr. Why not simpler: a workflow-level `paths:` filter leaves a required check
+  pending forever when the workflow never starts, and a skipped matrix job reports under its
+  unexpanded name, so neither the workflow nor the legs can be what the ruleset requires; only
+  the one gate job is. `flake-ok` exists to be required: a merge to `main` is released
+  unattended, `stable-build` builds the flake on Linux only, and nothing after the merge builds
+  it on macOS, so a macOS break can reach `stable` while the ruleset does not require it.
+  Requiring it is a ruleset change the owner makes by hand, outside this repository, once
+  `flake-ok` reports on `main` (the order `version` followed). Whether the ruleset requires it
+  now:
+
+  ```bash
+  gh api repos/<owner>/<repo>/rulesets/<id> --jq '.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context'
+  ```
+
+  `flake-ok` in that list means it is required. The cost once it is: a Nix, nixpkgs or
+  `cache.nixos.org` outage, or a stalled macOS runner, blocks every pull request that touches
+  the flake's inputs. The way out is the one the ruleset bullet below gives: disable the
+  ruleset, merge, enable it again. Measured on #106: Linux 1 min
+  49 s, macOS 3 min 9 s; on #110's head after its toolchain fix: Linux 1 min 18 s, macOS 2 min
+  41 s. No Nix store cache: the build is the crate and its dependencies from source, which a
+  store cache would not skip for a changed `Cargo.lock` or `src/`; a follow-up issue if the
+  required check turns out to slow pull requests noticeably.
 - **The flake builds with the Rust of `rust-toolchain.toml`** (since phase 52), through the
   locked `rust-overlay`, rustfmt and clippy included, as the file lists them, in the file's
   `minimal` profile (the default one adds `rust-docs`, whose unpacking cost the macOS job one to
@@ -67,9 +95,10 @@ pipeline went from ~3 min 20 s to 37 s:
 - **Pins.** Every action stays pinned to a commit SHA with the tag in a trailing comment (see
   Releasing internals below for how to bump one).
 - **`main` is protected by a ruleset** (`main`, id 26900132, Settings → Rules): a pull
-  request, green `check`, `audit` and `version`, linear history, no force-push or deletion, and
-  no bypass for anyone. The checks are matched by job name, so renaming `check` or `audit` in
-  `ci.yml` blocks every merge, the rename's own PR included; renaming `version` lets the
+  request, green required checks (`check`, `audit`, `version`, and `flake-ok` once the owner
+  adds it, see the flake build above), linear history, no force-push or deletion, and no bypass
+  for anyone. The checks are matched by job name, so renaming a required job of `ci.yml`
+  blocks every merge, the rename's own PR included; renaming `version` lets the
   rename's own PR merge (the copy on `main` still reports the old name) and then blocks every
   later pull request until the ruleset names the new job; an advisory with no fixed version does the
   same through `audit`. Disable the ruleset to get out
@@ -264,7 +293,7 @@ pipeline went from ~3 min 20 s to 37 s:
   moved or vanished in the second between the read and the delete, and nothing is lost
   either way. The open pull request check is a snapshot: closing and reopening one to
   retrigger CI loses the branch when the reopen comes after the job has looked (seconds),
-  so push an empty commit or rerun the checks instead. None of the three required checks depends on it. Known and left: an open pull request whose **base** is the deleted
+  so push an empty commit or rerun the checks instead. None of the required checks depends on it. Known and left: an open pull request whose **base** is the deleted
   branch is closed by GitHub (branches here are cut from `origin/main`, never stacked).
 - **A run of the old tag-triggered workflow for v0.24.1 is stuck in `queued` and cannot be
   removed** (run 43098019853, 2026-11-11: no jobs, cancel answers "completed", force-cancel
@@ -293,10 +322,11 @@ pipeline went from ~3 min 20 s to 37 s:
   `cargo build --release --locked` in the release run, after the tag was pushed. The local
   gates (`scripts/gates.sh`) do not pass `--locked`: there cargo updating the lock is how the
   lock gets written, and the change shows up in `git status`.
-- **Known and left: `check` builds and tests on Linux only.** A change that breaks only the
-  macOS build passes every required check, merges, and fails in the release run's `build`
-  job after its tag is pushed; that is the "newest tag can never build" case in Releasing
-  internals below.
+- **Known and left: `check` builds and tests on Linux only.** The tests never run on macOS. A
+  change that breaks only the macOS build fails the macOS leg of `flake` and so `flake-ok`
+  before the merge; one that builds there but fails only in the release run's `build` job (its
+  own flags or target) merges and fails after its tag is pushed; that is the "newest tag can
+  never build" case in Releasing internals below.
 
 ## Issues and Discussions
 

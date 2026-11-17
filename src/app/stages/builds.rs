@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 
 use crate::app::actions::rerun_offer;
-use crate::app::{Column, Listing, Menu, Rerun};
+use crate::app::{Column, Listing, Menu, Rerun, Row};
 use crate::model::builds::{Build, BuildStatus};
 
 use super::{Context, Rows, StageView};
@@ -57,6 +57,7 @@ impl StageView for BuildsStage {
         }
         let build = self.column.selected().ok_or("nothing selected")?;
         Ok(Menu {
+            subject: build.key(),
             title: format!("Manage run {}", build.run_number),
             offers: vec![rerun_offer(self.rerun_target())],
         })

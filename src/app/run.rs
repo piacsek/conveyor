@@ -48,23 +48,23 @@ where
             Input::Data(stage, tab, data) => app.receive(stage, tab, data),
             Input::Jobs(run_id, result) => app.receive_jobs(run_id, result),
             Input::Log(job_id, result) => app.receive_log(job_id, result),
-            Input::BranchUpdated(number, result) => {
-                if app.receive_branch_update(number, &result) {
+            Input::BranchUpdated(target, result) => {
+                if app.receive_branch_update(&target, &result) {
                     request(app.refresh_request(Stage::Prs));
                     app.follow_up_prs();
                 }
             }
-            Input::Merged(number, result) => {
-                app.receive_merged(number, &result);
+            Input::Merged(target, result) => {
+                app.receive_merged(&target, &result);
                 if result.is_ok() {
                     request(app.refresh_request(Stage::Prs));
                     request(app.refresh_request(Stage::Queue));
                 }
             }
-            Input::StatusChanged(number, change, result) => {
-                if app.receive_status(number, &change, &result) {
+            Input::StatusChanged(target, result) => {
+                if app.receive_status(&target, &result) {
                     request(app.refresh_request(Stage::Prs));
-                    if change != StatusChange::Ready {
+                    if target.change != StatusChange::Ready {
                         request(app.refresh_request(Stage::Queue));
                     }
                     app.follow_up_prs();

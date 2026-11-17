@@ -2,7 +2,7 @@ mod support;
 
 use std::path::PathBuf;
 
-use conveyor::app::{Input, Request, Stage};
+use conveyor::app::{Input, Request, Stage, pull_key};
 use conveyor::config::{Config, Repo};
 use conveyor::sources::failure::FailureKind;
 use conveyor::sources::github::{CliGh, Github};
@@ -211,7 +211,10 @@ fn a_checkout_without_git_marks_the_card_as_a_missing_program_in_gits_words() {
     ))])
     .unwrap();
 
-    let mark = h.app.failure_on(Stage::Prs, 1).unwrap();
+    let mark = h
+        .app
+        .failure_on(Stage::Prs, pull_key("acme/webapp", 1))
+        .unwrap();
     assert_eq!(mark.kind, FailureKind::ProgramMissing);
     assert_eq!(mark.line(), "! check out failed: git not found on PATH");
 }
