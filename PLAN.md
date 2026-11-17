@@ -831,7 +831,10 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   rustfmt and clippy, as the file lists them. Fragment `kind: internal`. Review round 1: every
   bump now updates the locked `rust-overlay` too (Docker command in the bump steps), and the
   `version` check refuses a channel change that keeps the locked revision or has none;
-  `flake.nix` may name no Rust version at all.
+  `flake.nix` may name no Rust version at all. Review round 2 (unprimed): no must or should;
+  minors fixed: the check compares the channel without its quotes or a trailing comment,
+  `flake.nix` may not use `pkgs.rustPlatform`, and only a `1.`-prefixed number counts as a Rust
+  version there.
 - Phase 51 (`plans/phase-51-nix-flake.md`, #106, part of #96): conveyor installs with Nix,
   `nix --extra-experimental-features 'nix-command flakes' profile install
   github:piacsek/conveyor/stable`. `flake.nix` builds the binary with

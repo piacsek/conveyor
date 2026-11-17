@@ -280,7 +280,7 @@ fi
 channel_at() {
   { git cat-file blob "$1:rust-toolchain.toml" 2>/dev/null || true; } | awk '
     /^[ \t]*\[/ { table = $0; gsub(/[ \t\r]/, "", table); next }
-    table == "[toolchain]" && /^[ \t]*channel[ \t]*=/ { value = $0; sub(/^[^=]*=[ \t]*/, "", value); sub(/[ \t\r]*$/, "", value); print value }
+    table == "[toolchain]" && /^[ \t]*channel[ \t]*=/ { value = $0; sub(/^[^=]*=[ \t]*/, "", value); sub(/[ \t]*#.*$/, "", value); sub(/[ \t\r]*$/, "", value); if (value ~ /^".*"$/ || value ~ /^'"'"'.*'"'"'$/) value = substr(value, 2, length(value) - 2); print value }
   '
 }
 

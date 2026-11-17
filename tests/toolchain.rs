@@ -57,6 +57,24 @@ fn a_major_minor_counts_as_a_literal() {
 }
 
 #[test]
+fn a_nixpkgs_release_branch_is_no_rust_version() {
+    assert_eq!(
+        version_literals("nixpkgs.url = \"github:NixOS/nixpkgs/nixos-26.11\";"),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn the_flake_leaves_the_rust_platform_of_nixpkgs_alone() {
+    assert!(!uses_nixpkgs_rust(&read("flake.nix")));
+}
+
+#[test]
+fn building_with_the_rust_platform_of_nixpkgs_counts_as_using_its_rust() {
+    assert!(uses_nixpkgs_rust("pkgs.rustPlatform.buildRustPackage {"));
+}
+
+#[test]
 fn the_toolchain_leaves_out_the_docs_the_flake_would_unpack() {
     assert_eq!(
         toolchain_file().get("profile").and_then(|p| p.as_str()),
@@ -67,9 +85,14 @@ fn the_toolchain_leaves_out_the_docs_the_flake_would_unpack() {
 fn version_literals(text: &str) -> Vec<String> {
     text.split(|c: char| !c.is_ascii_digit() && c != '.')
         .map(|run| run.trim_matches('.'))
+        .filter(|run| run.starts_with("1."))
         .filter(|run| run.split('.').count() > 1 && run.split('.').all(|part| !part.is_empty()))
         .map(str::to_string)
         .collect()
+}
+
+fn uses_nixpkgs_rust(text: &str) -> bool {
+    text.contains("pkgs.rustPlatform")
 }
 
 fn read(path: &str) -> String {

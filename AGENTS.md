@@ -386,7 +386,10 @@ docker run --rm -v "$PWD":/src -w /src nixos/nix sh -c "git config --global --ad
 ```
 
 `tests/toolchain.rs` fails while any of the first four differs, and the `version` check refuses
-a channel change that keeps the locked `rust-overlay` revision.
+a channel change that keeps the locked `rust-overlay` revision, so
+the update must actually move the `rust-overlay` revision: on a day the overlay has not moved
+since the lock, the check refuses the bump until it does, at most about a day since the overlay
+commits daily.
 The `tag` job of `release.yml` stays on the runner image's `stable` on purpose (why: `.github/AGENTS.md`).
 The Nix flake reads the same file: `fromRustupToolchainFile ./rust-toolchain.toml` from its
 locked `rust-overlay`, so `flake.nix` names no version and a bump needs no hash, but the overlay

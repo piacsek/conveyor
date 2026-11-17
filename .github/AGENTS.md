@@ -38,7 +38,7 @@ pipeline went from ~3 min 20 s to 37 s:
   (installing Nix 39 s, the build 2 min 21 s), beside a 1 min 35 s `check`. It is left out of
   the ruleset on purpose: a Nix or nixpkgs outage must never block a merge, and the `stable` job
   of the release run refuses a flake that does not build anyway. No path filter: it never blocks
-  and never slows `check`, and its inputs (`src/`, the manifests, the flake, `CHANGELOG.md`) are
+  and never slows `check`, and its inputs (`src/`, the manifests, the flake, `rust-toolchain.toml`, `CHANGELOG.md`) are
   what most pull requests touch. No Nix store cache: the build is the crate and its
   dependencies from source, which a store cache would not skip for a changed `Cargo.lock` or
   `src/`, and nothing waits on the job.
@@ -54,7 +54,9 @@ pipeline went from ~3 min 20 s to 37 s:
   ```
 
   The `version` check refuses a channel change that keeps the locked revision (see Releasing
-  internals); without the update this job, and `stable-build` after the merge, fail to evaluate
+  internals), so the update must actually move the `rust-overlay` revision: on a day the overlay has not moved
+  since the lock, the check refuses the bump until it does, at most about a day since the overlay
+  commits daily. Without the update this job, and `stable-build` after the merge, fail to evaluate
   the new channel (`error: Stable <version> is not available`). The
   `stable-build` job of the release run builds the same flake, so it never builds with another
   Rust than the gates. Measured on #110 with the default profile: Linux 1 min 33 s and 1 min

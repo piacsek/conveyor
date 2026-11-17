@@ -53,6 +53,38 @@ fn the_same_channel_with_the_same_lock_passes() {
 }
 
 #[test]
+fn the_same_channel_in_single_quotes_passes() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = pinned(dir.path());
+    committed(
+        &work,
+        "rust-toolchain.toml",
+        "[toolchain]\nchannel = '1.98.1'\ncomponents = [\"rustfmt\", \"clippy\"]\n",
+    );
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), PASSED);
+}
+
+#[test]
+fn the_same_channel_with_a_trailing_comment_passes() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = pinned(dir.path());
+    committed(
+        &work,
+        "rust-toolchain.toml",
+        "[toolchain]\nchannel = \"1.98.1\" # pinned\ncomponents = [\"rustfmt\", \"clippy\"]\n",
+    );
+
+    let output = version_check(&work);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), PASSED);
+}
+
+#[test]
 fn the_same_channel_with_a_new_lock_passes() {
     let dir = tempfile::tempdir().unwrap();
     let work = pinned(dir.path());
