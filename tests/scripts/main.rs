@@ -11,6 +11,7 @@ mod release_commit_cargo;
 mod release_tag;
 mod release_unfinished;
 mod script_tests_skippable;
+mod scrub_check;
 mod ship;
 mod stable_version;
 mod sweep;

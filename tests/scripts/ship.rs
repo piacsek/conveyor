@@ -148,6 +148,26 @@ fn a_branch_that_has_a_pull_request_opens_no_other() {
 }
 
 #[test]
+fn ship_commits_and_pushes_nothing_when_a_new_file_holds_a_listed_term() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = ship_sandbox(dir.path());
+    scrubbing_gates(&work);
+    link_conveyor_dev(dir.path(), &another_build(dir.path()));
+    denylist(dir.path(), "zz-secret-term\n");
+    fs::write(work.join("notes.md"), "notes about zz-secret-term\n").unwrap();
+
+    let output = ship(dir.path(), "docs: notes");
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stderr(&output).contains("scrub-check: denylisted terms found"),
+        "{}",
+        stderr(&output)
+    );
+    assert!(!pushed(dir.path()));
+}
+
+#[test]
 fn the_template_holds_a_summary_and_the_changes() {
     let template = Path::new(env!("CARGO_MANIFEST_DIR")).join(".github/pull_request_template.md");
 
@@ -190,7 +210,8 @@ fn shipping(root: &Path, message: &str) -> Command {
         .env("HOME", root.join("home"))
         .env("PATH", std::env::join_paths(path).unwrap())
         .env("CALLS_LOG", root.join("calls.log"))
-        .env_remove("FAILING_CALL");
+        .env_remove("FAILING_CALL")
+        .env_remove("CONVEYOR_DENYLIST");
     command
 }
 
@@ -212,4 +233,28 @@ fn pushed_subject(root: &Path) -> String {
     .output()
     .unwrap();
     stdout(&output).trim().to_string()
+}
+
+fn scrubbing_gates(work: &Path) {
+    fs::remove_file(work.join("scripts/gates.sh")).unwrap();
+    link_script(work, "gates.sh");
+    link_script(work, "scrub-check.sh");
+    link_script(work, "script-tests-skippable.sh");
+}
+
+fn denylist(root: &Path, terms: &str) {
+    let list = root.join("home/.config/conveyor-dev/denylist");
+    fs::create_dir_all(list.parent().unwrap()).unwrap();
+    fs::write(list, terms).unwrap();
+}
+
+fn pushed(root: &Path) -> bool {
+    isolated(
+        Command::new("git")
+            .current_dir(root.join("origin.git"))
+            .args(["rev-parse", "--verify", "--quiet", "topic"]),
+    )
+    .status()
+    .unwrap()
+    .success()
 }
