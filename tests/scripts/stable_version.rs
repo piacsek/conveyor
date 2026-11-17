@@ -162,6 +162,29 @@ fn a_release_list_that_cannot_be_read_stops_the_job() {
     assert_eq!(stdout(&output), "");
 }
 
+#[test]
+fn the_stable_job_runs_after_publish_in_every_run_one_at_a_time() {
+    assert!(stable_job().contains(STABLE_HEADER), "{}", stable_job());
+}
+
+#[test]
+fn the_stable_job_asks_the_script_which_release_to_point_at() {
+    assert!(stable_job().contains(PICK_STEP), "{}", stable_job());
+}
+
+#[test]
+fn the_stable_job_builds_the_flake_at_the_tag_and_checks_its_version() {
+    assert!(stable_job().contains(BUILD_STEP), "{}", stable_job());
+}
+
+#[test]
+fn the_stable_job_moves_stable_only_after_the_build_step() {
+    let job = stable_job();
+    let build = job.find(BUILD_STEP).unwrap();
+    let push = job.find(PUSH_STEP).unwrap();
+    assert!(build < push, "{job}");
+}
+
 fn stable_version(root: &Path) -> Output {
     stable_version_where(root, "no call fails", "")
 }
@@ -217,3 +240,45 @@ fn sandbox(root: &Path) {
 }
 
 const ASSETS: &str = "conveyor-aarch64-apple-darwin.tar.gz\nconveyor-aarch64-apple-darwin.tar.gz.sha256\nconveyor-x86_64-apple-darwin.tar.gz\nconveyor-x86_64-apple-darwin.tar.gz.sha256\nconveyor-x86_64-unknown-linux-gnu.tar.gz\nconveyor-x86_64-unknown-linux-gnu.tar.gz.sha256\n";
+
+fn stable_job() -> String {
+    let release = fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join(".github/workflows/release.yml"),
+    )
+    .unwrap();
+    let start = release.find("\n  stable:\n").unwrap();
+    release[start..].to_string()
+}
+
+const STABLE_HEADER: &str = "  stable:
+    needs: [tag, publish]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: stable
+      cancel-in-progress: false
+";
+
+const PICK_STEP: &str = "      - name: Pick the release stable should point at
+        id: stable
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/stable-version.sh >> \"$GITHUB_OUTPUT\"
+";
+
+const BUILD_STEP: &str = "      - name: The flake at the tag builds that version
+        if: steps.stable.outputs.version != ''
+        env:
+          VERSION: ${{ steps.stable.outputs.version }}
+        run: |
+          nix build ./release
+          printed=\"$(./result/bin/conveyor --version)\"
+          test \"$printed\" = \"conveyor $VERSION\" || { echo \"the flake at v$VERSION prints $printed\"; exit 1; }
+";
+
+const PUSH_STEP: &str = "      - name: Point stable at the tag
+        if: steps.stable.outputs.version != ''
+        run: git -C release push origin \"+HEAD:refs/heads/stable\"
+";
