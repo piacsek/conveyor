@@ -846,18 +846,32 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   `docs/details.png` (unchanged) and shoots `docs/plain.png` without it. Decisions: a draft is
   still told by its icon and colour only (no `draft` word back on the meta line); `→` echoes
   the `⇥N` queue position on the same line. Fragment `kind: feat`.
+- Phase 55 (`plans/phase-55-contributing.md`, #109, closes #99): a place for early users.
+  `.github/CONTRIBUTING.md` points to `AGENTS.md`, `scripts/gates.sh`, `scripts/ship.sh` and
+  the fragment rule. It lives under `.github/` because a top-level file feeds the binary by
+  `scripts/feeds-binary.sh`, and listing it there would not have helped: `version.yml` runs the
+  base's script, which refused it locally. So the pull request needs no fragment and releases
+  nothing. `.github/ISSUE_TEMPLATE/` holds a bug report
+  and a feature request form, each opening with a reminder not to paste private names, and a
+  `config.yml` with blank issues off that sends questions to Q&A and deploy-source requests to
+  the Ideas category of Discussions. Outside the pull request: Discussions turned on (Q&A is a
+  default category; categories cannot be created through the API, so a dedicated deploy-sources
+  category is left to the owner); `good first issue` and `help wanted` already existed. Backlog
+  items opened as starter issues: #111 (wide characters, `good first issue`), #112
+  (`merge_method` per `[[repo]]`, `good first issue`), #113 (approve, `help wanted`), #114
+  (Main builds tabs, `help wanted`).
 
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
-- More `S` actions: `gh pr review --approve`; reopen if the query ever lists closed pull requests.
-- Merge follow-ups from the phase 20 review: `merge_method` per `[[repo]]` (one global value cannot
+- More `S` actions: `gh pr review --approve` (#113); reopen if the query ever lists closed pull requests.
+- Merge follow-ups from the phase 20 review: `merge_method` per `[[repo]]` (#112) (one global value cannot
   serve a squash-only and a merge-commit-only repo at once); a write result that lands while the other prompt is open is
   hidden by that prompt (the failure half is done in phase 39: a failure stays on its card; a
-  success is still hidden); the footer cuts titles by characters, not display width.
+  success is still hidden); the footer cuts titles by characters, not display width (#111).
 - Follow one PR across columns: `f` on a PR highlights its sha/number in queue, builds, deployed.
 - Desktop/tmux notification on queue state change or main build failure (tmux-agents `watch` pattern).
-- Main builds tabs, one per `[[repo]]`, following the Merge queue's active tab (phase 42 gave
+- Main builds tabs (#114), one per `[[repo]]`, following the Merge queue's active tab (phase 42 gave
   the queue its tabs; decided with the user on 2026-11-14).
 - Deployed tabs, one per application of the monorepo, switched independently of the queue.
 - Native GitHub client if `gh` latency becomes a problem (measure first; each call ~0.3–1 s).

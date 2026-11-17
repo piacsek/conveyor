@@ -119,8 +119,10 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
                  `tests/dead_code.rs` fails while a `pub` item under `src/` has its name nowhere else in `src/` (a name scan, not a resolver) and is not on its `SEAMS` list, while a seam on that list is no longer declared or used by a test, while a `pub fn` of `tests/support/mod.rs` is used by no test, or while a `dead_code` attribute sits outside `tests/support/mod.rs`, naming each;
                  a test file that outgrows the limit becomes a folder (`tests/<name>/main.rs` plus one file per topic), so it stays one binary
 tests/AGENTS.md  the testing traps hit so far, the e2e `gh` shim dispatch note
-.github/AGENTS.md CI: what the workflows run and why (`check`, `audit`, the `version` check, the release queue, the tap), the `main` ruleset, branch cleanup; the release internals
+.github/AGENTS.md CI: what the workflows run and why (`check`, `audit`, the `version` check, the release queue, the tap), the `main` ruleset, branch cleanup, the issue forms and Discussions; the release internals
 .github/pull_request_template.md  `## Summary` and `## Changes`: the body `ship.sh` opens a draft PR with
+.github/ISSUE_TEMPLATE/       the bug report and feature request forms, and `config.yml` sending questions and deploy-source requests to Discussions
+.github/CONTRIBUTING.md       where a newcomer starts: points here, to `scripts/gates.sh`, `scripts/ship.sh` and the fragment rule, restates none of them
 ```
 
 ## Where the rest lives
@@ -398,7 +400,7 @@ is the committed code of every branch that changed what the binary is built from
 (`scripts/dev-install-skippable.sh`): `conveyor-dev` resolves to another worktree's build, and
 nothing between the merge base with `origin/main` and the working tree, untracked files
 included, is outside `tests/`, `docs/`, `plans/`, `scripts/`, `changes/`, `.github/`, an `AGENTS.md` at any depth (`src/` included),
-`PLAN.md`, `README.md`, `CONTRIBUTING.md`, `LICENSE` and `.gitignore`. That list lives in `scripts/feeds-binary.sh`, the one
+`PLAN.md`, `README.md`, `LICENSE` and `.gitignore`. That list lives in `scripts/feeds-binary.sh`, the one
 definition of "feeds the binary", which `dev-install-skippable.sh` calls. Everything else counts as feeding the
 binary (`src/`, `Cargo.toml`, `Cargo.lock`, the bundled `CHANGELOG.md`, any path nobody
 listed), and a missing or dangling `conveyor-dev`, or no `origin/main`, installs too. So a

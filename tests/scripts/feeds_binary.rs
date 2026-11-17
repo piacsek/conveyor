@@ -16,7 +16,7 @@ fn only_the_paths_that_feed_the_binary_are_printed() {
 
 #[test]
 fn paths_that_feed_nothing_print_nothing_and_succeed() {
-    let output = feeds_binary("README.md\n\nplans/phase-1.md\nCONTRIBUTING.md\n");
+    let output = feeds_binary("README.md\n\nplans/phase-1.md\n");
 
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert_eq!(stdout(&output), "");
