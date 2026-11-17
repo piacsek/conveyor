@@ -267,6 +267,7 @@ fn build_jobs(build: &Build, jobs: Option<&JobsState>, width: usize) -> Vec<Span
 pub(crate) fn deployed_row(
     row: &Deployment,
     behind: Option<usize>,
+    branch: &str,
     now: SystemTime,
     selected: bool,
     width: usize,
@@ -278,7 +279,7 @@ pub(crate) fn deployed_row(
         (None, None) => ('○', Color::DarkGray),
     };
     let right = match behind {
-        Some(0) => "at main".to_string(),
+        Some(0) => format!("at {branch}"),
         Some(n) => format!("↓{n}"),
         None => String::new(),
     };

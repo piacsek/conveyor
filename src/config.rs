@@ -319,6 +319,7 @@ pub struct Repo {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<PathBuf>,
     pub main_workflow: String,
+    pub branch: Option<String>,
     pub builds: usize,
     pub refresh_secs: u64,
     pub deploy: Vec<Deploy>,
@@ -330,6 +331,7 @@ impl Default for Repo {
             name: String::new(),
             path: None,
             main_workflow: "CI/CD".to_string(),
+            branch: None,
             builds: 10,
             refresh_secs: 30,
             deploy: Vec::new(),
@@ -411,6 +413,7 @@ pub fn load(path: &Path) -> Result<Config, ConfigError> {
         toml::from_str(&text).map_err(|err| error(err.to_string().trim().to_string()))?;
     check_tabs(&text, &config.prs).map_err(error)?;
     config.ui.titles.check().map_err(error)?;
+    check_branches(&config.repo).map_err(error)?;
     if config.ui.keys.next_tab == config.ui.keys.previous_tab {
         return Err(error(format!(
             "next_tab and previous_tab are both \"{}\"",
@@ -418,6 +421,28 @@ pub fn load(path: &Path) -> Result<Config, ConfigError> {
         )));
     }
     Ok(config)
+}
+
+fn check_branches(repos: &[Repo]) -> Result<(), String> {
+    for repo in repos {
+        let Some(branch) = repo.branch.as_deref() else {
+            continue;
+        };
+        let trimmed = branch.trim();
+        if trimmed.is_empty() {
+            return Err(format!(
+                "the branch of {} is blank; remove it or name the branch",
+                repo.name
+            ));
+        }
+        if trimmed != branch {
+            return Err(format!(
+                "the branch of {} has spaces around it; write it as \"{trimmed}\"",
+                repo.name
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn check_tabs(text: &str, prs: &Prs) -> Result<(), String> {

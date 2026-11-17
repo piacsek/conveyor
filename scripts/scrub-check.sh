@@ -1,11 +1,71 @@
 #!/usr/bin/env bash
-# Fail if any tracked file mentions a term from the local denylist. The list lives outside the
-# repository on purpose (this repository is public); the check is skipped when it is absent.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 list="${CONVEYOR_DENYLIST:-$HOME/.config/conveyor-dev/denylist}"
-[ -f "$list" ] || { echo "scrub-check: no denylist at $list, skipped"; exit 0; }
-if git ls-files -z | xargs -0 grep -niIF -f "$list" -- 2>/dev/null; then
+nearest="$list"
+while [ ! -e "$nearest" ] && [ ! -L "$nearest" ]; do
+  nearest="$(dirname "$nearest")"
+done
+if [ -z "${CONVEYOR_DENYLIST:-}" ] && [ "$nearest" != "$list" ] && [ -d "$nearest" ] && [ -x "$nearest" ]; then
+  echo "scrub-check: no denylist at $list, skipped"
+  exit 0
+fi
+if [ ! -f "$list" ] || [ ! -r "$list" ]; then
+  echo "scrub-check: $list is not a readable file" >&2
+  exit 1
+fi
+if [ ! -s "$list" ]; then
+  echo "scrub-check: $list is empty" >&2
+  exit 1
+fi
+found=0
+search() {
+  local what="$1" status=0
+  shift
+  "$@" || status=$?
+  case "$status" in
+    0) found=1 ;;
+    1) ;;
+    *) echo "scrub-check: $what failed" >&2; exit 1 ;;
+  esac
+}
+listed_paths() {
+  git ls-files -z --cached --others --exclude-standard | tr '\0' '\n' | grep -iF -f "$list"
+}
+read_log() {
+  "$@" || { echo "scrub-check: git log failed" >&2; exit 1; }
+}
+added_lines() {
+  awk '
+    /^diff / { hunk = 0; next }
+    /^@@/ { match($0, /^@+/); width = RLENGTH - 1; hunk = 1; next }
+    hunk && substr($0, 1, width) == substr("++++++++++++++++", 1, width) { print substr($0, width + 1) }
+  '
+}
+matches() {
+  local label="$1" text="$2"
+  printf '%s\n' "$text" | grep -iF -f "$list" | sed "s|^|scrub-check: $label: |"
+}
+if [ "${1:-}" = --outgoing ]; then
+  commits="$(read_log git rev-list HEAD --not --remotes)"
+  head="$(git rev-parse HEAD)"
+  for commit in $commits; do
+    label="commit $(git rev-parse --short "$commit")"
+    [ "$commit" = "$head" ] && label="$label (HEAD)"
+    message="$(read_log git log -1 --format=%B "$commit")"
+    paths="$(read_log git -c core.quotePath=false diff-tree -r --root --cc --no-commit-id --name-only --no-renames --diff-filter=d "$commit")"
+    diff="$(read_log git diff-tree -r --root --cc -p -U0 --no-color --no-ext-diff --no-commit-id "$commit")"
+    search "the outgoing check" matches "$label message" "$message"
+    search "the outgoing check" matches "$label path" "$paths"
+    search "the outgoing check" matches "$label added line" "$(printf '%s\n' "$diff" | added_lines)"
+  done
+  search "the outgoing check" matches "branch name" "$(git rev-parse --abbrev-ref HEAD)"
+else
+  search "git grep --untracked" git grep --untracked -niIF -f "$list"
+  search "git grep --cached" git grep --cached -niIF -f "$list"
+  search "the path check" listed_paths
+fi
+if [ "$found" = 1 ]; then
   echo "scrub-check: denylisted terms found (see above)" >&2
   exit 1
 fi

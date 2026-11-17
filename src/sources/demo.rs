@@ -24,6 +24,7 @@ const FAILED_LOG: &str = include_str!("demo/failed.log");
 const SESSIONS_LOG: &str = include_str!("demo/sessions.log");
 const CONFIG: &str = include_str!("demo/config.toml");
 const EXPIRED: &str = "ERROR: Active profile expired.";
+const REPOSITORY: &str = r#"{"default_branch":"main"}"#;
 const NO_COMMITS: &str = r#"{"data":{"repository":{}}}"#;
 const EMPTY_QUEUE: &str = r#"{"data":{"repository":{"mergeQueue":{"url":"https://github.com/acme/infra/queue/main","entries":{"nodes":[]}}}}}"#;
 
@@ -137,6 +138,7 @@ impl Github for Demo {
     fn rest(&self, path: &str) -> Result<Value, Failure> {
         let (route, query) = path.split_once('?').unwrap_or((path, ""));
         match route.split('/').collect::<Vec<_>>().as_slice() {
+            [_, _, _] => self.answer(REPOSITORY),
             [_, _, _, "actions", "workflows"] => self.answer(WORKFLOWS),
             [_, _, _, "actions", "workflows", _, "runs"] => self.answer(RUNS),
             [_, _, _, "actions", "runs"] if query.contains("event=merge_group") => {

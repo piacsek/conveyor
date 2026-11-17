@@ -17,9 +17,25 @@ in `plans/`.
 No employer data, ever: no org or repo names, PR numbers or titles, logins, hostnames, cluster
 or kube-context names, ticket prefixes. Fixtures come from this repo's own public PRs;
 screenshots and TUI tests use invented `acme/*` data; plans and docs use `<owner>/<repo>`
-placeholders. `scripts/scrub-check.sh` (first gate) fails when a tracked file matches the
-local denylist at `~/.config/conveyor-dev/denylist` (kept outside the repo on purpose; the
-check is skipped where the file is absent, so CI does not enforce it).
+placeholders. `scripts/scrub-check.sh` matches the local denylist at
+`~/.config/conveyor-dev/denylist` (or the file `CONVEYOR_DENYLIST` names) against what
+`ship.sh` publishes, three times: as the first gate and again between `git add -A` and
+`git commit`, it reads the contents and the paths of the index and of the working tree's
+tracked and untracked files that are not ignored; between `git commit` and `git push`,
+`--outgoing` reads the branch name and, for every commit no remote has yet, its message, the
+paths it adds or keeps and the lines it adds (a symlink's target and a merge's conflict
+resolution included), never a removed line or a deleted path, so a branch can remove a term
+`main` still holds. Each match says which of the four it was in and names its commit. A refused push
+leaves the commit local: `git reset --soft HEAD~1`, fix what is named (`git branch -m` for the
+branch name), ship again; an earlier commit has to be rewritten by hand. A refused merge is kept
+and fixed with `git commit --amend`: with nothing staged and commits no remote has, `ship.sh`
+pushes them without a new commit. The list is kept outside the repo on purpose; the check is
+skipped only where that default path is confirmed absent (the nearest existing path above it is
+a directory it can search), so CI does not enforce it, and fails, in both modes, when the path
+is there but is not a readable file, when its absence cannot be confirmed, when
+`CONVEYOR_DENYLIST` names one that is not, when the list is empty, or when `git grep` or
+`git log` cannot run. It does not read the contents of binary files, the author and committer of a
+commit, the PR body, or anything pushed without `ship.sh`.
 
 ## Layout
 
@@ -93,9 +109,9 @@ src/text.rs      text helpers: truncation and wrapping with `…`, ages, duratio
 rust-toolchain.toml           the one Rust version (rustfmt and clippy with it) that local gates and CI run; see Development
 flake.nix, flake.lock         the Nix flake: the binary built from `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md` and `src/` with the Rust `rust-toolchain.toml` names, through the locked `rust-overlay`; feeds the binary
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
-scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
+scripts/scrub-check.sh        denylist grep over what a commit would take (see "This repository is public")
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
-scripts/ship.sh               gates + dev-install (unless skippable) + commit + push, aborts on any failure; the first push of a branch opens the draft PR (commit subject as title, the template as body)
+scripts/ship.sh               gates + dev-install (unless skippable) + stage + scrub + commit (none when nothing is staged and commits are unpushed) + scrub of the outgoing commits and branch name + push, aborts on any failure; the first push of a branch opens the draft PR (commit subject as title, the template as body)
 scripts/dev-install-skippable.sh  exit 0 with the reason when `ship.sh` may leave `conveyor-dev` alone, else 1 with what needs the install
 scripts/script-tests-skippable.sh exit 0 with the reason when `gates.sh` may leave out the `scripts` test target, else 1 with the first path that needs it
 scripts/feeds-binary.sh       reads paths on stdin, prints the ones that feed the binary; the one list of what does not (`tests/`, `docs/`, `changes/`, …)

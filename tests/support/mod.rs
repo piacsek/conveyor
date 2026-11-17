@@ -104,6 +104,7 @@ pub fn builds(builds: Vec<Build>) -> io::Result<Input> {
         0,
         Ok(Rows::Builds(Builds {
             repo: "acme/webapp".to_string(),
+            branch: "main".to_string(),
             builds,
         })),
     ))

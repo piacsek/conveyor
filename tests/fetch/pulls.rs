@@ -333,6 +333,7 @@ fn a_run_that_carries_its_own_number_skips_the_commit_read() {
     let mut source = BuildsSource::new(Repo {
         name: "acme/webapp".to_string(),
         main_workflow: "ci.yml".to_string(),
+        branch: Some("main".to_string()),
         ..Repo::default()
     });
 

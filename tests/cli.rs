@@ -286,6 +286,33 @@ fn log_without_an_absolute_home_says_so_and_exits_one() {
     );
 }
 
+#[test]
+fn config_prints_the_branch_of_a_repository_that_sets_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_config(
+        &dir,
+        "[[repo]]\nname = \"acme/webapp\"\nbranch = \"develop\"\n",
+    );
+
+    let out = config_command(&path);
+
+    assert!(out.status.success(), "{out:?}");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("branch = \"develop\"\n"), "{stdout}");
+}
+
+#[test]
+fn config_leaves_the_branch_out_while_it_is_unset() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_config(&dir, "[[repo]]\nname = \"acme/webapp\"\n");
+
+    let out = config_command(&path);
+
+    assert!(out.status.success(), "{out:?}");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(!stdout.contains("branch"), "{stdout}");
+}
+
 const CONFIG_V0: &str = include_str!("fixtures/config-v0.toml");
 
 fn fixture(name: &str) -> std::path::PathBuf {

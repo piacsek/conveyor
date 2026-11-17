@@ -102,6 +102,7 @@ previous_tab = "shift-tab"
 name = "owner/name"
 path = "~/projects/name"      # optional; the local clone `S` then `c` checks a pull request out in
 main_workflow = "CI/CD"       # workflow name or file, e.g. ci.yml
+# branch = "main"             # optional; the branch Main builds reads, default the repository's default branch
 builds = 10                   # runs shown in the Main builds column
 refresh_secs = 30
 
