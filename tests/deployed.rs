@@ -99,6 +99,30 @@ fn a_deployment_at_the_newest_build_names_the_branch_main_builds_read() {
 }
 
 #[test]
+fn a_wide_branch_name_stays_inside_the_deployed_card() {
+    let mut h = Harness::with_size(160, 20);
+    let wide_builds = Ok(conveyor::app::Input::Data(
+        Stage::Builds,
+        0,
+        Ok(conveyor::app::Rows::Builds(
+            conveyor::model::builds::Builds {
+                repo: "acme/webapp".to_string(),
+                branch: "修复".to_string(),
+                builds: main_builds(),
+            },
+        )),
+    ));
+
+    h.run(vec![wide_builds, deployed(envs())]).unwrap();
+
+    let screen = h.screen();
+    let row = screen.lines().nth(1).unwrap();
+    assert!(row.contains("修"), "{screen}");
+    assert!(row.contains("复"), "{screen}");
+    assert!(row.ends_with("│"), "{screen}");
+}
+
+#[test]
 fn a_crashlooping_pod_puts_a_yellow_warning_after_the_glyph_and_its_reason_on_the_card() {
     let mut h = Harness::with_size(160, 20);
     let mut staging = deployment("staging", 26, Some((4840, "bob", "Speed up CI")));
