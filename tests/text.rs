@@ -18,6 +18,11 @@ fn wrap_fills_words_greedily_up_to_the_width() {
 }
 
 #[test]
+fn wrap_fills_a_line_up_to_its_width_in_cells() {
+    assert_eq!(wrap(WIDE, 10, 3), vec!["acme: 修复", "🚀 deploy"]);
+}
+
+#[test]
 fn wrap_marks_the_last_line_when_it_runs_out_of_lines() {
     assert_eq!(
         wrap("alpha beta gamma delta", 11, 2),
@@ -35,6 +40,16 @@ fn wrap_marks_the_last_line_when_it_runs_out_of_lines() {
 fn wrap_hard_cuts_a_word_longer_than_the_width() {
     assert_eq!(wrap("abcdefghij", 4, 3), vec!["abcd", "efgh", "ij"]);
     assert_eq!(wrap("abcdefghij", 4, 2), vec!["abcd", "efg…"]);
+}
+
+#[test]
+fn wrap_hard_cuts_a_wide_word_at_its_width_in_cells() {
+    assert_eq!(wrap("修复修复修复", 5, 3), vec!["修复", "修复", "修复"]);
+}
+
+#[test]
+fn wrap_puts_a_character_wider_than_the_line_on_a_line_of_its_own() {
+    assert_eq!(wrap("修复", 1, 3), vec!["修", "复"]);
 }
 
 #[test]

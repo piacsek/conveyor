@@ -43,16 +43,18 @@ pub fn wrap(text: &str, width: usize, lines: usize) -> Vec<String> {
     let mut current = String::new();
     for word in text.split_whitespace() {
         let mut word = word.to_string();
-        while word.chars().count() > width {
+        while display_width(&word) > width {
             if !current.is_empty() {
                 wrapped.push(std::mem::take(&mut current));
             }
-            wrapped.push(word.chars().take(width).collect());
-            word = word.chars().skip(width).collect();
+            let first = word.chars().next().map_or(0, char::len_utf8);
+            let at = fitting(&word, width).max(first);
+            wrapped.push(word[..at].to_string());
+            word = word[at..].to_string();
         }
         if current.is_empty() {
             current = word;
-        } else if current.chars().count() + 1 + word.chars().count() <= width {
+        } else if display_width(&current) + 1 + display_width(&word) <= width {
             current.push(' ');
             current.push_str(&word);
         } else {
