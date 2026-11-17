@@ -76,3 +76,22 @@ still starts at `INDENT`. The unselected card keeps a space there, so nothing sh
 - Manual with the user's own config: `z` on each column zooms and restores; a Deployed row
   shows the PR title before the author across as many lines as it needs; the selected card
   carries the cyan bar on every one of its lines.
+
+## Outcome
+
+- Shipped on `phase-6-zoom-and-cards` (PR #9): `App::zoom` + `z`; `text::wrap` (pure, unit
+  tested in `tests/text.rs`) behind Deployed cards that put one field per line, title first,
+  wrapped over at most two lines, with the error and the sha on their own lines and no line
+  cap; the bar on every card line; `▪─▪─▪▸` in the footer.
+- Two mid-phase corrections from the user: the highlight had to stay **minimal**, so the bar
+  became the card's left edge rather than a background or reverse video; and the old logo was
+  disliked because a Nerd Font drew `⟦▣⟧` as a boxed `[回]`, so logo glyphs must be
+  single-width with no brackets. Three candidates were offered and the rollers won.
+- `scripts/scrub-check.sh` earned its keep: the first draft of the plan file quoted a real PR
+  title and login from the user's screenshot and the gate refused the commit.
+- Bug found by the user mid-phase and fixed in the same release: the Main builds column drifted
+  out of order over a long session, because `merge_keeping_order` appended newly seen runs at
+  the bottom. `Row::ORDER` now sorts Main builds by `run_number` descending and the queue by
+  `position` ascending on every fetch; My PRs and Deployed stay as fetched.
+- Deferred: wrapping titles on the other three columns (their titles are already on line 1),
+  and a zoom indicator in the footer (the full-width column is obvious enough).

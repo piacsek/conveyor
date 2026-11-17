@@ -50,3 +50,16 @@ with a scripted source and a scripted clock that share the elapsed time, so noth
 2. A resize is sent as `Input::Resize`.
 3. Ticks come from a deadline while events stream.
 4. A held `p` opens one tab while ticks keep coming.
+
+## Outcome
+
+#88, v0.30.1. No outcome was written for this phase when it closed; this one is rebuilt
+from its fragment and pull request. The screen redraws at the new size as soon as the
+terminal is resized (`Input::Resize`), and ticks come every 250 ms from a deadline, so ages,
+the refresh spinner and the follow-up reload of My PRs keep moving while a key is held. The
+terminal events loop moved into `src/events.rs` behind an event source and a clock; a held
+`p` or `b` opens one tab while the clock keeps ticking.
+
+## Hurdles
+
+- `process` The phase closed without its outcome in `PLAN.md`; found only when the outcomes moved into the plan files → rule in `AGENTS.md`

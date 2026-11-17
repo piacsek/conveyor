@@ -11,3 +11,9 @@ Phase 24 (v0.20.0) shipped the `c` changelog pane and the changelog check with t
 
 ## Verification
 `scripts/gates.sh`; `conveyor-dev`, `M` on a card, `y`, `c` while it runs: the result shows in the changelog footer.
+
+## Outcome
+
+v0.20.1 (phase 25, `plans/phase-25-changelog-gaps.md`): the three gaps phase 24 left. A
+result that lands while the changelog or help is open shows in its footer; release dates
+must be calendar dates; a missing older entry says to merge `origin/main`.

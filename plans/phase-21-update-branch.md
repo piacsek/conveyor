@@ -97,3 +97,11 @@ Builds on phase 20 (`M`, PR #31): `Mode::Confirm(Pending)` with `Pending::{Rerun
 - Needs push access to the head branch; a fork PR without "allow edits" fails with gh's message.
 - Task 1's stream/exit-code check may change how `UpdateOutcome` is read (a `run` variant that
   keeps stderr on success).
+
+## Outcome
+
+v0.19.0 (phase 21, `plans/phase-21-update-branch.md`): `U` brings the base into the selected
+pull request's branch after a y/n, through `gh pr update-branch`, merging by default or
+rebasing with the new `prs.update_method`. Conflicts read
+`#N has conflicts with its base; resolve them locally`. Every confirm (`X`, `M`, `U`) moved
+from the footer to a dialog in the middle of the screen.

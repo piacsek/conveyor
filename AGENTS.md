@@ -9,7 +9,8 @@ A Rust + Ratatui TUI that shows where a change is on its way to production:
 my open pull requests, the merge queue, the last main builds, and what each
 environment runs. One column per stage, side by side; a focused column,
 actions on the selected row. `conveyor config` prints the effective config.
-`PLAN.md` holds the phase history, retros, and the backlog.
+`PLAN.md` is the index of phases and the backlog; each phase's plan, outcome and hurdles are
+in `plans/`.
 
 ## This repository is public
 
@@ -107,7 +108,10 @@ scripts/release-unfinished.sh `<tag>`: whether `build` and `publish` still have 
 scripts/previous-tag.sh       `<tag>`: the highest `vX.Y.Z` tag below it, read with `gh`, which `publish` names as the previous release for the generated notes
 scripts/release-tag.sh        the `tag` job of `release.yml` (refuses outside GitHub Actions): resume an unfinished tag, else tag what is pending, else nothing
 changes/                      one fragment per pull request that feeds the binary (`kind:` and the changelog bullets); add-only, see Releasing
-plans/                        one versioned plan file per phase (see Working agreements)
+plans/                        one versioned plan file per phase, ending with its `## Outcome` and `## Hurdles` (see Working agreements)
+plans/metrics.md              time and tokens, one row per phase from phase 53
+plans/original-plan.md        the approved plan of 2026-09-10 and the outcomes of phases 0 to 4; history, not live state
+plans/unphased.md             releases and fixes that had no phase
 scripts/homebrew-formula.sh   prints the tap formula for a released version
 scripts/formula-version.sh    the `tap` job's decision; never a version below the formula's
 scripts/stable-version.sh     the `stable-build` and `stable` jobs' decision, asked by both: the release the `stable` branch moves to, never below the version it holds
@@ -116,6 +120,7 @@ tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests driv
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
                  `tests/source_size.rs` fails while any Rust file under `src/` or `tests/` is longer than 700 lines, naming it;
                  `tests/toolchain.rs` fails while the `toolchain:` of `ci.yml` or `release.yml` differs from the channel of `rust-toolchain.toml`, or the `components:` of `ci.yml` or of the `build` job of `release.yml` from its `components`, or `rust-version` in `Cargo.toml` from its `major.minor`, or the `tag` job of `release.yml` loses `RUSTUP_TOOLCHAIN: stable`;
+                 `tests/plans.rs` fails while a plan file is missing from the `PLAN.md` index, a phase plan has no `## Outcome`, a plan from phase 40 has a malformed `## Hurdles`, or a phase from 53 has no `plans/metrics.md` row;
                  `tests/stage_dispatch.rs` fails while a match arm on a `Stage` variant sits in `src/app/` outside `stages/mod.rs`, naming the line;
                  `tests/dead_code.rs` fails while a `pub` item under `src/` has its name nowhere else in `src/` (a name scan, not a resolver) and is not on its `SEAMS` list, while a seam on that list is no longer declared or used by a test, while a `pub fn` of `tests/support/mod.rs` is used by no test, or while a `dead_code` attribute sits outside `tests/support/mod.rs`, naming each;
                  a test file that outgrows the limit becomes a folder (`tests/<name>/main.rs` plus one file per topic), so it stays one binary
@@ -165,7 +170,7 @@ impact.
   dialogs; `PLAN.md` backlog).
 - **The footer shows only the latest notice**: a success that lands under a prompt is hidden by
   it; a failure stays on its card (`src/app/AGENTS.md`, "A failed write marks the card";
-  `PLAN.md` phase 39).
+  `plans/phase-39-failed-write-marks.md`).
 - **A checkout can hang on ssh**: a key that needs a passphrase and has no agent prompts on
   `/dev/tty`, and a stalled fetch has no deadline (`src/app/AGENTS.md`, the checkout).
 - **Some commits cost a call on every refresh**: a sha the batch answers `null` for and REST
@@ -217,10 +222,13 @@ agent's private memory. When the user says "update the guidelines", edit the `AG
 nearest the code the guideline is about.
 
 - **"Work autonomously" means the whole road to a release, without pausing**, not even for
-  the retro: its outcome is written into `PLAN.md` in step 4 and the user reads it there. When the user
+  the retro: its outcome is written into the phase's plan file in step 4 and the user reads it there. When the user
   says it (or "autonomous", "march towards release"), assume this flow and ask only when a
   decision is genuinely theirs:
-  1. Plan in `plans/phase-N-<topic>.md` (next free N in `PLAN.md`), in a fresh worktree.
+  1. Plan in `plans/phase-N-<topic>.md` (next free N in `PLAN.md`), in a fresh worktree, with
+     its row in `PLAN.md` and in `plans/metrics.md`. When N is a multiple of 5, the phase opens
+     with the sweep (see "The sweep"). The first ship also backfills the previous rows of
+     `plans/metrics.md` (see "Time and tokens").
   2. `/my-tdd autonomous`: one task per red-green-refactor cycle, each shipped with
      `scripts/ship.sh` (gates, dev install, commit, push, draft PR on the first push).
   3. `/pr-review` the PR (see "Review before ready": what counts as must or should, when to
@@ -229,9 +237,9 @@ nearest the code the guideline is about.
      fixed when cheap, else listed in the PR body. The loop ends only on a round with no must/should findings, and that
      round is **unprimed**: the reviewers get the PR, the repo and this file, never the list
      of earlier findings or what was decided about them. Never post the review on the PR.
-  4. The phase outcome is in `PLAN.md` and, when the branch feeds the binary, its fragment
-     `changes/<branch>.md` is on it (no version bump, no `CHANGELOG.md` edit). The outcome ends
-     with its "Time and tokens" entry (see that bullet). Re-read the PR title and body, fix what
+  4. The plan file's `## Outcome` and `## Hurdles` are filled, its `plans/metrics.md` row
+     holds what is known by now (see "Time and tokens"), and, when the branch feeds the binary,
+     its fragment `changes/<branch>.md` is on it (no version bump, no `CHANGELOG.md` edit). Re-read the PR title and body, fix what
      went stale, `gh pr ready`, wait for CI green.
   5. Squash-merge, the only method `main` allows. Watch the `release` run the
      merge starts to green; with a fragment, check the release holds the six assets and the
@@ -244,10 +252,22 @@ nearest the code the guideline is about.
 - **Cadence.** Outside the autonomous flow above, work runs under `/my-tdd autonomous`: one branch per phase (`phase-N-<topic>`),
   one commit per task through `scripts/ship.sh` (the fixes of a review round are the exception:
   one commit per round, see "Review before ready"), no pause between tasks, a pause only for the
-  end-of-phase retro. Retro outcomes go to `PLAN.md` (facts, decisions, the "Time and tokens"
-  entry) and here (rules).
-- **Time and tokens.** Every phase outcome in `PLAN.md` ends with one entry starting with
-  `Time and tokens:`, written with the outcome, so it is on the branch before `gh pr ready`.
+  end-of-phase retro. Retro outcomes go to the plan file (`## Outcome` for facts and decisions,
+  `## Hurdles` for what got in the way), its `plans/metrics.md` row, and here (rules).
+- **Hurdles.** From phase 40, every plan file ends with `## Hurdles`: one bullet per thing that
+  got in the way, `` - `<tag>` <what happened> → <where it went> ``. The tag is one of
+  `review-loop`, `ci`, `tooling`, `test-seam`, `process`, `api-shape`, `design`; where it went
+  is `code`, `backlog`, `known limit`, `none` or `` rule in `<path>` `` (a file that exists).
+  A phase with nothing to say writes `- none recorded`. `tests/plans.rs` fails on any other shape.
+- **The sweep.** A phase whose number is a multiple of 5 starts with a sweep before its own
+  plan: read the `## Hurdles` of every phase since the last sweep and `plans/metrics.md`, and
+  look for a tag that keeps coming back, a `→ none` that happened twice, and the review rounds
+  and tokens drifting up. Each finding becomes a rule in the nearest `AGENTS.md`, a backlog
+  item or an issue, or is declined with its reason; the sweep's outcome opens that phase's
+  `## Outcome`. The retrospective checkpoints of `plans/original-plan.md` are its starting list.
+- **Time and tokens.** Every phase from 53 has one row in `plans/metrics.md`, written with the
+  outcome, so it is on the branch before `gh pr ready`; its Notes cell carries what a number
+  needs to be read right (a session shared between phases, a running total).
   The orchestrator (the main session) owns the numbers and hands them to the builder to write:
   the builder cannot see the reviewers' usage. It records only what is known by then:
   - Time: build start (the worktree's creation, the oldest entry of `git reflog show
@@ -260,8 +280,9 @@ nearest the code the guideline is about.
     cached input counts like fresh input is not known), which the orchestrator copies from that
     agent's last notice; the Codex reviewer and the orchestrator's own session report none from
     the inside.
-  - After the merge: a branch cannot record its own ready, merge or release, and nobody writes
-    them back into `PLAN.md`. The report of step 6 gives them, read from GitHub (`gh api
+  - After the merge: a branch cannot record its own ready, merge or release, so its row leaves
+    those cells empty, the report of step 6 gives them, and the first ship of the next phase
+    writes them into every row still missing them. Both read them from GitHub (`gh api
     repos/<owner>/<repo>/issues/<N>/timeline --jq
     '.[]|select(.event=="ready_for_review").created_at'`, `gh pr view <N> --json mergedAt`,
     `gh release view <tag> --json publishedAt`), and the total from build start to release, or
@@ -347,9 +368,11 @@ nearest the code the guideline is about.
 - **Plan before code, plans in the repo.** Each phase starts from a written plan, re-planned
   after the previous retro, with its "Verified facts" checked against live tools before use.
   Plans are versioned here: write each one to its own file under `plans/` (for example
-  `plans/phase-5-cards.md`) and commit it with the first ship of the phase. Never leave a plan
-  only in an agent's private plan directory or memory. `PLAN.md` stays the index of phases,
-  retros and the backlog; a phase's outcome is appended there when it closes. A plan that adds
+  `plans/phase-5-cards.md`) and commit it with the first ship of the phase, with empty
+  `## Outcome` and `## Hurdles` headings at its end that the phase fills before `gh pr ready`.
+  Never leave a plan only in an agent's private plan directory or memory. `PLAN.md` stays the
+  index of phases and the backlog; `tests/plans.rs` fails while a plan file is not linked from
+  it, a phase plan has no `## Outcome`, or a phase from 53 has no `plans/metrics.md` row. A plan that adds
   logic over external state (pod states, check states, merge states, write results) carries a
   table of the states and what the card shows for each, and that table is reviewed before any
   code is written: on #44, review rounds 1 to 3 each found pod states such a table would have

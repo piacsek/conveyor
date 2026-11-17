@@ -65,3 +65,23 @@ Outcome: one line per job, always the newest attempt; refreshes replace job data
   watching the card: one line, flipping `●` → result.
 - Blink: run `conveyor-dev` with a running build selected for 2+ refreshes; the job line
   and details pane stay put.
+
+## Outcome
+
+v0.14.1 (phase 15, `plans/phase-15-steady-jobs.md`): jobs stop flickering and duplicating.
+A refresh keeps a running run's jobs on screen while it asks again (it used to drop them, so
+the card flashed `jobs: loading…` every refresh); a run that finishes is asked once more, so
+its card no longer keeps the last "running" snapshot; a re-run shows one line per job, the
+newest attempt. The finished-run bug predates the phase and was found mid-phase. Deviation
+from the plan: `Job` gained no `run_attempt` field (the dedupe reads it while parsing), and the
+queue column got no test of its own (it shares `age_jobs` with Main builds). No real re-run
+response was available to capture; the dedupe test is built from the documented schema.
+My PRs' check list gets the same rule: one line per check from the newest workflow run, and
+a job name two workflows share is prefixed with its workflow.
+Checks past GitHub's 100 per page are now read too: its order groups old and new runs by
+name, so the cut could keep the old result.
+Every running run's jobs are fetched again on each refresh, selected or not (a few hundred
+requests an hour at most), so a running card never shows an old job line.
+A PR card's ✓/●/✗ now follows the deduplicated checks rather than GitHub's rollup, which
+still counted a superseded run's cancelled checks as a failure.
+Work now runs under `/my-tdd autonomous`.

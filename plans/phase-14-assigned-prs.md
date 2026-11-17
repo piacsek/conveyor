@@ -38,3 +38,12 @@ Advanced search does it in one call, deduped, with no new Rust code.
 - `scripts/gates.sh`
 - `conveyor-dev config` prints the new default query.
 - `conveyor-dev`: My PRs shows the count matching the advanced-search probe (14), no duplicates.
+
+## Outcome
+
+v0.14.0 (phase 14, `plans/phase-14-assigned-prs.md`): My PRs shows pull requests the user
+authored or is assigned to, once each. The search moved to `type: ISSUE_ADVANCED`, the only
+type that honours `OR` and parentheses (plain `ISSUE` returned 0 for the same query); GitHub
+dedupes server-side, so no client merge. Users with their own `prs.query` keep it. Found on
+the way: an exported `XDG_CONFIG_HOME` made the e2e panes and `screenshots.sh` read the real
+config; both now unset it and `CONVEYOR_CONFIG`.

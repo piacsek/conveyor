@@ -31,3 +31,12 @@ both true before the change. It reads lines now.
 
 The bold that marks the selected card lives on `card()`'s first line, which is now just the
 number — so the emphasis had quietly left the title. `build_row` styles the title line itself.
+
+## Outcome
+
+v0.12.0: two card fixes, shipped together. A cancelled run no longer blames the jobs its
+cancellation killed — GitHub marks them failed, and the card carried a red `✗ <job> · <step>`
+line for work that never failed on its own; the card falls back to the sha and the details
+pane still lists every job. And the build title gets a line of its own at full width instead
+of sharing the first line with the number and the age, which is what clipped it: a build card
+is four lines, at a deliberate cost in density.

@@ -134,3 +134,17 @@ before ready.
   healthy envs, and `d` on a Deployed row lists pods.
 - `conveyor log` shows two kubectl lines per env per refresh.
 - `docs/details.png` shows the warning card.
+
+## Outcome
+
+v0.23.0 (phase 30, `plans/phase-30-deploy-health.md`): a Deployed card shows the health of
+what runs, not only its sha. A second `kubectl get pods` per environment feeds a yellow `⚠`
+(a stuck, restarting or unschedulable pod, a stalled rollout or too few pods while the app
+still serves), a red `‼` (no pod is available) and a grey `?` (the pods could not be read), each with a reason
+line; `d` lists the target, replicas, failing conditions and every pod with its last exit.
+The grey `?` was added after the plan was approved: the first design showed nothing when
+`get pods` failed, which read as healthy. Red first followed the `Available` condition; the
+user moved it to "nothing serving" once it was clear that one pod of two flips that condition.
+The pod rules (`restarting`, `Unschedulable`, the `Ready` condition,
+`ReplicaFailure`) all came out of the review rounds. Fixtures are synthetic. Not done: deploy age from
+the cluster, `matchExpressions` selectors, health in the `/` filter.

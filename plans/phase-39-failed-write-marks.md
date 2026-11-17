@@ -50,3 +50,20 @@ My PRs (3) !1
 
 ## Verification
 `scripts/gates.sh`. Then in `conveyor-dev`: `S` `c` on a pull request whose repository has no local clone configured (the checkout refuses, nothing is written to GitHub), then at once `S` `t` on a draft. The footer ends on the draft's result; the first card still carries `! check out failed: …` and the title reads `My PRs (N) !1`. `d` shows the whole reason and its time; `Esc` closes the pane, a second `Esc` clears the mark and the count.
+
+## Outcome
+
+Phase 39 (`plans/phase-39-failed-write-marks.md`, #70, #72): a failed write leaves a red
+`! <action> failed: <reason>` line under the title of the card it was started from, My PRs
+cards and, for a rerun started there, Main builds cards. An error, an update that hit
+conflicts and a rerun where any run failed mark; successes leave nothing new. `d` on a marked
+card starts with the whole reason and the time it landed, and the column title counts marks
+(`My PRs (5) !1`, in the tabs of the narrow layout too). A mark clears when a new write starts
+on that row, on `Esc` with the marked card selected (after the details pane and zoom, before
+the live filter), or when the row leaves its column on a successful refresh. `App::failures`
+is filled from the `Write` the result removes, and `Listing::holds` lets `App::receive` prune
+without a `Stage` match. The help and README now read `Esc  close details / zoom / mark /
+filter`. Deviation: the partial rerun wording (`1 of 2 runs failed: …`) is tested from My
+PRs, since a Main builds rerun is always one run. Not done: the footer still shows only the
+latest notice, and a success that lands under a prompt is still hidden by it;
+`docs/details.png` was not regenerated, since its fixture has no failed write.

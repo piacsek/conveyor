@@ -190,3 +190,31 @@ each interval; `Shift-Tab` returns to the first tab with the same row selected. 
 - Inactive tabs show no "stale since" age in the bar; the footer's fetch time covers the
   active tab, and switching starts a refresh.
 - Tabs for Merge queue, Main builds and Deployed: a later phase (backlog, task 9).
+
+## Outcome
+
+Phase 40 (`plans/phase-40-column-tabs.md`, #79): My PRs has tabs, one per `[[prs.tab]]`
+(a name, a query and an optional limit), drawn as a bar inside the column when there are two
+or more. `Tab`/`Shift-Tab` (rebindable in `[ui.keys]`, the first rebindable keys) cycle them
+and `1`-`9` pick one; columns are reached with `h`/`l` only. Only the active tab is fetched:
+the refresh channel and every result carry a tab index, so a late result lands in its own
+tab. Each tab keeps its rows and selection; a switch clears the filter. Marks are pruned only
+when no tab holds the row. Review round 1: the merge wait ends only on a fetch of the tab the
+merge was sent from (the plan first said any tab, which offered `u` on a pull request that
+had just joined the queue); `ctrl-i`, `ctrl-m`, `ctrl-j`, `ctrl-h` and `ctrl-[` are refused
+as tab keys, since terminals send them as other keys; the README's config block loads
+(`tests/readme.rs`). A config from before the phase loads and prints unchanged, plus
+the `[ui.keys]` defaults (`tests/fixtures/config-v0.toml`). Deviations: the help gained a row,
+so it needs an 18-row terminal (it was 17); `[ui.keys]` also refuses the same key for both
+tab keys; `Prs::tabs()` landed with the fetcher (task 3), not with the config (task 1), so no
+item was ever unused; `conveyor config` leaves `[prs].query` out while tabs are set, so its
+output loads back. Not done: `docs/details.png` was not regenerated (`freeze` is not
+installed here); `scripts/screenshots.sh` now configures two tabs, so its next run shows the
+bar.
+
+## Hurdles
+
+- `review-loop` The plan ended the merge wait on a fetch of any tab, which offered `u` on a pull request that had just joined the queue; round 1 found it → code
+- `api-shape` Terminals send `ctrl-i`, `ctrl-m`, `ctrl-j`, `ctrl-h` and `ctrl-[` as other keys, so they cannot be tab keys → code
+- `tooling` `freeze` was not installed, so the tabs shipped without a new `docs/details.png` → rule in `AGENTS.md`
+- `test-seam` The help gained a row and needs an 18-row terminal in its tests → none

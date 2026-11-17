@@ -27,3 +27,11 @@ went through, `U` on `Updated`), so the user decided to keep that behaviour and 
    stays until the answer lands. TUI test in `tests/builds.rs`: a failed run with its jobs
    loaded comes back passing with `attempt: 2` in one refresh; the card ends on the new jobs.
 3. Docs (AGENTS.md, PLAN.md), `/pr-review`, release as a patch.
+
+## Outcome
+
+v0.19.1 (phase 22, `plans/phase-22-rerun-attempts.md`): a main build or merge-group run
+rerun from GitHub that passes between two polls no longer keeps its old failed job line
+(#32); cached jobs from an older `run_attempt` are fetched again. Asked on the way: reload a
+pull request after `U`/`X`. Both already refresh My PRs as soon as the action lands, so the
+behaviour was kept and no fetch added.
