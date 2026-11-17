@@ -4,6 +4,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::app::{Input, Rows, Stage};
+use crate::crash;
 use crate::sources::failure::Failure;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -105,7 +106,8 @@ pub fn spawn(
     mut fetch: impl FnMut(usize) -> Result<Rows, Failure> + Send + 'static,
 ) -> Sender<usize> {
     let (refresh_tx, refresh_rx) = mpsc::channel::<usize>();
-    thread::spawn(move || {
+    let named = thread::Builder::new().name(format!("{stage:?} fetcher"));
+    let spawned = named.spawn(move || {
         let mut schedule = Schedule::new(tabs, interval, Instant::now());
         loop {
             let wake = match schedule.timeout(Instant::now()) {
@@ -118,12 +120,14 @@ pub fn spawn(
             if tx.send(Ok(Input::Fetching(stage, tab))).is_err() {
                 return;
             }
-            if tx.send(Ok(Input::Data(stage, tab, fetch(tab)))).is_err() {
+            let data = crash::catch(|| fetch(tab)).and_then(|data| data);
+            if tx.send(Ok(Input::Data(stage, tab, data))).is_err() {
                 return;
             }
             schedule.fetched(Instant::now());
         }
     });
+    spawned.expect("the fetcher thread starts");
     refresh_tx
 }
 

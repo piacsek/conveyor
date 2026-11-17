@@ -202,6 +202,55 @@ fn a_deployment_without_match_labels_is_unread_and_asks_for_no_pods() {
     assert_eq!(kube.selectors.lock().unwrap().len(), 0);
 }
 
+#[test]
+fn a_crashed_environment_read_comes_back_as_the_deployed_columns_error() {
+    use conveyor::app::{Input, Rows, Stage};
+    use conveyor::config::{Deploy, DeployEnv};
+    use conveyor::sources::failure::Failure;
+    use conveyor::sources::fetch::DeploySource;
+    let gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    let deploy = Deploy {
+        env: ["dev", "staging"]
+            .iter()
+            .map(|name| DeployEnv {
+                name: name.to_string(),
+                ..DeployEnv::default()
+            })
+            .collect(),
+        ..Deploy::default()
+    };
+    let mut source = DeploySource::new("acme/webapp".to_string(), deploy);
+    let (inputs_tx, inputs) = std::sync::mpsc::channel();
+
+    let _refresh = conveyor::refresh::spawn(
+        Stage::Deployed,
+        std::time::Duration::from_secs(60),
+        1,
+        inputs_tx,
+        move |_| {
+            Ok(Rows::Deployed(source.fetch(
+                &gh,
+                &PanickingKube,
+                std::time::SystemTime::UNIX_EPOCH,
+            )))
+        },
+    );
+
+    let wait = std::time::Duration::from_secs(5);
+    assert_eq!(
+        inputs.recv_timeout(wait).unwrap().unwrap(),
+        Input::Fetching(Stage::Deployed, 0)
+    );
+    assert_eq!(
+        inputs.recv_timeout(wait).unwrap().unwrap(),
+        Input::Data(
+            Stage::Deployed,
+            0,
+            Err(Failure::crashed(&"staging read crashed"))
+        )
+    );
+}
+
 #[derive(Default)]
 struct OverlappingKube {
     running: std::sync::Mutex<usize>,
@@ -226,6 +275,28 @@ impl conveyor::sources::kube::Kube for OverlappingKube {
             .unwrap();
         *running -= 1;
         Err("unreachable".to_string().into())
+    }
+
+    fn pods(
+        &self,
+        _env: &conveyor::config::DeployEnv,
+        _selector: &str,
+    ) -> Result<String, conveyor::sources::failure::Failure> {
+        Ok(r#"{"items":[]}"#.to_string())
+    }
+}
+
+struct PanickingKube;
+
+impl conveyor::sources::kube::Kube for PanickingKube {
+    fn deployment(
+        &self,
+        env: &conveyor::config::DeployEnv,
+    ) -> Result<String, conveyor::sources::failure::Failure> {
+        if env.name == "staging" {
+            panic!("staging read crashed");
+        }
+        Ok(deployment_json("ghcr.io/acme/api:0123456789abcdef"))
     }
 
     fn pods(

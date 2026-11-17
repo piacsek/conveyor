@@ -860,18 +860,72 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   `docs/details.png` (unchanged) and shoots `docs/plain.png` without it. Decisions: a draft is
   still told by its icon and colour only (no `draft` word back on the meta line); `→` echoes
   the `⇥N` queue position on the same line. Fragment `kind: feat`.
+- Phase 53 (`plans/phase-53-cast-lints.md`, closes #90): the gates fail on an `as` cast that
+  can lose a value and on any `unsafe`. `Cargo.toml` gains `[lints]`: `unsafe_code = "forbid"`
+  and `cast_possible_truncation`, `cast_sign_loss`, `cast_possible_wrap` and `cast_lossless` at
+  `warn`, which `-D warnings` in `scripts/gates.sh` turns into errors. With the pinned clippy
+  they found 16 warnings on 14 lines under `src/` (the issue's 32 counted each twice, once for
+  the lib and once for its test build) and 7 lines under `tests/`. `text::cells` turns a count
+  into a `u16` width and saturates, used at every `usize` to `u16` site, `src/` and `tests/`
+  alike (one `u128` to `u64` in `tests/events.rs` takes `try_from`); `text::scroll` clamps an `i32` scroll offset to `0..=u16::MAX`; `u16` to `i32` goes
+  through `i32::from`; `text::clock` adds its offset in `i128`. The rest of `clippy::pedantic`
+  stays off. Fragment `kind: internal`.
+  Time and tokens (backfilled after the release, so unlike a branch's own line it holds ready,
+  merge and release; times UTC): start 2026-11-17 04:56:47Z, draft PR 05:02:19Z, ready
+  05:19:27Z, merged 05:19:31Z, released v0.34.1 05:21:50Z, start to release 25m03s; 1 review round
+  (clean). Tokens: builder 115,897 and Claude reviewer 93,701 (measured, `subagent_tokens` of
+  the last completion notice), Codex reviewer unknown, orchestrator unknown (one session shared
+  with phases 54 and 55).
+- Phase 54 (`plans/phase-54-worker-panics.md`, closes #93): a panic on a background thread
+  no longer breaks the terminal or leaves anything waiting. Reproduced first: a panic in the
+  Merge queue fetcher ran ratatui's hook, which left the alternate screen and raw mode from
+  that thread, printed over the main screen, and left the keys in canonical mode (`q` did not
+  quit) and the column on `fetching…`. `crash::catch` wraps one unit of work: a worker request
+  answers with `crashed: <msg>` where its result would have been (`worker::Task` per request
+  type), a column fetch comes back as that tab's error, a Deployed reader's panic (re-raised on
+  the fetcher) as the Deployed column's error, and the events thread ends the app with
+  `terminal events stopped: crashed: <msg>`. `crash::hook`, installed before any thread
+  starts, logs every panic with its thread name and location and calls ratatui's hook on the
+  main thread only. New `FailureKind::Crashed`. Decisions: the thread keeps running after a
+  crash (no restart, no cap); the Deployed column fails as a whole, as for any reader panic;
+  no `panic = "abort"` in any profile, pinned by a test. Fragment `kind: fix`.
+  Time and tokens (backfilled, as for phase 53): start 2026-11-17 04:56:47Z, draft PR
+  05:06:49Z, ready 05:36:13Z, merged 05:36:16Z, released v0.34.2 05:37:58Z, start to release
+  41m11s, part of it catching up with `main` after phases 53 and 55 merged; 1 review round (one test
+  tightened, one finding declined). Tokens: builder 138,798 and Claude reviewer 121,972
+  (measured, as for phase 53), Codex reviewer unknown, orchestrator unknown (shared).
+- Phase 55 (`plans/phase-55-contributing.md`, #109, closes #99): a place for early users.
+  `.github/CONTRIBUTING.md` points to `AGENTS.md`, `scripts/gates.sh`, `scripts/ship.sh` and
+  the fragment rule. It lives under `.github/` because a top-level file feeds the binary by
+  `scripts/feeds-binary.sh`, and listing it there would not have helped: `version.yml` runs the
+  base's script, which refused it locally. So the pull request needs no fragment and releases
+  nothing. `.github/ISSUE_TEMPLATE/` holds a bug report
+  and a feature request form, each opening with a reminder not to paste private names, and a
+  `config.yml` with blank issues off that sends questions to Q&A and deploy-source requests to
+  the Ideas category of Discussions. Outside the pull request: Discussions turned on (Q&A is a
+  default category; categories cannot be created through the API, so a dedicated deploy-sources
+  category is left to the owner); `good first issue` and `help wanted` already existed. Backlog
+  items opened as starter issues: #111 (wide characters, `good first issue`), #112
+  (`merge_method` per `[[repo]]`, `good first issue`), #113 (approve, `help wanted`), #114
+  (Main builds tabs, `help wanted`).
+  Time and tokens (backfilled, as for phase 53): start 2026-11-17 04:56:47Z, draft PR
+  05:02:22Z, ready 05:17:12Z, merged 05:26:54Z, no release (docs only), start to merge 30m07s,
+  part of it catching up with `main` after phase 53 merged; 1 review round (three wording
+  fixes). Tokens: builder 155,003 (measured, as for phase 53; it rose across its completion
+  notices, 126,609, then 134,457, so it is a running total) and Claude reviewer 90,368 (measured), Codex reviewer
+  unknown, orchestrator unknown (shared).
 
 ## Deferred / backlog (discuss at retros)
 
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
-- More `S` actions: `gh pr review --approve`; reopen if the query ever lists closed pull requests.
-- Merge follow-ups from the phase 20 review: `merge_method` per `[[repo]]` (one global value cannot
+- More `S` actions: `gh pr review --approve` (#113); reopen if the query ever lists closed pull requests.
+- Merge follow-ups from the phase 20 review: `merge_method` per `[[repo]]` (#112) (one global value cannot
   serve a squash-only and a merge-commit-only repo at once); a write result that lands while the other prompt is open is
   hidden by that prompt (the failure half is done in phase 39: a failure stays on its card; a
-  success is still hidden); the footer cuts titles by characters, not display width.
+  success is still hidden); the footer cuts titles by characters, not display width (#111).
 - Follow one PR across columns: `f` on a PR highlights its sha/number in queue, builds, deployed.
 - Desktop/tmux notification on queue state change or main build failure (tmux-agents `watch` pattern).
-- Main builds tabs, one per `[[repo]]`, following the Merge queue's active tab (phase 42 gave
+- Main builds tabs (#114), one per `[[repo]]`, following the Merge queue's active tab (phase 42 gave
   the queue its tabs; decided with the user on 2026-11-14).
 - Deployed tabs, one per application of the monorepo, switched independently of the queue.
 - Native GitHub client if `gh` latency becomes a problem (measure first; each call ~0.3–1 s).

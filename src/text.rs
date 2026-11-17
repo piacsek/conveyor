@@ -1,5 +1,13 @@
 use std::time::{Duration, SystemTime};
 
+pub fn cells(count: usize) -> u16 {
+    u16::try_from(count).unwrap_or(u16::MAX)
+}
+
+pub fn scroll(offset: i32) -> u16 {
+    u16::try_from(offset.max(0)).unwrap_or(u16::MAX)
+}
+
 pub fn truncate(text: &str, width: usize) -> String {
     let count = text.chars().count();
     if count <= width {
@@ -86,9 +94,9 @@ pub fn elapsed(value: Duration) -> String {
 pub fn clock(at: SystemTime, utc_offset_secs: i32) -> String {
     let secs = at
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
+        .map(|d| i128::from(d.as_secs()))
         .unwrap_or(0)
-        + i64::from(utc_offset_secs);
+        + i128::from(utc_offset_secs);
     let day = secs.rem_euclid(86_400);
     format!("{:02}:{:02}:{:02}", day / 3600, day % 3600 / 60, day % 60)
 }

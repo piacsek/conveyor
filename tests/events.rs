@@ -82,6 +82,27 @@ fn the_loop_ends_when_nobody_listens() {
     assert_eq!(source.script.len(), 1);
 }
 
+#[test]
+fn a_crash_in_the_events_loop_is_forwarded_as_an_error_that_ends_the_app() {
+    let (tx, rx) = mpsc::channel();
+
+    forward(
+        &mut Crashing,
+        &Fake {
+            elapsed: Rc::default(),
+        },
+        &tx,
+    );
+    drop(tx);
+    let inputs: Vec<io::Result<Input>> = rx.into_iter().collect();
+
+    assert_eq!(inputs.len(), 1);
+    assert_eq!(
+        inputs[0].as_ref().unwrap_err().to_string(),
+        "terminal events stopped: crashed: boom"
+    );
+}
+
 fn forwarded(script: Vec<(u64, Event)>) -> Vec<io::Result<Input>> {
     let elapsed = Rc::new(Cell::new(Duration::ZERO));
     let mut source = Scripted {
@@ -134,7 +155,7 @@ impl EventSource for Scripted {
             Ok(true)
         } else {
             self.elapsed.set(self.elapsed.get() + timeout);
-            *delay -= timeout.as_millis() as u64;
+            *delay -= u64::try_from(timeout.as_millis()).unwrap();
             Ok(false)
         }
     }
@@ -144,6 +165,18 @@ impl EventSource for Scripted {
             .pop_front()
             .map(|(_, event)| event)
             .ok_or_else(|| io::Error::other("script over"))
+    }
+}
+
+struct Crashing;
+
+impl EventSource for Crashing {
+    fn poll(&mut self, _: Duration) -> io::Result<bool> {
+        panic!("boom");
+    }
+
+    fn read(&mut self) -> io::Result<Event> {
+        panic!("boom");
     }
 }
 

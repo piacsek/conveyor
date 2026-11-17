@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::{fmt, io};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -7,6 +8,7 @@ pub enum FailureKind {
     NotSignedIn,
     Offline,
     TimedOut,
+    Crashed,
     Other,
 }
 
@@ -34,6 +36,14 @@ impl Failure {
         Self {
             kind: FailureKind::TimedOut,
             message,
+        }
+    }
+
+    pub fn crashed(payload: &(dyn Any + Send)) -> Self {
+        let said = crate::crash::said(payload);
+        Self {
+            kind: FailureKind::Crashed,
+            message: format!("crashed: {said}"),
         }
     }
 
