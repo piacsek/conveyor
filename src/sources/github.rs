@@ -266,10 +266,11 @@ impl CliGh {
         )
     }
 
-    fn deadline(&self, limit: Limit) -> (Duration, Option<&'static str>) {
+    fn deadline(&self, limit: Limit) -> Option<Duration> {
         match limit {
-            Limit::Read => (self.read, None),
-            Limit::Write(aftermath) => (self.write, Some(aftermath)),
+            Limit::Read => Some(self.read),
+            Limit::Write(_) => Some(self.write),
+            Limit::Unbounded => None,
         }
     }
 
@@ -290,8 +291,8 @@ impl CliGh {
             .args(args)
             .envs(env.iter().copied())
             .stdin(Stdio::null());
-        let (deadline, aftermath) = self.deadline(limit);
-        let output = match runner::run(&mut command, Some(deadline)) {
+        let deadline = self.deadline(limit);
+        let output = match runner::run(&mut command, deadline) {
             Ok(Ran::Finished(output)) => Ok(output),
             Ok(Ran::TimedOut(stderr)) => {
                 self.log
@@ -299,11 +300,11 @@ impl CliGh {
                 let silent = format!(
                     "{} did not answer within {}s",
                     tool.name,
-                    deadline.as_secs()
+                    deadline.unwrap_or_default().as_secs()
                 );
-                return Err(Failure::timed_out(match aftermath {
-                    Some(aftermath) => format!("{silent}; {aftermath}, press r"),
-                    None => silent,
+                return Err(Failure::timed_out(match limit {
+                    Limit::Write(aftermath) => format!("{silent}; {aftermath}, press r"),
+                    _ => silent,
                 }));
             }
             Err(err) if err.kind() == io::ErrorKind::NotFound => {
@@ -331,6 +332,7 @@ impl CliGh {
 enum Limit {
     Read,
     Write(&'static str),
+    Unbounded,
 }
 
 struct Tool<'a> {
@@ -444,7 +446,7 @@ impl Github for CliGh {
         let remotes = self
             .exec(
                 &Tool::git(&self.git),
-                Limit::Read,
+                Limit::Unbounded,
                 dir,
                 &Self::remotes_args(),
                 &[],
@@ -455,7 +457,7 @@ impl Github for CliGh {
         }
         self.exec(
             &Tool::gh(&self.program),
-            Limit::Read,
+            Limit::Unbounded,
             dir,
             &Self::checkout_args(repo, number),
             &[("GIT_TERMINAL_PROMPT", "0")],
