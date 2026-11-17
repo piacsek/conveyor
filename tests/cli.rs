@@ -313,6 +313,40 @@ fn config_leaves_the_branch_out_while_it_is_unset() {
     assert!(!stdout.contains("branch"), "{stdout}");
 }
 
+#[test]
+fn config_refuses_my_prs_refreshing_more_often_than_every_ten_seconds() {
+    let (code, stderr) = refusal("[prs]\nrefresh_secs = 0\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("config.toml: [prs] refresh_secs is 0; use 10 or more"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_a_repository_refreshing_more_often_than_every_ten_seconds() {
+    let (code, stderr) = refusal("[[repo]]\nname = \"acme/webapp\"\nrefresh_secs = 9\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[[repo]] refresh_secs of acme/webapp is 9; use 10 or more"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn config_refuses_a_deploy_refreshing_more_often_than_every_ten_seconds() {
+    let (code, stderr) =
+        refusal("[[repo]]\nname = \"acme/webapp\"\n[[repo.deploy]]\nrefresh_secs = 0\n");
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("[[repo.deploy]] refresh_secs of acme/webapp is 0; use 10 or more"),
+        "{stderr}"
+    );
+}
+
 const CONFIG_V0: &str = include_str!("fixtures/config-v0.toml");
 
 fn fixture(name: &str) -> std::path::PathBuf {
@@ -381,4 +415,13 @@ fn write_config(dir: &tempfile::TempDir, text: &str) -> std::path::PathBuf {
     let path = dir.path().join("config.toml");
     std::fs::write(&path, text).unwrap();
     path
+}
+
+fn refusal(text: &str) -> (Option<i32>, String) {
+    let dir = tempfile::tempdir().unwrap();
+    let out = config_command(&write_config(&dir, text));
+    (
+        out.status.code(),
+        String::from_utf8_lossy(&out.stderr).into_owned(),
+    )
 }

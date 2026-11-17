@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+mod values;
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
@@ -414,6 +416,7 @@ pub fn load(path: &Path) -> Result<Config, ConfigError> {
     check_tabs(&text, &config.prs).map_err(error)?;
     config.ui.titles.check().map_err(error)?;
     check_branches(&config.repo).map_err(error)?;
+    values::check(&config).map_err(error)?;
     if config.ui.keys.next_tab == config.ui.keys.previous_tab {
         return Err(error(format!(
             "next_tab and previous_tab are both \"{}\"",
