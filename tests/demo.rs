@@ -1,8 +1,9 @@
 use std::time::SystemTime;
 
 use conveyor::config::{Config, Prs, Repo, Ui};
+use conveyor::model::deployed::Health;
 use conveyor::sources::demo::{self, Demo};
-use conveyor::sources::fetch::{BuildsSource, fetch_jobs, fetch_queue};
+use conveyor::sources::fetch::{BuildsSource, DeploySource, fetch_jobs, fetch_queue};
 
 #[test]
 fn the_demo_watches_its_own_repositories_instead_of_the_users() {
@@ -112,4 +113,65 @@ fn every_demo_run_has_jobs() {
     let jobs = fetch_jobs(&Demo, "acme/webapp", 1).unwrap();
 
     assert_eq!(jobs.len(), 2);
+}
+
+#[test]
+fn the_demo_dev_runs_the_newest_main_build() {
+    let deployed = demo_deployed();
+
+    assert_eq!(deployed.rows[0].env, "dev");
+    assert_eq!(
+        deployed.rows[0].sha.as_deref(),
+        Some("8c1f2a7d94e3b06f5a2c9d18e7b4f0a3c6d5e291")
+    );
+    assert_eq!(
+        deployed.rows[0].pull.as_ref().map(|pull| pull.number),
+        Some(4840)
+    );
+    assert_eq!(deployed.rows[0].health, Health::Healthy);
+}
+
+#[test]
+fn the_demo_staging_rolls_out_a_crash_looping_pod() {
+    let deployed = demo_deployed();
+
+    assert_eq!(deployed.rows[1].env, "staging");
+    assert_eq!(deployed.rows[1].pods.len(), 3);
+    assert_eq!(
+        deployed.rows[1].pods[0].stuck.as_deref(),
+        Some("CrashLoopBackOff")
+    );
+    assert_eq!(
+        deployed.rows[1].health,
+        Health::Warning("1 of 3 pods CrashLoopBackOff".to_string())
+    );
+}
+
+#[test]
+fn the_demo_prod_runs_an_older_build() {
+    let deployed = demo_deployed();
+
+    assert_eq!(deployed.rows[2].env, "prod");
+    assert_eq!(
+        deployed.rows[2].pull.as_ref().map(|pull| pull.number),
+        Some(4790)
+    );
+}
+
+#[test]
+fn the_demo_uat_cannot_be_read() {
+    let deployed = demo_deployed();
+
+    assert_eq!(deployed.rows[3].env, "uat");
+    assert_eq!(
+        deployed.rows[3].error.as_ref().map(|err| err.message()),
+        Some("ERROR: Active profile expired.")
+    );
+}
+
+fn demo_deployed() -> conveyor::model::deployed::Deployed {
+    let config = demo::config(Config::default());
+    let repo = &config.repo[0];
+    let mut source = DeploySource::new(repo.name.clone(), repo.deploy[0].clone());
+    source.fetch(&Demo, &Demo, SystemTime::now())
 }

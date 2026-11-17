@@ -17,7 +17,10 @@ const MERGE_GROUP_RUNS: &str = include_str!("demo/merge-group-runs.json");
 const WORKFLOWS: &str = include_str!("demo/workflows.json");
 const PULLS: &str = include_str!("demo/pulls.json");
 const JOBS: &str = include_str!("demo/jobs.json");
+const DEPLOYMENTS: &str = include_str!("demo/deployments.json");
+const PODS: &str = include_str!("demo/pods.json");
 const CONFIG: &str = include_str!("demo/config.toml");
+const EXPIRED: &str = "ERROR: Active profile expired.";
 const NO_COMMITS: &str = r#"{"data":{"repository":{}}}"#;
 const EMPTY_QUEUE: &str = r#"{"data":{"repository":{"mergeQueue":{"url":"https://github.com/acme/infra/queue/main","entries":{"nodes":[]}}}}}"#;
 
@@ -39,6 +42,14 @@ impl Demo {
             .map_err(|err| Failure::from(format!("demo fixture is invalid JSON: {err}")))?;
         aged(&mut value, SystemTime::now());
         Ok(value)
+    }
+
+    fn environment(&self, fixture: &str, env: &DeployEnv) -> Result<String, Failure> {
+        let answer = self.answer(fixture)?;
+        answer
+            .get(&env.name)
+            .map(Value::to_string)
+            .ok_or_else(|| Failure::from(EXPIRED.to_string()))
     }
 }
 
@@ -132,10 +143,10 @@ impl Github for Demo {
 
 impl Kube for Demo {
     fn deployment(&self, env: &DeployEnv) -> Result<String, Failure> {
-        Err(no_fixture(&env.name))
+        self.environment(DEPLOYMENTS, env)
     }
 
     fn pods(&self, env: &DeployEnv, _selector: &str) -> Result<String, Failure> {
-        Err(no_fixture(&env.name))
+        self.environment(PODS, env)
     }
 }
