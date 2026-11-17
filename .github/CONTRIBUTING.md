@@ -11,12 +11,15 @@ start. Questions and requests for a new deploy source go to
 - Read [`AGENTS.md`](../AGENTS.md): the rules, the layout, and how work is tested and shipped.
   Start with [This repository is public](../AGENTS.md#this-repository-is-public), which holds for
   issues and screenshots too.
-- Each directory has its own `AGENTS.md` with the facts about its code; read it before touching
-  that directory.
+- Before touching a part of the code, read the `AGENTS.md` that the
+  [Where the rest lives](../AGENTS.md#where-the-rest-lives) table names for it.
 
 ## Checks and shipping
 
 - [`scripts/gates.sh`](../scripts/gates.sh) runs every check a change must pass.
-- [`scripts/ship.sh`](../scripts/ship.sh) runs the checks, then commits and pushes.
+- [`scripts/ship.sh`](../scripts/ship.sh) is the maintainer's: after the checks it
+  installs `~/.local/bin/conveyor-dev`, commits everything with `git add -A`, pushes, and opens
+  a draft pull request assigned to whoever runs it. From a fork, `scripts/gates.sh` and an
+  ordinary pull request are enough.
 - A pull request that changes what the binary is built from adds a fragment under
   [`changes/`](../changes/); see Releasing in [`AGENTS.md`](../AGENTS.md#releasing).
