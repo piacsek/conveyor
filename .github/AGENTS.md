@@ -348,8 +348,8 @@ every other step when the tag's release is already `complete`, so no run, a reru
 one included, rebuilds a published version or replaces its assets (their checksums never
 change once published). Otherwise `build` (one `macos-latest` job for both Apple targets, Intel cross-compiled, and one
 Linux job; `macos-13` is retired and queues forever; its toolchain step installs the pinned
-version with the targets, and rustup adds the rustfmt and clippy that `rust-toolchain.toml`
-names on the first `cargo` call) checks out the tag, refuses it when
+version with the targets and the rustfmt and clippy that `rust-toolchain.toml` names, so
+the toolchain already satisfies the file and `cargo` downloads nothing) checks out the tag, refuses it when
 `Cargo.toml` there reads another version, and packages one flat tarball per target
 (`conveyor-<target>.tar.gz` holding just the binary) plus `.sha256`; `publish` attests them
 (`gh attestation verify <tarball> --repo piacsek/conveyor`) and creates the release with

@@ -789,7 +789,8 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   preinstalled stable, as before; without it rustup would download 1.98.1 there first, a new
   network step in the job that pushes the tag, and the merge of this pull request starts a
   release run. `version` was already immune (its cargo runs from a scratch directory with
-  `RUSTUP_TOOLCHAIN` set); `build` gains only rustfmt and clippy on its first cargo call.
+  `RUSTUP_TOOLCHAIN` set); `build` installs rustfmt and clippy in its toolchain step, so cargo downloads nothing there
+  (`tests/toolchain.rs` keeps that step's `components:` equal to the file's).
   Fragment `kind: internal`.
 
 ## Deferred / backlog (discuss at retros)

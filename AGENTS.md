@@ -110,7 +110,7 @@ scripts/screenshots.sh        renders docs/details.png, plus one `shoot` per ext
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
                  `tests/source_size.rs` fails while any Rust file under `src/` or `tests/` is longer than 700 lines, naming it;
-                 `tests/toolchain.rs` fails while the `toolchain:` of `ci.yml` or `release.yml` differs from the channel of `rust-toolchain.toml`, or `rust-version` in `Cargo.toml` from its `major.minor`, or the `tag` job of `release.yml` loses `RUSTUP_TOOLCHAIN: stable`;
+                 `tests/toolchain.rs` fails while the `toolchain:` of `ci.yml` or `release.yml` differs from the channel of `rust-toolchain.toml`, or the `components:` of the `build` job of `release.yml` from its `components`, or `rust-version` in `Cargo.toml` from its `major.minor`, or the `tag` job of `release.yml` loses `RUSTUP_TOOLCHAIN: stable`;
                  `tests/stage_dispatch.rs` fails while a match arm on a `Stage` variant sits in `src/app/` outside `stages/mod.rs`, naming the line;
                  `tests/dead_code.rs` fails while a `pub` item under `src/` has its name nowhere else in `src/` (a name scan, not a resolver) and is not on its `SEAMS` list, while a seam on that list is no longer declared or used by a test, while a `pub fn` of `tests/support/mod.rs` is used by no test, or while a `dead_code` attribute sits outside `tests/support/mod.rs`, naming each;
                  a test file that outgrows the limit becomes a folder (`tests/<name>/main.rs` plus one file per topic), so it stays one binary
@@ -345,7 +345,7 @@ Without tmux the last gate is a plain `cargo test` and a notice that the e2e tes
 
 The gates and CI run the same Rust: `rust-toolchain.toml` pins it for every `cargo` that
 rustup provides, and the workflows install the same version. A toolchain bump is one pull
-request that changes the channel there, the `toolchain:` of `ci.yml` and `release.yml`, and
+request that changes the channel there, the `toolchain:` of `ci.yml` and `release.yml` (and, for new components, their `components:`), and
 `rust-version` in `Cargo.toml` (its `major.minor`); `tests/toolchain.rs` fails while any of
 them differs.
 The `tag` job of `release.yml` stays on the runner image's `stable` on purpose (why: `.github/AGENTS.md`).
