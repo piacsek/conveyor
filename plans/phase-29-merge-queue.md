@@ -32,3 +32,11 @@ On a pull request whose base has a merge queue, `m` reads `add to merge queue` a
 
 ## Verification
 `scripts/gates.sh`; `conveyor-dev`, `S` on a merge-queue pull request reads `m  add to merge queue`.
+
+## Outcome
+
+v0.21.2 (phase 29, `plans/phase-29-merge-queue.md`): on a pull request whose base has a merge
+queue, `m` reads `add to merge queue` and sends `enqueuePullRequest` after `y`. `gh pr merge`
+enqueues through auto-merge, which GitHub refuses on a repository with auto-merge off, so `m`
+failed there while the web's "Merge when ready" worked. Ships before phase 28 (the log), whose
+branch merges `origin/main` and keeps v0.22.0.

@@ -61,3 +61,18 @@ after it shows the result.
 ## After the merge, by hand and only on the user's yes
 Rewrite the notes of v0.24.2 to v0.30.1 (eight releases) with the body `generate-notes` answers
 for each tag against the one below it. The old bodies are saved first.
+
+## Outcome
+
+Phase 45 (`plans/phase-45-release-notes.md`): the release notes list only the pull requests
+since the release before. GitHub picked the nearest ancestor tag, always v0.24.1, since
+release tags sit on commits reachable only from their tag; `publish` now names the previous
+tag, the highest `vX.Y.Z` below the new one (`scripts/previous-tag.sh`, read with `gh api
+--paginate`). The generated notes (pull request titles) stay, as the user chose. No fragment:
+nothing feeds the binary, so the next release is the first to show it. Left, by hand and only
+on the user's yes: rewriting the notes of v0.24.2 to v0.30.1.
+
+## Hurdles
+
+- `ci` GitHub's generated notes picked the nearest ancestor tag, always v0.24.1, because release tags sit on commits reachable only from their tag → code
+- `process` The notes of v0.24.2 to v0.30.1 still list too much; rewriting them waits for the owner's yes → none

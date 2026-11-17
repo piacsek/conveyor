@@ -110,3 +110,28 @@ the branch.
 4. The `flake` job in `ci.yml`, measured.
 5. Guidelines: root `AGENTS.md` (layout, Releasing), `.github/AGENTS.md` (the job, why it is
    not required, recovery), `PLAN.md`.
+
+## Outcome
+
+Phase 51 (`plans/phase-51-nix-flake.md`, #106, part of #96): conveyor installs with Nix,
+`nix --extra-experimental-features 'nix-command flakes' profile install
+github:piacsek/conveyor/stable`. `flake.nix` builds the binary with
+`rustPlatform.buildRustPackage` from `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md` and `src/`
+with the Rust of `nixos-unstable` (1.99.1; `nixos-26.05` has 1.95, below `rust-version`), no
+check phase, and brings no `gh`, `git` or `kubectl`. The release run's new `stable-build` job
+(read-only) builds the flake at the newest complete release's tag and checks its version, and
+the `stable` job (write, no Nix) asks again and moves the `stable` branch there (`scripts/stable-version.sh`, sharing the release walk with
+`formula-version.sh` in `releases.sh`); it never goes back. A non-required `flake` job in
+`ci.yml` builds it on Linux (1 min 49 s) and macOS (3 min 9 s). Proven with Docker
+(`aarch64-linux`) and on the throwaway repository (first release, a rerun, a second release,
+a rerun of the old `stable` job). Decisions: no `x86_64-darwin` (nixpkgs 26.11 dropped it);
+`flake.nix` and `flake.lock` feed the binary, so a flake change releases; no path filter and
+no Nix cache on the CI job. `stable` does not exist until this pull request's release run
+creates it. Fragment `kind: feat`. Review round 1: the README command failed on a default Nix
+install (`nix-command` is experimental; CI's install action enables it), and the single
+`stable` job held `contents: write` while it built the tag, so it was split in two.
+
+## Hurdles
+
+- `review-loop` The README's Nix command failed on a default Nix install, where `nix-command` is experimental; CI's install action had hidden it → code
+- `ci` The single `stable` job held `contents: write` while it built the tag, so it was split into a read-only build and a write job → code

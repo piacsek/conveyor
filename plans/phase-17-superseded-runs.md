@@ -22,3 +22,10 @@ check suite has `conclusion: CANCELLED`, the new one is `IN_PROGRESS`.
 
 ## Verification
 Gates; both queries run against live GitHub without errors; `conveyor-dev` on the reporting PR.
+
+## Outcome
+
+v0.15.1 (phase 17, `plans/phase-17-superseded-runs.md`): a PR card no longer reads `✗`
+because of a job that only a cancelled, superseded run had (a final status job the newer
+run has not reached yet). Checks of a cancelled run are dropped once a newer run of the same
+workflow and event exists; a run that finished on its own keeps its checks.

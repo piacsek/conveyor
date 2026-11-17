@@ -90,3 +90,9 @@ rerun failed jobs of #812 (2 runs: CI, e2e)? y/n
   older run id; `rerunnable_runs` reads the deduplicated checks, so only surviving checks count.
 - Permissions: rerun needs `actions:write`; a token without it fails with gh's message in the
   footer. Nothing is retried automatically.
+
+## Outcome
+
+v0.17.0 (phase 19, `plans/phase-19-rerun.md`): `X` reruns failed jobs after a `y/n`
+prompt in the footer, for the selected main build or every finished failing run behind a
+pull request. The first write action; its confirm mode is the one later write actions reuse.

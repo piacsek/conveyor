@@ -57,3 +57,18 @@ typing `gh pr checkout <N>`. The `S` popup gets a `c` offer that does it.
 3. The offer, the in-flight state and the footer result.
 4. The worker and an e2e run through the `gh` shim.
 5. Docs, v0.24.0, changelog, outcome in `PLAN.md`.
+
+## Outcome
+
+v0.24.0 (phase 33, `plans/phase-33-checkout.md`): `S` then `c` checks a pull request out
+locally. The user chose `c` knowing it is also the changelog key in Normal mode, and chose
+an optional `[[repo]] path` with the directory conveyor runs in as the fallback. Checked
+against gh v2.103.3 before any code: `gh pr checkout <N> -R <repo>` inside a clone of
+another repository exits 0 and fetches the pull request into it, so `CliGh::checkout` reads
+`git remote -v` in the directory first and only goes on when a remote names the repository.
+The first cut asked `gh repo view`; review found it answers with the upstream of a fork
+cloned through `gh repo clone`, which refused a fork for its own pull requests. The offer is
+never dim: the popup runs nothing, so the refusal arrives in the footer. A branch already
+open in another worktree, or a dirty tree, shows git's own `fatal:`/`error:` line; the user
+asked for nothing more. Not done: cloning a repository that has no local clone, and a
+deadline for a fetch that stalls (an ssh remote waiting for a passphrase).

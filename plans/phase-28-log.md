@@ -60,3 +60,16 @@ leaves the first session in `conveyor.log.1`.
 ## Risks
 - A slow disk adds latency to each fetch: one short append per call, measured in the e2e run.
 - `query=<N chars>` hides which document ran when two share variables; acceptable until it bites.
+
+## Outcome
+
+v0.22.0 (phase 28, `plans/phase-28-log.md`): conveyor writes a log, one line per `gh` and
+`kubectl` call (argv with GraphQL documents shown as `query=<N chars>`, duration in ms, `ok` or
+`exit N: <stderr>`), plus start and quit. It lives at `$XDG_STATE_HOME/conveyor/<program>.log`
+(`~/.local/state/...` by default, `CONVEYOR_LOG` overrides), named after `argv[0]` so
+`conveyor` and `conveyor-dev` never share or rotate each other's file; each start keeps the
+previous session as `.log.1`. `conveyor log` prints the path. Two copies of the same program
+do not share cleanly: the second start rotates the first one's live file to `.log.1`, where it
+keeps writing, and a third start replaces `.log.1`, so the first copy's later lines are lost.
+Accepted for a diagnostics file. The file is `0600`, and an empty or relative base (`HOME`,
+`XDG_STATE_HOME`, `CONVEYOR_LOG=`) never puts it under the working directory.

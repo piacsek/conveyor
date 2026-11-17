@@ -46,3 +46,17 @@ loops of a different shape.
 
 `src/main.rs` holds no worker loop of its own, `tests/worker.rs` covers the generic worker, no
 file under `tests/snapshots` changed, and the gates pass.
+
+## Outcome
+
+Phase 46 (`plans/phase-46-generic-worker.md`, #101): the seven request workers of
+`src/main.rs` (jobs, log, rerun, merge, update, status, checkout) are seven closures over one
+`worker::spawn` in `src/worker.rs`. Its thread ends once every request sender is dropped
+(after finishing what is queued) or when sending a result fails because nobody reads the
+inputs any more; an idle worker keeps waiting. `tests/worker.rs` covers it; nothing visible changed, no
+snapshot moved, fragment `kind: internal`. The merge closure copies `merge_method` instead of
+cloning the whole config. The terminal event thread and `refresh::spawn` stay as they were.
+
+## Hurdles
+
+- none recorded

@@ -44,3 +44,14 @@ in the title while there is more. Handled beside `Ctrl-C`, before the mode dispa
 also work while a filter is being typed. The scroll returns to the top on every selection
 move, focus change and `d`. The job list is no longer truncated to the pane height: it is
 scrollable, so `job_lines` renders every job.
+
+## Outcome
+
+- v0.8.0: four asks from the user in one phase. Only the focused column highlights its
+  selected card (four cards used to look selected at once). The details pane carries no URLs.
+  `Enter` and `o` do nothing; the keymap pairs the two destinations instead: `p` opens the
+  pull request, `b` the build, `y`/`Y` copy either URL, and the details pane moved to `d`.
+  `p` and `y` no longer fall back to the run when a build has no pull request; they say so.
+
+- v0.9.0: `Ctrl-d`/`Ctrl-u` scroll the details pane half a page, so a run with more jobs than
+  the pane is tall is readable without a browser trip; the job list lost its height cap.

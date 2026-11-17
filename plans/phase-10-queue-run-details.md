@@ -20,3 +20,9 @@ whichever of the two columns is focused. No new call: the run was already being 
 1. `QueueEntry::run: Option<Build>`, parsed and attached.
 2. The queue details pane renders the run line and its jobs; the card carries the run number.
 3. Jobs are fetched for the focused queue entry and forgotten while its run is unsettled.
+
+## Outcome
+
+v0.10.0: a queue entry carries its whole merge-group run, so `d` on a queue card shows the
+run line and its jobs (with the failed step) exactly as a main build does, and the card shows
+the run number. No extra `gh` call: the run was already fetched for the check glyph.

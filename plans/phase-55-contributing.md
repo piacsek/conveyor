@@ -28,3 +28,25 @@ pasting private data, a short `CONTRIBUTING.md`, and at least three labelled sta
 - Backlog items still open in the code: the footer and dialogs cut text by characters
   (`src/text.rs`), `merge_method` is global (`src/config.rs`, `Prs`), there is no approve
   action (`src/app/actions/`), Main builds has no tabs (only `src/app/stages/queue.rs` does).
+
+## Outcome
+
+Phase 55 (`plans/phase-55-contributing.md`, #109, closes #99): a place for early users.
+`.github/CONTRIBUTING.md` points to `AGENTS.md`, `scripts/gates.sh`, `scripts/ship.sh` and
+the fragment rule. It lives under `.github/` because a top-level file feeds the binary by
+`scripts/feeds-binary.sh`, and listing it there would not have helped: `version.yml` runs the
+base's script, which refused it locally. So the pull request needs no fragment and releases
+nothing. `.github/ISSUE_TEMPLATE/` holds a bug report
+and a feature request form, each opening with a reminder not to paste private names, and a
+`config.yml` with blank issues off that sends questions to Q&A and deploy-source requests to
+the Ideas category of Discussions. Outside the pull request: Discussions turned on (Q&A is a
+default category; categories cannot be created through the API, so a dedicated deploy-sources
+category is left to the owner); `good first issue` and `help wanted` already existed. Backlog
+items opened as starter issues: #111 (wide characters, `good first issue`), #112
+(`merge_method` per `[[repo]]`, `good first issue`), #113 (approve, `help wanted`), #114
+(Main builds tabs, `help wanted`).
+
+## Hurdles
+
+- `ci` A top-level `CONTRIBUTING.md` feeds the binary by path, and listing it would not help since `version.yml` runs the base's script; it moved under `.github/` → code
+- `tooling` Discussion categories cannot be created through the API; a deploy-sources category is left to the owner → none

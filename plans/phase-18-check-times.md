@@ -63,3 +63,10 @@ Target:
 - External status contexts (non-Actions bots posting statuses) never get a time.
 - The PR column refreshes on its interval, so a check that finished between refreshes keeps
   ticking until the next fetch (same as running build cards today).
+
+## Outcome
+
+v0.16.0 (phase 18, `plans/phase-18-check-times.md`): each check in the My PRs details pane
+says how long it took, or how long it has been running. Job and run lines in the details
+pane went to second precision and running jobs tick. Cards stay coarse: seconds clipped the
+status word (`cancell…`) on a 40-column card, found by the builds snapshot.

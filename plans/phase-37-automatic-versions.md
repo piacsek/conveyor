@@ -109,6 +109,31 @@ The removal of `scripts/release.sh` and its tests moved from pull request 4 into
 - Majors are left out for now.
 
 ## Outcome (2026-11-12)
+
+Phase 37 (`plans/phase-37-automatic-versions.md`, #63, #64, #65 and #66;
+made the first automated release, phase 35's v0.24.2): the pipeline picks the version, a pull request cannot. `main` carries
+`0.0.0` and a frozen `CHANGELOG.md`; a pull request that feeds the binary adds a fragment
+`changes/<branch>.md` (`kind: fix|feat|internal`, the changelog bullets), and `release.yml`
+runs on every push to `main` as a one-at-a-time queue: it releases every fragment pending
+since the newest tag in a release commit reachable only from its tag, resumes an unfinished
+tag first, and moves the tap formula only forward. v0.24.2 was the first automated release
+(run 43135383854), checked down to `gh attestation verify`. The `version` check
+(`pull_request_target`, `scripts/version-check.sh`) refuses a version, a `CHANGELOG.md` edit,
+an edited or deleted fragment, and a binary change without a fragment. The owner decided:
+dev builds read `v0.0.0`; a binary change is always released, a refactor as an `internal`
+patch; no majors; and on 2026-11-12, `version` required in the `main` ruleset, branches up to
+date before merging, squash as the only merge method. The check grew far past the plan:
+five review rounds each found a way to hide a version from a line reader, so it asks cargo in
+an isolated copy of the head and rehearses the release rewrite with a random probe; squash-only
+was chosen over teaching it to replay a rebase-merge, which can land a tree it never judged.
+`scripts/release.sh` went in the cutover, so the cleanup was documentation. Not done: a merge
+queue (user-owned repository); a tag ruleset limiting `v*` tags to the workflow, since the
+private throwaway repository answers 403 to any ruleset on a free plan, so whether the job
+token can bypass one is unproven and the owner can still push a tag by hand. Known and left
+(`.github/AGENTS.md`): "feeds the binary" is judged by path only, the attestation records the
+run's `main` commit, `check` builds on Linux only, and cargo in the check can be pointed at
+`Cargo.toml` files outside its copy.
+
 - **#63, groundwork** (tasks 1, 2, 4): `scripts/feeds-binary.sh`, `fragments.sh`, `next-version.sh` and `release-commit.sh` with their tests; `dev-install-skippable.sh` called `feeds-binary.sh` from then on, nothing called the release scripts yet. Four review rounds.
 - **#64, cutover** (tasks 3, 5, 6, and the removal of `scripts/release.sh` from task 9): `main` at `0.0.0`, the v0.24.2 entry as a `fix` fragment, `release.yml` as the release queue on every push to `main` (`scripts/release-tag.sh`), drafts resumed, `build` and `publish` skipping a release that is already complete, a `tap` job that only moves the formula forward. Its merge made v0.24.2 the first automated release (run 43135383854: tag on a bot commit off `main`, six assets, attestation, tap formula), checked by downloading a tarball, its checksum and `gh attestation verify`.
 - **#65, enforcement** (task 7, squash-merged): the `version` check on `pull_request_target` (`scripts/version-check.sh`), and `check` running clippy and the tests with `--locked`. Five review rounds. Then, by the owner on 2026-11-12, the `main` ruleset gained `version` as a required check, the up-to-date rule (`strict_required_status_checks_policy: true`) and squash as its only merge method; the repository settings allow squash merges only.
