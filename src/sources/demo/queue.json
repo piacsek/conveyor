@@ -1,0 +1,64 @@
+{
+  "data": {
+    "repository": {
+      "mergeQueue": {
+        "url": "https://github.com/acme/webapp/queue/main",
+        "configuration": {
+          "mergeMethod": "SQUASH",
+          "maximumEntriesToBuild": 5,
+          "minimumEntriesToMerge": 1,
+          "mergingStrategy": "ALLGREEN"
+        },
+        "entries": {
+          "totalCount": 2,
+          "nodes": [
+            {
+              "position": 1,
+              "state": "AWAITING_CHECKS",
+              "enqueuedAt": "ago:900",
+              "estimatedTimeToMerge": 720,
+              "solo": false,
+              "jump": false,
+              "headCommit": {
+                "oid": "6babeb79d61cce5208232c669505ea4b42300c6d",
+                "statusCheckRollup": {
+                  "state": "PENDING"
+                }
+              },
+              "pullRequest": {
+                "number": 4836,
+                "title": "Cache the pricing page for a minute",
+                "url": "https://github.com/acme/webapp/pull/4836",
+                "author": {
+                  "login": "erin"
+                }
+              }
+            },
+            {
+              "position": 2,
+              "state": "AWAITING_CHECKS",
+              "enqueuedAt": "ago:300",
+              "estimatedTimeToMerge": 1080,
+              "solo": false,
+              "jump": false,
+              "headCommit": {
+                "oid": "45e321c57891a97cb45e61188d1ec3b960664e35",
+                "statusCheckRollup": {
+                  "state": "PENDING"
+                }
+              },
+              "pullRequest": {
+                "number": 4827,
+                "title": "Log slow queries over 500 ms",
+                "url": "https://github.com/acme/webapp/pull/4827",
+                "author": {
+                  "login": "me"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

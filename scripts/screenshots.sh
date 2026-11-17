@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Render the README screenshot from a throwaway tmux server and a `gh` shim that prints a synthetic
-# fixture. Never touches the real gh account: HOME is a tempdir and the shim is first on PATH.
 # Usage: scripts/screenshots.sh [out-dir]   (needs tmux, freeze, Google Chrome, cargo build --release)
 set -euo pipefail
 
@@ -18,170 +16,6 @@ sock="conveyor-shots-$$"
 home="$(mktemp -d)"
 trap 'tmux -L "$sock" kill-server 2>/dev/null || true; rm -rf "$home"' EXIT
 t() { tmux -L "$sock" -f /dev/null "$@"; }
-
-mkdir -p "$home/bin"
-now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-ago() { date -u -v-"$1" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d "-$1" +%Y-%m-%dT%H:%M:%SZ; }
-cat >"$home/prs.json" <<JSON
-{"data":{"search":{"issueCount":3,"nodes":[
- {"number":4821,"title":"Retry webhook delivery with backoff","url":"https://github.com/acme/webapp/pull/4821",
-  "isDraft":false,"updatedAt":"$(ago 2H)","headRefName":"webhook-retry-backoff",
-  "repository":{"nameWithOwner":"acme/webapp"},"author":{"login":"me"},"reviewDecision":"APPROVED",
-  "mergeStateStatus":"BLOCKED","additions":12,"deletions":3,"mergeQueueEntry":null,
-  "statusCheckRollup":{"state":"FAILURE","contexts":{"totalCount":3,"nodes":[
-   {"name":"lint","status":"COMPLETED","conclusion":"SUCCESS","detailsUrl":"https://github.com/acme/webapp/actions/runs/1/job/2","startedAt":"$(ago 30M)","completedAt":"$(ago 29M)"},
-   {"name":"api / test","status":"COMPLETED","conclusion":"FAILURE","detailsUrl":"https://github.com/acme/webapp/actions/runs/1/job/3","startedAt":"$(ago 30M)","completedAt":"$(ago 26M)"},
-   {"name":"e2e","status":"IN_PROGRESS","conclusion":null,"detailsUrl":"https://github.com/acme/webapp/actions/runs/1/job/4","startedAt":"$(ago 12M)","completedAt":null}]}},
-  "reviews":{"nodes":[]},"reviewRequests":{"nodes":[]},"comments":{"totalCount":2}},
- {"number":4830,"title":"Add rate limit headers to the API","url":"https://github.com/acme/auth/pull/4830",
-  "isDraft":false,"updatedAt":"$(ago 40M)","headRefName":"rate-limit-headers",
-  "repository":{"nameWithOwner":"acme/auth"},"author":{"login":"me"},"reviewDecision":"REVIEW_REQUIRED",
-  "mergeStateStatus":"CLEAN","additions":80,"deletions":9,"mergeQueueEntry":null,
-  "statusCheckRollup":{"state":"PENDING","contexts":{"totalCount":1,"nodes":[
-   {"name":"CI/CD","status":"IN_PROGRESS","conclusion":null,"detailsUrl":"https://github.com/acme/auth/actions/runs/2/job/1"}]}},
-  "reviews":{"nodes":[]},"reviewRequests":{"nodes":[]},"comments":{"totalCount":0}},
- {"number":4790,"title":"Spike: parallel test runner","url":"https://github.com/acme/webapp/pull/4790",
-  "isDraft":true,"updatedAt":"$(ago 13d)","headRefName":"parallel-test-spike",
-  "repository":{"nameWithOwner":"acme/webapp"},"author":{"login":"me"},"reviewDecision":null,
-  "mergeStateStatus":"UNKNOWN","additions":1,"deletions":1,"mergeQueueEntry":null,
-  "statusCheckRollup":{"state":"SUCCESS","contexts":{"totalCount":1,"nodes":[
-   {"name":"CI/CD","status":"COMPLETED","conclusion":"SUCCESS","detailsUrl":"https://github.com/acme/webapp/actions/runs/3/job/1"}]}},
-  "reviews":{"nodes":[]},"reviewRequests":{"nodes":[]},"comments":{"totalCount":0}}
-]}}}
-JSON
-cp "$root/tests/fixtures/queue.json" "$home/queue.json"
-sha_4840=8c1f2a7d94e3b06f5a2c9d18e7b4f0a3c6d5e291
-sha_4821=b7e4d2c9a1f08635e9d47c2ab3f61d0e8a95c4f7
-sha_4830=d94a7c31e5f2b8069c4d1ea7f3b5c082d6e9a1b4
-sha_4790=5e2c8b9f1a47d3e06b8f4c2d9a1e7f35c0b6d8a2
-now_s="$(date -u +%s)"
-iso() { date -u -r "$1" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d "@$1" +%Y-%m-%dT%H:%M:%SZ; }
-run() {
-  local n="$1" status="$2" conclusion="$3" sha="$4" title="$5" started_ago="$6" took="$7"
-  local started=$(( now_s - started_ago ))
-  printf '{"id":%s,"run_number":%s,"status":"%s","conclusion":%s,"head_sha":"%s","display_title":"%s","html_url":"https://github.com/acme/webapp/actions/runs/%s","actor":{"login":"merge-bot"},"run_started_at":"%s","updated_at":"%s"}' \
-    "$n" "$n" "$status" "$conclusion" "$sha" "$title" "$n" "$(iso "$started")" "$(iso $(( started + took )))"
-}
-{
-  printf '{"workflow_runs":['
-  run 312 in_progress null $sha_4840 "Speed up CI with a warm cache (#4840)" 95 0; printf ','
-  run 311 completed '"failure"' $sha_4821 "Retry webhook delivery with backoff (#4821)" 3600 1097; printf ','
-  run 310 completed '"success"' $sha_4830 "Add rate limit headers to the API (#4830)" 7200 1002; printf ','
-  run 309 completed '"success"' $sha_4790 "Spike: parallel test runner (#4790)" 90000 930
-  printf ']}'
-} >"$home/runs.json"
-pulls() { printf '[{"number":%s,"title":"%s","html_url":"https://github.com/acme/webapp/pull/%s","user":{"login":"%s"}}]' "$1" "$2" "$1" "$3"; }
-pulls 4840 "Speed up CI with a warm cache" bob >"$home/pulls-$sha_4840.json"
-pulls 4821 "Retry webhook delivery with backoff" alice >"$home/pulls-$sha_4821.json"
-pulls 4830 "Add rate limit headers to the API" carol >"$home/pulls-$sha_4830.json"
-pulls 4790 "Spike: parallel test runner" dave >"$home/pulls-$sha_4790.json"
-jobs() {
-  local n="$1" status="$2" conclusion="$3" step="$4"
-  printf '{"total_count":2,"jobs":[
- {"id":%s01,"name":"check","status":"%s","conclusion":%s,"started_at":"%s","completed_at":%s,
-  "html_url":"https://github.com/acme/webapp/actions/runs/%s/job/%s01","steps":[
-   {"name":"Run cargo fmt --check","number":1,"status":"completed","conclusion":"success"},
-   {"name":"%s","number":2,"status":"%s","conclusion":%s}]},
- {"id":%s02,"name":"audit","status":"completed","conclusion":"success","started_at":"%s","completed_at":"%s",
-  "html_url":"https://github.com/acme/webapp/actions/runs/%s/job/%s02","steps":[]}]}' \
-    "$n" "$status" "$conclusion" "$(iso $(( now_s - 1200 )))" \
-    "$([ "$status" = completed ] && printf '"%s"' "$(iso $(( now_s - 1181 )))" || echo null)" \
-    "$n" "$n" "$step" "$status" "$conclusion" \
-    "$n" "$(iso $(( now_s - 1200 )))" "$(iso $(( now_s - 1000 )))" "$n" "$n"
-}
-mg_started="$(iso $(( now_s - 480 )))"
-jobs 313 in_progress null "Run cargo test" >"$home/jobs-313.json"
-jobs 312 in_progress null "Run cargo test" >"$home/jobs-312.json"
-jobs 311 completed '"failure"' "Run cargo test" >"$home/jobs-311.json"
-jobs 310 completed '"success"' "Run cargo test" >"$home/jobs-310.json"
-jobs 309 completed '"success"' "Run cargo test" >"$home/jobs-309.json"
-cat >"$home/bin/gh" <<SHIM
-#!/bin/sh
-case "\$*" in
-  *'repository(owner'*) cat "$home/queue.json";;
-  *'repo view'*) echo acme/webapp;;
-  *'actions/workflows?'*) echo '{"workflows":[{"id":22,"name":"CI/CD","path":".github/workflows/cicd.yml"}]}';;
-  *'actions/workflows/'*) cat "$home/runs.json";;
-  *actions/runs/*/jobs*) run=\$(printf '%s' "\$*" | sed -E 's#.*/actions/runs/([0-9]+)/jobs.*#\\1#'); cat "$home/jobs-\$run.json";;
-  *'/commits/'*'/pulls'*) sha=\$(printf '%s' "\$*" | sed -E 's#.*/commits/([0-9a-f]+)/pulls.*#\\1#'); cat "$home/pulls-\$sha.json";;
-  *'/commits/'*) echo '{"commit":{"message":"no suffix here"}}';;
-  *'/pulls/'*) echo '{}';;
-  *actions/runs*) echo '{"workflow_runs":[{"id":313,"run_number":313,"head_branch":"gh-readonly-queue/main/pr-4821-0000000000000000000000000000000000000000","status":"in_progress","conclusion":null,"display_title":"CI/CD","actor":{"login":"github-merge-queue[bot]"},"run_started_at":"$mg_started","updated_at":"$mg_started","html_url":"https://github.com/acme/webapp/actions/runs/313"},{"id":314,"run_number":314,"head_branch":"gh-readonly-queue/main/pr-4830-0000000000000000000000000000000000000000","status":"completed","conclusion":"cancelled","display_title":"CI/CD","actor":{"login":"github-merge-queue[bot]"},"run_started_at":"$mg_started","updated_at":"$mg_started","html_url":"https://github.com/acme/webapp/actions/runs/314"}]}';;
-  *) cat "$home/prs.json";;
-esac
-SHIM
-chmod +x "$home/bin/gh"
-
-deployment() {
-  printf '{"spec":{"replicas":2,"selector":{"matchLabels":{"app":"api"}},"template":{"spec":{"containers":[{"image":"ghcr.io/acme/api:%s"}]}}},"status":{"updatedReplicas":%s,"readyReplicas":2,"availableReplicas":2,"conditions":[{"type":"Available","status":"True"},{"type":"Progressing","status":"True"}]}}' "$1" "$2"
-}
-pod() {
-  printf '{"metadata":{"name":"%s"},"spec":{"containers":[{"image":"ghcr.io/acme/api:%s"}]},"status":{"phase":"Running","startTime":"%s","containerStatuses":[%s]}}' "$1" "$2" "$mg_started" "$3"
-}
-deployment "$sha_4840" 2 >"$home/deploy-dev.json"
-deployment "$sha_4821" 1 >"$home/deploy-staging.json"
-deployment "$sha_4790" 2 >"$home/deploy-prod.json"
-running='{"ready":true,"restartCount":0,"state":{"running":{}}}'
-crashing='{"ready":false,"restartCount":7,"state":{"waiting":{"reason":"CrashLoopBackOff","message":"back-off 5m0s restarting failed container=api"}},"lastState":{"terminated":{"exitCode":137,"reason":"OOMKilled"}}}'
-printf '{"items":[%s,%s,%s]}' \
-  "$(pod api-5b8f7c6d94-hq4zt "$sha_4790" "$running")" \
-  "$(pod api-5b8f7c6d94-m7wvn "$sha_4790" "$running")" \
-  "$(pod api-7d9c6b5f48-x2k9p "$sha_4821" "$crashing")" >"$home/pods-staging.json"
-cat >"$home/bin/kubectl" <<KUBE
-#!/bin/sh
-case "\$*" in
-  *ctx-staging*'get pods'*) cat "$home/pods-staging.json";;
-  *ctx-dev*'get pods'*|*ctx-prod*'get pods'*) echo '{"items":[]}';;
-  *ctx-dev*) cat "$home/deploy-dev.json";;
-  *ctx-staging*) cat "$home/deploy-staging.json";;
-  *ctx-prod*) cat "$home/deploy-prod.json";;
-  *) echo 'ERROR: Active profile expired.' >&2; exit 1;;
-esac
-KUBE
-chmod +x "$home/bin/kubectl"
-mkdir -p "$home/.config/conveyor"
-cat >"$home/.config/conveyor/config.toml" <<'TOML'
-[[prs.tab]]
-name = "mine"
-query = "is:pr is:open author:@me"
-
-[[prs.tab]]
-name = "review"
-query = "is:pr is:open review-requested:@me"
-
-[[repo]]
-name = "acme/webapp"
-
-[[repo.deploy]]
-system = "api"
-
-[[repo.deploy.env]]
-name = "dev"
-context = "ctx-dev"
-namespace = "api"
-deployment = "api"
-
-[[repo.deploy.env]]
-name = "staging"
-context = "ctx-staging"
-namespace = "api"
-deployment = "api"
-
-[[repo.deploy.env]]
-name = "prod"
-context = "ctx-prod"
-namespace = "api"
-deployment = "api"
-
-[[repo.deploy.env]]
-name = "uat"
-context = "ctx-uat"
-namespace = "api"
-deployment = "api"
-
-[[repo]]
-name = "acme/infra"
-TOML
 
 shot_window="$(t new-session -d -s main -x 160 -y 14 -c "$home" -P -F '#{window_id}')"
 t set -g status off
@@ -216,14 +50,14 @@ render() {
 shoot() {
   local name="$1" width="$2" height="$3" keys="$4"
   t resize-window -t "$shot_window" -x "$width" -y "$height"
-  t respawn-pane -k -t "$shot_window" "env -u XDG_CONFIG_HOME -u CONVEYOR_CONFIG -u XDG_STATE_HOME -u CONVEYOR_LOG HOME='$home' PATH='$home/bin:$PATH' '$bin'"
+  t respawn-pane -k -t "$shot_window" "env -u XDG_CONFIG_HOME -u CONVEYOR_CONFIG -u XDG_STATE_HOME -u CONVEYOR_LOG HOME='$home' '$bin' --demo"
   sleep 1.5
   [ -n "$keys" ] && t send-keys -t "$shot_window" "$keys" && sleep 0.5
   t capture-pane -e -p -t "$shot_window" | python3 "$home/truecolor.py" >"$home/$name.ansi"
   render "$name" --padding 20,64,20,20 --window
 }
 
-shoot details 160 26 "d"
+shoot details 160 26 "jd"
 echo "wrote $out/details.png"
 shoot help 160 26 "?"
 echo "wrote $out/help.png"

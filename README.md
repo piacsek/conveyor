@@ -41,6 +41,7 @@ nix --extra-experimental-features 'nix-command flakes' profile install github:pi
 conveyor           # the TUI, for the repository in the current directory
 conveyor config    # print the effective configuration
 conveyor log       # print the path of the log file
+conveyor --demo    # made-up acme/* data: no gh, kubectl or config needed, nothing is changed
 ```
 
 | Key | Action |

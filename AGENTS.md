@@ -32,6 +32,8 @@ src/config.rs    the config: its tables, defaults, path and `CONVEYOR_CONFIG` ov
 src/sources/     everything that reaches out to an external service, and nothing else
 src/sources/github.rs the Github trait and CliGh, which spawns `gh` (and `git` for the checkout guard), error mapping
 src/sources/kube.rs   the Kube trait and CliKubectl, which spawns `kubectl` under a deadline that kills it
+src/sources/demo.rs   Demo: the Github and Kube of `--demo`, answering from the built-in fixture; spawns and logs nothing, every write fails
+src/sources/demo/     that fixture: JSON with `ago:<secs>` times, the failed step's log, the demo's `[prs]` and `[[repo]]`
 src/sources/failure.rs Failure: what a failed call said and which kind of failure it was
 src/sources/fetch.rs  what each stage fetches, the sha → pull request cache, Deployed read per environment on parallel threads
 src/sources/queries/  GraphQL documents, `include_str!`ed
@@ -80,7 +82,7 @@ src/ui/AGENTS.md  cards, glyphs and icons, dialogs, the details, help and change
 src/refresh.rs   one fetcher thread per stage, sleeping until the interval or a refresh
 src/worker.rs    one thread per kind of request (jobs, log, rerun, merge, update, status, checkout): each request in, one input back
 src/events.rs    the terminal events thread: key presses and resizes as inputs, a tick every 250 ms by deadline
-src/open.rs      opening a URL and copying to the clipboard: the OS seam, not a service, so it stays out of `sources/`
+src/open.rs      opening a URL and copying to the clipboard: the OS seam, not a service, so it stays out of `sources/`; DemoOpener refuses to open
 src/changelog.rs the bundled CHANGELOG.md and the rules a release entry must meet
 src/ui/changelog.rs the `c` pane: wrapped to its width (bullets hang), headings bold without their `#`, scrolled like the details pane
 src/log.rs       the call log: its path, per program name, rotated on open
@@ -108,7 +110,7 @@ plans/                        one versioned plan file per phase (see Working agr
 scripts/homebrew-formula.sh   prints the tap formula for a released version
 scripts/formula-version.sh    the `tap` job's decision; never a version below the formula's
 scripts/stable-version.sh     the `stable-build` and `stable` jobs' decision, asked by both: the release the `stable` branch moves to, never below the version it holds
-scripts/screenshots.sh        renders docs/details.png, plus one `shoot` per extra view, from a gh shim + synthetic fixture (truecolor.py converts ANSI)
+scripts/screenshots.sh        renders docs/details.png, plus one `shoot` per extra view, from `conveyor --demo` (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
                  `tests/source_size.rs` fails while any Rust file under `src/` or `tests/` is longer than 700 lines, naming it;
@@ -183,8 +185,8 @@ for word; `tests/readme.rs` fails when the README and the help view drift, when 
 screenshot, a subsection or another section appears, or when the description grows past two
 sentences (the help view is the single source: change `KEYS`, then the table). Feature depth, glyph meanings and data-source notes belong in the `AGENTS.md` files, not there.
 **Every visible change to the main interface shows in `docs/details.png`**: a new or changed
-card line, glyph, bar, title, column or footer element. Extend the fixture or the config in
-`scripts/screenshots.sh` until the change appears on screen, rerun it, and commit the image in
+card line, glyph, bar, title, column or footer element. Extend the demo fixture under
+`src/sources/demo/` until the change appears on screen, rerun it, and commit the image in
 the same pull request; a reviewer reports a missing or stale screenshot as a should. (The
 My PRs tabs of phase 40 shipped without one.) Run `scripts/screenshots.sh` (needs `brew install
 charmbracelet/tap/freeze`, Google Chrome, and the FiraCode Nerd Font in `~/Library/Fonts`) and
@@ -192,9 +194,9 @@ commit the new images. Freeze lays out an SVG with the font embedded; headless C
 rasterises it, because freeze's own PNG output cannot draw Nerd Font glyphs. The script adds
 Menlo (DejaVu Sans Mono on Linux) as the SVG's fallback font family: FiraCode lacks `✗ ⊘ ▸`,
 and Chrome's default fallback is wider, so every row holding one shifted and the borders jogged.
-Fixture SHAs look real (`8c1f2a7d…`), not `33333333`. The script never
-reads the real `gh` account: `HOME` is a tempdir and a `gh` shim printing a synthetic
-`acme/*` fixture is first on PATH (through `env`, see the e2e trap in `tests/AGENTS.md`). Do not screenshot
+Fixture SHAs look real (`8c1f2a7d…`), not `33333333`. The script runs `conveyor --demo`, which
+reaches neither `gh` nor `kubectl`, with `HOME` a tempdir (through `env`, see the e2e trap in
+`tests/AGENTS.md`), so the screen shows the demo's footer marker too. Do not screenshot
 real data: this repository is public.
 
 Whenever behaviour changes, check that `README.md` is still true: a key, a default, a

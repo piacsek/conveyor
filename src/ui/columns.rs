@@ -114,6 +114,7 @@ pub(crate) fn draw_column(
     let now = app.now;
     let jobs = std::mem::take(&mut app.jobs);
     let repo = app.builds.repo.clone();
+    let linked = !app.demo;
     match stage {
         Stage::Prs => {
             let spinner = app.spinner();
@@ -135,7 +136,7 @@ pub(crate) fn draw_column(
                 |i, pr, on, w| {
                     let word = busy.get(i).cloned().flatten();
                     let busy = word.as_deref().map(|word| (spinner, word));
-                    let pull = Some((pr.number, pr.url.clone()));
+                    let pull = linked.then(|| (pr.number, pr.url.clone()));
                     let failure = failures.get(i).and_then(Option::as_ref);
                     (pr_row(pr, busy, failure, now, on, w), pull)
                 },
@@ -150,7 +151,7 @@ pub(crate) fn draw_column(
             "queue empty",
             |_, entry, on, w| {
                 let jobs = entry.run.as_ref().and_then(|run| jobs.get(&run.id));
-                let pull = Some((entry.number, entry.url.clone()));
+                let pull = linked.then(|| (entry.number, entry.url.clone()));
                 (queue_row(entry, jobs, now, on, w), pull)
             },
         ),
@@ -165,7 +166,7 @@ pub(crate) fn draw_column(
                 "no builds on main",
                 |i, build, on, w| {
                     let failure = failures.get(i).and_then(Option::as_ref);
-                    let pull = build.pull_request(repo.as_deref());
+                    let pull = build.pull_request(repo.as_deref()).filter(|_| linked);
                     (
                         build_row(build, jobs.get(&build.id), failure, now, on, w),
                         pull,
@@ -202,7 +203,8 @@ pub(crate) fn draw_column(
                     let pull = row
                         .pull
                         .as_ref()
-                        .map(|pull| (pull.number, pull.url.clone()));
+                        .map(|pull| (pull.number, pull.url.clone()))
+                        .filter(|_| linked);
                     let behind = behind.get(i).copied().flatten();
                     (deployed_row(row, behind, now, on, w), pull)
                 },

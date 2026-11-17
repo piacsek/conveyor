@@ -1,0 +1,17 @@
+check	Run cargo test	2026-01-01T00:00:00.0000000Z running 186 tests
+check	Run cargo test	2026-01-01T00:00:00.0000000Z test sessions::store::expires_after_idle_timeout ... ok
+check	Run cargo test	2026-01-01T00:00:00.0000000Z test sessions::store::survives_a_redis_restart ... FAILED
+check	Run cargo test	2026-01-01T00:00:00.0000000Z test sessions::store::keeps_the_user_id ... ok
+check	Run cargo test	2026-01-01T00:00:00.0000000Z 
+check	Run cargo test	2026-01-01T00:00:00.0000000Z failures:
+check	Run cargo test	2026-01-01T00:00:00.0000000Z 
+check	Run cargo test	2026-01-01T00:00:00.0000000Z ---- sessions::store::survives_a_redis_restart stdout ----
+check	Run cargo test	2026-01-01T00:00:00.0000000Z thread 'sessions::store::survives_a_redis_restart' panicked at src/sessions/store.rs:142:9:
+check	Run cargo test	2026-01-01T00:00:00.0000000Z session not found after reconnect: Connection refused (os error 61)
+check	Run cargo test	2026-01-01T00:00:00.0000000Z 
+check	Run cargo test	2026-01-01T00:00:00.0000000Z failures:
+check	Run cargo test	2026-01-01T00:00:00.0000000Z     sessions::store::survives_a_redis_restart
+check	Run cargo test	2026-01-01T00:00:00.0000000Z 
+check	Run cargo test	2026-01-01T00:00:00.0000000Z test result: FAILED. 185 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.87s
+check	Run cargo test	2026-01-01T00:00:00.0000000Z 
+check	Run cargo test	2026-01-01T00:00:00.0000000Z error: test failed, to rerun pass `--lib`

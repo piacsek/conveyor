@@ -1,0 +1,28 @@
+{
+  "total_count": 2,
+  "jobs": [
+    {
+      "id": RUN01,
+      "name": "check",
+      "status": "STATUS",
+      "conclusion": CONCLUSION,
+      "started_at": "ago:STARTED",
+      "completed_at": COMPLETED,
+      "html_url": "https://github.com/acme/webapp/actions/runs/RUN/job/RUN01",
+      "steps": [
+        { "name": "Run cargo fmt --check", "number": 1, "status": "completed", "conclusion": "success" },
+        { "name": "Run cargo test", "number": 2, "status": "STATUS", "conclusion": CONCLUSION }
+      ]
+    },
+    {
+      "id": RUN02,
+      "name": "audit",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "ago:STARTED",
+      "completed_at": "ago:AUDITED",
+      "html_url": "https://github.com/acme/webapp/actions/runs/RUN/job/RUN02",
+      "steps": []
+    }
+  ]
+}

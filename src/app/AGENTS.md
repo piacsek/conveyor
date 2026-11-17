@@ -264,6 +264,9 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   `file://` paths, app bundles or any custom URL scheme handler. `open::web_url` is the one
   check; `App::open` applies it (footer notice, nothing spawned) and `SystemOpener::open`
   applies it again as the last line before the spawn.
+- **The demo opens nothing.** Under `--demo`, `main` passes `run()` an `open::DemoOpener`:
+  `open` fails with `demo: acme/* is made up, so nothing was opened` (the footer notice), `copy`
+  copies as usual. Writes fail in `Demo` itself, so they leave the usual failed-write mark.
 - **Zoom.** `z` toggles `App::zoom`; `ui::draw` then renders only `app.focus` across the whole
   body and skips the column bar check, so the narrow layout is unaffected. Nothing else reads the flag.
 - **The details pane scrolls, the columns do not.** `Ctrl-d`/`Ctrl-u` move `App::details_scroll`

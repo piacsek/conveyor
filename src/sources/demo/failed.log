@@ -1,0 +1,19 @@
+check	Run cargo test	2026-01-01T00:00:00.0000000Z running 214 tests
+check	Run cargo test	2026-01-01T00:00:00.0000000Z test webhook::retry::backs_off_between_attempts ... ok
+check	Run cargo test	2026-01-01T00:00:00.0000000Z test webhook::retry::gives_up_after_five_attempts ... FAILED
+check	Run cargo test	2026-01-01T00:00:00.0000000Z test webhook::retry::keeps_the_delivery_id ... ok
+check	Run cargo test	2026-01-01T00:00:00.0000000Z 
+check	Run cargo test	2026-01-01T00:00:00.0000000Z failures:
+check	Run cargo test	2026-01-01T00:00:00.0000000Z 
+check	Run cargo test	2026-01-01T00:00:00.0000000Z ---- webhook::retry::gives_up_after_five_attempts stdout ----
+check	Run cargo test	2026-01-01T00:00:00.0000000Z thread 'webhook::retry::gives_up_after_five_attempts' panicked at src/webhook/retry.rs:88:9:
+check	Run cargo test	2026-01-01T00:00:00.0000000Z assertion `left == right` failed
+check	Run cargo test	2026-01-01T00:00:00.0000000Z   left: 6
+check	Run cargo test	2026-01-01T00:00:00.0000000Z  right: 5
+check	Run cargo test	2026-01-01T00:00:00.0000000Z 
+check	Run cargo test	2026-01-01T00:00:00.0000000Z failures:
+check	Run cargo test	2026-01-01T00:00:00.0000000Z     webhook::retry::gives_up_after_five_attempts
+check	Run cargo test	2026-01-01T00:00:00.0000000Z 
+check	Run cargo test	2026-01-01T00:00:00.0000000Z test result: FAILED. 213 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.21s
+check	Run cargo test	2026-01-01T00:00:00.0000000Z 
+check	Run cargo test	2026-01-01T00:00:00.0000000Z error: test failed, to rerun pass `--lib`

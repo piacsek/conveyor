@@ -20,17 +20,12 @@ use crate::ui::changelog::draw_changelog;
 use crate::ui::columns::{column_title, draw_column};
 use crate::ui::details::draw_details;
 use crate::ui::dialog::{draw_confirm, draw_manage};
-use crate::ui::footer::draw_footer;
+use crate::ui::footer::{draw_footer, draw_overlay_footer};
 use crate::ui::help::draw_help;
 use crate::ui::style::dim;
 
 pub use crate::ui::footer::logo;
 pub use crate::ui::help::KEYS;
-
-fn draw_overlay_footer(frame: &mut Frame, app: &App, hint: &str, area: Rect) {
-    let text = app.notice.as_deref().unwrap_or(hint);
-    frame.render_widget(Paragraph::new(text.to_string()), area);
-}
 
 pub fn draw(frame: &mut Frame, app: &mut App) {
     let [body, footer] =

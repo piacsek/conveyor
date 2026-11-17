@@ -14,13 +14,14 @@ use conveyor::cli::{self, Command};
 use conveyor::config::{self, Config, Repo, expand_home};
 use conveyor::events::{self, Crossterm, SystemClock};
 use conveyor::log::{self, Log};
-use conveyor::open::SystemOpener;
+use conveyor::open::{DemoOpener, Opener, SystemOpener};
 use conveyor::refresh;
+use conveyor::sources::demo::{self, Demo};
 use conveyor::sources::fetch::{
     BuildsSource, DeploySource, fetch_jobs, fetch_log, fetch_prs, fetch_queue, repos, rerun_failed,
 };
 use conveyor::sources::github::{CliGh, Github};
-use conveyor::sources::kube::CliKubectl;
+use conveyor::sources::kube::{CliKubectl, Kube};
 use conveyor::worker;
 
 fn main() -> ExitCode {
@@ -58,7 +59,29 @@ fn main() -> ExitCode {
             print!("{}", config.to_toml());
             Ok(())
         }
-        Command::Tui => tui(config, config_error),
+        Command::Tui => {
+            let log = log_path().map_or_else(Log::default, |path| Log::open(&path));
+            let gh_log = log.clone();
+            let kube_log = log.clone();
+            tui(
+                config,
+                config_error,
+                log,
+                move || CliGh::default().with_log(gh_log.clone()),
+                move || CliKubectl::default().with_log(kube_log.clone()),
+                SystemOpener::default(),
+                false,
+            )
+        }
+        Command::Demo => tui(
+            demo::config(config),
+            config_error,
+            Log::default(),
+            Demo::default,
+            Demo::default,
+            DemoOpener::default(),
+            true,
+        ),
         Command::Help | Command::Version | Command::Log => Ok(()),
     };
     match result {
@@ -91,8 +114,19 @@ fn fail(message: &str) -> ExitCode {
 
 type Inputs = mpsc::Sender<io::Result<Input>>;
 
-fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
-    let log = log_path().map_or_else(Log::default, |path| Log::open(&path));
+fn tui<G, K>(
+    config: Config,
+    config_error: Option<String>,
+    log: Log,
+    gh: impl Fn() -> G,
+    kube: impl Fn() -> K,
+    opener: impl Opener,
+    demo: bool,
+) -> io::Result<()>
+where
+    G: Github + Send + 'static,
+    K: Kube + Sync + Send + 'static,
+{
     log.line(&format!(
         "conveyor {} started; config {}",
         env!("CARGO_PKG_VERSION"),
@@ -105,70 +139,71 @@ fn tui(config: Config, config_error: Option<String>) -> io::Result<()> {
     let mut refreshers: HashMap<Stage, mpsc::Sender<usize>> = HashMap::new();
     refreshers.insert(
         Stage::Prs,
-        spawn_prs_fetcher(&log, config.clone(), tx.clone()),
+        spawn_prs_fetcher(gh(), config.clone(), tx.clone()),
     );
     refreshers.insert(
         Stage::Queue,
-        spawn_queue_fetcher(&log, config.clone(), tx.clone()),
+        spawn_queue_fetcher(gh(), config.clone(), tx.clone()),
     );
     refreshers.insert(
         Stage::Builds,
-        spawn_builds_fetcher(&log, config.clone(), tx.clone()),
+        spawn_builds_fetcher(gh(), config.clone(), tx.clone()),
     );
-    if let Some(refresh) = spawn_deploy_fetcher(&log, config.clone(), tx.clone()) {
+    if let Some(refresh) = spawn_deploy_fetcher(gh(), kube(), config.clone(), tx.clone()) {
         refreshers.insert(Stage::Deployed, refresh);
     }
-    let gh = CliGh::default().with_log(log.clone());
+    let jobs_gh = gh();
     let jobs = worker::spawn(tx.clone(), move |(repo, run_id): (String, u64)| {
-        Input::Jobs(run_id, fetch_jobs(&gh, &repo, run_id))
+        Input::Jobs(run_id, fetch_jobs(&jobs_gh, &repo, run_id))
     });
-    let gh = CliGh::default().with_log(log.clone());
+    let logs_gh = gh();
     let logs = worker::spawn(
         tx.clone(),
         move |(repo, run_id, job_id): (String, u64, u64)| {
-            Input::Log(job_id, fetch_log(&gh, &repo, run_id, job_id))
+            Input::Log(job_id, fetch_log(&logs_gh, &repo, run_id, job_id))
         },
     );
-    let gh = CliGh::default().with_log(log.clone());
+    let reruns_gh = gh();
     let reruns = worker::spawn(tx.clone(), move |(repo, run_ids): (String, Vec<u64>)| {
-        Input::Rerun(rerun_failed(&gh, &repo, &run_ids))
+        Input::Rerun(rerun_failed(&reruns_gh, &repo, &run_ids))
     });
-    let gh = CliGh::default().with_log(log.clone());
+    let merges_gh = gh();
     let merge_method = config.prs.merge_method;
     let merges = worker::spawn(tx.clone(), move |target: MergeTarget| {
-        let result = gh.merge(&target.repo, target.number, merge_method, &target.head_oid);
+        let result = merges_gh.merge(&target.repo, target.number, merge_method, &target.head_oid);
         Input::Merged(target.number, result)
     });
-    let gh = CliGh::default().with_log(log.clone());
+    let updates_gh = gh();
     let updates = worker::spawn(tx.clone(), move |target: UpdateTarget| {
-        let result = gh.update_branch(&target.repo, target.number, target.method);
+        let result = updates_gh.update_branch(&target.repo, target.number, target.method);
         Input::BranchUpdated(target.number, result)
     });
-    let gh = CliGh::default().with_log(log.clone());
+    let statuses_gh = gh();
     let statuses = worker::spawn(tx.clone(), move |target: StatusTarget| {
-        let result = gh.change_status(&target.repo, target.number, &target.change);
+        let result = statuses_gh.change_status(&target.repo, target.number, &target.change);
         Input::StatusChanged(target.number, target.change, result)
     });
-    let gh = CliGh::default().with_log(log.clone());
+    let checkouts_gh = gh();
     let home = env::var_os("HOME").map(PathBuf::from);
     let checkouts = worker::spawn(tx.clone(), move |target: CheckoutTarget| {
         let dir = target
             .dir
             .as_deref()
             .map(|dir| expand_home(dir, home.as_deref()));
-        let result = gh.checkout(&target.repo, target.number, dir.as_deref());
+        let result = checkouts_gh.checkout(&target.repo, target.number, dir.as_deref());
         Input::CheckedOut(target, result)
     });
     spawn_terminal_events(tx);
     let mut app = App::new(config);
     app.notice = config_error;
+    app.demo = demo;
     app.utc_offset_secs = chrono::Local::now().offset().local_minus_utc();
     let mut terminal = ratatui::init();
     let result = run(
         &mut terminal,
         &mut app,
         rx.into_iter(),
-        &SystemOpener::default(),
+        &opener,
         |request| match request {
             Request::Refresh(stage, tab) => {
                 if let Some(refresh) = refreshers.get(&stage) {
@@ -211,9 +246,12 @@ fn spawn_terminal_events(tx: Inputs) {
     thread::spawn(move || events::forward(&mut Crossterm, &SystemClock, &tx));
 }
 
-fn spawn_prs_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<usize> {
+fn spawn_prs_fetcher(
+    gh: impl Github + Send + 'static,
+    config: Config,
+    tx: Inputs,
+) -> mpsc::Sender<usize> {
     let interval = Duration::from_secs(config.prs.refresh_secs);
-    let gh = CliGh::default().with_log(log.clone());
     let tabs = if config.prs.background_tabs {
         config.prs.tabs().len()
     } else {
@@ -224,8 +262,11 @@ fn spawn_prs_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<usiz
     })
 }
 
-fn spawn_queue_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<usize> {
-    let gh = CliGh::default().with_log(log.clone());
+fn spawn_queue_fetcher(
+    gh: impl Github + Send + 'static,
+    config: Config,
+    tx: Inputs,
+) -> mpsc::Sender<usize> {
     let interval = Duration::from_secs(config.repo.first().map_or(30, |repo| repo.refresh_secs));
     let mut watched: Option<Vec<Repo>> = None;
     refresh::spawn(Stage::Queue, interval, 1, tx, move |tab| {
@@ -241,8 +282,11 @@ fn spawn_queue_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<us
     })
 }
 
-fn spawn_builds_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<usize> {
-    let gh = CliGh::default().with_log(log.clone());
+fn spawn_builds_fetcher(
+    gh: impl Github + Send + 'static,
+    config: Config,
+    tx: Inputs,
+) -> mpsc::Sender<usize> {
     let interval = Duration::from_secs(config.repo.first().map_or(30, |repo| repo.refresh_secs));
     let mut source: Option<BuildsSource> = None;
     refresh::spawn(Stage::Builds, interval, 1, tx, move |_| {
@@ -261,13 +305,16 @@ fn spawn_builds_fetcher(log: &Log, config: Config, tx: Inputs) -> mpsc::Sender<u
     })
 }
 
-fn spawn_deploy_fetcher(log: &Log, config: Config, tx: Inputs) -> Option<mpsc::Sender<usize>> {
+fn spawn_deploy_fetcher(
+    gh: impl Github + Send + 'static,
+    kube: impl Kube + Sync + Send + 'static,
+    config: Config,
+    tx: Inputs,
+) -> Option<mpsc::Sender<usize>> {
     let repo = config.repo.iter().find(|repo| !repo.deploy.is_empty())?;
     let deploy = repo.deploy.first()?.clone();
     let interval = Duration::from_secs(deploy.refresh_secs);
     let mut source = DeploySource::new(repo.name.clone(), deploy);
-    let gh = CliGh::default().with_log(log.clone());
-    let kube = CliKubectl::default().with_log(log.clone());
     Some(refresh::spawn(
         Stage::Deployed,
         interval,

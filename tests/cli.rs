@@ -46,6 +46,16 @@ fn an_unknown_argument_prints_usage_on_stderr_and_exits_one() {
 }
 
 #[test]
+fn an_argument_after_the_first_prints_usage_on_stderr_and_exits_one() {
+    let out = binary(&["--demo", "--help"]);
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("unknown argument '--help'"), "{stderr}");
+    assert!(stderr.contains("usage: conveyor"), "{stderr}");
+    assert!(out.stdout.is_empty());
+}
+
+#[test]
 fn config_prints_the_effective_defaults_as_toml() {
     let out = binary(&["config"]);
     assert!(out.status.success());

@@ -65,7 +65,8 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   escape or a control character in a URL would otherwise reach the terminal. The URL of each
   row is the one `p` opens (`Build::pull_request` for a main build, which falls back to the
   `(#N)` of a squash title). A number cut by `…` on a narrow card gets no link. Not linked:
-  the `#N` in the details pane, dialogs and footer.
+  the `#N` in the details pane, dialogs and footer, and every `#N` in the demo (`app.demo`),
+  whose `acme/*` URLs are made up: the terminal would open them past `DemoOpener`.
 - **A busy PR card spins.** While a write started on a pull request is in flight
   (`App::write_on`), its card draws the footer's braille frame (`App::spinner`) in yellow in
   place of the check glyph, and its meta line starts with the action word (`Write::word`:
@@ -155,7 +156,10 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   carry no spinner. The footer says
   `refreshed just now` for 3 s, then `refreshed at HH:MM:SS` local time
   (`utc_offset_secs` from `chrono::Local` in `main`, 0 in tests). The bottom right holds the
-  static `ui::logo()` with the crate version; nothing there changes between ticks.
+  static `ui::logo()` with the crate version; nothing there changes between ticks. Under
+  `--demo` (`App::demo`) a bold magenta `demo` sits in front of it, always, and alone at the
+  right of the help and changelog footers: magenta is used nowhere else, so it never reads as
+  a status.
 - How the details pane scrolls (`draw_details` owns the clamp), the log pane and zoom: see `src/app/AGENTS.md`.
 - What the `S` popup offers and when an action asks `y`: see `src/app/AGENTS.md`.
 - The keymap behind `KEYS`: see `src/app/AGENTS.md`.

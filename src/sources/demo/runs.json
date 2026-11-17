@@ -1,0 +1,60 @@
+{
+ "workflow_runs": [
+  {
+   "id": 312,
+   "run_number": 312,
+   "status": "in_progress",
+   "conclusion": null,
+   "head_sha": "8c1f2a7d94e3b06f5a2c9d18e7b4f0a3c6d5e291",
+   "display_title": "Speed up CI with a warm cache (#4840)",
+   "html_url": "https://github.com/acme/webapp/actions/runs/312",
+   "actor": {
+    "login": "merge-bot"
+   },
+   "run_started_at": "ago:95",
+   "updated_at": "ago:95"
+  },
+  {
+   "id": 311,
+   "run_number": 311,
+   "status": "completed",
+   "conclusion": "failure",
+   "head_sha": "b7e4d2c9a1f08635e9d47c2ab3f61d0e8a95c4f7",
+   "display_title": "Move sessions to Redis (#4815)",
+   "html_url": "https://github.com/acme/webapp/actions/runs/311",
+   "actor": {
+    "login": "merge-bot"
+   },
+   "run_started_at": "ago:3600",
+   "updated_at": "ago:2503"
+  },
+  {
+   "id": 310,
+   "run_number": 310,
+   "status": "completed",
+   "conclusion": "success",
+   "head_sha": "d94a7c31e5f2b8069c4d1ea7f3b5c082d6e9a1b4",
+   "display_title": "Drop the legacy v1 routes (#4808)",
+   "html_url": "https://github.com/acme/webapp/actions/runs/310",
+   "actor": {
+    "login": "merge-bot"
+   },
+   "run_started_at": "ago:7200",
+   "updated_at": "ago:6198"
+  },
+  {
+   "id": 309,
+   "run_number": 309,
+   "status": "completed",
+   "conclusion": "success",
+   "head_sha": "5e2c8b9f1a47d3e06b8f4c2d9a1e7f35c0b6d8a2",
+   "display_title": "Upgrade to Postgres 16 (#4799)",
+   "html_url": "https://github.com/acme/webapp/actions/runs/309",
+   "actor": {
+    "login": "merge-bot"
+   },
+   "run_started_at": "ago:90000",
+   "updated_at": "ago:89070"
+  }
+ ]
+}
