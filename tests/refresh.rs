@@ -2,7 +2,7 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use conveyor::app::{Input, Stage};
-use conveyor::refresh::{Schedule, Wake, spawn, wait};
+use conveyor::refresh::{Schedule, Wake, spawn, spawn_each, wait};
 use conveyor::sources::failure::Failure;
 
 #[test]
@@ -346,6 +346,51 @@ fn no_profile_aborts_on_a_panic_so_a_crash_stays_catchable() {
         .collect();
 
     assert!(aborting.is_empty(), "{aborting:?}");
+}
+
+#[test]
+fn each_tab_of_spawn_each_fetches_on_its_own_interval() {
+    let (inputs_tx, inputs) = mpsc::channel();
+    let _refresh = spawn_each(Stage::Builds, vec![secs(60), secs(1)], inputs_tx, |tab| {
+        move || Err(format!("tab {tab}").into())
+    });
+
+    let until = Instant::now() + Duration::from_millis(2500);
+    let fetched: Vec<usize> = std::iter::from_fn(|| {
+        inputs
+            .recv_timeout(until.saturating_duration_since(Instant::now()))
+            .ok()
+    })
+    .filter_map(|input| match input.unwrap() {
+        Input::Data(Stage::Builds, tab, _) => Some(tab),
+        _ => None,
+    })
+    .collect();
+
+    assert_eq!(fetched.iter().filter(|tab| **tab == 0).count(), 1);
+    assert!(
+        fetched.iter().filter(|tab| **tab == 1).count() >= 2,
+        "{fetched:?}"
+    );
+}
+
+#[test]
+fn a_refresh_asked_of_spawn_each_fetches_that_tab_only() {
+    let (inputs_tx, inputs) = mpsc::channel();
+    let refresh = spawn_each(Stage::Builds, vec![secs(60), secs(60)], inputs_tx, |tab| {
+        move || Err(format!("tab {tab}").into())
+    });
+    let next = || inputs.recv_timeout(secs(5)).unwrap().unwrap();
+    let _first_sweep = [next(), next(), next(), next()];
+
+    refresh.send(1).unwrap();
+
+    assert_eq!(next(), Input::Fetching(Stage::Builds, 1));
+    assert_eq!(
+        next(),
+        Input::Data(Stage::Builds, 1, Err("tab 1".to_string().into()))
+    );
+    assert!(inputs.recv_timeout(Duration::from_millis(300)).is_err());
 }
 
 fn secs(n: u64) -> Duration {

@@ -103,12 +103,75 @@ pub fn spawn(
     interval: Duration,
     tabs: usize,
     tx: Sender<io::Result<Input>>,
-    mut fetch: impl FnMut(usize) -> Result<Rows, Failure> + Send + 'static,
+    fetch: impl FnMut(usize) -> Result<Rows, Failure> + Send + 'static,
 ) -> Sender<usize> {
     let (refresh_tx, refresh_rx) = mpsc::channel::<usize>();
-    let named = thread::Builder::new().name(format!("{stage:?} fetcher"));
+    let schedule = Schedule::new(tabs, interval, Instant::now());
+    start(
+        format!("{stage:?} fetcher"),
+        stage,
+        schedule,
+        refresh_rx,
+        tx,
+        |tab| tab,
+        fetch,
+    );
+    refresh_tx
+}
+
+pub fn spawn_each<F>(
+    stage: Stage,
+    intervals: Vec<Duration>,
+    tx: Sender<io::Result<Input>>,
+    make_fetch: impl Fn(usize) -> F,
+) -> Sender<usize>
+where
+    F: FnMut() -> Result<Rows, Failure> + Send + 'static,
+{
+    let each: Vec<Sender<usize>> = intervals
+        .into_iter()
+        .enumerate()
+        .map(|(tab, interval)| {
+            let (each_tx, each_rx) = mpsc::channel::<usize>();
+            let mut fetch = make_fetch(tab);
+            let schedule = Schedule::new(1, interval, Instant::now());
+            let name = format!("{stage:?} fetcher {tab}");
+            start(
+                name,
+                stage,
+                schedule,
+                each_rx,
+                tx.clone(),
+                move |_| tab,
+                move |_| fetch(),
+            );
+            each_tx
+        })
+        .collect();
+    let (refresh_tx, refresh_rx) = mpsc::channel::<usize>();
+    let named = thread::Builder::new().name(format!("{stage:?} refresh router"));
     let spawned = named.spawn(move || {
-        let mut schedule = Schedule::new(tabs, interval, Instant::now());
+        for tab in refresh_rx {
+            if let Some(fetcher) = each.get(tab) {
+                let _ = fetcher.send(0);
+            }
+        }
+    });
+    spawned.expect("the refresh router thread starts");
+    refresh_tx
+}
+
+fn start(
+    name: String,
+    stage: Stage,
+    mut schedule: Schedule,
+    refresh_rx: Receiver<usize>,
+    tx: Sender<io::Result<Input>>,
+    shown_as: impl Fn(usize) -> usize + Send + 'static,
+    mut fetch: impl FnMut(usize) -> Result<Rows, Failure> + Send + 'static,
+) {
+    let named = thread::Builder::new().name(name);
+    let spawned = named.spawn(move || {
         loop {
             let wake = match schedule.timeout(Instant::now()) {
                 Some(timeout) => wait(&refresh_rx, timeout),
@@ -117,18 +180,18 @@ pub fn spawn(
             let Some(tab) = schedule.next(wake, Instant::now()) else {
                 return;
             };
-            if tx.send(Ok(Input::Fetching(stage, tab))).is_err() {
+            let shown = shown_as(tab);
+            if tx.send(Ok(Input::Fetching(stage, shown))).is_err() {
                 return;
             }
             let data = crash::catch(|| fetch(tab)).and_then(|data| data);
-            if tx.send(Ok(Input::Data(stage, tab, data))).is_err() {
+            if tx.send(Ok(Input::Data(stage, shown, data))).is_err() {
                 return;
             }
             schedule.fetched(Instant::now());
         }
     });
     spawned.expect("the fetcher thread starts");
-    refresh_tx
 }
 
 fn sweep(first: usize, tabs: usize) -> impl Iterator<Item = usize> {
