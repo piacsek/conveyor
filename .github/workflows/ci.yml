@@ -42,3 +42,15 @@ jobs:
           tool: cargo-audit
           fallback: none # never fall back to cargo-binstall / a source build
       - run: cargo-audit audit
+
+  flake:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+      - run: nix build
+      - run: test "$(./result/bin/conveyor --version)" = "conveyor $(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)"

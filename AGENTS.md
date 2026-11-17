@@ -88,6 +88,7 @@ src/ui/changelog.rs the `c` pane: wrapped to its width (bullets hang), headings 
 src/log.rs       the call log: its path, per program name, rotated on open
 src/text.rs      text helpers: truncation and wrapping with `…`, ages, durations and clock times, ANSI stripping
 rust-toolchain.toml           the one Rust version (rustfmt and clippy with it) that local gates and CI run; see Development
+flake.nix, flake.lock         the Nix flake: the binary built from `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md` and `src/` with the locked nixpkgs' Rust; feeds the binary
 scripts/gates.sh              the quality gates; fails loudly, never pipe it through tail
 scripts/scrub-check.sh        denylist grep over tracked files (see "This repository is public")
 scripts/dev-install.sh        release build symlinked as ~/.local/bin/conveyor-dev
@@ -100,7 +101,7 @@ scripts/version-check.sh      `<base> <head>`: the `version` job of `version.yml
 scripts/next-version.sh       prints the version the pending fragments ask for, nothing when none is pending
 scripts/release-commit.sh     `<version>`: writes the release into `Cargo.toml`, `Cargo.lock` and `CHANGELOG.md` and confirms it reads back; commits nothing
 scripts/release-rewrite.sh    sourced, not run: the release rewrite both `release-commit.sh` and `version-check.sh` use
-scripts/releases.sh           sourced, not run: the state of a tag's release
+scripts/releases.sh           sourced, not run: the state of a tag's release, and the newest complete release above a version (`formula-version.sh` and `stable-version.sh`)
 scripts/release-unfinished.sh `<tag>`: whether `build` and `publish` still have work, so a rerun never rebuilds a published release
 scripts/previous-tag.sh       `<tag>`: the highest `vX.Y.Z` tag below it, read with `gh`, which `publish` names as the previous release for the generated notes
 scripts/release-tag.sh        the `tag` job of `release.yml` (refuses outside GitHub Actions): resume an unfinished tag, else tag what is pending, else nothing
@@ -108,6 +109,7 @@ changes/                      one fragment per pull request that feeds the binar
 plans/                        one versioned plan file per phase (see Working agreements)
 scripts/homebrew-formula.sh   prints the tap formula for a released version
 scripts/formula-version.sh    the `tap` job's decision; never a version below the formula's
+scripts/stable-version.sh     the `stable-build` and `stable` jobs' decision, asked by both: the release the `stable` branch moves to, never below the version it holds
 scripts/screenshots.sh        renders docs/details.png, plus one `shoot` per extra view, from `conveyor --demo` (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
@@ -351,6 +353,9 @@ request that changes the channel there, the `toolchain:` of `ci.yml` and `releas
 `rust-version` in `Cargo.toml` (its `major.minor`); `tests/toolchain.rs` fails while any of
 them differs.
 The `tag` job of `release.yml` stays on the runner image's `stable` on purpose (why: `.github/AGENTS.md`).
+The Nix flake pins no Rust: it builds with the `rustc` of its locked nixpkgs, and cargo refuses one
+below `rust-version`, so a lock too old for a toolchain bump fails the flake jobs instead of
+building; bump it with `nix flake update` in the same pull request.
 
 Outside CI (`CI` unset), `gates.sh` leaves out the `scripts` test target (`tests/scripts/`,
 about half of a warm run: 50 s against 23 s for the test step, measured 2026-11-12) when
@@ -424,7 +429,9 @@ kind: fix
   bullet; a release made only of those reads `- v<version>: internal changes only.`
 - **No majors.** No kind produces one; a config-format break is a decision made by hand later.
 - **A fragment is required exactly when the pull request touches what feeds the binary**
-  (`scripts/feeds-binary.sh`, the same list `ship.sh` uses for the dev install). Such a pull
+  (`scripts/feeds-binary.sh`, the same list `ship.sh` uses for the dev install). `flake.nix` and
+  `flake.lock` feed the binary on purpose: they decide what a Nix user runs, and only a release
+  moves `stable` to them. Such a pull
   request is always released, a refactor as an `internal` patch. One that touches only tests,
   docs, plans, scripts, CI or guidelines needs none and releases nothing.
 - **`changes/` is add-only.** A fragment is never edited, renamed or deleted once it is on
@@ -448,12 +455,17 @@ request's fragment (GitHub's Revert button deletes it, which the check refuses, 
 
 **After a merge**, watch the run (`gh run list --workflow release.yml --limit 3`, then
 `gh run watch <id> --exit-status`). For a pull request with a fragment, check that the release
-holds the six assets and that the tap formula names the new version:
+holds the six assets, that the tap formula names the new version, and that `Cargo.toml` on the
+`stable` branch (what the Nix flake installs) names it too:
 
 ```bash
 gh release view --json tagName,assets --jq '.tagName, .assets[].name'
 gh api repos/piacsek/homebrew-tap/contents/Formula/conveyor.rb -H 'Accept: application/vnd.github.raw+json'
+gh api 'repos/piacsek/conveyor/contents/Cargo.toml?ref=stable' -H 'Accept: application/vnd.github.raw+json'
 ```
+
+Never push or move `stable` by hand: only the `stable` job of the release run moves it, after
+`stable-build` built the flake at the tag.
 
 A cancelled `release` run is normal (merges in quick succession queue up); a red one is not: see
 "When a run fails or a job is stuck" under "Releasing internals" in `.github/AGENTS.md`.
