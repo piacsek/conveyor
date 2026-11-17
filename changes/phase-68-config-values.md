@@ -12,3 +12,4 @@ kind: fix
   environments of one name in a deploy instead of sharing one card's selection and marks.
 - A second `[[repo.deploy]]`, or a deploy on a later repository, is refused at start, naming the
   one conveyor reads, instead of being ignored without a word.
+- A My PRs column two cells wide or less no longer crashes while drawing its tabs.
