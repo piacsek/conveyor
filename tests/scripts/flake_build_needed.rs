@@ -32,6 +32,43 @@ fn a_change_the_flake_does_not_read_skips_the_build() {
 }
 
 #[test]
+fn a_source_file_with_a_non_ascii_name_needs_the_build() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = deciding_repository(dir.path());
+    committed(&work, "src/caf\u{e9}.rs", "\n");
+
+    let output = build_needed(&work, &["HEAD^1"]);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), BUILD);
+}
+
+#[test]
+fn a_source_file_with_a_space_in_its_name_needs_the_build() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = deciding_repository(dir.path());
+    committed(&work, "src/a file.rs", "\n");
+
+    let output = build_needed(&work, &["HEAD^1"]);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), BUILD);
+}
+
+#[test]
+fn an_input_renamed_away_needs_the_build() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = deciding_repository(dir.path());
+    fs::rename(work.join("CHANGELOG.md"), work.join("docs.md")).unwrap();
+    committed(&work, "README.md", "changed\n");
+
+    let output = build_needed(&work, &["HEAD^1"]);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), BUILD);
+}
+
+#[test]
 fn every_commit_since_the_base_counts() {
     let dir = tempfile::tempdir().unwrap();
     let work = deciding_repository(dir.path());
@@ -79,6 +116,31 @@ fn no_base_needs_the_build() {
 
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert_eq!(stdout(&output), BUILD);
+}
+
+#[test]
+fn building_because_it_could_not_decide_says_why() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = deciding_repository(dir.path());
+    committed(&work, "README.md", "changed\n");
+
+    let output = build_needed(&work, &["0123456789abcdef0123456789abcdef01234567"]);
+
+    assert_eq!(
+        stderr(&output),
+        "flake-build-needed: could not list the paths changed since 0123456789abcdef0123456789abcdef01234567, so the flake builds\n"
+    );
+}
+
+#[test]
+fn deciding_from_the_paths_says_nothing_on_stderr() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = deciding_repository(dir.path());
+    committed(&work, "src/main.rs", "fn main() { }\n");
+
+    let output = build_needed(&work, &["HEAD^1"]);
+
+    assert_eq!(stderr(&output), "");
 }
 
 #[test]

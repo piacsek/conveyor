@@ -68,4 +68,27 @@ owner's step by hand once this is on `main`; this phase changes no repository se
 
 ## Outcome
 
+- `ci.yml` gained `paths` (decides `build=true` or `build=false` from what changed since the
+  base), the `flake` matrix behind it (skipped only on `false`), and `flake-ok`, the one gate job
+  (`needs: [paths, flake]`, `if: always()`) that judges both through `scripts/flake-ok.sh`.
+- The inputs are one list, `scripts/flake-inputs.sh`; `tests/scripts/flake_inputs.rs` fails
+  while a path `flake.nix` names is missing from it, while `flake.nix` names `./.` anywhere but
+  the fileset's `root`, or while it builds a path with `+ "/…"`.
+- Every failure to decide builds: no base, a base the shallow checkout lacks, a failing `git`
+  or `grep` (only grep's exit 1 means "no match"), a failed `paths` job. `paths` logs the reason
+  on stderr.
+- Paths travel NUL-separated (`git diff -z`, `grep -z`): review round 1 found that the quoted
+  name git prints for `src/café.rs` missed `^src/` and skipped the build.
+- First CI run on the PR (e31a784): `paths` said `build=true`, Linux leg 1m9s, macOS leg 4m20s,
+  `flake-ok` 6s, all green.
+- Requiring `flake-ok` in the `main` ruleset is the owner's step by hand after the merge; the
+  docs give the command that shows whether it is required and claim nothing about the ruleset's
+  current state.
+- Review: one round, clean (no must, no should); four minor findings fixed after it.
+
 ## Hurdles
+
+- `ci` the macOS leg took 4m20s on this PR against 2m41s on #110's head → none
+- `test-seam` the `build=false` path never ran in real CI, since this PR touches the flake's inputs; it is verified only in scratch repositories by `tests/scripts/flake_build_needed.rs` → none
+- `api-shape` `git diff --name-only` quotes a non-ASCII path, so `src/café.rs` slipped past `^src/` until the paths went NUL-separated → code
+- `review-loop` `|| true` after `grep` turned a grep error into "no input changed" → code

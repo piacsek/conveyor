@@ -33,7 +33,7 @@ pipeline went from ~3 min 20 s to 37 s:
 - **Trade-off taken.** `rustsec/audit-check` opened a GitHub issue when a new advisory hit
   `main`; with plain `cargo audit` a red `audit` check is the only signal. Add a `schedule`
   trigger if advisories should be caught between pushes.
-- **The flake build gates the merge through `flake-ok`, and runs only when its inputs change**
+- **The flake build reports as one gate job, `flake-ok`, and runs only when its inputs change**
   (since phase 63, #117). Three jobs: `paths` runs `scripts/flake-build-needed.sh` against the
   base (`HEAD^1` of GitHub's merge commit on a pull request, `github.event.before` on a push)
   and outputs `build=true` or `build=false`; `flake` runs `nix build` and `--version` on
@@ -43,18 +43,29 @@ pipeline went from ~3 min 20 s to 37 s:
   cancelled leg fails it, and so does a run cancelled before the build. The inputs are the one
   list in `scripts/flake-inputs.sh`: `src/`, `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`,
   `rust-toolchain.toml`, `flake.nix`, `flake.lock`, `ci.yml` and the three flake scripts;
-  `tests/scripts/flake_inputs.rs` fails while a path `flake.nix` names is missing from it. A
-  failure to decide (no base, a base the shallow checkout lacks, a failing `git`, a failed
-  `paths` job) builds, never skips. Why not simpler: a workflow-level `paths:` filter leaves a
-  required check pending forever when the workflow never starts, and a skipped matrix job
-  reports under its unexpanded name, so neither the workflow nor the legs can be what the
-  ruleset requires; only the one gate job is. `flake-ok` is required since the owner added it
-  to the ruleset by hand once phase 63 was on `main` (the order `version` followed). Why
-  required: a merge to `main` is released unattended, `stable-build` builds the flake on Linux
-  only, and nothing after the merge built it on macOS, so a macOS break used to reach `stable`.
-  The cost: a Nix, nixpkgs or `cache.nixos.org` outage, or a stalled macOS runner, blocks every
-  pull request that touches the flake's inputs. The way out is the one the ruleset bullet
-  below gives: disable the ruleset, merge, enable it again. Measured on #106: Linux 1 min
+  `tests/scripts/flake_inputs.rs` fails while a path `flake.nix` names is missing from it, or
+  while `flake.nix` names `./.` anywhere but the fileset's `root` or builds a path with
+  `+ "/…"`. The paths travel NUL-separated (`git diff -z`, `grep -z`), so a name git would
+  quote still matches. A failure to decide (no base, a base the shallow checkout lacks, a
+  failing `git` or `grep`, a failed `paths` job) builds, never skips, and `paths` logs the
+  reason on stderr. Why not simpler: a workflow-level `paths:` filter leaves a required check
+  pending forever when the workflow never starts, and a skipped matrix job reports under its
+  unexpanded name, so neither the workflow nor the legs can be what the ruleset requires; only
+  the one gate job is. `flake-ok` exists to be required: a merge to `main` is released
+  unattended, `stable-build` builds the flake on Linux only, and nothing after the merge builds
+  it on macOS, so a macOS break can reach `stable` while the ruleset does not require it.
+  Requiring it is a ruleset change the owner makes by hand, outside this repository, once
+  `flake-ok` reports on `main` (the order `version` followed). Whether the ruleset requires it
+  now:
+
+  ```bash
+  gh api repos/<owner>/<repo>/rulesets/<id> --jq '.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context'
+  ```
+
+  `flake-ok` in that list means it is required. The cost once it is: a Nix, nixpkgs or
+  `cache.nixos.org` outage, or a stalled macOS runner, blocks every pull request that touches
+  the flake's inputs. The way out is the one the ruleset bullet below gives: disable the
+  ruleset, merge, enable it again. Measured on #106: Linux 1 min
   49 s, macOS 3 min 9 s; on #110's head after its toolchain fix: Linux 1 min 18 s, macOS 2 min
   41 s. No Nix store cache: the build is the crate and its dependencies from source, which a
   store cache would not skip for a changed `Cargo.lock` or `src/`; a follow-up issue if the
@@ -84,9 +95,10 @@ pipeline went from ~3 min 20 s to 37 s:
 - **Pins.** Every action stays pinned to a commit SHA with the tag in a trailing comment (see
   Releasing internals below for how to bump one).
 - **`main` is protected by a ruleset** (`main`, id 26900132, Settings → Rules): a pull
-  request, green `check`, `audit`, `version` and `flake-ok`, linear history, no force-push or
-  deletion, and no bypass for anyone. The checks are matched by job name, so renaming `check`,
-  `audit` or `flake-ok` in `ci.yml` blocks every merge, the rename's own PR included; renaming `version` lets the
+  request, green required checks (`check`, `audit`, `version`, and `flake-ok` once the owner
+  adds it, see the flake build above), linear history, no force-push or deletion, and no bypass
+  for anyone. The checks are matched by job name, so renaming a required job of `ci.yml`
+  blocks every merge, the rename's own PR included; renaming `version` lets the
   rename's own PR merge (the copy on `main` still reports the old name) and then blocks every
   later pull request until the ruleset names the new job; an advisory with no fixed version does the
   same through `audit`. Disable the ruleset to get out

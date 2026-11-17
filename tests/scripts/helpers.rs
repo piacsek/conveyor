@@ -118,11 +118,16 @@ pub fn stderr(output: &Output) -> String {
 }
 
 pub fn piped(script: &str, input: &str) -> Output {
+    piped_on(&std::env::var_os("PATH").unwrap(), script, input)
+}
+
+pub fn piped_on(search_path: &std::ffi::OsStr, script: &str, input: &str) -> Output {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("scripts")
         .join(script);
     let mut child = Command::new(which("bash"))
         .arg(path)
+        .env("PATH", search_path)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
