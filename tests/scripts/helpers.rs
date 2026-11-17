@@ -1,7 +1,8 @@
 use std::fs;
+use std::io::Write;
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 
 pub fn calls(root: &Path) -> Vec<String> {
     fs::read_to_string(root.join("calls.log"))
@@ -114,4 +115,29 @@ pub fn stdout(output: &Output) -> String {
 
 pub fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).into_owned()
+}
+
+pub fn piped(script: &str, input: &str) -> Output {
+    piped_on(&std::env::var_os("PATH").unwrap(), script, input)
+}
+
+pub fn piped_on(search_path: &std::ffi::OsStr, script: &str, input: &str) -> Output {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("scripts")
+        .join(script);
+    let mut child = Command::new(which("bash"))
+        .arg(path)
+        .env("PATH", search_path)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(input.as_bytes())
+        .unwrap();
+    child.wait_with_output().unwrap()
 }

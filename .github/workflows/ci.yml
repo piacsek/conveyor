@@ -43,7 +43,22 @@ jobs:
           fallback: none # never fall back to cargo-binstall / a source build
       - run: cargo-audit audit
 
+  paths:
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.decide.outputs.build }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 2
+      - id: decide
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || github.event.before }}
+        run: scripts/flake-build-needed.sh "$BASE" | tee -a "$GITHUB_OUTPUT"
+
   flake:
+    needs: paths
+    if: ${{ !cancelled() && needs.paths.outputs.build != 'false' }}
     strategy:
       fail-fast: false
       matrix:
@@ -54,3 +69,15 @@ jobs:
       - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
       - run: nix build
       - run: test "$(./result/bin/conveyor --version)" = "conveyor $(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)"
+
+  flake-ok:
+    needs: [paths, flake]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - env:
+          PATHS: ${{ needs.paths.result }}
+          BUILD: ${{ needs.paths.outputs.build }}
+          FLAKE: ${{ needs.flake.result }}
+        run: scripts/flake-ok.sh "$PATHS" "$BUILD" "$FLAKE"
