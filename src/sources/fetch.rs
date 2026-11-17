@@ -332,6 +332,7 @@ fn fresh(at: std::time::SystemTime, now: std::time::SystemTime) -> bool {
 pub struct BuildsSource {
     repo: Repo,
     workflow: Option<String>,
+    branch: Option<String>,
     pulls: Pulls,
 }
 
@@ -339,6 +340,7 @@ impl BuildsSource {
     pub fn new(repo: Repo) -> Self {
         Self {
             pulls: Pulls::new(repo.name.clone()),
+            branch: repo.branch.clone(),
             repo,
             workflow: None,
         }
@@ -350,8 +352,9 @@ impl BuildsSource {
         now: std::time::SystemTime,
     ) -> Result<Vec<crate::model::builds::Build>, Failure> {
         let workflow = self.workflow(gh)?;
+        let branch = query_value(&self.branch(gh)?);
         let runs = gh.rest(&format!(
-            "repos/{}/actions/workflows/{workflow}/runs?branch=main&event=push&per_page={}",
+            "repos/{}/actions/workflows/{workflow}/runs?branch={branch}&event=push&per_page={}",
             self.repo.name, self.repo.builds
         ))?;
         let mut builds = crate::model::builds::parse_runs(&runs);
@@ -370,8 +373,36 @@ impl BuildsSource {
     pub fn into_builds(&self, builds: Vec<crate::model::builds::Build>) -> Builds {
         Builds {
             repo: self.repo.name.clone(),
+            branch: self.branch.clone().unwrap_or_default(),
             builds,
         }
+    }
+
+    fn branch(&mut self, gh: &impl Github) -> Result<String, Failure> {
+        if let Some(branch) = &self.branch {
+            return Ok(branch.clone());
+        }
+        let repository = gh
+            .rest(&format!("repos/{}", self.repo.name))
+            .map_err(|failure| {
+                let said = format!(
+                    "reading the default branch of {}: {failure}; set branch under its [[repo]]",
+                    self.repo.name
+                );
+                failure.reworded(said)
+            })?;
+        let branch = repository
+            .get("default_branch")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                format!(
+                    "{} answered no default branch; set branch under its [[repo]]",
+                    self.repo.name
+                )
+            })?
+            .to_string();
+        self.branch = Some(branch.clone());
+        Ok(branch)
     }
 
     fn workflow(&mut self, gh: &impl Github) -> Result<String, Failure> {
@@ -540,4 +571,15 @@ fn pods(
     }
     let json = kube.pods(env, selector)?;
     Ok(crate::model::deployed::parse_pods(&json)?)
+}
+
+fn query_value(text: &str) -> String {
+    text.bytes()
+        .map(|byte| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' | b'/' => {
+                (byte as char).to_string()
+            }
+            _ => format!("%{byte:02X}"),
+        })
+        .collect()
 }

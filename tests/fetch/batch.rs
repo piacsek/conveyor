@@ -277,6 +277,7 @@ fn source() -> BuildsSource {
     BuildsSource::new(Repo {
         name: "acme/webapp".to_string(),
         main_workflow: "ci.yml".to_string(),
+        branch: Some("main".to_string()),
         ..Repo::default()
     })
 }

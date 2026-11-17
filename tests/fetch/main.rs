@@ -1,3 +1,6 @@
+#[path = "../support/mod.rs"]
+mod support;
+
 mod batch;
 mod builds;
 mod deployed;

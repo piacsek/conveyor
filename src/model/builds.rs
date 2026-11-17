@@ -210,5 +210,6 @@ fn text(node: &serde_json::Value, key: &str) -> String {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Builds {
     pub repo: String,
+    pub branch: String,
     pub builds: Vec<Build>,
 }

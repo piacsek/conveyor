@@ -64,6 +64,7 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 57 | [the sweep gathers its own data and asks for itself](plans/phase-57-sweep-tooling.md) | none |
 | 58 | [the privacy scrub checks what is about to be committed (#120)](plans/phase-58-scrub-staged.md) | none |
 | 61 | [two pull requests with the same number in different repositories stay apart (#121)](plans/phase-61-repo-row-key.md) | |
+| 62 | [Main builds reads the repository's own default branch (#123)](plans/phase-62-builds-branch.md) | |
 | 63 | [the flake build runs only when its inputs change, and gates the merge (#117)](plans/phase-63-flake-gate.md) | none |
 
 ## Backlog (discussed at the sweeps and retros)
