@@ -347,11 +347,11 @@ Then `build` and `publish` each start with `scripts/release-unfinished.sh <tag>`
 every other step when the tag's release is already `complete`, so no run, a rerun of an old
 one included, rebuilds a published version or replaces its assets (their checksums never
 change once published). Otherwise `build` (one `macos-latest` job for both Apple targets, Intel cross-compiled, and one
-Linux job; `macos-13` is retired and queues forever; its toolchain step installs the pinned
-version with the targets and the rustfmt and clippy that `rust-toolchain.toml` names, so
-the toolchain already satisfies the file and `cargo` downloads nothing) checks out the tag, refuses it when
+Linux job; `macos-13` is retired and queues forever) checks out the tag, refuses it when
 `Cargo.toml` there reads another version, and packages one flat tarball per target
-(`conveyor-<target>.tar.gz` holding just the binary) plus `.sha256`; `publish` attests them
+(`conveyor-<target>.tar.gz` holding just the binary) plus `.sha256`. The `build` job's toolchain step installs the pinned version with the targets
+and the rustfmt and clippy that `rust-toolchain.toml` names, so the toolchain already satisfies
+the file and `cargo` downloads nothing. `publish` attests the tarballs
 (`gh attestation verify <tarball> --repo piacsek/conveyor`) and creates the release with
 generated notes. **The notes name the previous tag.** Since v0.24.2 every tag sits on a release
 commit reachable only from that tag, so no release tag is an ancestor of the next one, and

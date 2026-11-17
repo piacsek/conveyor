@@ -11,6 +11,11 @@ fn the_release_builds_with_the_pinned_toolchain() {
 }
 
 #[test]
+fn ci_installs_the_pinned_components() {
+    assert_eq!(workflow_input("ci.yml", "components"), components());
+}
+
+#[test]
 fn the_release_build_installs_the_pinned_components() {
     assert_eq!(workflow_input("release.yml", "components"), components());
 }
