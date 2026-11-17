@@ -6,6 +6,7 @@ use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 mod background_tabs;
+mod demo;
 
 struct Server {
     socket: String,
@@ -46,9 +47,14 @@ impl Server {
     }
 
     fn respawn(&self, env: &[(&str, &str)], command: &str) {
+        self.respawn_with_args(env, command, &[]);
+    }
+
+    fn respawn_with_args(&self, env: &[(&str, &str)], command: &str, args: &[&str]) {
         let pairs: Vec<String> = env.iter().map(|(k, v)| format!("{k}='{v}'")).collect();
+        let args: String = args.iter().map(|arg| format!(" '{arg}'")).collect();
         let command = format!(
-            "env -u XDG_CONFIG_HOME -u CONVEYOR_CONFIG -u XDG_STATE_HOME -u CONVEYOR_LOG {} '{command}'",
+            "env -u XDG_CONFIG_HOME -u CONVEYOR_CONFIG -u XDG_STATE_HOME -u CONVEYOR_LOG {} '{command}'{args}",
             pairs.join(" ")
         );
         let status = self

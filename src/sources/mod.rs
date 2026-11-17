@@ -1,3 +1,4 @@
+pub mod demo;
 pub mod failure;
 pub mod fetch;
 pub mod github;

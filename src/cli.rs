@@ -1,9 +1,10 @@
-pub const USAGE: &str = "usage: conveyor [config | log]
+pub const USAGE: &str = "usage: conveyor [config | log | --demo]
        conveyor --help | --version";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     Tui,
+    Demo,
     Config,
     Log,
     Help,
@@ -19,6 +20,7 @@ where
     match args.next().as_deref() {
         None => Ok(Command::Tui),
         Some("config") => Ok(Command::Config),
+        Some("--demo") => Ok(Command::Demo),
         Some("log") => Ok(Command::Log),
         Some("--help" | "-h" | "help") => Ok(Command::Help),
         Some("--version" | "-V" | "version") => Ok(Command::Version),
