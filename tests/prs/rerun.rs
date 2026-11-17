@@ -352,6 +352,42 @@ fn a_rerun_whose_every_run_timed_out_never_says_failed() {
     assert!(!h.screen().contains("failed"), "{}", h.screen());
 }
 
+#[test]
+fn a_rerun_names_its_failed_runs_before_the_ones_that_may_be_rerunning() {
+    use conveyor::app::{Input, Stage, pull_key};
+    use conveyor::sources::failure::Failure;
+    let mut h = Harness::with_size(200, 20);
+    let mut failing = pr(4821, "Retry hooks");
+    failing.checks_detail = vec![
+        failing_in("lint", 111111),
+        failing_in("test", 222222),
+        failing_in("e2e", 333333),
+    ];
+
+    h.run(vec![
+        prs(vec![failing]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('f')),
+        Ok(Input::Rerun(vec![
+            (111111, Ok(())),
+            (222222, Err(timed_out())),
+            (333333, Err(Failure::said_by_gh("HTTP 403".to_string()))),
+        ])),
+    ])
+    .unwrap();
+
+    let card = line_after(&h.screen(), "#4821 Retry hooks");
+    assert!(card.contains("1 of 3 runs failed: run 333"), "{card}");
+    let mark = h
+        .app
+        .failure_on(Stage::Prs, pull_key("acme/webapp", 4821))
+        .unwrap();
+    assert_eq!(
+        mark.message,
+        "1 of 3 runs failed: run 333333: HTTP 403; run 222222: may be rerunning: no answer in 60s"
+    );
+}
+
 const SIGNED_OUT: &str = "gh: Bad credentials (HTTP 401)";
 
 const RATE_LIMITED: &str = "gh: API rate limit exceeded for user ID 1. (HTTP 403)";

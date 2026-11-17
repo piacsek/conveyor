@@ -5,7 +5,7 @@ use conveyor::app::{Input, Rows, Stage};
 use conveyor::config::{Config, MergeMethod, UpdateMethod};
 use conveyor::log::Log;
 use conveyor::model::prs::StatusChange;
-use conveyor::sources::failure::FailureKind;
+use conveyor::sources::failure::{Failure, FailureKind};
 use conveyor::sources::fetch::fetch_prs;
 use conveyor::sources::github::{Aftermath, Github};
 
@@ -137,15 +137,30 @@ fn every_other_write_past_its_deadline_is_timed_out() {
         close,
     ] = statuses;
 
-    assert_eq!(update.unwrap_err().kind(), FailureKind::TimedOut);
-    assert_eq!(rerun.unwrap_err().kind(), FailureKind::TimedOut);
-    assert_eq!(ready.unwrap_err().kind(), FailureKind::TimedOut);
-    assert_eq!(draft.unwrap_err().kind(), FailureKind::TimedOut);
-    assert_eq!(auto_merge_on.unwrap_err().kind(), FailureKind::TimedOut);
-    assert_eq!(auto_merge_off.unwrap_err().kind(), FailureKind::TimedOut);
-    assert_eq!(enqueue.unwrap_err().kind(), FailureKind::TimedOut);
-    assert_eq!(dequeue.unwrap_err().kind(), FailureKind::TimedOut);
-    assert_eq!(close.unwrap_err().kind(), FailureKind::TimedOut);
+    assert_eq!(update.as_ref().unwrap_err().kind(), FailureKind::TimedOut);
+    assert_eq!(rerun.as_ref().unwrap_err().kind(), FailureKind::TimedOut);
+    assert_eq!(ready.as_ref().unwrap_err().kind(), FailureKind::TimedOut);
+    assert_eq!(draft.as_ref().unwrap_err().kind(), FailureKind::TimedOut);
+    assert_eq!(
+        auto_merge_on.as_ref().unwrap_err().kind(),
+        FailureKind::TimedOut
+    );
+    assert_eq!(
+        auto_merge_off.as_ref().unwrap_err().kind(),
+        FailureKind::TimedOut
+    );
+    assert_eq!(enqueue.as_ref().unwrap_err().kind(), FailureKind::TimedOut);
+    assert_eq!(dequeue.as_ref().unwrap_err().kind(), FailureKind::TimedOut);
+    assert_eq!(close.as_ref().unwrap_err().kind(), FailureKind::TimedOut);
+    assert_eq!(aftermath(&update), Some("branch may be updated"));
+    assert_eq!(aftermath(&rerun), Some("may be rerunning"));
+    assert_eq!(aftermath(&ready), Some("may be marked ready"));
+    assert_eq!(aftermath(&draft), Some("may be a draft"));
+    assert_eq!(aftermath(&auto_merge_on), Some("auto-merge may be on"));
+    assert_eq!(aftermath(&auto_merge_off), Some("auto-merge may be off"));
+    assert_eq!(aftermath(&enqueue), Some("may be in the queue"));
+    assert_eq!(aftermath(&dequeue), Some("may be out of the queue"));
+    assert_eq!(aftermath(&close), Some("may be closed"));
 }
 
 #[test]
@@ -219,4 +234,12 @@ fn queue(join: bool) -> StatusChange {
             node_id: "PR_kwacme12".into(),
         }
     }
+}
+
+fn aftermath<T>(result: &Result<T, Failure>) -> Option<&'static str> {
+    result
+        .as_ref()
+        .err()?
+        .unanswered_write()
+        .map(|unanswered| unanswered.aftermath)
 }

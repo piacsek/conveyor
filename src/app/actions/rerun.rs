@@ -49,7 +49,9 @@ impl App {
         let WriteKind::Rerun { label, .. } = write.kind.clone() else {
             return None;
         };
-        let errors: Vec<String> = results
+        let mut ordered: Vec<_> = results.iter().collect();
+        ordered.sort_by_key(|(_, result)| timed_out(result));
+        let errors: Vec<String> = ordered
             .iter()
             .filter_map(|(run_id, result)| {
                 result

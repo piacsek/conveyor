@@ -117,4 +117,27 @@ nor reloads, as today. The worker is free for the next write.
 
 ## Outcome
 
+Shipped in #132 over four review rounds, the last one clean. Every `gh` call but the checkout
+runs through `sources::runner`, which `CliKubectl` now shares: a read gives up after 30 s, the
+failed log and every write after 60 s, each in a process group of its own that the deadline
+kills. A read that times out shows `gh did not answer within 30s` as its column's error and the
+next refresh tries again. A write that times out is uncertain, not failed
+(`Failure::unanswered`): its card says only what may have happened (`! may be merged`), the
+footer adds the wait, the `d` pane the write, the wait and when conveyor gave up, and it gets
+what a success gets for safety (the merge wait, the reloads). A rerun of several runs counts the
+runs that failed apart from the ones that timed out and names the failed ones first. The checkout
+keeps no deadline and no process group, so an ssh prompt can still be answered. New known limit:
+a hung `gh` or `kubectl` outlives a closed terminal. Not covered: a failed-log download that
+needs more than 60 s (about 10 MB at 1 Mbit/s) fails and each retry starts over; no screenshot
+shows a timed-out write, since the demo cannot produce one.
+
 ## Hurdles
+
+- `review-loop` Round 1 found a timed-out write handled as a plain failure (no merge wait, no reload) and the checkout put in a process group of its own, where an ssh prompt could not be answered → code
+- `review-loop` Round 2 found the card cutting off the uncertain half of a timed-out write's line at four columns → code
+- `review-loop` Round 3 found the `d` pane's "sent at" time was when the deadline fired; the second wording finding in a row led to the redesign that split the sentence between card, footer and details → code
+- `review-loop` Round 4 was clean; four minor findings were fixed after it → code
+- `test-seam` Timeout messages count whole seconds, so tests that assert them needed 1 s and 2 s deadlines; the slow ones now assert the kind and the wording under 100 ms deadlines on parallel threads → code
+- `tooling` `ship.sh` was piped through `tail` once, and `pgrep -f scripts/ship.sh` matched the ships of other worktrees while waiting for this one → none
+- `process` Merging `main` after phase 61 conflicted in the same write functions (`receive_merged`, `receive_status`, the targets of the inputs), and the uncertain-write behaviour had to be reapplied on top → none
+- `process` The timed-out card has no screenshot, declined because `--demo` never runs `gh` and so cannot time out → none
