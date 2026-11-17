@@ -1,4 +1,4 @@
-use conveyor::config::{Config, Key, MergeMethod, UpdateMethod, load};
+use conveyor::config::{Config, Icons, Key, MergeMethod, UpdateMethod, load};
 
 fn write(dir: &tempfile::TempDir, text: &str) -> std::path::PathBuf {
     let path = dir.path().join("config.toml");
@@ -166,6 +166,17 @@ fn the_merge_method_defaults_to_squash_and_accepts_the_other_two() {
     assert_eq!(defaults.prs.merge_method, MergeMethod::Squash);
     assert_eq!(rebase.prs.merge_method, MergeMethod::Rebase);
     assert_eq!(merge.prs.merge_method, MergeMethod::Merge);
+}
+
+#[test]
+fn the_icons_default_to_plain_and_accept_nerd() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let defaults = load(&dir.path().join("config.toml")).unwrap();
+    let nerd = load(&write(&dir, "[ui]\nicons = \"nerd\"\n")).unwrap();
+
+    assert_eq!(defaults.ui.icons, Icons::Plain);
+    assert_eq!(nerd.ui.icons, Icons::Nerd);
 }
 
 #[test]

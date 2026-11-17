@@ -115,6 +115,7 @@ pub(crate) fn draw_column(
     let jobs = std::mem::take(&mut app.jobs);
     let repo = app.builds.repo.clone();
     let linked = !app.demo;
+    let icons = app.config.ui.icons;
     match stage {
         Stage::Prs => {
             let spinner = app.spinner();
@@ -138,7 +139,7 @@ pub(crate) fn draw_column(
                     let busy = word.as_deref().map(|word| (spinner, word));
                     let pull = linked.then(|| (pr.number, pr.url.clone()));
                     let failure = failures.get(i).and_then(Option::as_ref);
-                    (pr_row(pr, busy, failure, now, on, w), pull)
+                    (pr_row(pr, icons, busy, failure, now, on, w), pull)
                 },
             )
         }

@@ -57,7 +57,12 @@ shoot() {
   render "$name" --padding 20,64,20,20 --window
 }
 
+mkdir -p "$home/.config/conveyor"
+printf '[ui]\nicons = "nerd"\n' >"$home/.config/conveyor/config.toml"
 shoot details 160 26 "jd"
 echo "wrote $out/details.png"
 shoot help 160 26 "?"
 echo "wrote $out/help.png"
+rm "$home/.config/conveyor/config.toml"
+shoot plain 160 26 ""
+echo "wrote $out/plain.png"

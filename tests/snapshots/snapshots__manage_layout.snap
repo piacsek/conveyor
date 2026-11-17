@@ -4,13 +4,13 @@ expression: versionless(h.screen())
 ---
 My PRs (3) │ Merge queue │ Main builds │ Deployed                               
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│▌ ✗  #482┌Manage #4821─────────────────────────────────────────────┐       2h│
+│▌ ✗ ↑ #482┌Manage #4821─────────────────────────────────────────────┐       2h│
 │▌   webapp│ m  merge                                                │         │
 │▌   ✗ api │ u  update branch                                        │         │
-│  ●  #483│ f  rerun failed jobs · no finished failing run to rerun │       2h│
+│  ● ↑ #483│ f  rerun failed jobs · no finished failing run to rerun │       2h│
 │    auth  │ t  convert to draft                                     │         │
 │    checks│ a  enable auto-merge · GitHub does not allow it for     │         │
-│  ○  #479│    #4821                                                │       2h│
+│  ○ ≈ #479│    #4821                                                │       2h│
 │    webapp│ e  leave the merge queue · #4821 is not queued          │         │
 │    checks│ c  check out locally                                    │         │
 │          │ x  close PR                                             │         │

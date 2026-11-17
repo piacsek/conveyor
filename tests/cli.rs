@@ -72,6 +72,31 @@ fn config_prints_the_effective_defaults_as_toml() {
 }
 
 #[test]
+fn config_prints_plain_icons_by_default() {
+    let out = binary(&["config"]);
+    assert!(out.status.success());
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("details_percent = 40\nicons = \"plain\"\n"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn config_refuses_unknown_icons_naming_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_config(&dir, "[ui]\nicons = \"emoji\"\n");
+
+    let out = config_command(&path);
+
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("config.toml"), "{stderr}");
+    assert!(stderr.contains("emoji"), "{stderr}");
+    assert!(out.stdout.is_empty());
+}
+
+#[test]
 fn config_prints_background_tabs_off_when_set_off() {
     let dir = tempfile::tempdir().unwrap();
     let path = write_config(&dir, "[prs]\nbackground_tabs = false\n");
@@ -141,7 +166,7 @@ fn a_config_written_before_tabs_loads_and_prints_back_unchanged() {
             )
             .replace(
                 "details_percent = 30\n",
-                &format!("details_percent = 30\n{KEYS}")
+                &format!("details_percent = 30\n{ICONS_AND_KEYS}")
             )
     );
 }
@@ -311,13 +336,15 @@ limit = 10
 [ui]
 min_column_width = 36
 details_percent = 40
+icons = \"plain\"
 
 [ui.keys]
 next_tab = \"tab\"
 previous_tab = \"shift-tab\"
 ";
 
-const KEYS: &str = "
+const ICONS_AND_KEYS: &str = "icons = \"plain\"
+
 [ui.keys]
 next_tab = \"tab\"
 previous_tab = \"shift-tab\"

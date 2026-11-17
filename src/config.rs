@@ -116,9 +116,18 @@ impl Default for Prs {
 pub struct Ui {
     pub min_column_width: u16,
     pub details_percent: u16,
+    pub icons: Icons,
     pub keys: Keys,
     #[serde(skip_serializing_if = "Titles::is_unset")]
     pub titles: Titles,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Icons {
+    #[default]
+    Plain,
+    Nerd,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -167,6 +176,7 @@ impl Default for Ui {
         Self {
             min_column_width: 36,
             details_percent: 40,
+            icons: Icons::default(),
             keys: Keys::default(),
             titles: Titles::default(),
         }
