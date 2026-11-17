@@ -64,13 +64,14 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 57 | [the sweep gathers its own data and asks for itself](plans/phase-57-sweep-tooling.md) | none |
 | 58 | [the privacy scrub checks what is about to be committed (#120)](plans/phase-58-scrub-staged.md) | none |
 | 59 | [a `gh` call that never returns no longer freezes its column (#124)](plans/phase-59-gh-deadline.md)| v0.35.1 |
+| 60 | [the guidelines say only the rules (#125), after the first sweep](plans/phase-60-guidelines.md) | |
 | 61 | [two pull requests with the same number in different repositories stay apart (#121)](plans/phase-61-repo-row-key.md) | v0.34.5 |
 | 62 | [Main builds reads the repository's own default branch (#123)](plans/phase-62-builds-branch.md) | v0.35.0 |
 | 63 | [the flake build runs only when its inputs change, and gates the merge (#117)](plans/phase-63-flake-gate.md) | none |
-| 64 | [titles with emoji or CJK characters keep inside their dialog and card (#111)](plans/phase-64-display-width.md) | |
-| 66 | [Main builds follows the Merge queue's repository (#114)](plans/phase-66-builds-per-repo.md) | |
-| 67 | [the release scripts read `cargo metadata` with a JSON parser (#126)](plans/phase-67-cargo-metadata.md) | |
-| 68 | [a config value that would break conveyor or be ignored is refused at load (#122)](plans/phase-68-config-values.md) | |
+| 64 | [titles with emoji or CJK characters keep inside their dialog and card (#111)](plans/phase-64-display-width.md) | v0.35.2 |
+| 66 | [Main builds follows the Merge queue's repository (#114)](plans/phase-66-builds-per-repo.md) | v0.35.3 |
+| 67 | [the release scripts read `cargo metadata` with a JSON parser (#126)](plans/phase-67-cargo-metadata.md) | none |
+| 68 | [a config value that would break conveyor or be ignored is refused at load (#122)](plans/phase-68-config-values.md) | v0.35.4 |
 
 ## Backlog (discussed at the sweeps and retros)
 
@@ -90,3 +91,12 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 - Desktop/tmux notification on queue state change or main build failure (tmux-agents `watch` pattern).
 - Deployed tabs, one per application of the monorepo, switched independently of the queue.
 - Native GitHub client if `gh` latency becomes a problem (measure first; each call ~0.3–1 s).
+- `ship.sh` refuses to commit when the working tree changed after its gates started, so an edit
+  made during a ship cannot land ungated (sweep of phase 60: phases 62 and 68).
+- Parallel phases stop colliding on `PLAN.md` and `plans/metrics.md`: rows a phase never edits
+  after its own, or one file per row (sweep of phase 60: phases 47, 54, 59 and every merge).
+- Enforce "no code comments" with a test like `tests/dead_code.rs`, once the owner decides
+  whether `///` and `//!` docs count and what becomes of the comments already in `src/` and
+  `tests/` (#125, phase 60).
+- Trim `.github/AGENTS.md` and the per-directory `AGENTS.md` files the way phase 60 trimmed the
+  root one: an inventory first, history to `plans/`, facts that restate the code cut (#125).
