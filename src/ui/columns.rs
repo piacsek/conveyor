@@ -5,7 +5,7 @@ use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 
 use crate::app::{App, Column, Failure, Row, Stage, Write};
-use crate::text::short_repo;
+use crate::text::{cells, short_repo};
 use crate::ui::help::{column_name, custom_title};
 use crate::ui::link::link;
 use crate::ui::rows::{build_row, deployed_row, pr_row, queue_row};
@@ -311,7 +311,7 @@ fn draw_list<T: Row>(
         .enumerate()
         .map(|(i, item)| row(i, item, Some(i) == selected, width))
         .unzip();
-    let heights: Vec<u16> = cards.iter().map(|card| card.len() as u16).collect();
+    let heights: Vec<u16> = cards.iter().map(|card| cells(card.len())).collect();
     let inner = block.inner(area);
     let items: Vec<ListItem> = cards
         .into_iter()
