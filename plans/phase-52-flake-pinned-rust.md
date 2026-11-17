@@ -39,3 +39,15 @@ place the version is written.
    and its lock, the guidelines and the fragment (`kind: internal`).
 2. `tests/toolchain.rs`: the file asks for the `minimal` profile (red first), then the file.
 3. Measure the `flake` job on the pull request against phase 51's times and write them down.
+
+## Review round 1
+- should: every toolchain bump breaks the flake unless the overlay lock moves too. The bump
+  steps in both `AGENTS.md` files now list the lock update (a Docker command, no Nix on the
+  host), and `scripts/version-check.sh` refuses a pull request that changes the `channel` of
+  `rust-toolchain.toml` while `flake.lock` keeps the locked `rust-overlay` revision or holds
+  none (no lock, not JSON, no `rust-overlay` input, not 40 hex digits). It reads both files
+  with `git cat-file` only; a pull request that keeps the channel is never judged by it.
+  Tests in `tests/scripts/version_check_toolchain.rs`.
+- minor: the recovery text says a toolchain download failure in `nix build` takes a new run.
+- minor: `tests/toolchain.rs` refuses any Rust version literal in `flake.nix` and matches
+  `fromRustupToolchainFile ./rust-toolchain.toml` without the `rust-bin.` binding.

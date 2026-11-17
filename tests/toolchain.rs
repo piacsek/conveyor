@@ -32,12 +32,28 @@ fn rust_version_is_the_major_minor_of_the_pinned_toolchain() {
 
 #[test]
 fn the_flake_builds_with_the_toolchain_the_file_names() {
-    assert!(read("flake.nix").contains("rust-bin.fromRustupToolchainFile ./rust-toolchain.toml"));
+    assert!(read("flake.nix").contains("fromRustupToolchainFile ./rust-toolchain.toml"));
 }
 
 #[test]
 fn the_flake_names_no_rust_version_of_its_own() {
-    assert!(!read("flake.nix").contains(&major_minor(&channel())));
+    assert_eq!(version_literals(&read("flake.nix")), Vec::<String>::new());
+}
+
+#[test]
+fn a_rust_version_other_than_the_pinned_one_counts_as_a_literal() {
+    assert_eq!(
+        version_literals("toolchain = rust-bin.stable.\"1.99.1\".default;"),
+        vec!["1.99.1".to_string()]
+    );
+}
+
+#[test]
+fn a_major_minor_counts_as_a_literal() {
+    assert_eq!(
+        version_literals("rust-bin.stable.\"1.98\".minimal"),
+        vec!["1.98".to_string()]
+    );
 }
 
 #[test]
@@ -46,6 +62,14 @@ fn the_toolchain_leaves_out_the_docs_the_flake_would_unpack() {
         toolchain_file().get("profile").and_then(|p| p.as_str()),
         Some("minimal")
     );
+}
+
+fn version_literals(text: &str) -> Vec<String> {
+    text.split(|c: char| !c.is_ascii_digit() && c != '.')
+        .map(|run| run.trim_matches('.'))
+        .filter(|run| run.split('.').count() > 1 && run.split('.').all(|part| !part.is_empty()))
+        .map(str::to_string)
+        .collect()
 }
 
 fn read(path: &str) -> String {

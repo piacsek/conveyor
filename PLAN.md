@@ -828,7 +828,10 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   now asks for the `minimal` profile: the default one brought `rust-docs`, and the macOS
   `flake` job took 3 min 33 s and 6 min 19 s; with `minimal` it takes 3 min 10 s and Linux
   1 min 33 s (phase 51: 3 min 9 s and 1 min 49 s), so no cache. The toolchain still brings
-  rustfmt and clippy, as the file lists them. Fragment `kind: internal`.
+  rustfmt and clippy, as the file lists them. Fragment `kind: internal`. Review round 1: every
+  bump now updates the locked `rust-overlay` too (Docker command in the bump steps), and the
+  `version` check refuses a channel change that keeps the locked revision or has none;
+  `flake.nix` may name no Rust version at all.
 - Phase 51 (`plans/phase-51-nix-flake.md`, #106, part of #96): conveyor installs with Nix,
   `nix --extra-experimental-features 'nix-command flakes' profile install
   github:piacsek/conveyor/stable`. `flake.nix` builds the binary with

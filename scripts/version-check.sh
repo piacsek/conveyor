@@ -277,6 +277,39 @@ if [ -n "$added" ]; then
   fi
 fi
 
+channel_at() {
+  { git cat-file blob "$1:rust-toolchain.toml" 2>/dev/null || true; } | awk '
+    /^[ \t]*\[/ { table = $0; gsub(/[ \t\r]/, "", table); next }
+    table == "[toolchain]" && /^[ \t]*channel[ \t]*=/ { value = $0; sub(/^[^=]*=[ \t]*/, "", value); sub(/[ \t\r]*$/, "", value); print value }
+  '
+}
+
+overlay_at() {
+  local rev
+  rev="$(git cat-file blob "$1:flake.lock" 2>/dev/null | jq -r 'try (.nodes[.nodes[.root].inputs["rust-overlay"]].locked.rev) catch "" | if type == "string" then . else "" end' 2>/dev/null)" || rev=""
+  case "$rev" in
+    *[!0-9a-f]*) rev="" ;;
+  esac
+  [ "${#rev}" -eq 40 ] || rev=""
+  printf '%s' "$rev"
+}
+
+overlay_update='without Nix: `docker run --rm -v "$PWD":/src -w /src nixos/nix sh -c "git config --global --add safe.directory /src; nix --extra-experimental-features '"'nix-command flakes'"' flake update rust-overlay"`'
+base_channel="$(channel_at "$fork")"
+head_channel="$(channel_at "$head")"
+if [ "$head_channel" != "$base_channel" ]; then
+  if ! command -v jq >/dev/null 2>&1; then
+    refuse "jq is not on PATH: the check reads the locked rust-overlay revision in flake.lock with jq when rust-toolchain.toml changes the Rust channel, so install jq and run it again"
+  else
+    head_overlay="$(overlay_at "$head")"
+    if [ -z "$head_overlay" ]; then
+      refuse "rust-toolchain.toml changes the Rust channel and flake.lock holds no locked rust-overlay revision (40 hex digits under the node the root's \`rust-overlay\` input names): the Nix flake builds that channel through rust-overlay, so lock it in this pull request ($overlay_update)"
+    elif [ "$head_overlay" = "$(overlay_at "$fork")" ]; then
+      refuse "rust-toolchain.toml changes the Rust channel and flake.lock keeps the locked rust-overlay revision: the Nix flake builds that channel through rust-overlay, which knows no Rust released after its locked revision, so update it in this pull request ($overlay_update)"
+    fi
+  fi
+fi
+
 binary="$(printf '%s' "$touched" | scripts/feeds-binary.sh | sed -n 1p)"
 if [ -n "$binary" ] && [ -z "$added" ]; then
   refuse "$binary feeds the binary, so the pull request needs a fragment: add changes/<branch>.md starting with \`kind: fix\`, \`kind: feat\` or \`kind: internal\` (see Releasing in AGENTS.md)"
