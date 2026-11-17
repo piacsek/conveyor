@@ -131,6 +131,8 @@ tests/AGENTS.md  the testing traps hit so far, the e2e `gh` shim dispatch note
 .github/pull_request_template.md  `## Summary` and `## Changes`: the body `ship.sh` opens a draft PR with
 .github/ISSUE_TEMPLATE/       the bug report and feature request forms, and `config.yml` sending questions and deploy-source requests to Discussions
 .github/CONTRIBUTING.md       where a newcomer starts: points here, to `scripts/gates.sh`, `scripts/ship.sh` and the fragment rule, restates none of them
+.claude/skills/sweep/          the `sweep` skill: runs `scripts/sweep-report.sh`, finds repeats and trends, proposes what each becomes, writes `### Sweep` on the user's yes
+.claude/skills/adversarial-review/ the `adversarial-review` skill: attack the repository, report what is bad, file the fixes as labelled issues on request; `drive-demo.sh` drives `conveyor --demo` under tmux
 ```
 
 ## Where the rest lives
@@ -271,7 +273,7 @@ nearest the code the guideline is about.
   every `→ none`, the metrics rows and their empty cells, from the phase after the last sweep);
   the `sweep` workflow opens an issue "Sweep due before phase N" with that report once phase N−1
   is on `main`. The report only counts: telling that two hurdles are the same problem, and what
-  becomes of each, is the sweep's judgment.
+  becomes of each, is the sweep's judgment, which the `sweep` skill (`/sweep`) walks through.
 - **Time and tokens.** Every phase from 53 has one row in `plans/metrics.md`, written with the
   outcome, so it is on the branch before `gh pr ready`; its Notes cell carries what a number
   needs to be read right (a session shared between phases, a running total).
@@ -505,7 +507,7 @@ kind: fix
   `flake.lock` feed the binary on purpose: they decide what a Nix user runs, and only a release
   moves `stable` to them. Such a pull
   request is always released, a refactor as an `internal` patch. One that touches only tests,
-  docs, plans, scripts, CI or guidelines needs none and releases nothing.
+  docs, plans, scripts, CI, guidelines or agent skills (`.claude/`) needs none and releases nothing.
 - **`changes/` is add-only.** A fragment is never edited, renamed or deleted once it is on
   `main`: "pending" means "not in the tree of the last tag", so a changed released fragment
   stops every release and a reused name can skip one silently. Put a correction in a new file.

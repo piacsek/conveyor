@@ -27,18 +27,18 @@ skill's job, not CI's.
 
 ## Decisions
 
-- The user chose two pull requests over one with an `internal` fragment: the first adds
-  `.claude/` to `scripts/feeds-binary.sh` with the tooling; the second, after it merges, adds
-  the skill and needs no fragment. Nothing is released.
+- The user chose two pull requests over one with an `internal` fragment, so the skill would
+  follow once `.claude/` was off the binary's list. #128 took `.claude/` off that list on `main`
+  while this pull request was open, so the merge of `main` made the second pull request
+  unnecessary: the skill ships here, with no fragment, and nothing is released.
 - The report names nothing as a repeat and recommends nothing; the skill does.
 - The issue is opened once per sweep: an issue of the exact title, open or closed, stops a
   second one.
 
 ## Tasks
 
-PR 1:
-
-1. `scripts/feeds-binary.sh` lists `.claude/` (red first in `tests/scripts/feeds_binary.rs`).
+1. `scripts/feeds-binary.sh` lists `.claude/` (red first in `tests/scripts/feeds_binary.rs`;
+   #128 made the same change on `main`, and the merge kept its test).
 2. `scripts/sweep-report.sh [<first phase>]`: by tag, went nowhere, every hurdle by tag, plans
    with no `## Hurdles`, the metrics rows and their empty cells; from the phase after the last
    `### Sweep`, else 40 (red first in `tests/scripts/sweep.rs`).
@@ -47,18 +47,17 @@ PR 1:
    `## Outcome`.
 5. `AGENTS.md`, `.github/AGENTS.md`, phase 56's metrics row backfilled, this plan.
 
-PR 2:
-
 6. `.claude/skills/sweep/SKILL.md`: runs the report, reads the hurdles in full, fills the missing
    times from GitHub, groups repeats, proposes a disposition for each, and writes the
    `### Sweep` section only when the user agrees. `AGENTS.md` names it.
 
 ## Outcome
 
-PR 1 shipped tasks 1 to 5. The report on `main` at the time covers phases 40 to 56: 33 hurdles,
+All six tasks shipped in #127. The report on `main` at the time covers phases 40 to 56: 33 hurdles,
 `review-loop` the most frequent (8), 14 of them `→ none`. Phase 56's row now holds its merge
 time; its ready time stays `unknown`, since the session that built it had no way to read the
-pull request timeline. PR 2, the skill, follows once PR 1 is on `main`.
+pull request timeline. The skill went into the same pull request once the merge of `main` (#128) had taken `.claude/`
+off the binary's list.
 
 ## Hurdles
 

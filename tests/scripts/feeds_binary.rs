@@ -31,11 +31,11 @@ fn a_fragment_under_changes_does_not_feed_the_binary() {
 }
 
 #[test]
-fn the_repository_s_claude_code_skills_do_not_feed_the_binary() {
-    let output = feeds_binary(".claude/skills/sweep/SKILL.md\nsrc/.claude/x.rs\n");
+fn a_claude_skill_does_not_feed_the_binary() {
+    let output = feeds_binary(".claude/skills/review/SKILL.md\nsrc/.claude/topic.md\n");
 
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
-    assert_eq!(stdout(&output), "src/.claude/x.rs\n");
+    assert_eq!(stdout(&output), "src/.claude/topic.md\n");
 }
 
 fn feeds_binary(paths: &str) -> Output {
