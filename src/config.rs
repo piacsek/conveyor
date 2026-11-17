@@ -413,6 +413,7 @@ pub fn load(path: &Path) -> Result<Config, ConfigError> {
         toml::from_str(&text).map_err(|err| error(err.to_string().trim().to_string()))?;
     check_tabs(&text, &config.prs).map_err(error)?;
     config.ui.titles.check().map_err(error)?;
+    check_branches(&config.repo).map_err(error)?;
     if config.ui.keys.next_tab == config.ui.keys.previous_tab {
         return Err(error(format!(
             "next_tab and previous_tab are both \"{}\"",
@@ -420,6 +421,19 @@ pub fn load(path: &Path) -> Result<Config, ConfigError> {
         )));
     }
     Ok(config)
+}
+
+fn check_branches(repos: &[Repo]) -> Result<(), String> {
+    match repos
+        .iter()
+        .find(|repo| repo.branch.as_deref().is_some_and(|b| b.trim().is_empty()))
+    {
+        Some(repo) => Err(format!(
+            "the branch of {} is blank; remove it or name the branch",
+            repo.name
+        )),
+        None => Ok(()),
+    }
 }
 
 fn check_tabs(text: &str, prs: &Prs) -> Result<(), String> {

@@ -459,6 +459,24 @@ fn a_tab_with_a_blank_name_fails_naming_the_file() {
 }
 
 #[test]
+fn a_blank_branch_fails_naming_the_file_and_the_repository() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(
+        &dir,
+        "[[repo]]\nname = \"acme/webapp\"\nbranch = \" \"\n",
+    ))
+    .unwrap_err();
+
+    let text = err.to_string();
+    assert!(text.contains("config.toml"), "{text}");
+    assert!(
+        text.contains("the branch of acme/webapp is blank; remove it or name the branch"),
+        "{text}"
+    );
+}
+
+#[test]
 fn the_column_titles_read_from_ui_titles() {
     let dir = tempfile::tempdir().unwrap();
     let path = write(
