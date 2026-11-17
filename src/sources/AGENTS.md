@@ -46,7 +46,7 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   A failed lookup, or an answer without a `default_branch` string, is the column's error and is
   not cached, so the next fetch asks again; an empty column would read as "no builds". The
   branch is percent-encoded except `/`, so `+`, `&` and `#` reach GitHub as written. A blank
-  `branch` is refused at load. The demo answers `repos/{o}/{n}` with `main`, and so does the e2e
+  `branch`, or one with spaces around it, is refused at load. The demo answers `repos/{o}/{n}` with `main`, and so does the e2e
   shim's `api repos/*` route.
   `main_workflow` may be a display name (resolved once through `actions/workflows?per_page=100`,
   matched on `name` or the file basename) or a `.yml` file used directly. The default `CI/CD`

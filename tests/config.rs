@@ -459,6 +459,24 @@ fn a_tab_with_a_blank_name_fails_naming_the_file() {
 }
 
 #[test]
+fn a_branch_with_spaces_around_it_fails_naming_the_file_and_the_repository() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(
+        &dir,
+        "[[repo]]\nname = \"acme/webapp\"\nbranch = \" develop\"\n",
+    ))
+    .unwrap_err();
+
+    let text = err.to_string();
+    assert!(text.contains("config.toml"), "{text}");
+    assert!(
+        text.contains("the branch of acme/webapp has spaces around it; write it as \"develop\""),
+        "{text}"
+    );
+}
+
+#[test]
 fn a_blank_branch_fails_naming_the_file_and_the_repository() {
     let dir = tempfile::tempdir().unwrap();
 

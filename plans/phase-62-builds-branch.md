@@ -30,7 +30,7 @@ branch shows an empty column with no error, and every Deployed row there reads `
 - A failed lookup is the column's error, never an empty column.
 - The column title stays "Main" (titles are configurable under `[ui.titles]`); nothing visible
   moves, so no screenshot changes.
-- A blank `branch` is refused at load, naming the repository, like a blank title.
+- A blank `branch`, or one with spaces around it, is refused at load, naming the repository, like a blank title.
 - The branch is percent-encoded in the query, so a name holding `+`, `&` or `#` reaches GitHub
   as written.
 - The demo answers the lookup with `main`; the e2e shim answers it with `main`.
@@ -43,6 +43,8 @@ branch shows an empty column with no error, and every Deployed row there reads `
 | no | answers `default_branch` | the runs of that branch; the lookup is not repeated |
 | no | fails (`gh` error, 404, no access) | the column error with `gh`'s message; the next fetch asks again |
 | no | answers without a `default_branch` string | the column error naming the repository |
+| yes, blank or with spaces around it | not made | conveyor refuses to start, naming the file and the repository |
+| yes or no, a branch with no runs (misspelled, or not built) | made only when unset | an empty column: GitHub answers zero runs, not an error (declined in review) |
 
 ## Tasks
 
