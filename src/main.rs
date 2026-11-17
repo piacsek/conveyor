@@ -151,7 +151,7 @@ where
     );
     refreshers.insert(
         Stage::Builds,
-        spawn_builds_fetcher(gh(), config.clone(), tx.clone()),
+        spawn_builds_fetchers(&gh, &config, tx.clone()),
     );
     if let Some(refresh) = spawn_deploy_fetcher(gh(), kube(), config.clone(), tx.clone()) {
         refreshers.insert(Stage::Deployed, refresh);
@@ -288,26 +288,32 @@ fn spawn_queue_fetcher(
     })
 }
 
-fn spawn_builds_fetcher(
-    gh: impl Github + Send + 'static,
-    config: Config,
+fn spawn_builds_fetchers<G: Github + Send + 'static>(
+    gh: impl Fn() -> G,
+    config: &Config,
     tx: Inputs,
 ) -> mpsc::Sender<usize> {
-    let interval = Duration::from_secs(config.repo.first().map_or(30, |repo| repo.refresh_secs));
-    let mut source: Option<BuildsSource> = None;
-    refresh::spawn(Stage::Builds, interval, 1, tx, move |_| {
-        if source.is_none() {
-            let repo = repos(&gh, &config)?
-                .into_iter()
-                .next()
+    let intervals = (0..config.repo.len().max(1))
+        .map(|tab| Duration::from_secs(config.repo.get(tab).map_or(30, |repo| repo.refresh_secs)))
+        .collect();
+    refresh::spawn_each(Stage::Builds, intervals, tx, |tab| {
+        let gh = gh();
+        let config = config.clone();
+        let mut source: Option<BuildsSource> = None;
+        move || {
+            if source.is_none() {
+                let repo = repos(&gh, &config)?
+                    .into_iter()
+                    .nth(tab)
+                    .ok_or_else(|| "no repository to watch".to_string())?;
+                source = Some(BuildsSource::new(repo));
+            }
+            let source = source
+                .as_mut()
                 .ok_or_else(|| "no repository to watch".to_string())?;
-            source = Some(BuildsSource::new(repo));
+            let builds = source.fetch(&gh, SystemTime::now())?;
+            Ok(Rows::Builds(source.into_builds(builds)))
         }
-        let source = source
-            .as_mut()
-            .ok_or_else(|| "no repository to watch".to_string())?;
-        let builds = source.fetch(&gh, SystemTime::now())?;
-        Ok(Rows::Builds(source.into_builds(builds)))
     })
 }
 

@@ -179,7 +179,7 @@ fn a_signed_out_gh_fails_main_builds_as_not_signed_in_with_its_own_words() {
         }),
     );
 
-    let failure = app.builds.column.error.clone().unwrap();
+    let failure = app.builds.active().column.error.clone().unwrap();
     assert_eq!(failure.kind(), FailureKind::NotSignedIn);
     assert_eq!(failure.to_string(), SIGNED_OUT_SAID);
 }

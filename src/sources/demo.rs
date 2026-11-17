@@ -14,6 +14,7 @@ const PRS: &str = include_str!("demo/prs.json");
 const REVIEW: &str = include_str!("demo/review.json");
 const QUEUE: &str = include_str!("demo/queue.json");
 const RUNS: &str = include_str!("demo/runs.json");
+const INFRA_RUNS: &str = include_str!("demo/infra-runs.json");
 const MERGE_GROUP_RUNS: &str = include_str!("demo/merge-group-runs.json");
 const WORKFLOWS: &str = include_str!("demo/workflows.json");
 const PULLS: &str = include_str!("demo/pulls.json");
@@ -85,6 +86,8 @@ fn jobs(run: &str) -> String {
         "7" => (2400, Some(1980), false),
         "309" => (90000, Some(89070), false),
         "310" => (7200, Some(6198), false),
+        "905" => (2700, Some(2280), false),
+        "904" => (9000, Some(8460), false),
         _ => (100000, Some(99000), false),
     };
     let (status, conclusion, completed) = match finished {
@@ -140,7 +143,8 @@ impl Github for Demo {
         match route.split('/').collect::<Vec<_>>().as_slice() {
             [_, _, _] => self.answer(REPOSITORY),
             [_, _, _, "actions", "workflows"] => self.answer(WORKFLOWS),
-            [_, _, _, "actions", "workflows", _, "runs"] => self.answer(RUNS),
+            [_, _, "webapp", "actions", "workflows", _, "runs"] => self.answer(RUNS),
+            [_, _, "infra", "actions", "workflows", _, "runs"] => self.answer(INFRA_RUNS),
             [_, _, _, "actions", "runs"] if query.contains("event=merge_group") => {
                 self.answer(MERGE_GROUP_RUNS)
             }

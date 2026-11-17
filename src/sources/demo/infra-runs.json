@@ -1,0 +1,33 @@
+{
+  "total_count": 2,
+  "workflow_runs": [
+    {
+      "id": 905,
+      "run_number": 905,
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "3e9b1f6a07c4d28e5b1a93f7c0d6e4a2b8f51c39",
+      "display_title": "Raise the node pool to 6 nodes (#4817)",
+      "html_url": "https://github.com/acme/infra/actions/runs/905",
+      "actor": {
+        "login": "merge-bot"
+      },
+      "run_started_at": "ago:2700",
+      "updated_at": "ago:2280"
+    },
+    {
+      "id": 904,
+      "run_number": 904,
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "a61c8e2f4b9d07359e1f2a6c8d4b70e3f5a9c216",
+      "display_title": "Rotate the ingress certificates (#4810)",
+      "html_url": "https://github.com/acme/infra/actions/runs/904",
+      "actor": {
+        "login": "merge-bot"
+      },
+      "run_started_at": "ago:9000",
+      "updated_at": "ago:8460"
+    }
+  ]
+}

@@ -34,10 +34,10 @@ pub enum LogState {
 }
 
 impl App {
-    pub(super) fn age_jobs(&mut self, stage: Stage) {
+    pub(super) fn age_jobs(&mut self, stage: Stage, tab: usize) {
         let runs: Vec<(u64, bool, u64)> = self
             .stage(stage)
-            .runs()
+            .runs_in(tab)
             .into_iter()
             .map(|run| (run.id, run.is_settled(), run.attempt))
             .collect();
@@ -108,6 +108,7 @@ impl App {
 
     fn failing_run_without_jobs(&self) -> Option<u64> {
         self.builds
+            .active()
             .column
             .all()
             .iter()
