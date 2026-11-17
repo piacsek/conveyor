@@ -122,7 +122,7 @@ scripts/fragments.sh          sourced, not run: reads the pending fragments and 
 scripts/version-check.sh      `<base> <head>`: the `version` job of `version.yml`; reads the head as git objects, runs nothing from it
 scripts/next-version.sh       prints the version the pending fragments ask for, nothing when none is pending
 scripts/release-commit.sh     `<version>`: writes the release into `Cargo.toml`, `Cargo.lock` and `CHANGELOG.md` and confirms it reads back; commits nothing
-scripts/release-rewrite.sh    sourced, not run: the release rewrite both `release-commit.sh` and `version-check.sh` use
+scripts/release-rewrite.sh    sourced, not run: the release rewrite both `release-commit.sh` and `version-check.sh` use, and the root package read from `cargo metadata` with `jq`
 scripts/releases.sh           sourced, not run: the state of a tag's release, and the newest complete release above a version (`formula-version.sh` and `stable-version.sh`)
 scripts/release-unfinished.sh `<tag>`: whether `build` and `publish` still have work, so a rerun never rebuilds a published release
 scripts/previous-tag.sh       `<tag>`: the highest `vX.Y.Z` tag below it, read with `gh`, which `publish` names as the previous release for the generated notes
@@ -469,6 +469,8 @@ repository, no `origin/main` or no merge base runs everything. The skip is safe 
 `check` job of `ci.yml` calls `cargo test --locked -- --include-ignored` itself, not `gates.sh`,
 and `check` is required to merge into `main`. A script test that starts reading another path of
 this repository puts that path on the list in the script.
+The script tests need `jq` on `PATH`, as `version-check.sh` and `release-commit.sh` do (recent macOS
+ships it as `/usr/bin/jq`, the GitHub runners carry it).
 `tests/scripts/` runs the scripts themselves in a scratch directory and a scratch git
 repository, with `cargo`, `gh` and the scripts they call replaced by symlinks to
 `tests/fixtures/record-call.sh`, which appends its name and argv to `$CALLS_LOG` and exits 1 for a call whose argv starts with `$FAILING_CALL` (how a ship test says the branch has no pull request yet). Where a

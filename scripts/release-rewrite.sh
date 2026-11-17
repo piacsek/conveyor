@@ -30,48 +30,14 @@ lock_reads() {
 }
 
 root_package() {
-  ROOT="$1" awk '
-    BEGIN { want = "\"manifest_path\":\"" ENVIRON["ROOT"] "/Cargo.toml\""; size_want = length(want) }
-    NR > 1 { bad = 1; exit }
-    {
-      text = $0
-      if (substr(text, 1, 13) != "{\"packages\":[") { bad = 1; exit }
-      size = length(text)
-      depth = 2
-      for (i = 14; i <= size; i++) {
-        c = substr(text, i, 1)
-        if (quoted) {
-          if (escaped) escaped = 0
-          else if (c == "\\") escaped = 1
-          else if (c == "\"") quoted = 0
-          continue
-        }
-        if (c == "\"") {
-          if (depth == 3 && substr(text, i, size_want) == want) mine = 1
-          quoted = 1
-          continue
-        }
-        if (c == "]" || c == "}") {
-          depth--
-          if (depth == 1) break
-          if (depth == 2 && mine) { found = found name " " version; roots++; mine = 0 }
-          continue
-        }
-        if (c != "[" && c != "{") continue
-        depth++
-        if (depth != 3) continue
-        if (c != "{" || !match(substr(text, i, 4096), /^\{"name":"[^"\\]+","version":"[^"\\]+","id":"[^"\\]*"/)) { bad = 1; exit }
-        split(substr(text, i, RLENGTH), field, "\"")
-        name = field[4]
-        version = field[8]
-        mine = 0
-      }
-      if (depth != 1 || roots > 1 || substr(text, i, 23) != "],\"workspace_members\":[") { bad = 1; exit }
-      read = 1
-    }
-    END {
-      if (bad || !read) print "unreadable"
-      else print found
-    }
-  '
+  jq -rs --arg manifest "$1/Cargo.toml" '
+    try (
+      if length != 1 or (.[0].packages | type) != "array" then "unreadable"
+      else [.[0].packages[] | select(.manifest_path == $manifest)]
+        | if length == 0 then ""
+          elif length == 1 and (.[0].name | type) == "string" and (.[0].version | type) == "string" then "\(.[0].name) \(.[0].version)"
+          else "unreadable" end
+      end
+    ) catch "unreadable"
+  ' 2>/dev/null || echo unreadable
 }

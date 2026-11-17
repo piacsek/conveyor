@@ -1,8 +1,7 @@
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::helpers::{committed, fragment, git, isolated, stderr, stdout, which};
+use crate::helpers::{committed, fragment, git, isolated, stderr, stdout, which, without_jq};
 use crate::version_check::{main_with_a_release, version_check};
 
 const LOCKED: &str = "1111111111111111111111111111111111111111";
@@ -184,7 +183,7 @@ fn a_head_without_the_toolchain_file_counts_as_a_new_channel() {
 }
 
 #[test]
-fn a_machine_without_jq_refuses_a_new_channel_instead_of_passing_it() {
+fn a_machine_without_jq_is_refused_before_anything_is_judged() {
     let dir = tempfile::tempdir().unwrap();
     let work = pinned(dir.path());
     committed(&work, "rust-toolchain.toml", &toolchain("1.99.0"));
@@ -205,7 +204,7 @@ fn a_machine_without_jq_refuses_a_new_channel_instead_of_passing_it() {
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
         stderr(&output),
-        "version check: jq is not on PATH: the check reads the locked rust-overlay revision in flake.lock with jq when rust-toolchain.toml changes the Rust channel, so install jq and run it again\n"
+        "version check: jq is not on PATH: the check reads what cargo metadata answers and the locked rust-overlay revision in flake.lock with jq, so install jq and run it again\n"
     );
 }
 
@@ -217,24 +216,6 @@ fn pinned(root: &Path) -> PathBuf {
     git(&work, &["checkout", "-qB", "pull"]);
     fragment(&work, "topic", "kind: internal\n");
     work
-}
-
-fn without_jq(root: &Path) -> PathBuf {
-    let bin = root.join("bin");
-    fs::create_dir_all(&bin).unwrap();
-    let path = std::env::var_os("PATH").unwrap();
-    for dir in std::env::split_paths(&path) {
-        let Ok(entries) = fs::read_dir(&dir) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            let name = entry.file_name();
-            if name != "jq" && fs::symlink_metadata(bin.join(&name)).is_err() {
-                std::os::unix::fs::symlink(entry.path(), bin.join(&name)).unwrap();
-            }
-        }
-    }
-    bin
 }
 
 fn toolchain(channel: &str) -> String {
