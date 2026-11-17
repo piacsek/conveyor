@@ -52,7 +52,11 @@ shoot() {
   t resize-window -t "$shot_window" -x "$width" -y "$height"
   t respawn-pane -k -t "$shot_window" "env -u XDG_CONFIG_HOME -u CONVEYOR_CONFIG -u XDG_STATE_HOME -u CONVEYOR_LOG HOME='$home' '$bin' --demo"
   sleep 1.5
-  [ -n "$keys" ] && t send-keys -t "$shot_window" "$keys" && sleep 0.5
+  local key
+  for key in $keys; do
+    t send-keys -t "$shot_window" "$key"
+  done
+  [ -n "$keys" ] && sleep 0.5
   t capture-pane -e -p -t "$shot_window" | python3 "$home/truecolor.py" >"$home/$name.ansi"
   render "$name" --padding 20,64,20,20 --window
 }
@@ -65,6 +69,8 @@ shoot help 160 26 "?"
 echo "wrote $out/help.png"
 shoot confirm 160 26 "jSm"
 echo "wrote $out/confirm.png"
+shoot infra 160 26 "l Tab"
+echo "wrote $out/infra.png"
 rm "$home/.config/conveyor/config.toml"
 shoot plain 160 26 ""
 echo "wrote $out/plain.png"

@@ -52,7 +52,7 @@ fn with_background_tabs_off_only_the_active_tab_is_fetched() {
 
 #[test]
 #[ignore]
-fn main_builds_of_every_repository_are_fetched_before_any_key() {
+fn main_builds_looks_up_the_workflows_of_every_repository_before_any_key() {
     let home = tempfile::tempdir().unwrap();
     let (path, argv) = logging_shim(home.path());
     let config = home.path().join("conveyor.toml");
@@ -72,8 +72,8 @@ fn main_builds_of_every_repository_are_fetched_before_any_key() {
         env!("CARGO_BIN_EXE_conveyor"),
     );
 
-    let log = wait_for_file_line(&argv, "repos/acme/infra");
-    assert!(log.contains("repos/acme/webapp"), "{log}");
+    wait_for_file_line(&argv, "repos/acme/webapp/actions/workflows?");
+    wait_for_file_line(&argv, "repos/acme/infra/actions/workflows?");
 }
 
 fn logging_shim(home: &Path) -> (String, std::path::PathBuf) {

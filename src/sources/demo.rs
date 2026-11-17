@@ -14,6 +14,7 @@ const PRS: &str = include_str!("demo/prs.json");
 const REVIEW: &str = include_str!("demo/review.json");
 const QUEUE: &str = include_str!("demo/queue.json");
 const RUNS: &str = include_str!("demo/runs.json");
+const INFRA_RUNS: &str = include_str!("demo/infra-runs.json");
 const MERGE_GROUP_RUNS: &str = include_str!("demo/merge-group-runs.json");
 const WORKFLOWS: &str = include_str!("demo/workflows.json");
 const PULLS: &str = include_str!("demo/pulls.json");
@@ -26,7 +27,6 @@ const CONFIG: &str = include_str!("demo/config.toml");
 const EXPIRED: &str = "ERROR: Active profile expired.";
 const REPOSITORY: &str = r#"{"default_branch":"main"}"#;
 const NO_COMMITS: &str = r#"{"data":{"repository":{}}}"#;
-const NO_RUNS: &str = r#"{"total_count":0,"workflow_runs":[]}"#;
 const EMPTY_QUEUE: &str = r#"{"data":{"repository":{"mergeQueue":{"url":"https://github.com/acme/infra/queue/main","entries":{"nodes":[]}}}}}"#;
 
 pub fn config(config: Config) -> Config {
@@ -142,7 +142,7 @@ impl Github for Demo {
             [_, _, _] => self.answer(REPOSITORY),
             [_, _, _, "actions", "workflows"] => self.answer(WORKFLOWS),
             [_, _, "webapp", "actions", "workflows", _, "runs"] => self.answer(RUNS),
-            [_, _, _, "actions", "workflows", _, "runs"] => self.answer(NO_RUNS),
+            [_, _, "infra", "actions", "workflows", _, "runs"] => self.answer(INFRA_RUNS),
             [_, _, _, "actions", "runs"] if query.contains("event=merge_group") => {
                 self.answer(MERGE_GROUP_RUNS)
             }

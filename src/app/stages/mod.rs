@@ -163,6 +163,10 @@ pub trait StageView {
         Vec::new()
     }
 
+    fn runs_in(&self, _: usize) -> Vec<&Build> {
+        self.runs()
+    }
+
     fn menu(&self, _: &Context) -> Result<Menu, String> {
         Err("S manages My PRs and Main builds".to_string())
     }
@@ -220,7 +224,7 @@ impl App {
             Ok(rows) if rows.stage() == stage => {
                 let now = self.now;
                 self.stage_mut(stage).receive(tab, rows, now);
-                self.age_jobs(stage);
+                self.age_jobs(stage, tab);
                 self.prune_failures(stage);
             }
             Ok(_) => {}

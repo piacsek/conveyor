@@ -41,8 +41,8 @@ Main builds follows the Merge queue's active tab.
 - The Deployed column reads the builds of the deploy repository's tab (the first `[[repo]]`
   with a `[[repo.deploy]]`, else the first tab), never the active one.
 - A queue switch sends no Main builds refresh: the background fetcher already keeps it current.
-- The demo's `acme/infra` answers no runs, so its tab reads `no builds on main` instead of
-  webapp's runs under the infra name.
+- The demo's `acme/infra` answers two runs of its own, so its tab shows infra builds instead of
+  webapp's runs under the infra name (review round 1: an empty column made a poor screenshot).
 
 ## States
 
@@ -60,7 +60,8 @@ Main builds follows the Merge queue's active tab.
 | `r` on Main builds, `R` | a refresh of the active tab's repository |
 | the deploy repository is not the active tab | Deployed's `↓N`, `at <branch>`, `b`/`Y` read the deploy repository's builds |
 | a rerun mark on a hidden tab's build | kept (`holds` asks every tab); the title's `!N` counts the active tab |
-| jobs | asked for the active tab's runs only, like the queue |
+| jobs | asked for the active tab's runs only, like the queue; a result ages the runs of its own tab |
+| a filter is on when the queue switches | cleared on the tab left and the tab shown, each keeping its selected build |
 
 ## Tasks
 
@@ -69,9 +70,11 @@ Main builds follows the Merge queue's active tab.
 3. The Deployed column reads the deploy repository's builds, whatever tab is active.
 4. `refresh::spawn_each`: one fetcher per tab, on its own interval, behind one sender; `main`
    starts one Main builds fetcher per repository.
-5. The demo's `acme/infra` answers no runs.
+5. The demo's `acme/infra` answers its own runs.
 6. `src/app/AGENTS.md`, `src/ui/AGENTS.md`, the backlog item, the fragment, the screenshot check.
 
 ## Outcome
 
 ## Hurdles
+
+- `process` The `spawn_each` routing test was written after the code; a reviewer broke the router and saw the test fail, so it stands → none

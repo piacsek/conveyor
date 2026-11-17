@@ -7,6 +7,7 @@ use conveyor::model::queue::QueueEntry;
 use ratatui::crossterm::event::KeyCode;
 use support::{
     Harness, build, builds_in, deployed, deployment, entry, failed_in, job, jobs, key, queue_in,
+    rerun_done,
 };
 
 #[test]
@@ -287,6 +288,147 @@ fn deployed_counts_the_builds_of_the_deploy_repository_while_the_queue_shows_ano
     assert!(screen.contains("↓2"), "{screen}");
 }
 
+#[test]
+fn r_on_main_builds_refreshes_the_repository_it_shows() {
+    let mut h = Harness::with_config(160, 24, two_repos());
+    h.run(on_infra_builds()).unwrap();
+    h.requests.clear();
+
+    h.run(vec![key(KeyCode::Char('r'))]).unwrap();
+
+    assert_eq!(h.requests, vec![Request::Refresh(Stage::Builds, 1)]);
+}
+
+#[test]
+fn shift_r_refreshes_the_main_builds_repository_shown() {
+    let mut h = Harness::with_config(160, 24, two_repos());
+    h.run(on_infra_builds()).unwrap();
+    h.requests.clear();
+
+    h.run(vec![key(KeyCode::Char('R'))]).unwrap();
+
+    assert!(
+        h.requests.contains(&Request::Refresh(Stage::Builds, 1)),
+        "{:?}",
+        h.requests
+    );
+}
+
+#[test]
+fn a_landed_rerun_refreshes_the_main_builds_repository_shown() {
+    let mut h = Harness::with_config(160, 24, two_repos());
+    h.run(on_infra_builds()).unwrap();
+
+    h.run(vec![
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('f')),
+        rerun_done(vec![(1025, Ok(()))]),
+    ])
+    .unwrap();
+
+    assert_eq!(h.requests.last(), Some(&Request::Refresh(Stage::Builds, 1)));
+}
+
+#[test]
+fn a_hidden_repository_result_asks_nothing_for_the_shown_running_build() {
+    let mut h = Harness::with_config(160, 24, two_repos());
+    h.run(vec![
+        builds_in(0, "acme/monorepo", vec![running(26)]),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        jobs(1026, vec![job(7, "check", BuildStatus::Running, None)]),
+    ])
+    .unwrap();
+    h.requests.clear();
+
+    h.run(vec![builds_in(1, "acme/infra", vec![running(9)])])
+        .unwrap();
+
+    assert!(h.requests.is_empty(), "{:?}", h.requests);
+}
+
+#[test]
+fn a_hidden_repository_result_ages_its_own_running_build_for_when_it_shows_again() {
+    let mut h = Harness::with_config(160, 24, two_repos());
+    h.run(vec![
+        builds_in(1, "acme/infra", vec![running(9)]),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Tab),
+        key(KeyCode::Char('l')),
+        jobs(1009, vec![job(7, "check", BuildStatus::Running, None)]),
+        key(KeyCode::Char('h')),
+        key(KeyCode::BackTab),
+        builds_in(1, "acme/infra", vec![running(9)]),
+    ])
+    .unwrap();
+    h.requests.clear();
+
+    h.run(vec![key(KeyCode::Tab), key(KeyCode::Char('l'))])
+        .unwrap();
+
+    assert!(
+        h.requests
+            .iter()
+            .any(|request| matches!(request, Request::Jobs { run_id: 1009, .. })),
+        "{:?}",
+        h.requests
+    );
+}
+
+#[test]
+fn a_late_monorepo_queue_result_asks_nothing_for_the_shown_infra_run() {
+    let mut h = Harness::with_config(160, 24, two_repos());
+    h.run(vec![
+        key(KeyCode::Char('l')),
+        key(KeyCode::Tab),
+        queue_in(1, "acme/infra", running_infra_run()),
+        jobs(4242, vec![job(7, "check", BuildStatus::Running, None)]),
+    ])
+    .unwrap();
+    h.requests.clear();
+
+    h.run(vec![queue_in(0, "acme/monorepo", vec![])]).unwrap();
+
+    assert!(h.requests.is_empty(), "{:?}", h.requests);
+}
+
+#[test]
+fn main_builds_keeps_its_filtered_selection_across_a_queue_round_trip() {
+    let mut h = Harness::with_config(160, 24, two_repos());
+    h.run(vec![
+        builds_in(
+            0,
+            "acme/monorepo",
+            vec![
+                build(
+                    7,
+                    BuildStatus::Success,
+                    Some((12, "alice", "Retry webhooks")),
+                ),
+                build(8, BuildStatus::Success, Some((13, "carol", "Rate limits"))),
+            ],
+        ),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('/')),
+        key(KeyCode::Char('R')),
+        key(KeyCode::Char('e')),
+        key(KeyCode::Char('t')),
+        key(KeyCode::Char('r')),
+        key(KeyCode::Enter),
+        key(KeyCode::Char('h')),
+        key(KeyCode::Tab),
+    ])
+    .unwrap();
+
+    h.run(vec![key(KeyCode::BackTab)]).unwrap();
+
+    assert_eq!(
+        h.app.builds.active().column.selected().unwrap().run_number,
+        7
+    );
+}
+
 fn two_repos() -> Config {
     Config {
         repo: vec![repo("acme/monorepo"), repo("acme/infra")],
@@ -311,6 +453,29 @@ fn repo(name: &str) -> Repo {
         name: name.to_string(),
         ..Repo::default()
     }
+}
+
+fn on_infra_builds() -> Vec<std::io::Result<conveyor::app::Input>> {
+    vec![
+        builds_in(
+            1,
+            "acme/infra",
+            vec![build(
+                25,
+                BuildStatus::Failure,
+                Some((40, "bob", "Bump nodes")),
+            )],
+        ),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Tab),
+        key(KeyCode::Char('l')),
+    ]
+}
+
+fn running(run_number: u64) -> conveyor::model::builds::Build {
+    let mut run = build(run_number, BuildStatus::Running, None);
+    run.finished_at = None;
+    run
 }
 
 fn infra_run() -> Vec<QueueEntry> {

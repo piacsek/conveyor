@@ -41,7 +41,9 @@ impl BuildsStage {
 
     pub fn follow(&mut self, tab: usize) {
         if tab < self.tabs.len() {
+            self.column_mut().clear_filter();
             self.active = tab;
+            self.column_mut().clear_filter();
         }
     }
 }
@@ -67,6 +69,10 @@ impl StageView for BuildsStage {
         self.tabs
             .get_mut(tab)
             .map(|tab| &mut tab.column as &mut dyn Listing)
+    }
+
+    fn active_tab(&self) -> usize {
+        self.active
     }
 
     fn holds(&self, key: u64) -> bool {
@@ -95,7 +101,11 @@ impl StageView for BuildsStage {
     }
 
     fn runs(&self) -> Vec<&Build> {
-        self.active().column.all().iter().collect()
+        self.runs_in(self.active)
+    }
+
+    fn runs_in(&self, tab: usize) -> Vec<&Build> {
+        self.tab(tab).column.all().iter().collect()
     }
 
     fn menu(&self, _: &Context) -> Result<Menu, String> {

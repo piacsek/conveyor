@@ -173,13 +173,16 @@ fn the_demo_main_builds_are_four_runs_newest_first_with_their_pull_requests() {
 }
 
 #[test]
-fn the_demo_main_builds_of_acme_infra_are_empty() {
+fn the_demo_main_builds_of_acme_infra_name_their_own_pull_requests() {
     let config = demo::config(Config::default());
     let mut source = BuildsSource::new(config.repo[1].clone());
 
     let builds = source.fetch(&Demo, SystemTime::now()).unwrap();
 
-    assert!(builds.is_empty(), "{builds:?}");
+    assert_eq!(builds.len(), 2);
+    assert_eq!(builds[0].repo().as_deref(), Some("acme/infra"));
+    assert_eq!(builds[0].pull.as_ref().unwrap().number, 4817);
+    assert_eq!(builds[1].pull.as_ref().unwrap().number, 4810);
 }
 
 #[test]
