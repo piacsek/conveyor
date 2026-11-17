@@ -103,4 +103,19 @@ confirmation, as today.
 
 ## Outcome
 
+- `root_package` is one `jq -rs` call with a fixed filter: key order, whitespace, line breaks
+  and JSON escapes no longer matter. The answers are unchanged: `<name> <version>` for one root
+  package, empty for none, `unreadable` for two, a name or version that is not a string, or
+  output that is not one JSON document with a `packages` array. A root path holding `"` or `\`,
+  which the awk never matched, is now found.
+- `version-check.sh` refuses up front without `jq`, beside the `cargo` check; the channel
+  rule's own `jq` refusal is gone and its test expects the new wording.
+  `release-commit.sh` refuses before writing anything when `cargo` is on `PATH` and `jq` is not.
+- `tests/scripts/release_rewrite.rs` covers every row of the states table (15 tests); the real
+  output of the pinned toolchain reaches `root_package` through the existing script tests.
+- Review: one round, clean (no must, should or minor finding). CI green on every push.
+
 ## Hurdles
+
+- `tooling` one `ship.sh` run died in the `github` test binary with exit 101 and no failing test in its output; the binary passed alone and the next runs got past it → none
+- `tooling` moving `without_jq` into `tests/scripts/helpers.rs` left `use std::fs` unused in `version_check_toolchain.rs`, and clippy refused the ship; only the targeted `cargo test` had run → none
