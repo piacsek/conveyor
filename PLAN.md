@@ -67,8 +67,8 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 61 | [two pull requests with the same number in different repositories stay apart (#121)](plans/phase-61-repo-row-key.md) | v0.34.5 |
 | 62 | [Main builds reads the repository's own default branch (#123)](plans/phase-62-builds-branch.md) | v0.35.0 |
 | 63 | [the flake build runs only when its inputs change, and gates the merge (#117)](plans/phase-63-flake-gate.md) | none |
-| 66 | [Main builds follows the Merge queue's repository (#114)](plans/phase-66-builds-per-repo.md) | |
 | 64 | [titles with emoji or CJK characters keep inside their dialog and card (#111)](plans/phase-64-display-width.md) | |
+| 66 | [Main builds follows the Merge queue's repository (#114)](plans/phase-66-builds-per-repo.md) | |
 | 67 | [the release scripts read `cargo metadata` with a JSON parser (#126)](plans/phase-67-cargo-metadata.md) | |
 
 ## Backlog (discussed at the sweeps and retros)
