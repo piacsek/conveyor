@@ -258,3 +258,25 @@ fn a_repository_that_names_no_default_branch_is_the_column_error() {
         "acme/webapp answered no default branch; set branch under its [[repo]]"
     );
 }
+
+#[test]
+fn a_branch_is_percent_encoded_in_the_main_builds_query() {
+    use conveyor::config::Repo;
+    use conveyor::sources::fetch::BuildsSource;
+    let gh = FakeGithub::with_response(Ok(serde_json::Value::Null));
+    let mut source = BuildsSource::new(Repo {
+        name: "acme/webapp".to_string(),
+        main_workflow: "ci.yml".to_string(),
+        branch: Some("release/1.x+lts&#2".to_string()),
+        builds: 3,
+        ..Repo::default()
+    });
+
+    source.fetch(&gh, NOW).unwrap();
+
+    let calls = gh.calls.borrow().clone();
+    assert_eq!(
+        calls[0].0,
+        "GET repos/acme/webapp/actions/workflows/ci.yml/runs?branch=release/1.x%2Blts%26%232&event=push&per_page=3"
+    );
+}

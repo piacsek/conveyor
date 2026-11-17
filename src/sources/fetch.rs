@@ -352,7 +352,7 @@ impl BuildsSource {
         now: std::time::SystemTime,
     ) -> Result<Vec<crate::model::builds::Build>, Failure> {
         let workflow = self.workflow(gh)?;
-        let branch = self.branch(gh)?;
+        let branch = query_value(&self.branch(gh)?);
         let runs = gh.rest(&format!(
             "repos/{}/actions/workflows/{workflow}/runs?branch={branch}&event=push&per_page={}",
             self.repo.name, self.repo.builds
@@ -562,4 +562,15 @@ fn pods(
     }
     let json = kube.pods(env, selector)?;
     Ok(crate::model::deployed::parse_pods(&json)?)
+}
+
+fn query_value(text: &str) -> String {
+    text.bytes()
+        .map(|byte| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' | b'/' => {
+                (byte as char).to_string()
+            }
+            _ => format!("%{byte:02X}"),
+        })
+        .collect()
 }
