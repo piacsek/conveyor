@@ -16,6 +16,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
 use crate::app::{App, Mode, Stage};
+use crate::text::cells;
 use crate::ui::changelog::draw_changelog;
 use crate::ui::columns::{column_title, draw_column};
 use crate::ui::details::draw_details;
@@ -59,7 +60,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     draw_footer(frame, app, footer);
     if app.zoom {
         draw_column(frame, app, app.focus, body, true);
-    } else if body.width < app.config.ui.min_column_width * Stage::ALL.len() as u16 {
+    } else if body.width < app.config.ui.min_column_width * cells(Stage::ALL.len()) {
         draw_column_bar(frame, app, body);
     } else {
         let columns = Layout::horizontal([Constraint::Fill(1); 4]).split(body);

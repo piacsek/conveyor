@@ -1,5 +1,7 @@
 use ratatui::crossterm::event::KeyCode;
 
+use conveyor::text::cells;
+
 use crate::support::{Harness, NOW, key, pr, prs, tick_at};
 
 const LONG_REASON: &str = "Pull request #4821 cannot be marked ready for review because the \
@@ -142,7 +144,7 @@ fn the_details_of_a_marked_card_start_with_the_whole_reason_and_its_time() {
         pane_line(&screen, 2).contains("#4821 acme/webapp"),
         "{screen}"
     );
-    let y = pane_top(&screen) as u16 + 1;
+    let y = cells(pane_top(&screen)) + 1;
     assert_eq!(h.cell(1, y).fg, ratatui::style::Color::Red);
 }
 

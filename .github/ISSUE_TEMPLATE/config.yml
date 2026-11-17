@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question
+    url: https://github.com/piacsek/conveyor/discussions/categories/q-a
+    about: How to set conveyor up, or why it shows what it shows.
+  - name: Request a deploy source
+    url: https://github.com/piacsek/conveyor/discussions/categories/ideas
+    about: Tell us how you deploy (Argo CD, GitHub deployments, another platform) so the Deployed column can read it.

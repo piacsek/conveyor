@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use conveyor::text::{elapsed, wrap};
+use conveyor::text::{cells, elapsed, scroll, wrap};
 
 #[test]
 fn wrap_fills_words_greedily_up_to_the_width() {
@@ -47,4 +47,29 @@ fn elapsed_keeps_seconds_under_an_hour() {
 fn elapsed_keeps_minutes_past_an_hour_and_hours_past_a_day() {
     assert_eq!(elapsed(Duration::from_secs(3_840)), "1h04m");
     assert_eq!(elapsed(Duration::from_secs(183_600)), "2d03h");
+}
+
+#[test]
+fn cells_keeps_a_count_that_fits() {
+    assert_eq!(cells(80), 80);
+}
+
+#[test]
+fn cells_saturates_a_count_above_the_widest_cell_count() {
+    assert_eq!(cells(65_536), u16::MAX);
+}
+
+#[test]
+fn scroll_keeps_an_offset_that_fits() {
+    assert_eq!(scroll(12), 12);
+}
+
+#[test]
+fn scroll_stops_at_the_top() {
+    assert_eq!(scroll(-1), 0);
+}
+
+#[test]
+fn scroll_stops_at_the_furthest_offset() {
+    assert_eq!(scroll(70_000), u16::MAX);
 }

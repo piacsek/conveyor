@@ -1,7 +1,7 @@
 # .github
 
-The CI workflows and the branch protection around them, and the release internals (Releasing
-internals, below). What a pull request author needs to release is in Releasing in the root
+The CI workflows and the branch protection around them, the issue forms, and the release
+internals (Releasing internals, below). What a pull request author needs to release is in Releasing in the root
 `AGENTS.md`.
 
 ## CI
@@ -275,6 +275,17 @@ pipeline went from ~3 min 20 s to 37 s:
   macOS build passes every required check, merges, and fails in the release run's `build`
   job after its tag is pushed; that is the "newest tag can never build" case in Releasing
   internals below.
+
+## Issues and Discussions
+
+`CONTRIBUTING.md` sits here rather than at the top: GitHub reads it from `.github/`, and a
+top-level file would feed the binary by `scripts/feeds-binary.sh`. `ISSUE_TEMPLATE/` holds two
+issue forms, `bug_report.yml` (labelled `bug`) and
+`feature_request.yml` (labelled `enhancement`); both open with a reminder not to paste private
+names. `config.yml` turns blank issues off and links questions to the Q&A category of
+Discussions and deploy-source requests to Ideas. Discussion categories cannot be created
+through the API; they are set by hand under Settings. Starter issues carry `good first issue` or
+`help wanted`, and `PLAN.md` names the issue each backlog item became.
 
 ## Releasing internals
 

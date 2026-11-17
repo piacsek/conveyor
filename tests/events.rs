@@ -155,7 +155,7 @@ impl EventSource for Scripted {
             Ok(true)
         } else {
             self.elapsed.set(self.elapsed.get() + timeout);
-            *delay -= timeout.as_millis() as u64;
+            *delay -= u64::try_from(timeout.as_millis()).unwrap();
             Ok(false)
         }
     }
