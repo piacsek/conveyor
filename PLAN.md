@@ -63,10 +63,11 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 56 | [each phase's outcome, hurdles and numbers live with its plan](plans/phase-56-plans-split.md) | none |
 | 57 | [the sweep gathers its own data and asks for itself](plans/phase-57-sweep-tooling.md) | none |
 | 58 | [the privacy scrub checks what is about to be committed (#120)](plans/phase-58-scrub-staged.md) | none |
-| 59 | [a `gh` call that never returns no longer freezes its column (#124)](plans/phase-59-gh-deadline.md) | |
+| 59 | [a `gh` call that never returns no longer freezes its column (#124)](plans/phase-59-gh-deadline.md)| v0.35.1 |
 | 61 | [two pull requests with the same number in different repositories stay apart (#121)](plans/phase-61-repo-row-key.md) | v0.34.5 |
 | 62 | [Main builds reads the repository's own default branch (#123)](plans/phase-62-builds-branch.md) | v0.35.0 |
 | 63 | [the flake build runs only when its inputs change, and gates the merge (#117)](plans/phase-63-flake-gate.md) | none |
+| 64 | [titles with emoji or CJK characters keep inside their dialog and card (#111)](plans/phase-64-display-width.md) | |
 
 ## Backlog (discussed at the sweeps and retros)
 

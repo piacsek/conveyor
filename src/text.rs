@@ -1,5 +1,7 @@
 use std::time::{Duration, SystemTime};
 
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+
 pub fn cells(count: usize) -> u16 {
     u16::try_from(count).unwrap_or(u16::MAX)
 }
@@ -8,17 +10,29 @@ pub fn scroll(offset: i32) -> u16 {
     u16::try_from(offset.max(0)).unwrap_or(u16::MAX)
 }
 
+pub fn display_width(text: &str) -> usize {
+    UnicodeWidthStr::width(text)
+}
+
+fn fitting(text: &str, room: usize) -> usize {
+    let mut used = 0;
+    for (at, c) in text.char_indices() {
+        used += UnicodeWidthChar::width(c).unwrap_or(0);
+        if used > room {
+            return at;
+        }
+    }
+    text.len()
+}
+
 pub fn truncate(text: &str, width: usize) -> String {
-    let count = text.chars().count();
-    if count <= width {
+    if display_width(text) <= width {
         return text.to_string();
     }
     if width == 0 {
         return String::new();
     }
-    let mut cut: String = text.chars().take(width - 1).collect();
-    cut.push('…');
-    cut
+    format!("{}…", &text[..fitting(text, width - 1)])
 }
 
 pub fn wrap(text: &str, width: usize, lines: usize) -> Vec<String> {
