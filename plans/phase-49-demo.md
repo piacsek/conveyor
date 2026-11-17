@@ -72,3 +72,29 @@ lives in `scripts/screenshots.sh` as shell-written JSON behind `gh` and `kubectl
 6. Opening a URL in the demo refuses with a notice; the footer says `demo`.
 7. `scripts/screenshots.sh` runs `--demo`; `docs/details.png` rerendered.
 8. README, `AGENTS.md` files, fragment.
+
+## Outcome
+
+Phase 49 (`plans/phase-49-demo.md`, #105, part of #96): `conveyor --demo` draws all four
+columns from a fixture built into the binary, with no `gh`, no `kubectl` and no config.
+`sources::demo::Demo` is both `Github` and `Kube`; its JSON under `src/sources/demo/` is the
+old screenshot shim fixture with `ago:<secs>` times, so ages move. `main::tui` takes the
+sources, the opener and the demo flag, so both runs share one path. `demo::config` swaps in
+the demo's `[prs]` and `[[repo]]` and keeps `[ui]` and `[keys]`. Writes and checkout fail
+with `demo: nothing was changed` (the usual failed-write mark); `open::DemoOpener` refuses to
+open (`acme/*` is made up), copy works; the footer shows a bold magenta `demo` before the
+logo. The demo runs with `Log::default()`. `scripts/screenshots.sh` now runs `--demo` instead
+of its shims, so `docs/details.png` carries the marker. Decisions: `uat` fails with the same
+expired-session text the shim printed; the `acme/infra` queue answers empty; any GraphQL
+other than My PRs and the queue answers a repository with no commits, so pull requests come
+through the REST route by sha. Review round 1: the marker also shows under the help and
+changelog panes; the `review` tab answers its own two pull requests; the fixture tells one
+story (My PRs are open and mine, one of them queued at the queue's position 2, Main builds
+and Deployed come from other people's merged pull requests); `#4821`'s failing check has a
+finished suite, so rerun is offered. Review round 2: the demo draws no `#N` hyperlink;
+`cli::parse` refuses any argument after the first; each run's log and job times fit that run
+(`sessions.log` for Main builds run 311, `failed.log` for `#4821`). Fragment `kind: feat`.
+
+## Hurdles
+
+- `review-loop` Two rounds went to making the demo fixture tell one consistent story (queue position, tab answers, run logs and times) → code

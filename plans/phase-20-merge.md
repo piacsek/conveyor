@@ -86,3 +86,12 @@ This file ships with the first commit.
 3. Push a commit to that PR between `M` and `y` → footer shows gh's head-mismatch error.
 
 Estimate: about half a day of TDD cycles, mostly tasks 4–6.
+
+## Outcome
+
+v0.18.0 (phase 20, `plans/phase-20-merge.md`): `M` merges the selected pull request after a
+`y/n` prompt, through `gh pr merge --<prs.merge_method> --match-head-commit <head sha>`, in the
+confirm mode `X` introduced (`Pending::Merge`). New config key `prs.merge_method` (default
+squash). Review fixes: the prompt cuts long titles so `? y/n` stays visible, and a refused
+merge on a merge-queue branch shows gh's reason instead of its strategy warning. Worktrees
+became the default way to work.

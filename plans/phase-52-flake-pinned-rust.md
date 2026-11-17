@@ -51,3 +51,28 @@ place the version is written.
 - minor: the recovery text says a toolchain download failure in `nix build` takes a new run.
 - minor: `tests/toolchain.rs` refuses any Rust version literal in `flake.nix` and matches
   `fromRustupToolchainFile ./rust-toolchain.toml` without the `rust-bin.` binding.
+
+## Outcome
+
+Phase 52 (`plans/phase-52-flake-pinned-rust.md`, #110): the Nix flake builds with the Rust
+`rust-toolchain.toml` names (1.98.1), not nixpkgs' (1.99.1), through
+`rust-overlay.lib.mkRustBin` and `fromRustupToolchainFile`, so the version is still written
+in one file and a bump needs no hash. Proven in Docker: the toolchain's `rustc --version` is
+1.98.1 and the binary embeds its commit hash. `tests/toolchain.rs` fails while `flake.nix`
+stops reading the file or names the channel. A bump whose release the locked overlay does not
+know fails the `flake` job; `nix flake update rust-overlay` fixes it. `rust-toolchain.toml`
+now asks for the `minimal` profile: the default one brought `rust-docs`, and the macOS
+`flake` job took 3 min 33 s and 6 min 19 s; with `minimal` it takes 3 min 10 s and Linux
+1 min 33 s (phase 51: 3 min 9 s and 1 min 49 s), so no cache. The toolchain still brings
+rustfmt and clippy, as the file lists them. Fragment `kind: internal`. Review round 1: every
+bump now updates the locked `rust-overlay` too (Docker command in the bump steps), and the
+`version` check refuses a channel change that keeps the locked revision or has none;
+`flake.nix` may name no Rust version at all. Review round 2 (unprimed): no must or should;
+minors fixed: the check compares the channel without its quotes or a trailing comment,
+`flake.nix` may not use `pkgs.rustPlatform`, and only a `1.`-prefixed number counts as a Rust
+version there.
+
+## Hurdles
+
+- `review-loop` Every toolchain bump would break the flake unless the locked `rust-overlay` moved too → rule in `AGENTS.md`
+- `ci` The default rustup profile brought `rust-docs` and doubled the macOS `flake` job; the file asks for `minimal` → code

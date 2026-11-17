@@ -33,3 +33,9 @@ the pane's run line, so an entry whose fresh run was running could read `⊘ can
 confidence. Re-batching — the very thing this phase is about — is what produces the second run.
 It now takes `max_by_key(id)`: ids are monotonic in time across GitHub, which `run_number` is
 not (per workflow, and a merge group can run more than one).
+
+## Outcome
+
+v0.11.0: a cancelled merge-group run is told apart from a failed one. The queue card takes
+its glyph and word from the run itself, `⊘` is the cancelled glyph in every column (the grey
+`-` goes back to meaning a skipped check), and the lossy `checks_of` map is gone.

@@ -32,3 +32,10 @@ No way to see what changed between versions from inside conveyor. There is no CH
 
 ## Estimate
 About 2 to 3 hours; the backfill (task 1) is roughly half of it.
+
+## Outcome
+
+v0.20.0 (phase 24, `plans/phase-24-changelog.md`): `c` opens `CHANGELOG.md`, bundled into the
+binary, in a full-body pane (`j/k`, `C-d/C-u` scroll, any other key returns). The changelog
+was backfilled for every tag. `conveyor::changelog::check` makes `cargo test` fail on a
+version bump without a dated, non-empty entry at the top that repeats no older bullet.

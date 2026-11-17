@@ -30,3 +30,10 @@ My PRs refresh a few seconds after the first.
    sent once, not before the delay, and not for `UpToDate`, `Conflicts`, errors or a Main
    builds rerun.
 3. Docs (AGENTS.md, PLAN.md), `/pr-review`, release as a patch.
+
+## Outcome
+
+v0.19.2 (phase 23, `plans/phase-23-follow-up-reload.md`): after `X` from My PRs or a `U`
+that updated the branch, My PRs reload once more 10 s later. Measured on the way: right after
+a rerun GitHub drops the rerun's checks from the PR query for about a second, so the
+immediate reload could show a false `✓`.

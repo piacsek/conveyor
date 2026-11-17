@@ -48,3 +48,19 @@ Setup before task 1: worktree `phase-38-parallel-writes` off `origin/main`, this
 ## Verification
 - `scripts/gates.sh` in the worktree.
 - `conveyor-dev`: `S` `t` on a draft, move down, `S` `t` on another draft before the first answers. Both cards spin with `marking ready…`, both end ready, the footer names the last result. `S` on a spinning card prints its progress line and opens nothing.
+
+## Outcome
+
+Phase 38 (`plans/phase-38-parallel-writes.md`, #71): `S` is refused only on the row that
+already has a write in flight, so several pull requests can each have one running. The user
+asked to act on other pull requests while `mark ready` waited on GitHub, and picked the busy
+card: the footer's spinner in place of the check glyph and the action word first on the meta
+line. The five single slots on `App` became one `writes` list keyed by the row a write
+started on; results already named their pull request, and a rerun is matched by its run ids,
+so no worker changed. `merge_landing` became a list too: after a merge of #A, `u` and `t` on
+#B are offered at once, while #A still waits for My PRs to catch up; a refused merge no
+longer clears another pull request's wait. `tests/manage.rs` passed 700 lines and became a
+folder. Not done: one worker per kind still runs two writes of the same kind one after the
+other; the footer shows only the latest notice; Main builds cards do not spin; the same
+number in two repositories shares a key; `docs/details.png` was not regenerated, since its
+fixture has no busy card.

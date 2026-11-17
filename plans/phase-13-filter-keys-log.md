@@ -82,3 +82,21 @@ one commit per task through `scripts/ship.sh`, TDD red first on every task.
   `<job>\t<step>\t<text>`.
 - `KEYS` is 13 rows; the help view is `KEYS.len() + 2` rows tall.
 - `tests/readme.rs` pins the README table to `KEYS`, so task 7 must touch both together.
+
+## Outcome
+
+v0.13.0 (phase 13, `plans/phase-13-filter-keys-log.md`): the filter can be kept (`Enter`
+commits, `Esc` clears, `/` reopens, `▏` while typing), every column title shows
+`visible/total` while it is live; `Esc` closes details, then zoom, then the filter, and `1`–`4`
+jump to a column; the help names the focused column and says what `p`/`b` open there;
+Deployed `b`/`Y` fall back to the commit page; `L` shows the last 40 lines of the failed
+step's log in the pane (read-only, `gh run view --log-failed`). Retro: six requests, six
+tasks, one commit each, red first on every one; the README key table and the help snapshot
+are the two places a `KEYS` change always lands.
+
+Follow-up:
+
+- v0.13.1: the log gets its own pane. v0.13.0 appended it under the job list, so on a run
+  with 37 jobs `L` looked like it did nothing. The details area now splits side by side while
+  a log is open, the log pane is scrolled to its last line and owns `Ctrl-d`/`Ctrl-u`; `L`
+  toggles it.

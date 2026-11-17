@@ -75,3 +75,23 @@ says `fetch.rs`). Nothing is printed on the terminal for a panic off the main th
 3. Hook: a panic off the installing thread is logged with its thread name and leaves the main
    hook alone; one on it calls the main hook. The events thread's panic ends the app.
 4. Docs: `AGENTS.md` files, `PLAN.md`, the fragment.
+
+## Outcome
+
+Phase 54 (`plans/phase-54-worker-panics.md`, closes #93): a panic on a background thread
+no longer breaks the terminal or leaves anything waiting. Reproduced first: a panic in the
+Merge queue fetcher ran ratatui's hook, which left the alternate screen and raw mode from
+that thread, printed over the main screen, and left the keys in canonical mode (`q` did not
+quit) and the column on `fetching…`. `crash::catch` wraps one unit of work: a worker request
+answers with `crashed: <msg>` where its result would have been (`worker::Task` per request
+type), a column fetch comes back as that tab's error, a Deployed reader's panic (re-raised on
+the fetcher) as the Deployed column's error, and the events thread ends the app with
+`terminal events stopped: crashed: <msg>`. `crash::hook`, installed before any thread
+starts, logs every panic with its thread name and location and calls ratatui's hook on the
+main thread only. New `FailureKind::Crashed`. Decisions: the thread keeps running after a
+crash (no restart, no cap); the Deployed column fails as a whole, as for any reader panic;
+no `panic = "abort"` in any profile, pinned by a test. Fragment `kind: fix`.
+
+## Hurdles
+
+- `process` Catching up with `main` after phases 53 and 55 merged took part of the 41 minutes → none

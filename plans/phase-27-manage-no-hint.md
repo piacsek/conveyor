@@ -9,3 +9,8 @@ The user found the dim `a letter acts · any other key cancels` line under the `
 
 ## Verification
 `scripts/gates.sh`; `conveyor-dev`, `S` on a card: the popup ends at `x  close`.
+
+## Outcome
+
+v0.21.1 (phase 27, `plans/phase-27-manage-no-hint.md`): the `S` popup drops its
+`a letter acts · any other key cancels` hint line; it lists the actions and nothing else.

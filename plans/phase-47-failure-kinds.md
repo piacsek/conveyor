@@ -109,3 +109,31 @@ holds, and `git diff origin/main -- tests/snapshots` is empty.
 - kubectl's own connection errors read `Other`. Their wording is in "Verified facts" for the
   issue that makes Deployed react to them.
 - What a card does with each kind.
+
+## Outcome
+
+Phase 47 (`plans/phase-47-failure-kinds.md`, #103): a failure records what kind it is (#91).
+`sources::failure::Failure` holds the message and a `FailureKind` (`ProgramMissing`,
+`RateLimited`, `NotSignedIn`, `Offline`, `TimedOut`, `Other`); the `Github` and `Kube`
+traits, `fetch.rs`, `refresh::spawn`, the `Input` variants, `Column::error`, the Deployed
+row errors, the jobs and log state and a card's failure mark all carry it. Only `gh` is
+classified by its text; `git` and `kubectl` exits read `Other`. No text changes, so it ships
+as `kind: internal` and the snapshots stand. Deviations: jobs, log and rerun got their kind
+in task 5 with the actions rather than in task 3; `From<io::Error>` replaced a dedicated
+constructor for a missing program, and `Failure::timed_out`, `message` and `reworded` were
+added. `main` gained the shared worker loop (#101) meanwhile: caught up by a merge, the
+kind passes through `worker.rs` untouched. Review round 1 (unprimed) had no must or should;
+its minors fixed, tests only: the pods deadline test ran its shim once before the 1 s
+deadline applied, and tests now pin that the kind survives `without_warnings` and
+`gits_reason` and that a rerun of several runs takes the first failure's kind. Rate limiting
+was not triggered live; its rule rests on the words `rate limit` in what `gh` prints. Left:
+kubectl's own connection errors read `Other`, as do git's `Could not resolve host`, `TLS
+handshake timeout` and `connection reset by peer`; the `gh` rules read all of stderr, so
+echoed text holding `rate limit` would read `RateLimited`; what a card does with each kind.
+
+## Hurdles
+
+- `process` `main` gained the shared worker loop (#101) mid-phase; caught up by a merge → none
+- `test-seam` The pods deadline test ran its shim once before the 1 s deadline applied → code
+- `api-shape` Rate limiting was never triggered live; its rule rests on the words `rate limit` in what `gh` prints → none
+- `api-shape` kubectl's own connection errors and git's network errors read `Other` → none

@@ -28,3 +28,17 @@ zoom, the selected card's failure mark, the live filter. No behaviour changes.
 - `tests/readme.rs` pins the README key table to `KEYS` word for word.
 - The help pane does not scroll and fills an 18-row terminal at 160 columns with 15 keys; the
   entry count does not change.
+
+## Outcome
+
+Phase 48 (`plans/phase-48-esc-help-wording.md`, #104): the help view and the README key table
+read `Esc  close details / zoom, dismiss a failed action's error, clear the filter` instead of
+`close details / zoom / mark / filter`, so a user who sees a red failure line on a card learns
+that `Esc` dismisses it. Wording only; the order is what `Esc` does per press.
+`scripts/screenshots.sh` also shoots the help view as `docs/help.png`, for pull requests, not
+the README. Fragment `kind: fix`. Review round 1: `Esc` does not clear a Deployed card's own
+read error, so the wording names the failed action instead of "a card's error".
+
+## Hurdles
+
+- `review-loop` The first wording promised `Esc` clears a card's error, but it does not clear a Deployed card's own read error → code

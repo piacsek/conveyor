@@ -22,3 +22,10 @@ User wants GitHub's pull-request icon on each PR card: grey for draft, green for
 - `scripts/gates.sh` (fmt, clippy, tests, e2e).
 - `scripts/dev-install.sh`, run `conveyor-dev` against own PRs, confirm a draft shows grey icon and an open PR green.
 - Ship via `scripts/ship.sh`; minor-ish visible change, so a patch/minor release per Releasing.
+
+## Outcome
+
+v0.15.0 (phase 16, `plans/phase-16-pr-icon.md`): PR cards show GitHub's pull-request
+icon, green when open and grey when draft, and the meta line drops the word `draft`.
+Found on the way: `screenshots.sh` only built the release binary when it was missing, so a
+stale one rendered the old layout; it now always builds.
