@@ -162,12 +162,14 @@ pipeline went from ~3 min 20 s to 37 s:
   `tests/scripts/version_check_head.rs` proves it: a head carrying a `build.rs`, a
   `.cargo/config.toml` naming a `rustc-wrapper`, `rustc`, aliases and `[env]`, or a toolchain
   file naming a toolchain that does not exist gets its normal verdict and nothing it names
-  runs. The check reads cargo's JSON without `jq`: only output starting exactly as cargo writes
-  it (`{"packages":[{"name":…,"version":…,"id":…`) is read, scanned string by string, and the
-  root package is the one whose `manifest_path` is the copy's own `Cargo.toml`, compared as
-  cargo writes it (the id percent-encodes the path, so a space in the temporary directory
-  matched no package; a path holding `\` or `"`, which JSON escapes, still matches none and
-  the check refuses). Cost, measured 2026-11-12: on
+  runs. The check reads cargo's JSON with `jq` (`root_package` in
+  `scripts/release-rewrite.sh`, a filter fixed in the script, so the head chooses neither the
+  program nor what it asks): key order, whitespace and line breaks do not matter, and the root
+  package is the one whose `manifest_path`, decoded, is the copy's own `Cargo.toml`. One such
+  package with a string `name` and `version` is read; none is a virtual manifest; output that
+  is not one JSON document with a `packages` array, two root packages, or a name or version
+  that is not a string is refused as unreadable. Until phase 67 an awk tokenizer read it and
+  refused any output not laid out exactly as cargo then wrote it (#126). Cost, measured 2026-11-12: on
   the throwaway repository the check step took about 1 s and the whole job 6 s; on this
   repository the script takes about 1 s on a laptop.
   Workflow commands: the check step echoes `::stop-commands::<token>` before the script, with
@@ -369,7 +371,7 @@ request, naming the file and what to do instead, when:
   member keeps its own version. The check never reads the version itself: a decoy line in a
   multi-line string or inline table, or a key spelled with an escape, fooled every line reader
   tried, while cargo is what decides. How the head is kept from running anything is in
-  the `version.yml` bullet under CI. Without `cargo` on `PATH` the check fails rather than passes;
+  the `version.yml` bullet under CI. Without `cargo` or `jq` on `PATH` the check fails up front rather than passes;
 - cargo reads `0.0.0`, but the release could not set the version: the check rehearses the
   release on its copy of the head, applying to `Cargo.toml` and `Cargo.lock` the very rewrite
   `scripts/release-commit.sh` applies (the functions of `scripts/release-rewrite.sh`, shared by
@@ -417,7 +419,8 @@ request, naming the file and what to do instead, when:
   lower-case hex digits (which it never prints). A pull request that keeps the channel is never
   judged by it, whatever it does to `flake.lock`, so removing the flake passes on its own, while
   removing it in the same pull request as a channel change is refused. Without `jq` on `PATH`
-  a channel change is refused rather than passed (the `ubuntu-latest` runner carries `jq`). The
+  every pull request is refused up front, this rule's need for it included (the
+  `ubuntu-latest` runner carries `jq`). The
   copy that judges is the one on `main`, so the rule applies to pull requests whose check runs
   after phase 52 merged, not to one checked before;
 - a path it changes feeds the binary (`scripts/feeds-binary.sh`, a rename counting both of its
@@ -466,7 +469,9 @@ tag (release commits are reachable only from their tags) and runs `scripts/relea
    sets `RUSTUP_TOOLCHAIN: stable` (pinned by `tests/toolchain.rs`), because otherwise rustup
    would download the pinned toolchain before `cargo metadata`, a new network step in the job
    that pushes the tag, whose failure would stop the release. `cargo metadata --no-deps` only
-   reads the manifest, so any recent cargo answers the same. The confirmation is skipped
+   reads the manifest, so any recent cargo answers the same. It reads cargo's answer with
+   `jq` (`root_package` of `scripts/release-rewrite.sh`, the image carries `jq`); with cargo on
+   `PATH` and no `jq`, it refuses before writing anything. The confirmation is skipped
    silently when cargo is not on `PATH` (the `build` line is read either way) and the rehearsal
    in the `version` check is then the only guard on what cargo reads. The job commits the release
    as `github-actions[bot]` (`Release vX.Y.Z`) on top of `main` and pushes only the tag. `main`

@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::process::{Command, Output};
 
-use crate::helpers::{committed, fragment, isolated, stderr, which};
+use crate::helpers::{committed, fragment, isolated, stderr, which, without_jq};
 use crate::release_commit::{git_stdout, release_commit, sandbox};
 
 #[test]
@@ -70,6 +70,30 @@ fn a_checkout_whose_path_holds_a_space_is_confirmed_by_cargo() {
         git_stdout(&work, &["status", "--porcelain"]),
         " M CHANGELOG.md\n M Cargo.lock\n M Cargo.toml\n"
     );
+}
+
+#[test]
+fn with_cargo_but_without_jq_the_release_is_refused_leaving_the_tree_as_it_was() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = sandbox(dir.path());
+    fragment(&work, "topic", "kind: fix\n\n- Fixed the queue.\n");
+    let bin = without_jq(dir.path());
+
+    let output = isolated(
+        Command::new(which("bash"))
+            .env("PATH", &bin)
+            .arg(work.join("scripts/release-commit.sh"))
+            .arg("0.3.2"),
+    )
+    .output()
+    .unwrap();
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr(&output),
+        "jq is not on PATH: the release asks cargo metadata which version cargo reads and reads its answer with jq, so install jq and run it again\n"
+    );
+    assert_eq!(git_stdout(&work, &["status", "--porcelain"]), "");
 }
 
 fn release_commit_without_cargo(work: &Path, args: &[&str]) -> Output {

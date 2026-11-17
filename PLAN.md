@@ -67,6 +67,7 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 61 | [two pull requests with the same number in different repositories stay apart (#121)](plans/phase-61-repo-row-key.md) | v0.34.5 |
 | 62 | [Main builds reads the repository's own default branch (#123)](plans/phase-62-builds-branch.md) | v0.35.0 |
 | 63 | [the flake build runs only when its inputs change, and gates the merge (#117)](plans/phase-63-flake-gate.md) | none |
+| 67 | [the release scripts read `cargo metadata` with a JSON parser (#126)](plans/phase-67-cargo-metadata.md) | |
 
 ## Backlog (discussed at the sweeps and retros)
 
