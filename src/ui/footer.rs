@@ -5,7 +5,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
 use crate::app::App;
-use crate::text::refreshed;
+use crate::text::{cells, refreshed};
 use crate::ui::style::dim;
 
 pub(crate) fn footer_text(app: &App) -> String {
@@ -66,7 +66,7 @@ fn draw_right(frame: &mut Frame, app: &App, logo: Option<Span<'static>>, area: R
         spans.push(logo);
     }
     let line = Line::from(spans);
-    let width = line.width() as u16;
+    let width = cells(line.width());
     let gap = u16::from(width > 0);
     let [left, right] =
         Layout::horizontal([Constraint::Fill(1), Constraint::Length(width + gap)]).areas(area);
