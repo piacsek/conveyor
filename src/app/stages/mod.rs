@@ -14,7 +14,7 @@ mod deployed;
 mod prs;
 mod queue;
 
-pub use builds::BuildsStage;
+pub use builds::{BuildsStage, BuildsTab};
 pub use deployed::DeployedStage;
 pub use prs::PrsStage;
 pub use queue::QueueStage;
@@ -72,9 +72,19 @@ pub struct Context<'a> {
     pub merge_landing: &'a [(u64, usize, bool)],
 }
 
-impl Context<'_> {
+impl<'a> Context<'a> {
+    pub fn deploy_builds(&self) -> &'a BuildsTab {
+        let tab = self
+            .config
+            .repo
+            .iter()
+            .position(|repo| !repo.deploy.is_empty())
+            .unwrap_or(0);
+        self.builds.tab(tab)
+    }
+
     pub fn main_build(&self, sha: &str) -> Option<&Build> {
-        self.builds
+        self.deploy_builds()
             .column
             .all()
             .iter()
@@ -89,7 +99,7 @@ impl Context<'_> {
 
     pub fn behind_main(&self, row: &Deployment) -> Option<usize> {
         let sha = row.sha.as_ref()?;
-        self.builds
+        self.deploy_builds()
             .column
             .all()
             .iter()
@@ -104,7 +114,7 @@ impl Context<'_> {
             .iter()
             .find(|repo| !repo.deploy.is_empty())
             .map(|repo| repo.name.clone())
-            .or_else(|| self.builds.repo.clone())
+            .or_else(|| self.deploy_builds().repo.clone())
     }
 }
 
@@ -151,6 +161,10 @@ pub trait StageView {
 
     fn runs(&self) -> Vec<&Build> {
         Vec::new()
+    }
+
+    fn runs_in(&self, _: usize) -> Vec<&Build> {
+        self.runs()
     }
 
     fn menu(&self, _: &Context) -> Result<Menu, String> {
@@ -210,7 +224,7 @@ impl App {
             Ok(rows) if rows.stage() == stage => {
                 let now = self.now;
                 self.stage_mut(stage).receive(tab, rows, now);
-                self.age_jobs(stage);
+                self.age_jobs(stage, tab);
                 self.prune_failures(stage);
             }
             Ok(_) => {}

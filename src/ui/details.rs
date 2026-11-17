@@ -39,7 +39,7 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
             }
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
         },
-        Stage::Builds => match app.builds.column.selected() {
+        Stage::Builds => match app.builds.active().column.selected() {
             Some(build) => {
                 let (label, _) = build_label(build);
                 let mut lines = build_details(build, app.now, app.utc_offset_secs);

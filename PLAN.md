@@ -68,6 +68,7 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 62 | [Main builds reads the repository's own default branch (#123)](plans/phase-62-builds-branch.md) | v0.35.0 |
 | 63 | [the flake build runs only when its inputs change, and gates the merge (#117)](plans/phase-63-flake-gate.md) | none |
 | 64 | [titles with emoji or CJK characters keep inside their dialog and card (#111)](plans/phase-64-display-width.md) | |
+| 66 | [Main builds follows the Merge queue's repository (#114)](plans/phase-66-builds-per-repo.md) | |
 | 67 | [the release scripts read `cargo metadata` with a JSON parser (#126)](plans/phase-67-cargo-metadata.md) | |
 
 ## Backlog (discussed at the sweeps and retros)
@@ -84,7 +85,5 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
   "waiting for My PRs to catch up" guard while the first tab still shows the stale pull request.
 - Follow one PR across columns: `f` on a PR highlights its sha/number in queue, builds, deployed.
 - Desktop/tmux notification on queue state change or main build failure (tmux-agents `watch` pattern).
-- Main builds tabs (#114), one per `[[repo]]`, following the Merge queue's active tab (phase 42 gave
-  the queue its tabs; decided with the user on 2026-11-14).
 - Deployed tabs, one per application of the monorepo, switched independently of the queue.
 - Native GitHub client if `gh` latency becomes a problem (measure first; each call ~0.3–1 s).

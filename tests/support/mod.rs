@@ -99,11 +99,15 @@ pub fn queue_in(tab: usize, repo: &str, entries: Vec<QueueEntry>) -> io::Result<
 }
 
 pub fn builds(builds: Vec<Build>) -> io::Result<Input> {
+    builds_in(0, "acme/webapp", builds)
+}
+
+pub fn builds_in(tab: usize, repo: &str, builds: Vec<Build>) -> io::Result<Input> {
     Ok(Input::Data(
         Stage::Builds,
-        0,
+        tab,
         Ok(Rows::Builds(Builds {
-            repo: "acme/webapp".to_string(),
+            repo: repo.to_string(),
             branch: "main".to_string(),
             builds,
         })),

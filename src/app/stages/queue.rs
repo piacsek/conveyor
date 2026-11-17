@@ -101,7 +101,13 @@ impl StageView for QueueStage {
     }
 
     fn runs(&self) -> Vec<&Build> {
-        self.column()
+        self.runs_in(self.active)
+    }
+
+    fn runs_in(&self, tab: usize) -> Vec<&Build> {
+        self.tabs
+            .get(tab)
+            .map_or(&self.tabs[self.active].column, |tab| &tab.column)
             .all()
             .iter()
             .filter_map(|entry| entry.run.as_ref())

@@ -71,8 +71,8 @@ where
             }
             Input::CheckedOut(target, result) => app.receive_checkout(&target, &result),
             Input::Rerun(result) => {
-                if let Some(stage) = app.receive_rerun(result) {
-                    request(app.refresh_request(stage));
+                if let Some((stage, tab)) = app.receive_rerun(result) {
+                    request(Request::Refresh(stage, tab));
                     if stage == Stage::Prs {
                         app.follow_up_prs();
                     }

@@ -38,5 +38,25 @@
     "login": "dave"
    }
   }
+ ],
+ "3e9b1f6a07c4d28e5b1a93f7c0d6e4a2b8f51c39": [
+  {
+   "number": 4817,
+   "title": "Raise the node pool to 6 nodes",
+   "html_url": "https://github.com/acme/infra/pull/4817",
+   "user": {
+    "login": "carol"
+   }
+  }
+ ],
+ "a61c8e2f4b9d07359e1f2a6c8d4b70e3f5a9c216": [
+  {
+   "number": 4810,
+   "title": "Rotate the ingress certificates",
+   "html_url": "https://github.com/acme/infra/pull/4810",
+   "user": {
+    "login": "dave"
+   }
+  }
  ]
 }

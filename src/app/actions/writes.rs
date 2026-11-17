@@ -16,7 +16,11 @@ pub enum WriteKind {
     Update(u64),
     Status(u64, StatusChange),
     Checkout(u64),
-    Rerun { run_ids: Vec<u64>, label: String },
+    Rerun {
+        run_ids: Vec<u64>,
+        label: String,
+        tab: usize,
+    },
 }
 
 impl Write {
