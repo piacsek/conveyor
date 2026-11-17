@@ -799,6 +799,20 @@ every line of the selected card; the footer logo becomes `▪─▪─▪▸`.
   `scripts/screenshots.sh` also shoots the help view as `docs/help.png`, for pull requests, not
   the README. Fragment `kind: fix`. Review round 1: `Esc` does not clear a Deployed card's own
   read error, so the wording names the failed action instead of "a card's error".
+- Phase 49 (`plans/phase-49-demo.md`, #105, part of #96): `conveyor --demo` draws all four
+  columns from a fixture built into the binary, with no `gh`, no `kubectl` and no config.
+  `sources::demo::Demo` is both `Github` and `Kube`; its JSON under `src/sources/demo/` is the
+  old screenshot shim fixture with `ago:<secs>` times, so ages move. `main::tui` takes the
+  sources, the opener and the demo flag, so both runs share one path. `demo::config` swaps in
+  the demo's `[prs]` and `[[repo]]` and keeps `[ui]` and `[keys]`. Writes and checkout fail
+  with `demo: nothing was changed` (the usual failed-write mark); `open::DemoOpener` refuses to
+  open (`acme/*` is made up), copy works; the footer shows a bold magenta `demo` before the
+  logo. The demo runs with `Log::default()`. `scripts/screenshots.sh` now runs `--demo` instead
+  of its shims, so `docs/details.png` carries the marker. Decisions: `uat` fails with the same
+  expired-session text the shim printed; the `acme/infra` queue answers empty; any GraphQL
+  other than My PRs and the queue answers a repository with no commits, so pull requests come
+  through the REST route by sha; a `#N` OSC 8 link clicked in the terminal still opens GitHub's
+  404, out of conveyor's hands. Fragment `kind: feat`.
 
 ## Deferred / backlog (discuss at retros)
 
