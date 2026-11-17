@@ -24,12 +24,34 @@ search() {
 listed_paths() {
   git ls-files -z --cached --others --exclude-standard | tr '\0' '\n' | grep -iF -f "$list"
 }
+read_log() {
+  "$@" || { echo "scrub-check: git log failed" >&2; exit 1; }
+}
+added_lines() {
+  awk '
+    /^diff / { hunk = 0; next }
+    /^@@/ { match($0, /^@+/); width = RLENGTH - 1; hunk = 1; next }
+    hunk && substr($0, 1, width) == substr("++++++++++++++++", 1, width) { print substr($0, width + 1) }
+  '
+}
+matches() {
+  local label="$1" text="$2"
+  printf '%s\n' "$text" | grep -iF -f "$list" | sed "s|^|scrub-check: $label: |"
+}
 if [ "${1:-}" = --outgoing ]; then
-  log="$(git log -p --cc --no-color --no-ext-diff --format=%B HEAD --not --remotes)" ||
-    { echo "scrub-check: git log failed" >&2; exit 1; }
-  branch="$(git rev-parse --abbrev-ref HEAD)"
-  outgoing() { printf '%s\n%s\n' "$branch" "$log" | grep -iF -f "$list"; }
-  search "the outgoing check" outgoing
+  commits="$(read_log git rev-list HEAD --not --remotes)"
+  head="$(git rev-parse HEAD)"
+  for commit in $commits; do
+    label="commit $(git rev-parse --short "$commit")"
+    [ "$commit" = "$head" ] && label="$label (HEAD)"
+    message="$(read_log git log -1 --format=%B "$commit")"
+    paths="$(read_log git diff-tree -r --root --cc --no-commit-id --name-only --no-renames --diff-filter=d "$commit")"
+    diff="$(read_log git diff-tree -r --root --cc -p -U0 --no-color --no-ext-diff --no-commit-id "$commit")"
+    search "the outgoing check" matches "$label message" "$message"
+    search "the outgoing check" matches "$label path" "$paths"
+    search "the outgoing check" matches "$label added line" "$(printf '%s\n' "$diff" | added_lines)"
+  done
+  search "the outgoing check" matches "branch name" "$(git rev-parse --abbrev-ref HEAD)"
 else
   search "git grep --untracked" git grep --untracked -niIF -f "$list"
   search "git grep --cached" git grep --cached -niIF -f "$list"

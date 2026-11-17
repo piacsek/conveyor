@@ -22,14 +22,17 @@ placeholders. `scripts/scrub-check.sh` matches the local denylist at
 `ship.sh` publishes, three times: as the first gate and again between `git add -A` and
 `git commit`, it reads the contents and the paths of the index and of the working tree's
 tracked and untracked files that are not ignored; between `git commit` and `git push`,
-`--outgoing` reads the branch name and every commit no remote has yet (`git log -p --cc`: the
-messages, the paths, the added and removed lines, a symlink's target). A refused push leaves the
-commit local, to fix with `git commit --amend` or `git reset --soft HEAD~1`. The list is kept
+`--outgoing` reads the branch name and, for every commit no remote has yet, its message, the
+paths it adds or keeps and the lines it adds (a symlink's target and a merge's conflict
+resolution included), never a removed line or a deleted path, so a branch can remove a term
+`main` still holds. Each match says which of the four it was in and names its commit. A refused push
+leaves the commit local: `git reset --soft HEAD~1`, fix what is named (`git branch -m` for the
+branch name), ship again; an earlier commit has to be rewritten by hand. The list is kept
 outside the repo on purpose; the check is skipped only where that default path does not exist
 at all, so CI does not enforce it, and fails when the path is there but is not a readable file,
 when `CONVEYOR_DENYLIST` names one that is not, when the list is empty, or when `git grep` or
-`git log` cannot run. It does not read the contents of binary files, the PR body, or anything
-pushed without `ship.sh`.
+`git log` cannot run. It does not read the contents of binary files, the author and committer of a
+commit, the PR body, or anything pushed without `ship.sh`.
 
 ## Layout
 

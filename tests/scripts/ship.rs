@@ -182,6 +182,7 @@ fn ship_commits_and_pushes_nothing_when_what_it_staged_holds_a_listed_term_the_g
         calls(dir.path()),
         ["cargo fmt", "gates.sh ", "dev-install.sh "]
     );
+    assert_eq!(local_subject(&work), "initial");
     assert!(!pushed(dir.path()));
 }
 
@@ -203,9 +204,53 @@ fn ship_commits_but_pushes_nothing_when_its_message_holds_a_listed_term() {
     );
     assert!(!pushed(dir.path()));
     assert!(
-        stderr(&output).contains("git commit --amend"),
+        stderr(&output).contains("git reset --soft HEAD~1"),
         "{}",
         stderr(&output)
+    );
+    assert!(!stderr(&output).contains("--amend"), "{}", stderr(&output));
+}
+
+#[test]
+fn after_a_refused_message_a_soft_reset_and_a_clean_message_ship() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = ship_sandbox(dir.path());
+    link_conveyor_dev(dir.path(), &another_build(dir.path()));
+    denylist(dir.path(), "zz-secret-term\n");
+    fs::write(work.join("README.md"), "changed\n").unwrap();
+    first_ship(dir.path(), "fix: port the zz-secret-term workaround");
+    git(&work, &["reset", "-q", "--soft", "HEAD~1"]);
+
+    let output = first_ship(dir.path(), "fix: port the workaround");
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(pushed_subject(dir.path()), "fix: port the workaround");
+}
+
+#[test]
+fn after_a_refused_branch_name_a_rename_ships() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = ship_sandbox(dir.path());
+    link_conveyor_dev(dir.path(), &another_build(dir.path()));
+    denylist(dir.path(), "zz-secret-term\n");
+    git(&work, &["checkout", "-qb", "zz-secret-term-fix"]);
+    fs::write(work.join("README.md"), "changed\n").unwrap();
+    let refused = first_ship(dir.path(), "docs: readme");
+    git(&work, &["reset", "-q", "--soft", "HEAD~1"]);
+    git(&work, &["branch", "-m", "clean-fix"]);
+
+    let output = first_ship(dir.path(), "docs: readme");
+
+    assert!(
+        stderr(&refused).contains("git branch -m"),
+        "{}",
+        stderr(&refused)
+    );
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        stdout(&output).contains("opened draft PR for clean-fix\n"),
+        "{}",
+        stdout(&output)
     );
 }
 

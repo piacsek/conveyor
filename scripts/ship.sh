@@ -19,7 +19,7 @@ git add -A
 scripts/scrub-check.sh
 git commit -q -m "$message"
 if ! scripts/scrub-check.sh --outgoing; then
-  echo "ship: the commit stays local and unpushed; fix it with git commit --amend or git reset --soft HEAD~1, then ship again" >&2
+  echo "ship: nothing was pushed; undo this commit with git reset --soft HEAD~1, fix what is named above (the files or the message of HEAD, git branch -m <new name> for the branch name; an earlier commit has to be rewritten by hand), then ship again" >&2
   exit 1
 fi
 git push -q -u origin "$branch"

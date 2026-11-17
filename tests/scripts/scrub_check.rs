@@ -185,7 +185,7 @@ fn an_outgoing_symlink_whose_target_holds_a_listed_term_fails_the_scrub() {
 
     assert!(!output.status.success(), "{}", stdout(&output));
     assert!(
-        stdout(&output).contains("+../zz-secret-term/notes\n"),
+        stdout(&output).contains("added line: ../zz-secret-term/notes\n"),
         "{}",
         stdout(&output)
     );
@@ -221,6 +221,224 @@ fn an_outgoing_scrub_git_log_cannot_read_fails() {
         "{}",
         stderr(&output)
     );
+}
+
+#[test]
+fn removing_a_file_that_holds_a_listed_term_a_remote_has_passes_the_outgoing_scrub() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "zz-secret-term\n");
+    pushed_file(&work, "notes.md", "about zz-secret-term\n");
+    git(&work, &["rm", "-q", "notes.md"]);
+    git(&work, &["commit", "-qm", "drop the notes"]);
+
+    let output = scrub_outgoing(&work, &list);
+
+    assert!(output.status.success(), "{}", stdout(&output));
+    assert_eq!(stdout(&output), "scrub-check: clean\n");
+}
+
+#[test]
+fn deleting_a_line_that_holds_a_listed_term_a_remote_has_passes_the_outgoing_scrub() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "zz-secret-term\n");
+    pushed_file(&work, "notes.md", "one\nabout zz-secret-term\nthree\n");
+    fs::write(work.join("notes.md"), "one\nthree\n").unwrap();
+    git(&work, &["commit", "-qam", "drop the line"]);
+
+    let output = scrub_outgoing(&work, &list);
+
+    assert!(output.status.success(), "{}", stdout(&output));
+    assert_eq!(stdout(&output), "scrub-check: clean\n");
+}
+
+#[test]
+fn deleting_a_file_named_after_a_listed_term_a_remote_has_passes_the_outgoing_scrub() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "zz-secret-term\n");
+    pushed_file(&work, "zz-secret-term.md", "notes\n");
+    git(&work, &["rm", "-q", "zz-secret-term.md"]);
+    git(&work, &["commit", "-qm", "drop the notes"]);
+
+    let output = scrub_outgoing(&work, &list);
+
+    assert!(output.status.success(), "{}", stdout(&output));
+    assert_eq!(stdout(&output), "scrub-check: clean\n");
+}
+
+#[test]
+fn an_outgoing_added_line_that_holds_a_listed_term_fails_the_scrub() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "zz-secret-term\n");
+    fs::write(work.join("README.md"), "about zz-secret-term\n").unwrap();
+    git(&work, &["commit", "-qam", "docs"]);
+
+    let output = scrub_outgoing(&work, &list);
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stdout(&output).contains(&format!(
+            "scrub-check: commit {} (HEAD) added line: about zz-secret-term\n",
+            short(&work, "HEAD")
+        )),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn an_outgoing_path_that_holds_a_listed_term_fails_the_scrub() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "zz-secret-term\n");
+    fs::write(work.join("zz-secret-term.md"), "").unwrap();
+    git(&work, &["add", "-A"]);
+    git(&work, &["commit", "-qm", "an empty file"]);
+
+    let output = scrub_outgoing(&work, &list);
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stdout(&output).contains(&format!(
+            "scrub-check: commit {} (HEAD) path: zz-secret-term.md\n",
+            short(&work, "HEAD")
+        )),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn an_outgoing_rename_to_a_listed_name_fails_the_scrub() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "zz-secret-term\n");
+    git(&work, &["mv", "README.md", "zz-secret-term.md"]);
+    git(&work, &["commit", "-qm", "rename"]);
+
+    let output = scrub_outgoing(&work, &list);
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stdout(&output).contains("path: zz-secret-term.md\n"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn an_outgoing_commit_message_that_holds_a_listed_term_fails_the_scrub() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "zz-secret-term\n");
+    git(
+        &work,
+        &["commit", "-q", "--allow-empty", "-m", "port zz-secret-term"],
+    );
+
+    let output = scrub_outgoing(&work, &list);
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stdout(&output).contains(&format!(
+            "scrub-check: commit {} (HEAD) message: port zz-secret-term\n",
+            short(&work, "HEAD")
+        )),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn an_earlier_outgoing_commit_is_named_without_head() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "zz-secret-term\n");
+    git(
+        &work,
+        &["commit", "-q", "--allow-empty", "-m", "port zz-secret-term"],
+    );
+    let earlier = short(&work, "HEAD");
+    git(&work, &["commit", "-q", "--allow-empty", "-m", "later"]);
+
+    let output = scrub_outgoing(&work, &list);
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stdout(&output).contains(&format!(
+            "scrub-check: commit {earlier} message: port zz-secret-term\n"
+        )),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn an_outgoing_branch_name_that_holds_a_listed_term_fails_the_scrub() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "zz-secret-term\n");
+    git(&work, &["checkout", "-qb", "zz-secret-term-fix"]);
+
+    let output = scrub_outgoing(&work, &list);
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stdout(&output).contains("scrub-check: branch name: zz-secret-term-fix\n"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn an_outgoing_merge_that_resolves_a_conflict_with_a_listed_term_fails_the_scrub() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    let list = denylist(dir.path(), "zz-secret-term\n");
+    fs::write(work.join("README.md"), "topic\n").unwrap();
+    git(&work, &["commit", "-qam", "topic side"]);
+    git(&work, &["checkout", "-q", "main"]);
+    fs::write(work.join("README.md"), "main\n").unwrap();
+    git(&work, &["commit", "-qam", "main side"]);
+    git(&work, &["update-ref", "refs/remotes/origin/main", "HEAD"]);
+    git(&work, &["checkout", "-q", "topic"]);
+    let merge =
+        isolated(
+            Command::new("git")
+                .current_dir(&work)
+                .args(["merge", "-q", "origin/main"]),
+        )
+        .output()
+        .unwrap();
+    assert!(!merge.status.success());
+    fs::write(work.join("README.md"), "resolved zz-secret-term\n").unwrap();
+    git(&work, &["commit", "-qam", "merge main"]);
+
+    let output = scrub_outgoing(&work, &list);
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stdout(&output).contains("(HEAD) added line: resolved zz-secret-term\n"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn a_listed_term_that_is_part_of_a_blob_hash_passes_the_outgoing_scrub() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = scrub_sandbox(dir.path());
+    fs::write(work.join("README.md"), "changed\n").unwrap();
+    git(&work, &["commit", "-qam", "docs"]);
+    let list = denylist(dir.path(), &format!("{}\n", short(&work, "HEAD:README.md")));
+
+    let output = scrub_outgoing(&work, &list);
+
+    assert!(output.status.success(), "{}", stdout(&output));
+    assert_eq!(stdout(&output), "scrub-check: clean\n");
 }
 
 fn scrub_sandbox(root: &Path) -> PathBuf {
@@ -259,4 +477,23 @@ fn scrub_outgoing(work: &Path, list: &Path) -> Output {
         .env("CONVEYOR_DENYLIST", list)
         .output()
         .unwrap()
+}
+
+fn pushed_file(work: &Path, path: &str, text: &str) {
+    fs::write(work.join(path), text).unwrap();
+    git(work, &["add", "-A"]);
+    git(work, &["commit", "-qm", "on a remote"]);
+    git(work, &["update-ref", "refs/remotes/origin/topic", "HEAD"]);
+}
+
+fn short(work: &Path, rev: &str) -> String {
+    let output =
+        isolated(
+            Command::new("git")
+                .current_dir(work)
+                .args(["rev-parse", "--short", rev]),
+        )
+        .output()
+        .unwrap();
+    stdout(&output).trim().to_string()
 }
