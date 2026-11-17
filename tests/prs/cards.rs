@@ -5,7 +5,7 @@ use conveyor::text::cells;
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::three;
-use crate::support::{Harness, entry, key, pr, prs, queue};
+use crate::support::{Harness, entry, key, pr, prs, queue, status_target};
 
 #[test]
 fn no_pull_requests_shows_an_empty_column_and_q_quits() {
@@ -305,7 +305,10 @@ fn a_card_returns_to_its_check_glyph_when_the_result_lands() {
         prs(vec![draft]),
         key(KeyCode::Char('S')),
         key(KeyCode::Char('t')),
-        Ok(Input::StatusChanged(1, StatusChange::Ready, Ok(()))),
+        Ok(Input::StatusChanged(
+            status_target(1, "a", StatusChange::Ready),
+            Ok(()),
+        )),
     ])
     .unwrap();
 

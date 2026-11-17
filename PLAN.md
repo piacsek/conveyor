@@ -62,6 +62,7 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 55 | [a place for early users to ask, report and pick up work (#99)](plans/phase-55-contributing.md) | none |
 | 56 | [each phase's outcome, hurdles and numbers live with its plan](plans/phase-56-plans-split.md) | none |
 | 57 | [the sweep gathers its own data and asks for itself](plans/phase-57-sweep-tooling.md) | none |
+| 61 | [two pull requests with the same number in different repositories stay apart (#121)](plans/phase-61-repo-row-key.md) | |
 | 63 | [the flake build runs only when its inputs change, and gates the merge (#117)](plans/phase-63-flake-gate.md) | |
 
 ## Backlog (discussed at the sweeps and retros)
@@ -72,6 +73,9 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
   serve a squash-only and a merge-commit-only repo at once); a write result that lands while the other prompt is open is
   hidden by that prompt (the failure half is done in phase 39: a failure stays on its card; a
   success is still hidden); the footer cuts titles by characters, not display width (#111).
+- A merge sent from one My PRs tab whose result lands after the user switched tabs is recorded
+  against the tab now shown (`src/app/actions/merge.rs`, `land()`): that tab's refresh lifts the
+  "waiting for My PRs to catch up" guard while the first tab still shows the stale pull request.
 - Follow one PR across columns: `f` on a PR highlights its sha/number in queue, builds, deployed.
 - Desktop/tmux notification on queue state change or main build failure (tmux-agents `watch` pattern).
 - Main builds tabs (#114), one per `[[repo]]`, following the Merge queue's active tab (phase 42 gave

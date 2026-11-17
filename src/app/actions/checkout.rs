@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::app::{Action, App};
+use crate::app::{Action, App, pull_key};
 
 use super::WriteKind;
 
@@ -11,6 +11,12 @@ pub struct CheckoutTarget {
     pub dir: Option<PathBuf>,
 }
 
+impl CheckoutTarget {
+    pub fn key(&self) -> u64 {
+        pull_key(&self.repo, self.number)
+    }
+}
+
 impl App {
     pub fn receive_checkout(
         &mut self,
@@ -18,7 +24,7 @@ impl App {
         result: &Result<(), crate::sources::failure::Failure>,
     ) {
         let number = target.number;
-        let write = self.finish_write(number, &WriteKind::Checkout);
+        let write = self.finish_write(target.key(), &WriteKind::Checkout(number));
         if let Err(message) = result {
             self.fail(write, message);
         }
@@ -30,7 +36,7 @@ impl App {
     }
 
     pub(super) fn send_checkout(&mut self, target: CheckoutTarget) -> Action {
-        self.start_write(target.number, WriteKind::Checkout);
+        self.start_write(target.key(), WriteKind::Checkout(target.number));
         Action::Checkout(target)
     }
 }

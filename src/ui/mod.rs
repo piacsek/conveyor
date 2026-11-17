@@ -69,7 +69,8 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         }
     }
     if let Mode::Confirm(pending) = &app.mode {
-        draw_confirm(frame, whole, pending);
+        let (repo, number) = pending.pull();
+        draw_confirm(frame, whole, pending, &app.prs.label(repo, number));
     }
     if let Mode::Manage(menu) = &app.mode {
         draw_manage(frame, whole, menu);

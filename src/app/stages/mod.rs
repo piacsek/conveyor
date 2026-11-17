@@ -81,10 +81,10 @@ impl Context<'_> {
             .find(|build| build.sha == sha)
     }
 
-    pub fn landing(&self, number: u64) -> bool {
+    pub fn landing(&self, key: u64) -> bool {
         self.merge_landing
             .iter()
-            .any(|(landing, _, _)| *landing == number)
+            .any(|(landing, _, _)| *landing == key)
     }
 
     pub fn behind_main(&self, row: &Deployment) -> Option<usize> {
