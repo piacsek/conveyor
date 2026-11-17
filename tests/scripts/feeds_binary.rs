@@ -30,6 +30,14 @@ fn a_fragment_under_changes_does_not_feed_the_binary() {
     assert_eq!(stdout(&output), "src/changes/topic.md\n");
 }
 
+#[test]
+fn the_repository_s_claude_code_skills_do_not_feed_the_binary() {
+    let output = feeds_binary(".claude/skills/sweep/SKILL.md\nsrc/.claude/x.rs\n");
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "src/.claude/x.rs\n");
+}
+
 fn feeds_binary(paths: &str) -> Output {
     let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("scripts/feeds-binary.sh");
     let mut child = Command::new(which("bash"))

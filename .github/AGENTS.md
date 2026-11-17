@@ -300,6 +300,15 @@ pipeline went from ~3 min 20 s to 37 s:
 
 ## Issues and Discussions
 
+`.github/workflows/sweep.yml` runs on a push to `main` that touches `plans/` and calls
+`scripts/sweep-issue.sh`: when the next phase number (the highest `plans/phase-N-*.md` plus one)
+is a multiple of 5, it opens the issue "Sweep due before phase N" with `scripts/sweep-report.sh`
+as its body, unless an issue of that exact title exists, open or closed. Its job holds
+`contents: read` and `issues: write` and nothing else: it never pushes, so it cannot backfill
+`plans/metrics.md` itself (only the release job writes to `main`). It reads only files merged
+into `main` and takes no input from a pull request. Not a required check: a failed run delays a
+reminder, never a merge. `tests/scripts/sweep.rs` pins the workflow text and the scripts.
+
 `CONTRIBUTING.md` sits here rather than at the top: GitHub reads it from `.github/`, and a
 top-level file would feed the binary by `scripts/feeds-binary.sh`. `ISSUE_TEMPLATE/` holds two
 issue forms, `bug_report.yml` (labelled `bug`) and

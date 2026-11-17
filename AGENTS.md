@@ -115,6 +115,8 @@ plans/unphased.md             releases and fixes that had no phase
 scripts/homebrew-formula.sh   prints the tap formula for a released version
 scripts/formula-version.sh    the `tap` job's decision; never a version below the formula's
 scripts/stable-version.sh     the `stable-build` and `stable` jobs' decision, asked by both: the release the `stable` branch moves to, never below the version it holds
+scripts/sweep-report.sh       `[<first phase>]`: the sweep's data from `plans/`, as Markdown; counts and groups, judges nothing
+scripts/sweep-issue.sh        the `issue` job of `sweep.yml`: opens "Sweep due before phase N" with the report once the next phase is a multiple of 5, never twice
 scripts/screenshots.sh        renders docs/details.png, plus one `shoot` per extra view, from `conveyor --demo` (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
@@ -262,8 +264,14 @@ nearest the code the guideline is about.
   plan: read the `## Hurdles` of every phase since the last sweep and `plans/metrics.md`, and
   look for a tag that keeps coming back, a `→ none` that happened twice, and the review rounds
   and tokens drifting up. Each finding becomes a rule in the nearest `AGENTS.md`, a backlog
-  item or an issue, or is declined with its reason; the sweep's outcome opens that phase's
-  `## Outcome`. The retrospective checkpoints of `plans/original-plan.md` are its starting list.
+  item or an issue, or is declined with its reason; the sweep's outcome is the `### Sweep`
+  section that opens that phase's `## Outcome` (from phase 60, `tests/plans.rs` fails without it).
+  The retrospective checkpoints of `plans/original-plan.md` are its starting list.
+  `scripts/sweep-report.sh [<first phase>]` gathers the data (hurdles counted and grouped by tag,
+  every `→ none`, the metrics rows and their empty cells, from the phase after the last sweep);
+  the `sweep` workflow opens an issue "Sweep due before phase N" with that report once phase N−1
+  is on `main`. The report only counts: telling that two hurdles are the same problem, and what
+  becomes of each, is the sweep's judgment.
 - **Time and tokens.** Every phase from 53 has one row in `plans/metrics.md`, written with the
   outcome, so it is on the branch before `gh pr ready`; its Notes cell carries what a number
   needs to be read right (a session shared between phases, a running total).
@@ -459,7 +467,7 @@ is the committed code of every branch that changed what the binary is built from
 `ship.sh` skips the install, printing `skipping dev-install: <reason>`, only when both hold
 (`scripts/dev-install-skippable.sh`): `conveyor-dev` resolves to another worktree's build, and
 nothing between the merge base with `origin/main` and the working tree, untracked files
-included, is outside `tests/`, `docs/`, `plans/`, `scripts/`, `changes/`, `.github/`, an `AGENTS.md` at any depth (`src/` included),
+included, is outside `tests/`, `docs/`, `plans/`, `scripts/`, `changes/`, `.github/`, `.claude/`, an `AGENTS.md` at any depth (`src/` included),
 `PLAN.md`, `README.md`, `LICENSE` and `.gitignore`. That list lives in `scripts/feeds-binary.sh`, the one
 definition of "feeds the binary", which `dev-install-skippable.sh` calls. Everything else counts as feeding the
 binary (`src/`, `Cargo.toml`, `Cargo.lock`, the bundled `CHANGELOG.md`, any path nobody
