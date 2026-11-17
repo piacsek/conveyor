@@ -26,11 +26,19 @@ pub(super) fn check(config: &Config) -> Result<(), String> {
 }
 
 fn check_read(repos: &[Repo]) -> Result<(), String> {
-    let mut deployed = repos.iter().filter(|repo| !repo.deploy.is_empty());
+    let mut deployed = (1..).zip(repos).filter(|(_, repo)| !repo.deploy.is_empty());
     if let (Some(read), Some(ignored)) = (deployed.next(), deployed.next()) {
+        let entry = |(number, repo): (usize, &Repo)| {
+            if read.1.name.eq_ignore_ascii_case(&ignored.1.name) {
+                format!("{} ([[repo]] number {number})", repo.name)
+            } else {
+                repo.name.clone()
+            }
+        };
         return Err(format!(
             "the [[repo.deploy]] of {} is ignored: conveyor reads only the one of {}",
-            ignored.name, read.name
+            entry(ignored),
+            entry(read)
         ));
     }
     Ok(())

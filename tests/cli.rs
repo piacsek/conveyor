@@ -478,6 +478,21 @@ fn config_refuses_a_deploy_on_two_repositories() {
     );
 }
 
+#[test]
+fn config_refusing_a_deploy_on_one_repository_listed_twice_names_the_entry() {
+    let (code, stderr) = refusal(&format!(
+        "{ONE_DEPLOY}{PROD}[[repo]]\nname = \"acme/webapp\"\nbranch = \"develop\"\n[[repo.deploy]]\n{PROD}"
+    ));
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains(
+            "the [[repo.deploy]] of acme/webapp ([[repo]] number 2) is ignored: conveyor reads only the one of acme/webapp ([[repo]] number 1)"
+        ),
+        "{stderr}"
+    );
+}
+
 const ONE_DEPLOY: &str = "[[repo]]\nname = \"acme/webapp\"\n[[repo.deploy]]\n";
 
 const PROD: &str = "[[repo.deploy.env]]\nname = \"prod\"\ndeployment = \"api\"\n";

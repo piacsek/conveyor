@@ -177,7 +177,9 @@ The two bullets about `src/cli.rs` and `src/config.rs` stay here; every other on
   the config is read, so a broken config never hides them.
 - **Config is loaded before any subcommand runs.** Missing file = `Config::default()`; an
   unreadable file, an unknown key (`deny_unknown_fields` on every table), a value out of its
-  range or a setting conveyor would ignore (`src/config/values.rs`) is an error naming the file. `conveyor config` exits 1 on it and doubles as the reference for defaults.
+  range or a setting conveyor would ignore (`src/config/values.rs`) is an error naming the file.
+  A value is refused only when something named breaks with it (a panic, an overflow, a call
+  GitHub refuses, the rate limit, a row collision, a setting never read); a tidy bound is not one. `conveyor config` exits 1 on it and doubles as the reference for defaults.
 
 ## Known limits
 

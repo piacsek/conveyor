@@ -128,8 +128,8 @@ it. Set the terminal's font to a Nerd Font (for example
 `icons = "plain"` under `[ui]` (the default) to draw plain arrows instead.
 
 **conveyor ignores my config and the footer names the config file.** The config does not load,
-so conveyor started on the defaults; the footer says which key or value is wrong and what to
-write instead. A `refresh_secs` below 5, which earlier versions accepted, is one: write 5 or
+so conveyor started on the defaults; the footer names the key or value that is wrong and, for a
+value out of its range, what to write instead. A `refresh_secs` below 5, which earlier versions accepted, is one: write 5 or
 more. `conveyor config` prints the same message, and prints the config once it is fixed.
 
 ## Development

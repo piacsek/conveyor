@@ -101,7 +101,7 @@ without a word. Phases 60 and 65 are reserved, 64, 66 and 67 run in parallel, so
 | two envs of one name in a deploy | refused | `two [[repo.deploy.env]] of acme/webapp are named "prod"` |
 | a `[[repo.deploy]]` with no `[[repo.deploy.env]]` | refused | `the [[repo.deploy]] of acme/webapp has no [[repo.deploy.env]]` |
 | a second `[[repo.deploy]]` on a repository | refused | `acme/webapp has a second [[repo.deploy]]; conveyor reads only the first` |
-| a `[[repo.deploy]]` on more than one repository (one on the second repository alone loads) | refused | `the [[repo.deploy]] of acme/infra is ignored: conveyor reads only the one of acme/webapp` |
+| a `[[repo.deploy]]` on more than one repository (one on the second repository alone loads) | refused; one repository listed twice is told apart by position | `the [[repo.deploy]] of acme/infra is ignored: conveyor reads only the one of acme/webapp`, or `… of acme/webapp ([[repo]] number 2) is ignored: conveyor reads only the one of acme/webapp ([[repo]] number 1)` |
 
 The drawing site: a column 2 cells wide or less draws its tab bar without panicking
 (`saturating_sub` in `tab_bar`).
@@ -121,5 +121,26 @@ The drawing site: a column 2 cells wide or less draws its tab bar without panick
     it; a quoted config string is written escaped (`{:?}`), so a message stays on one line.
 
 ## Outcome
+- Shipped in #137: one validation pass, `src/config/values.rs`, run by `config::load`. A value
+  out of its range, a malformed name, a blank env name or deployment, a pure repeat of a
+  `[[repo]]` or of an env name, and a deploy conveyor would not read are refused with
+  `<file>: <message>`, so `conveyor config` exits 1 and the TUI starts on the defaults.
+- The rule the review loop converged on: a value is refused only when something named breaks
+  with it. It loosened `details_percent` to 1 to 99, dropped the `refresh_secs` ceiling (the
+  `Instant` overflow it guarded is now a `checked_add` deadline that is never due), let one
+  repository be listed again for another branch or workflow, and checks `[prs] limit` only
+  when a tab falls back to it. It is written into the config bullet of `AGENTS.md`.
+- The `refresh_secs` floor is 5 s, the owner's decision of 2026-11-17, for all three tables.
+- Kept bounds and what breaks outside each are in the Design section; quoted names are written
+  escaped so a message stays on one line.
+- Found on the way: `tab_bar` underflowed in a column two cells wide or less (debug builds
+  only); the Merge queue refreshes every tab on the first repository's interval (backlog).
+- Known gaps, not refused: a repository with no `branch` and the same one with
+  `branch = "main"` may follow one branch; a range error on a repository listed twice names the
+  repository, not the entry; an integer above `i64::MAX` is the TOML parser's error.
 
 ## Hurdles
+- `review-loop` Rounds 1 and 2 each found bounds stricter than what breaks (a refresh ceiling, `details_percent` 10 to 90, any two `[[repo]]` of one name), patched one by one until the rule "refuse only what you can name a breakage for" ended the class → rule in `AGENTS.md`
+- `design` The `refresh_secs` floor was a product decision, not a code one: 10 from the issue, 5 from the owner after an estimate of the GraphQL points an hour; the round 3 fixes waited about 3 hours on it → none
+- `process` A commit went out with a red test because a test file was edited while the ship's gates ran and `git add -A` took it; fixed in the next commit → none
+- `ci` The macOS `flake` job was cancelled for lack of a runner and needed a rerun → none
