@@ -63,10 +63,10 @@ What has gone wrong in the tests before, and how the suites are set up to avoid 
   pads the line back to the terminal width, so a release bump touches no `.snap` file.
   `no_snapshot_carries_the_crate_version` fails for a new snapshot taken from a bare
   `h.screen()`. The real version on screen is asserted in `tests/prs/footer.rs`.
-- **The `gh` shim in e2e and screenshots dispatches on the query text.** Match the queue query
+- **The `gh` shim in e2e dispatches on the query text.** Match the queue query
   on `repository(owner`, not `mergeQueue`: the PR query also contains `mergeQueueEntry`.
   The batched pull request lookup is written `repository(name:` so it misses that route and
-  falls to the default one, which answers no commit: the shims keep serving pull requests
+  falls to the default one, which answers no commit: the shim keeps serving pull requests
   through the REST routes.
 - **Tests build model structs through `tests/support/`, never with a full literal.** A struct
   from `src/model/`, `src/config.rs` or `src/app/` comes from a `support` builder (then mutated

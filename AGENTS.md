@@ -108,7 +108,7 @@ changes/                      one fragment per pull request that feeds the binar
 plans/                        one versioned plan file per phase (see Working agreements)
 scripts/homebrew-formula.sh   prints the tap formula for a released version
 scripts/formula-version.sh    the `tap` job's decision; never a version below the formula's
-scripts/screenshots.sh        renders docs/details.png, plus one `shoot` per extra view, from a gh shim + synthetic fixture (truecolor.py converts ANSI)
+scripts/screenshots.sh        renders docs/details.png, plus one `shoot` per extra view, from `conveyor --demo` (truecolor.py converts ANSI)
 tests/           outside-in: `tests/cli.rs` runs the real binary; TUI tests drive run() with a TestBackend;
                  `tests/readme.rs` pins the README shape and its key table to `ui::help::KEYS`;
                  `tests/source_size.rs` fails while any Rust file under `src/` or `tests/` is longer than 700 lines, naming it;
@@ -183,8 +183,8 @@ for word; `tests/readme.rs` fails when the README and the help view drift, when 
 screenshot, a subsection or another section appears, or when the description grows past two
 sentences (the help view is the single source: change `KEYS`, then the table). Feature depth, glyph meanings and data-source notes belong in the `AGENTS.md` files, not there.
 **Every visible change to the main interface shows in `docs/details.png`**: a new or changed
-card line, glyph, bar, title, column or footer element. Extend the fixture or the config in
-`scripts/screenshots.sh` until the change appears on screen, rerun it, and commit the image in
+card line, glyph, bar, title, column or footer element. Extend the demo fixture under
+`src/sources/demo/` until the change appears on screen, rerun it, and commit the image in
 the same pull request; a reviewer reports a missing or stale screenshot as a should. (The
 My PRs tabs of phase 40 shipped without one.) Run `scripts/screenshots.sh` (needs `brew install
 charmbracelet/tap/freeze`, Google Chrome, and the FiraCode Nerd Font in `~/Library/Fonts`) and
@@ -192,9 +192,9 @@ commit the new images. Freeze lays out an SVG with the font embedded; headless C
 rasterises it, because freeze's own PNG output cannot draw Nerd Font glyphs. The script adds
 Menlo (DejaVu Sans Mono on Linux) as the SVG's fallback font family: FiraCode lacks `✗ ⊘ ▸`,
 and Chrome's default fallback is wider, so every row holding one shifted and the borders jogged.
-Fixture SHAs look real (`8c1f2a7d…`), not `33333333`. The script never
-reads the real `gh` account: `HOME` is a tempdir and a `gh` shim printing a synthetic
-`acme/*` fixture is first on PATH (through `env`, see the e2e trap in `tests/AGENTS.md`). Do not screenshot
+Fixture SHAs look real (`8c1f2a7d…`), not `33333333`. The script runs `conveyor --demo`, which
+reaches neither `gh` nor `kubectl`, with `HOME` a tempdir (through `env`, see the e2e trap in
+`tests/AGENTS.md`), so the screen shows the demo's footer marker too. Do not screenshot
 real data: this repository is public.
 
 Whenever behaviour changes, check that `README.md` is still true: a key, a default, a

@@ -170,7 +170,7 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
 ## The demo (`--demo`)
 
 - **`Demo` is both `Github` and `Kube`, and reaches nothing.** It answers from JSON under
-  `src/sources/demo/` (`include_str!`), ported from the old `scripts/screenshots.sh` shims. A
+  `src/sources/demo/` (`include_str!`), which `scripts/screenshots.sh` also draws. A
   string `ago:<secs>` becomes the UTC time that many seconds before the call, so ages stay alive
   across refreshes. `graphql` matches `PRS_QUERY` and `QUEUE_QUERY` (the queue only for
   `name = "webapp"`, an empty queue for any other repository) and answers any other query with
