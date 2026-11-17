@@ -1,0 +1,22 @@
+name: Feature request
+description: Something conveyor should show or do.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This repository is public. Do not paste private organisation or repository names, pull request titles, logins, hostnames or cluster names. Replace them with `acme/*` or `<owner>/<repo>`, in screenshots too.
+
+        Asking for a new deploy source (Argo CD, GitHub deployments, another platform)? Start a discussion instead, so others can add how they deploy.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to do
+      description: What you look at or do today, and what gets in the way.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help
+      description: What conveyor could show or do instead. A sketch of the card or the key is welcome.
