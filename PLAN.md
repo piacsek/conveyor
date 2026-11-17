@@ -63,6 +63,7 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 56 | [each phase's outcome, hurdles and numbers live with its plan](plans/phase-56-plans-split.md) | none |
 | 57 | [the sweep gathers its own data and asks for itself](plans/phase-57-sweep-tooling.md) | none |
 | 62 | [Main builds reads the repository's own default branch (#123)](plans/phase-62-builds-branch.md) | |
+| 63 | [the flake build runs only when its inputs change, and gates the merge (#117)](plans/phase-63-flake-gate.md) | |
 
 ## Backlog (discussed at the sweeps and retros)
 

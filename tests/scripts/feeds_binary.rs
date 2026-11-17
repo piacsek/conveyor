@@ -1,8 +1,6 @@
-use std::io::Write;
-use std::path::Path;
-use std::process::{Command, Output, Stdio};
+use std::process::Output;
 
-use crate::helpers::{stderr, stdout, which};
+use crate::helpers::{piped, stderr, stdout};
 
 #[test]
 fn only_the_paths_that_feed_the_binary_are_printed() {
@@ -39,19 +37,5 @@ fn a_claude_skill_does_not_feed_the_binary() {
 }
 
 fn feeds_binary(paths: &str) -> Output {
-    let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("scripts/feeds-binary.sh");
-    let mut child = Command::new(which("bash"))
-        .arg(script)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(paths.as_bytes())
-        .unwrap();
-    child.wait_with_output().unwrap()
+    piped("feeds-binary.sh", paths)
 }

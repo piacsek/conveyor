@@ -136,6 +136,18 @@ fn the_changelog_needs_the_script_tests() {
 }
 
 #[test]
+fn the_flake_needs_the_script_tests() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = checked_repository(dir.path());
+    fs::write(work.join("flake.nix"), "{ }\n").unwrap();
+
+    let output = skippable(dir.path());
+
+    assert_eq!(output.status.code(), Some(1), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "flake.nix needs the script tests\n");
+}
+
+#[test]
 fn a_script_change_committed_earlier_on_the_branch_needs_the_script_tests() {
     let dir = tempfile::tempdir().unwrap();
     let work = checked_repository(dir.path());
