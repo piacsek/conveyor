@@ -135,7 +135,7 @@ this phase. "Root" means root `AGENTS.md`; a section name follows.
 | 71 | `check` calls `cargo test` itself, not `gates.sh`, which makes the skip safe | Root, Development |
 | 72 | A script test that reads another path puts it on the script's list | Root, Development |
 | 73 | The script tests need `jq` on `PATH` | Root, Development |
-| 74 | How `tests/scripts/` shims `cargo` and `gh` (`record-call.sh`, `reply-call.sh`) | `tests/AGENTS.md` |
+| 74 | How `tests/scripts/` shims `cargo` and `gh` (`record-call.sh`, `reply-call.sh`), and what `gates.sh` runs when it skips them | `tests/AGENTS.md` |
 | 75 | Ship with `scripts/ship.sh "<message>"`: what it runs, refuses `main`, opens the draft PR | Root, Development |
 | 76 | Do not hand-roll the chain, never pipe the gates, never chain them with `&&` and `;` before a commit | Root, Development (the incidents: History below) |
 | 77 | Install: `dev-install.sh`; a milestone is done only after the gates and `ship.sh` ran or explained skipping `dev-install.sh` | Root, Development |

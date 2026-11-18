@@ -81,3 +81,14 @@ What has gone wrong in the tests before, and how the suites are set up to avoid 
   from `src/model/`, `src/config.rs` or `src/app/` comes from a `support` builder (then mutated
   field by field) or from a literal ending in `..Default::default()`, so a new field costs one
   edit in `tests/support/mod.rs` instead of one per test binary.
+- **`tests/scripts/` runs the scripts themselves** in a scratch directory and a scratch git
+  repository, with `cargo`, `gh` and the scripts they call replaced by symlinks to
+  `tests/fixtures/record-call.sh`, which appends its name and argv to `$CALLS_LOG` and exits 1
+  for a call whose argv starts with `$FAILING_CALL` (how a ship test says the branch has no
+  pull request yet). Where a script reads what `gh` prints (`release-tag.sh`,
+  `release-unfinished.sh`, `formula-version.sh`, `previous-tag.sh`), `gh` is a symlink to
+  `tests/fixtures/reply-call.sh` instead: it records the same line, exits 1 with
+  `$FAILING_STDERR` on stderr for a call whose argv starts with `$FAILING_CALL`, else prints
+  every file in `$REPLIES` whose name is part of its argv.
+- **When `gates.sh` skips the script tests** it runs `cargo test --lib --bins` with a `--test`
+  for every other target it finds as `tests/*.rs` or `tests/*/main.rs`, and `cargo test --doc`.
