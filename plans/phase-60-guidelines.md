@@ -62,7 +62,7 @@ this phase. "Root" means root `AGENTS.md`; a section name follows.
 
 | # | Rule (before) | After |
 | --- | --- | --- |
-| 1 | Keep this file short and factual; verify against the code before treating it as live state | Root, opening |
+| 1 | Keep this file short and factual; verify against the code before treating it as live state | Root, opening (changed: the base sentence kept word for word, plus a rule's reason in at most one sentence and its history in the phase's plan file) |
 | 2 | No employer data: org or repo names, PR numbers or titles, logins, hostnames, cluster or kube-context names, ticket prefixes | Root, This repository is public |
 | 3 | Fixtures from this repo's own public PRs; screenshots and TUI tests use `acme/*`; plans and docs use `<owner>/<repo>` | Root, This repository is public |
 | 4 | Do not screenshot real data (was in Documentation rule) | Root, This repository is public |
@@ -77,7 +77,7 @@ this phase. "Root" means root `AGENTS.md`; a section name follows.
 | 13 | `src/sources/` is everything that reaches an external service, and nothing else | Root, Layout |
 | 14 | `src/cli.rs` is hand-rolled, no clap | Root, Layout |
 | 15 | `src/open.rs` is the OS seam, not a service, so it stays out of `sources/` | Root, Layout |
-| 16 | One type per stage behind `StageView`; the one match from a `Stage` to its field is in `stages/mod.rs` | Root, Layout (`tests/stage_dispatch.rs` pins it) |
+| 16 | One type per stage behind `StageView`; the one match from a `Stage` to its field is in `stages/mod.rs`, and no other match on a `Stage` in `src/app/` | Root, Layout (`tests/stage_dispatch.rs` pins it in `src/app/`; `src/ui/` matches on stages on purpose) |
 | 17 | What a column offers in the `S` popup is its stage's `menu`; one file per action | Root, Layout |
 | 18 | `scripts/feeds-binary.sh` is the one list of what does not feed the binary; `scripts/flake-inputs.sh` the one list of what the flake build reads | Root, Layout |
 | 19 | `scripts/version-check.sh` reads the head as git objects and runs nothing from it | Root, Layout (and `.github/AGENTS.md`) |
@@ -91,8 +91,8 @@ this phase. "Root" means root `AGENTS.md`; a section name follows.
 | 27 | `--help`/`--version` print to stdout and exit 0 before the config is read | Root, Behaviour that is easy to break (unchanged) |
 | 28 | Config loaded before any subcommand; what is refused; refuse only what something named breaks with; `conveyor config` exits 1 and is the reference for defaults | Root, Behaviour that is easy to break (unchanged) |
 | 29 | Every other easy-to-break bullet lives in its directory's `AGENTS.md` | Root, Behaviour that is easy to break |
-| 30 | Known limits: treated as decided; one joins when declined for good; may still be reported as must with new impact | Root, Known limits (a sweep finding may join too, as the macOS runner did; nothing else loosened) |
-| 31 | The eight known limits | Root, Known limits (unchanged), plus one from the sweep: unassigned macOS runners |
+| 30 | Known limits: treated as decided; one joins when declined for good; may still be reported as must with new impact | Root, Known limits (unchanged) |
+| 31 | The eight known limits | Root, Known limits (unchanged) |
 | 32 | README shape and order, nothing else | Root, Documentation rule (unchanged) |
 | 33 | The key table mirrors `ui::help::KEYS`; change `KEYS` then the table; `tests/readme.rs` | Root, Documentation rule |
 | 34 | Feature depth, glyph meanings and data-source notes go in the `AGENTS.md` files, not the README | Root, Documentation rule |
@@ -202,7 +202,9 @@ phase 40 to 68, and `plans/metrics.md`.
   68) → rule in root `AGENTS.md` (Time and tokens: list every figure in order and mark the
   restart, never sum or pick one silently).
 - The macOS runner was not assigned in time (62's release run, 68's `flake` job; 63's leg slow)
-  → known limit in root `AGENTS.md`, pointing at the recovery in `.github/AGENTS.md`.
+  → a fact in `.github/AGENTS.md`, which already holds it under "When a run fails or a job is
+  stuck" (a macOS job left in `queued`) with its recovery; a sweep finding cannot join "Known
+  limits", which admits only a review finding declined for good.
 - Parallel phases conflict when catching up with `main` (47, 54, 59), and on the `PLAN.md` and
   `plans/metrics.md` rows at every merge → backlog: rows that do not collide (one file per row,
   or rows a phase never edits after its own).

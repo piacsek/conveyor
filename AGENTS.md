@@ -1,8 +1,8 @@
 # AGENTS.md
 
-Rules for agents and humans working on `conveyor`. Keep this file short: one line per rule, its
-reason in at most one sentence, no history (the stories behind the rules live in `plans/`).
-Verify against the code before treating anything here as live state.
+Notes for agents and humans working on `conveyor`. Keep this file short and
+factual; verify against the code before treating anything here as live state. A rule carries
+its reason in at most one sentence; its history goes to the phase's plan file under `plans/`.
 
 ## What this is
 
@@ -45,7 +45,8 @@ name) it was in and names its commit. `tests/scripts/scrub_check.rs` pins each c
 ## Layout
 
 A map, not an inventory: what each file holds is in the code, and each directory's rules are in
-its `AGENTS.md`. `tests/layout.rs` fails while any path named here does not exist.
+its `AGENTS.md`. `tests/layout.rs` fails while any path named here (a word holding a `/` or ending in a file
+extension) does not exist.
 
 ```
 src/main.rs        CLI dispatch, config load, wiring
@@ -73,7 +74,7 @@ tests/plans.rs     the plan files, their index and their metrics rows
 tests/layout.rs    this map
 tests/toolchain.rs one Rust version everywhere
 tests/source_size.rs no Rust file over 700 lines
-tests/stage_dispatch.rs no match on a Stage outside src/app/stages/mod.rs
+tests/stage_dispatch.rs no match on a Stage in src/app/ outside src/app/stages/mod.rs
 tests/dead_code.rs no unused `pub` item
 docs/              the screenshots
 .github/           the workflows, the issue forms, the PR template; .github/CONTRIBUTING.md points here and restates none of the rules
@@ -109,7 +110,7 @@ The two bullets about `src/cli.rs` and `src/config.rs` stay here; every other on
 
 Accepted limits a reviewer treats as decided, one line each, with where they are written down.
 Pointing reviewers here is not priming, since the list is in the repo. A limit joins it when a
-review finding, or a finding of the sweep, is declined for good; a reviewer may still report one as must when it shows new
+review finding is declined for good; a reviewer may still report one as must when it shows new
 impact.
 
 - **The footer shows only the latest notice**: a success that lands under a prompt is hidden by
@@ -135,8 +136,6 @@ impact.
   `flake-ok`**: a Nix, nixpkgs or `cache.nixos.org` outage then holds them until the ruleset is
   disabled; requiring it is the owner's step by hand (`.github/AGENTS.md`, the flake build, has
   the command that shows whether it is required).
-- **A macOS runner can go unassigned**: a `flake` or release job then waits or is cancelled and
-  needs a new run (`.github/AGENTS.md`, "When a run fails or a job is stuck").
 
 ## Documentation rule
 
@@ -420,8 +419,8 @@ like) feeds it, and a missing or dangling `conveyor-dev`, or no `origin/main`, i
 a branch of docs, tests, scripts or CI never takes `conveyor-dev` over. Once `conveyor-dev` is
 this worktree's build every ship runs `dev-install.sh`: cargo's freshness check makes it cheap
 when nothing changed, and it rebuilds after a merge of `main` that no diff of the commit would
-show. Embedding a file from one of the listed directories into the binary means taking that
-directory off the list in the script.
+show. Embedding a file from a directory `scripts/feeds-binary.sh` lists into the binary means taking
+that directory off the list in the script.
 
 ## Releasing
 
