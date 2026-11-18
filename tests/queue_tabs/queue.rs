@@ -7,6 +7,15 @@ use crate::helpers::{infra_run, repo, running_infra_run, two_repos};
 use crate::support::{Harness, entry, failed_in, job, jobs, key, queue_in};
 
 #[test]
+fn the_queue_title_names_the_configured_repository_before_its_first_answer() {
+    let mut h = Harness::with_config(160, 12, two_repos());
+
+    h.run(vec![]).unwrap();
+
+    assert!(h.screen().contains("Queue monorepo─"), "{}", h.screen());
+}
+
+#[test]
 fn tab_on_merge_queue_asks_for_the_second_repository() {
     let mut h = Harness::with_config(160, 12, two_repos());
     h.run(vec![

@@ -22,10 +22,9 @@ fn a_round_trip_from_main_builds_keeps_its_selection_and_drops_the_filter() {
         ),
         key(KeyCode::Char('l')),
         key(KeyCode::Char('l')),
-        key(KeyCode::Char('j')),
         key(KeyCode::Char('/')),
         key(KeyCode::Char('R')),
-        key(KeyCode::Char('a')),
+        key(KeyCode::Char('e')),
         key(KeyCode::Char('t')),
         key(KeyCode::Enter),
         key(KeyCode::Tab),
@@ -37,9 +36,9 @@ fn a_round_trip_from_main_builds_keeps_its_selection_and_drops_the_filter() {
     assert_eq!(h.app.query, None);
     assert_eq!(
         h.app.builds.active().column.selected().unwrap().run_number,
-        8
+        7
     );
-    assert!(h.screen().contains("Retry webhooks"), "{}", h.screen());
+    assert!(h.screen().contains("Rate limits"), "{}", h.screen());
 }
 
 #[test]

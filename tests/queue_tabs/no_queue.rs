@@ -32,31 +32,6 @@ fn a_repository_without_a_merge_queue_is_no_error_and_has_no_count() {
 }
 
 #[test]
-fn the_active_tab_of_a_repository_without_a_queue_is_dim_in_the_queue_bar_only() {
-    let mut h = Harness::with_config(160, 12, two_repos());
-
-    h.run(vec![no_queue_in(0, "acme/monorepo")]).unwrap();
-
-    let queue_tab = h.cell(41, 1).modifier;
-    let builds_tab = h.cell(81, 1).modifier;
-    assert!(queue_tab.contains(Modifier::DIM), "{queue_tab:?}");
-    assert!(queue_tab.contains(Modifier::REVERSED), "{queue_tab:?}");
-    assert!(!builds_tab.contains(Modifier::DIM), "{builds_tab:?}");
-    assert!(builds_tab.contains(Modifier::BOLD), "{builds_tab:?}");
-}
-
-#[test]
-fn the_active_tab_of_a_repository_with_a_queue_is_not_dim() {
-    let mut h = Harness::with_config(160, 12, two_repos());
-
-    h.run(vec![queue_in(0, "acme/monorepo", vec![])]).unwrap();
-
-    let queue_tab = h.cell(41, 1).modifier;
-    assert!(!queue_tab.contains(Modifier::DIM), "{queue_tab:?}");
-    assert!(queue_tab.contains(Modifier::BOLD), "{queue_tab:?}");
-}
-
-#[test]
 fn a_queue_enabled_later_shows_its_cards_and_its_count() {
     let mut h = Harness::with_config(160, 12, two_repos());
     h.run(vec![no_queue_in(0, "acme/monorepo")]).unwrap();

@@ -81,7 +81,7 @@ impl StageView for QueueStage {
         self.active
     }
 
-    fn tab_dim(&self, tab: usize) -> bool {
+    fn tab_struck(&self, tab: usize) -> bool {
         self.tabs.get(tab).is_some_and(|tab| tab.absent)
     }
 

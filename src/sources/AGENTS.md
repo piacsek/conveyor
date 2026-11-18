@@ -185,7 +185,8 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   string `ago:<secs>` becomes the UTC time that many seconds before the call, so ages stay alive
   across refreshes. `graphql` matches `PRS_QUERY` (`review.json` when `q` holds
   `review-requested`, else `prs.json`) and `QUEUE_QUERY` (the queue only for
-  `name = "webapp"`, an empty queue for any other repository) and answers any other query with
+  `name = "webapp"`, `mergeQueue: null` for `name = "docs"`, an empty queue for any other
+  repository) and answers any other query with
   a `repository` holding no commits, so `Pulls::prefetch` falls through to REST
   `commits/{sha}/pulls`, which `pulls.json` answers by sha. `rest` routes by path segments;
   jobs exist for any run id, failed for 1 and 311, running for 2, 4, 312, 313 and 314, and

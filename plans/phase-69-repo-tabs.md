@@ -17,8 +17,15 @@ builds of a repository that has no merge queue without the queue column shouting
   column is focused and move both. There is no state in which they show different repositories.
 - **A repository without a merge queue keeps its tab and its queue column.** The queue column
   shows one dim line, `no merge queue`, where it shows `queue empty` today, with no error
-  colour, no failure mark and no count in the title. Its tab is dim in the queue's bar and
-  normal in the builds bar. The layout never changes on a switch.
+  colour, no failure mark and no count in the title. The layout never changes on a switch.
+- **Its name is struck through in the queue's bar** (owner's decision of 2026-11-18, superseding
+  the issue's "dim tab"): `Modifier::CROSSED_OUT`, active or not, on top of the emphasis every
+  tab has (the active one bold and reversed, the others dim), so the bar's width never changes.
+  A tab is struck only once GitHub has answered "no queue" for it and loses the strike when a
+  queue appears; the builds bar never strikes a name.
+- **A failed call for a repository known to have no queue** keeps `no merge queue` in the body,
+  adds `⚠` to the title and shows the error in the footer while the column is focused, like
+  every loaded column (owner's decision of 2026-11-18).
 - **GitHub says whether there is a queue.** No config key. `mergeQueue: null` in the queue
   answer is that state; the queue keeps being asked on its normal interval, so a queue that is
   enabled later appears by itself.
@@ -59,14 +66,14 @@ builds of a repository that has no merge queue without the queue column shouting
 
 | Answer for the active repository | Queue column body | Title | Its tab in the queue's bar | Marks, footer |
 | --- | --- | --- | --- | --- |
-| Not answered yet (first paint, or first visit to a tab) | `fetching…`, as today | `Queue <repo>` | normal | spinner, as today |
+| Not answered yet (first paint, or first visit to a tab) | `fetching…`, as today | `Queue <repo>`, the configured name | normal | spinner, as today |
 | Entries | the cards, as today | `Queue <repo> (N)` | normal | as today |
 | A queue with no entries | `queue empty`, as today | `Queue <repo> (0)` | normal | as today |
-| `mergeQueue: null` | `no merge queue`, dim | `Queue <repo>`, no count | dim (active: reversed and dim, not bold) | none: not an error |
-| `mergeQueue: null`, then later a queue | the cards or `queue empty` | with its count | normal again | as today |
-| A queue, then later `mergeQueue: null` (queue switched off) | `no merge queue`, the old cards gone | no count | dim | none |
+| `mergeQueue: null` | `no merge queue`, dim | `Queue <repo>`, no count | struck through | none: not an error |
+| `mergeQueue: null`, then later a queue | the cards or `queue empty` | with its count | not struck | as today |
+| A queue, then later `mergeQueue: null` (queue switched off) | `no merge queue`, the old cards gone | no count | struck through | none |
 | The call fails (rate limit, offline, timed out, not signed in) | the column error, as today; the last rows stay as today | as today | keeps what it last knew | as today |
-| The call fails for a repository last known to have no queue | `no merge queue` stays, as the last rows stay on any loaded column | `Queue <repo> ⚠`, no count | dim | the error in the footer, as today |
+| The call fails for a repository last known to have no queue (owner's decision of 2026-11-18) | `no merge queue` stays, like every loaded column | `Queue <repo> ⚠`, no count | struck through | the error in the footer while the column is focused |
 | No `[[repo]]`, or one | no bar in either column, as today | as today | no bar | as today |
 
 Main builds is the same for every row above: its own bar, its own rows, its own error.
@@ -83,11 +90,9 @@ Main builds is the same for every row above: its own bar, its own rows, its own 
   says it has no queue (a field on `Queue`, not a new `FailureKind`), `QueueTab` remembers it
   per tab, and `receive` clears the tab's rows when it arrives. The column error path is not
   touched, so a real failure still reads as one.
-- **The bar learns to dim a tab.** `tab_bar` asks the stage which tabs are dim; `StageView`
-  gets one method answering it (default: none), which `QueueStage` answers from its tabs. The
-  bar already draws every inactive tab dim, so the mark shows on the active tab: reversed and
-  dim instead of reversed and bold, still the one reversed tab. An inactive tab without a queue
-  looks like any other inactive tab.
+- **The bar learns to strike a tab.** `tab_bar` asks the stage which tabs are struck;
+  `StageView::tab_struck` answers it (default: none), which `QueueStage` answers from its tabs,
+  and the bar adds `CROSSED_OUT` to that tab's usual style.
 - **Nothing new is fetched.** A repository without a queue costs the same one GraphQL call per
   `refresh_secs` while its tab is shown as an erroring one does today.
 
@@ -115,15 +120,16 @@ Each is one red-green-refactor cycle, outside-in from `run()` with scripted inpu
    fixture taken from this repository's own answer; then through `run()`: the queue column
    reads `no merge queue`, with no error and no count in its title.
 6. **The states table, row by row:** a queue appearing later, a queue going away (old cards
-   gone), a failed call after "no queue" (the error shows, the tab stays dim).
-7. **The dim tab.** The queue's bar draws the tab of a repository known to have no queue dim;
-   the builds bar does not; the active tab keeps its emphasis.
+   gone), a failed call after "no queue" (`no merge queue` stays, the title gains `⚠`, the
+   footer shows the error while the column is focused, the tab stays struck).
+7. **The struck tab.** The queue's bar strikes the tab of a repository known to have no queue,
+   active or not; the builds bar does not; the active tab keeps its emphasis.
 8. **The demo and the screenshots.** A third demo repository, `acme/docs`, with builds and a
    `mergeQueue: null` answer; `tests/demo.rs` follows. `docs/details.png` now shows the bar in
    both columns; `docs/infra.png` is re-rendered; a new `shoot` line renders the `acme/docs`
    tab as `docs/no-queue.png`. Embed the images in the pull request, pinned to their commit.
 9. **Docs and the fragment.** `src/app/AGENTS.md` (the Merge queue and Main builds tab
-   bullets, the refresh rule), `src/ui/AGENTS.md` (the bar, the dim tab, the empty texts),
+   bullets, the refresh rule), `src/ui/AGENTS.md` (the bar, the struck tab, the empty texts),
    `src/sources/AGENTS.md` and `src/model/AGENTS.md` (a repository without a queue is no longer
    a column error), the README comment on `[[repo]]`, and `changes/phase-69-repo-tabs.md`
    with `kind: feat`.

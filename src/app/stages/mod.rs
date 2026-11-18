@@ -159,7 +159,7 @@ pub trait StageView {
 
     fn select_tab(&mut self, _: usize) {}
 
-    fn tab_dim(&self, _: usize) -> bool {
+    fn tab_struck(&self, _: usize) -> bool {
         false
     }
 

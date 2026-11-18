@@ -40,7 +40,7 @@ impl App {
         }
         self.query = None;
         for stage in Stage::ALL {
-            self.stage_mut(stage).listing_mut().set_filter(None);
+            self.stage_mut(stage).listing_mut().clear_filter();
         }
         self.reset_scroll();
         Action::RefreshEach(self.focus.tab_group())

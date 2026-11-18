@@ -42,7 +42,7 @@ pub(crate) fn column_title(app: &App, stage: Stage) -> String {
             true,
         ),
         Stage::Queue => titled(
-            &named(app, stage, "Queue", app.queue.repo().map(short_repo)),
+            &named(app, stage, "Queue", queue_repo(app)),
             app.queue.column(),
             marks,
             !app.queue.absent(),
@@ -65,6 +65,16 @@ pub(crate) fn column_title(app: &App, stage: Stage) -> String {
             true,
         ),
     }
+}
+
+fn queue_repo(app: &App) -> Option<&str> {
+    app.queue.repo().map(short_repo).or_else(|| {
+        app.queue
+            .tab_names()
+            .get(app.queue.active_tab())
+            .map(String::as_str)
+            .filter(|name| !name.is_empty())
+    })
 }
 
 fn named(app: &App, stage: Stage, short: &str, suffix: Option<&str>) -> String {
@@ -254,12 +264,15 @@ fn tab_bar(view: &dyn StageView, width: u16) -> Option<Line<'static>> {
         if i > start {
             parts.push((SEPARATOR.to_string(), Style::default()));
         }
-        let style = if i == active && view.tab_dim(i) {
-            Style::default().add_modifier(Modifier::DIM | Modifier::REVERSED)
-        } else if i == active {
+        let style = if i == active {
             Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED)
         } else {
             dim()
+        };
+        let style = if view.tab_struck(i) {
+            style.add_modifier(Modifier::CROSSED_OUT)
+        } else {
+            style
         };
         parts.push((name.clone(), style));
     }
