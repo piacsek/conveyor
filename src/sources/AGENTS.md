@@ -30,7 +30,8 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   `repos/{r}/actions/runs?event=merge_group&per_page=30`; runs are matched to entries by the
   `pr-<N>-` segment of `head_branch` and the newest run wins. The REST call is optional: a
   failure leaves the entries with the rollup state from GraphQL. A repository without a queue
-  (`mergeQueue: null`) is a column error, not a crash. `tests/fixtures/queue.json` is
+  (`mergeQueue: null`) parses to an empty `Queue` with `absent` set, not an error
+  (`tests/fixtures/queue-none.json`). `tests/fixtures/queue.json` is
   **synthetic** (built from the schema; no public repo with a queue was at hand) and
   `queue-empty.json` is a real empty response.
 - **Merge queue schema**: `repository.mergeQueue.entries` (`position state enqueuedAt
@@ -184,7 +185,8 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   string `ago:<secs>` becomes the UTC time that many seconds before the call, so ages stay alive
   across refreshes. `graphql` matches `PRS_QUERY` (`review.json` when `q` holds
   `review-requested`, else `prs.json`) and `QUEUE_QUERY` (the queue only for
-  `name = "webapp"`, an empty queue for any other repository) and answers any other query with
+  `name = "webapp"`, `mergeQueue: null` for `name = "docs"`, an empty queue for any other
+  repository) and answers any other query with
   a `repository` holding no commits, so `Pulls::prefetch` falls through to REST
   `commits/{sha}/pulls`, which `pulls.json` answers by sha. `rest` routes by path segments;
   jobs exist for any run id, failed for 1 and 311, running for 2, 4, 312, 313 and 314, and

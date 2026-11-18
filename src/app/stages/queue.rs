@@ -17,6 +17,7 @@ pub struct QueueStage {
 struct QueueTab {
     column: Column<QueueEntry>,
     repo: Option<String>,
+    absent: bool,
 }
 
 impl QueueStage {
@@ -39,6 +40,10 @@ impl QueueStage {
     pub fn repo(&self) -> Option<&str> {
         self.tabs[self.active].repo.as_deref()
     }
+
+    pub fn absent(&self) -> bool {
+        self.tabs[self.active].absent
+    }
 }
 
 impl StageView for QueueStage {
@@ -53,6 +58,7 @@ impl StageView for QueueStage {
     fn receive(&mut self, tab: usize, rows: Rows, now: SystemTime) {
         if let (Rows::Queue(queue), Some(tab)) = (rows, self.tabs.get_mut(tab)) {
             tab.repo = Some(queue.repo);
+            tab.absent = queue.absent;
             tab.column.receive(queue.entries, now);
         }
     }
@@ -73,6 +79,10 @@ impl StageView for QueueStage {
 
     fn active_tab(&self) -> usize {
         self.active
+    }
+
+    fn tab_struck(&self, tab: usize) -> bool {
+        self.tabs.get(tab).is_some_and(|tab| tab.absent)
     }
 
     fn select_tab(&mut self, tab: usize) {

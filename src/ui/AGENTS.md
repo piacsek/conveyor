@@ -109,9 +109,13 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
 - The deploy health icons (`⚠`, `‼`, `?`) and the rules behind them: see `src/model/AGENTS.md`.
 - A queue card whose run speaks for the entry: see `src/model/AGENTS.md`.
 
-- **The tab bar.** A column with two tabs or more (`StageView::tab_names`: My PRs and Merge queue)
-  takes one line inside its block, above the cards: the names joined by ` │ `, the active one
+- **The tab bar.** A column with two tabs or more (`StageView::tab_names`: My PRs, Merge queue
+  and Main builds) takes one line inside its block, above the cards: the names joined by ` │ `, the active one
   bold and reversed like the narrow layout's column bar, the others dim (`columns::tab_bar`).
+  A tab `StageView::tab_struck` answers for (Merge queue: a repository GitHub answered has no
+  merge queue) is also crossed out, active or not, which keeps the bar's width; the builds bar
+  strikes nothing. The queue column then reads a dim `no merge queue` with no count in its title.
+  Before a tab's first answer the Merge queue and Main builds titles name its configured repository.
   `draw_column` draws the block, the bar on its first inner line, and the list below it in a
   block with no top border, so the cards, widths and links work as in any column. When the
   names do not fit, tabs before the active one are dropped behind a leading `… │ ` until it

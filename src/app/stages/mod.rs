@@ -45,6 +45,14 @@ impl Stage {
     pub fn previous(self) -> Stage {
         Self::at(self.index() + Self::ALL.len() - 1)
     }
+
+    pub fn tab_group(self) -> &'static [Stage] {
+        match self {
+            Stage::Prs => &[Stage::Prs],
+            Stage::Queue | Stage::Builds => &[Stage::Queue, Stage::Builds],
+            Stage::Deployed => &[Stage::Deployed],
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -150,6 +158,10 @@ pub trait StageView {
     }
 
     fn select_tab(&mut self, _: usize) {}
+
+    fn tab_struck(&self, _: usize) -> bool {
+        false
+    }
 
     fn pull_target(&self) -> Result<(u64, String), String>;
 

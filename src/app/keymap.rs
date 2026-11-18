@@ -143,7 +143,7 @@ impl App {
                 Err(message) => self.notice = Some(message),
             },
             KeyCode::Char('r') => return Action::Refresh(self.focus),
-            KeyCode::Char('R') => return Action::RefreshAll,
+            KeyCode::Char('R') => return Action::RefreshEach(&Stage::ALL),
             KeyCode::Char('d') => {
                 self.details = !self.details;
                 self.reset_scroll();

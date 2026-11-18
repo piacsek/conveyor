@@ -99,7 +99,7 @@ previous_tab = "shift-tab"
 # builds = "Main"
 # deployed = "Envs"
 
-[[repo]]                      # optional; default is the repository of the current directory; one Merge queue tab each (all on the first one's refresh_secs), which Main builds follows; Deployed the one with [[repo.deploy]]
+[[repo]]                      # optional; default is the repository of the current directory; one tab each in Merge queue and Main builds, switched together (the queue on the first one's refresh_secs); Deployed the one with [[repo.deploy]]
 name = "owner/name"
 path = "~/projects/name"      # optional; the local clone `S` then `c` checks a pull request out in
 main_workflow = "CI/CD"       # workflow name or file, e.g. ci.yml

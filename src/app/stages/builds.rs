@@ -8,6 +8,7 @@ use super::{Context, Rows, StageView};
 
 #[derive(Debug, Clone)]
 pub struct BuildsStage {
+    names: Vec<String>,
     tabs: Vec<BuildsTab>,
     active: usize,
 }
@@ -20,9 +21,10 @@ pub struct BuildsTab {
 }
 
 impl BuildsStage {
-    pub fn new(tabs: usize) -> Self {
+    pub fn new(names: Vec<String>) -> Self {
         Self {
-            tabs: vec![BuildsTab::default(); tabs.max(1)],
+            tabs: vec![BuildsTab::default(); names.len().max(1)],
+            names,
             active: 0,
         }
     }
@@ -37,14 +39,6 @@ impl BuildsStage {
 
     pub fn column_mut(&mut self) -> &mut Column<Build> {
         &mut self.tabs[self.active].column
-    }
-
-    pub fn follow(&mut self, tab: usize) {
-        if tab < self.tabs.len() {
-            self.column_mut().clear_filter();
-            self.active = tab;
-            self.column_mut().clear_filter();
-        }
     }
 }
 
@@ -71,8 +65,20 @@ impl StageView for BuildsStage {
             .map(|tab| &mut tab.column as &mut dyn Listing)
     }
 
+    fn tab_names(&self) -> &[String] {
+        &self.names
+    }
+
     fn active_tab(&self) -> usize {
         self.active
+    }
+
+    fn select_tab(&mut self, tab: usize) {
+        if tab < self.tabs.len() {
+            self.column_mut().clear_filter();
+            self.active = tab;
+            self.column_mut().clear_filter();
+        }
     }
 
     fn holds(&self, key: u64) -> bool {

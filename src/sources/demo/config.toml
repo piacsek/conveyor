@@ -38,3 +38,6 @@ deployment = "api"
 
 [[repo]]
 name = "acme/infra"
+
+[[repo]]
+name = "acme/docs"

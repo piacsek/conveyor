@@ -83,9 +83,9 @@ where
                 Action::Open(url) => attempt(app, opener.open(&url)),
                 Action::Copy(text) => attempt(app, opener.copy(&text)),
                 Action::Refresh(stage) => request(app.refresh_request(stage)),
-                Action::RefreshAll => {
-                    for stage in Stage::ALL {
-                        request(app.refresh_request(stage));
+                Action::RefreshEach(stages) => {
+                    for stage in stages {
+                        request(app.refresh_request(*stage));
                     }
                 }
                 Action::Log {

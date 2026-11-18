@@ -50,6 +50,7 @@ pub struct Queue {
     pub repo: String,
     pub url: String,
     pub entries: Vec<QueueEntry>,
+    pub absent: bool,
 }
 
 pub fn parse(value: &serde_json::Value) -> Result<Queue, String> {
@@ -57,7 +58,10 @@ pub fn parse(value: &serde_json::Value) -> Result<Queue, String> {
         .pointer("/data/repository/mergeQueue")
         .ok_or_else(|| "gh response has no data.repository.mergeQueue".to_string())?;
     if queue.is_null() {
-        return Err("no merge queue on this repository".to_string());
+        return Ok(Queue {
+            absent: true,
+            ..Queue::default()
+        });
     }
     let mut entries: Vec<QueueEntry> = queue
         .pointer("/entries/nodes")
@@ -69,6 +73,7 @@ pub fn parse(value: &serde_json::Value) -> Result<Queue, String> {
         repo: String::new(),
         url: text(queue, "url"),
         entries,
+        absent: false,
     })
 }
 

@@ -314,6 +314,7 @@ pub trait Listing: Navigable {
     fn is_refreshing(&self) -> bool;
     fn set_refreshing(&mut self, refreshing: bool);
     fn set_filter(&mut self, filter: Option<String>);
+    fn clear_filter(&mut self);
     fn fail(&mut self, failure: Failure);
 }
 
@@ -348,6 +349,10 @@ impl<T: Row> Listing for Column<T> {
 
     fn set_filter(&mut self, filter: Option<String>) {
         self.filter = filter;
+    }
+
+    fn clear_filter(&mut self) {
+        Column::clear_filter(self);
     }
 
     fn fail(&mut self, failure: Failure) {

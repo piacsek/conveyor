@@ -1,0 +1,33 @@
+{
+  "total_count": 2,
+  "workflow_runs": [
+    {
+      "id": 703,
+      "run_number": 703,
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "c47e2a9b15d83f60e2b94a7c1d5f08e3a6b29d74",
+      "display_title": "Document the rollback steps (#4819)",
+      "html_url": "https://github.com/acme/docs/actions/runs/703",
+      "actor": {
+        "login": "merge-bot"
+      },
+      "run_started_at": "ago:1500",
+      "updated_at": "ago:1260"
+    },
+    {
+      "id": 702,
+      "run_number": 702,
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "5d0b8f3e92a14c76b8e1f05a3c9d27e4b6a81f05",
+      "display_title": "Fix the broken links in the setup guide (#4806)",
+      "html_url": "https://github.com/acme/docs/actions/runs/702",
+      "actor": {
+        "login": "merge-bot"
+      },
+      "run_started_at": "ago:14400",
+      "updated_at": "ago:14160"
+    }
+  ]
+}

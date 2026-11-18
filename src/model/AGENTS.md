@@ -38,6 +38,8 @@ How the answers from `gh` and `kubectl` are parsed and judged. Rules and working
   of them, a second or two apart on the rest), which read as a meaningless `0s`. Job and run lines in the details pane use the same
   `text::elapsed` (`3m59s`, `1h04m`); cards keep the coarse `text::duration` (`3m`) because
   seconds pushed the status word off a 40-column card.
+- **No merge queue is data, not a failure.** `queue::parse` answers `mergeQueue: null` with
+  `Queue { absent: true, .. }`, so a repository without one never reads as a column error.
 - **A queue entry carries its whole merge-group run.** `parse_merge_group_runs` builds a
   `Build` per run through `builds::parse_run` (the two endpoints return the same run shape) and
   `attach_runs` hangs it on `QueueEntry::run`, so the queue's details pane shows the run line

@@ -94,6 +94,19 @@ pub fn queue_in(tab: usize, repo: &str, entries: Vec<QueueEntry>) -> io::Result<
             repo: repo.to_string(),
             url: format!("https://github.com/{repo}/queue/main"),
             entries,
+            ..Queue::default()
+        })),
+    ))
+}
+
+pub fn no_queue_in(tab: usize, repo: &str) -> io::Result<Input> {
+    Ok(Input::Data(
+        Stage::Queue,
+        tab,
+        Ok(Rows::Queue(Queue {
+            repo: repo.to_string(),
+            absent: true,
+            ..Queue::default()
         })),
     ))
 }

@@ -53,13 +53,16 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   no `[[repo]]` is one tab, the current directory's repository. Same keys and per-tab state as
   My PRs (`QueueStage` holds a `Column` and a `repo` per tab); the queue fetcher fetches
   `config.repo[tab]` on the first `[[repo]]`'s `refresh_secs`. The title names the active
-  tab's repository. A write's follow-up refresh asks for the queue's active tab only.
-- **Main builds follows the Merge queue's active tab.** `BuildsStage` holds a `BuildsTab`
-  (`column`, `repo`, `branch`) per `[[repo]]` and draws no tab bar; `App::switch_tab` sets its
-  active tab to the queue's, whichever column switched, and the tab keys in Main builds do
-  nothing. `refresh::spawn_each` runs one fetcher per repository, each on that `[[repo]]`'s
-  `refresh_secs`, all in the background, so a queue switch sends no Main builds refresh; `r`
-  and `R` ask for the active tab, a rerun's follow-up for the tab it started on. A switch clears the filter of the tab
+  tab's repository. A write's follow-up refresh asks for the queue's active tab only. A
+  repository without a merge queue (`Queue::absent`, from `mergeQueue: null`) keeps its tab:
+  `QueueTab::absent` drops its rows, and a later failure leaves it set, like any last rows.
+- **Merge queue and Main builds share one active repository.** `BuildsStage` holds a `BuildsTab`
+  (`column`, `repo`, `branch`) per `[[repo]]` and the same tab names; `Stage::tab_group` pairs
+  the two, so the tab keys in either column call `select_tab` on both and return
+  `Action::RefreshEach` for the queue's new tab, then the builds', since the queue fetcher only
+  fetches the tab last asked for. `refresh::spawn_each` runs one builds fetcher per repository,
+  each on that `[[repo]]`'s `refresh_secs`, all in the background; `r` asks for the active tab,
+  `R` refreshes every stage, a rerun's follow-up asks for the tab it started on. A switch clears the filter of the tab
   left and the tab shown with `Column::clear_filter`, so each keeps its selected build. A
   result ages the runs of its own tab (`StageView::runs_in`), the queue's too, while jobs are
   still asked for the shown tab's runs only. Deployed reads the builds of the deploy

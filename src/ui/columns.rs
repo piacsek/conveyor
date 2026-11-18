@@ -4,7 +4,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 
-use crate::app::{App, Column, Failure, Row, Stage, Write};
+use crate::app::{App, Column, Failure, Row, Stage, StageView, Write};
 use crate::text::{cells, display_width, short_repo, take_width};
 use crate::ui::help::{column_name, custom_title};
 use crate::ui::link::link;
@@ -13,13 +13,13 @@ use crate::ui::style::dim;
 
 type Pull = Option<(u64, String)>;
 
-fn titled<T: Row>(base: &str, column: &Column<T>, marks: usize) -> String {
+fn titled<T: Row>(base: &str, column: &Column<T>, marks: usize, counted: bool) -> String {
     let marks = match marks {
         0 => String::new(),
         marks => format!(" !{marks}"),
     };
     let warning = if column.error.is_some() { " ⚠" } else { "" };
-    if column.is_loading() {
+    if column.is_loading() || !counted {
         format!("{base}{marks}{warning}")
     } else if column.filter.is_some() {
         format!(
@@ -39,28 +39,49 @@ pub(crate) fn column_title(app: &App, stage: Stage) -> String {
             column_name(stage, &app.config.ui.titles),
             app.prs.column(),
             marks,
+            true,
         ),
         Stage::Queue => titled(
-            &named(app, stage, "Queue", app.queue.repo().map(short_repo)),
+            &named(
+                app,
+                stage,
+                "Queue",
+                app.queue.repo().map(short_repo).or(tab_name(&app.queue)),
+            ),
             app.queue.column(),
             marks,
+            !app.queue.absent(),
         ),
         Stage::Builds => titled(
             &named(
                 app,
                 stage,
                 "Main",
-                app.builds.active().repo.as_deref().map(short_repo),
+                app.builds
+                    .active()
+                    .repo
+                    .as_deref()
+                    .map(short_repo)
+                    .or(tab_name(&app.builds)),
             ),
             &app.builds.active().column,
             marks,
+            true,
         ),
         Stage::Deployed => titled(
             &named(app, stage, "Deployed", app.deployed.system.as_deref()),
             &app.deployed.column,
             marks,
+            true,
         ),
     }
+}
+
+fn tab_name(view: &dyn StageView) -> Option<&str> {
+    view.tab_names()
+        .get(view.active_tab())
+        .map(String::as_str)
+        .filter(|name| !name.is_empty())
 }
 
 fn named(app: &App, stage: Stage, short: &str, suffix: Option<&str>) -> String {
@@ -92,7 +113,7 @@ pub(crate) fn draw_column(
 ) {
     let block = column_block(app, stage, titled);
     let view = app.stage(stage);
-    let (area, block) = match tab_bar(view.tab_names(), view.active_tab(), area.width) {
+    let (area, block) = match tab_bar(view, area.width) {
         Some(bar) => {
             frame.render_widget(block, area);
             let line = Rect::new(area.x + 1, area.y + 1, area.width.saturating_sub(2), 1)
@@ -144,6 +165,10 @@ pub(crate) fn draw_column(
                 },
             )
         }
+        Stage::Queue if app.queue.absent() => frame.render_widget(
+            Paragraph::new(Span::styled("no merge queue", dim())).block(block),
+            area,
+        ),
         Stage::Queue => draw_list(
             frame,
             app.queue.column_mut(),
@@ -217,7 +242,9 @@ pub(crate) fn draw_column(
     app.jobs = jobs;
 }
 
-fn tab_bar(names: &[String], active: usize, width: u16) -> Option<Line<'static>> {
+fn tab_bar(view: &dyn StageView, width: u16) -> Option<Line<'static>> {
+    let names = view.tab_names();
+    let active = view.active_tab();
     if names.len() < 2 {
         return None;
     }
@@ -248,6 +275,11 @@ fn tab_bar(names: &[String], active: usize, width: u16) -> Option<Line<'static>>
             Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED)
         } else {
             dim()
+        };
+        let style = if view.tab_struck(i) {
+            style.add_modifier(Modifier::CROSSED_OUT)
+        } else {
+            style
         };
         parts.push((name.clone(), style));
     }
