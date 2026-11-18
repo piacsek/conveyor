@@ -72,6 +72,8 @@ const DISABLE_AUTO_MERGE: &str = "mutation($id: ID!) { disablePullRequestAutoMer
 
 const ENQUEUE: &str = "mutation($id: ID!, $head: GitObjectID) { enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid: $head}) { clientMutationId } }";
 
+const JUMP: &str = "mutation($id: ID!, $head: GitObjectID) { enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid: $head, jump: true}) { clientMutationId } }";
+
 const DEQUEUE: &str =
     "mutation($id: ID!) { dequeuePullRequest(input: {id: $id}) { clientMutationId } }";
 
@@ -228,9 +230,14 @@ impl CliGh {
             StatusChange::Dequeue { node_id } => {
                 Self::graphql_args(DEQUEUE, &[("id", node_id.as_str().into())])
             }
-            StatusChange::Enqueue { node_id, head_oid } => {
+            StatusChange::Enqueue {
+                node_id,
+                head_oid,
+                jump,
+            } => {
                 let vars = vec![("id", node_id.as_str().into())];
-                Self::graphql_args(ENQUEUE, &pinned(vars, head_oid))
+                let query = if *jump { JUMP } else { ENQUEUE };
+                Self::graphql_args(query, &pinned(vars, head_oid))
             }
         }
     }
@@ -535,6 +542,7 @@ impl Aftermath<'_> {
             Self::Status(StatusChange::Draft) => "may be a draft",
             Self::Status(StatusChange::EnableAutoMerge { .. }) => "auto-merge may be on",
             Self::Status(StatusChange::DisableAutoMerge { .. }) => "auto-merge may be off",
+            Self::Status(StatusChange::Enqueue { jump: true, .. }) => "may be at the front",
             Self::Status(StatusChange::Enqueue { .. }) => "may be in the queue",
             Self::Status(StatusChange::Dequeue { .. }) => "may be out of the queue",
             Self::Status(StatusChange::Close) => "may be closed",

@@ -350,6 +350,21 @@ fn a_demo_removal_from_the_merge_queue_changes_nothing() {
 }
 
 #[test]
+fn a_demo_move_to_the_front_changes_nothing() {
+    let config = demo::config(Config::default());
+    let entry = &fetch_queue(&Demo, &config.repo[0]).unwrap().entries[1];
+    let jump = StatusChange::Enqueue {
+        node_id: entry.node_id.clone(),
+        head_oid: entry.head_oid.clone(),
+        jump: true,
+    };
+
+    let changed = Demo.change_status("acme/webapp", entry.number, &jump);
+
+    assert_eq!(nothing_changed(changed), "demo: nothing was changed");
+}
+
+#[test]
 fn a_demo_checkout_changes_nothing() {
     let checked_out = Demo.checkout("acme/webapp", 4821, None);
 

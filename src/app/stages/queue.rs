@@ -143,7 +143,7 @@ impl StageView for QueueStage {
 }
 
 fn offers(entry: &QueueEntry) -> Vec<Offer> {
-    let status = |change| {
+    let status = |change: Result<StatusChange, &str>| {
         if entry.state == QueueState::Locked {
             return Err(format!("#{} is being merged", entry.number));
         }
@@ -155,14 +155,26 @@ fn offers(entry: &QueueEntry) -> Vec<Offer> {
             repo: entry.repo.clone(),
             title: entry.title.clone(),
             head_oid: entry.head_oid.clone(),
-            change,
+            change: change?,
         }))
     };
-    vec![offer(
-        'e',
-        "remove from the merge queue",
-        status(StatusChange::Dequeue {
+    let jump = match (entry.position, entry.jump) {
+        (1, _) => Err("already at the front"),
+        (_, true) => Err("already jumping the queue"),
+        _ => Ok(StatusChange::Enqueue {
             node_id: entry.node_id.clone(),
+            head_oid: entry.head_oid.clone(),
+            jump: true,
         }),
-    )]
+    };
+    vec![
+        offer(
+            'e',
+            "remove from the merge queue",
+            status(Ok(StatusChange::Dequeue {
+                node_id: entry.node_id.clone(),
+            })),
+        ),
+        offer('i', "move to the front", status(jump)),
+    ]
 }

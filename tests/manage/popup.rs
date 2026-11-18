@@ -603,7 +603,8 @@ fn m_on_a_merge_queue_pull_request_asks_and_y_adds_it_to_the_queue() {
             "Retry webhooks",
             StatusChange::Enqueue {
                 node_id: "PR_node1".to_string(),
-                head_oid: "8c1f2a7d1".to_string()
+                head_oid: "8c1f2a7d1".to_string(),
+                jump: false,
             }
         )]
     );
@@ -615,6 +616,7 @@ fn a_landed_enqueue_refreshes_both_columns_and_update_waits_for_my_prs() {
     let change = StatusChange::Enqueue {
         node_id: "PR_node1".to_string(),
         head_oid: "8c1f2a7d1".to_string(),
+        jump: false,
     };
 
     h.run(vec![

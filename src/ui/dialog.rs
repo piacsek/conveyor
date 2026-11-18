@@ -27,6 +27,10 @@ fn question(pending: &Pending, label: &str) -> String {
             StatusChange::EnableAutoMerge { .. } => {
                 format!("enable auto-merge for {label} {}", target.title)
             }
+            StatusChange::Enqueue { jump: true, .. } => format!(
+                "move to the front (the merge groups behind it are rebuilt and their checks restart) {label} {}",
+                target.title
+            ),
             StatusChange::Enqueue { .. } => {
                 format!("add to the merge queue {label} {}", target.title)
             }

@@ -88,6 +88,7 @@ pub enum StatusChange {
     Enqueue {
         node_id: String,
         head_oid: String,
+        jump: bool,
     },
     Close,
     Approve {
