@@ -30,7 +30,8 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   `repos/{r}/actions/runs?event=merge_group&per_page=30`; runs are matched to entries by the
   `pr-<N>-` segment of `head_branch` and the newest run wins. The REST call is optional: a
   failure leaves the entries with the rollup state from GraphQL. A repository without a queue
-  (`mergeQueue: null`) is a column error, not a crash. `tests/fixtures/queue.json` is
+  (`mergeQueue: null`) parses to an empty `Queue` with `absent` set, not an error
+  (`tests/fixtures/queue-none.json`). `tests/fixtures/queue.json` is
   **synthetic** (built from the schema; no public repo with a queue was at hand) and
   `queue-empty.json` is a real empty response.
 - **Merge queue schema**: `repository.mergeQueue.entries` (`position state enqueuedAt
