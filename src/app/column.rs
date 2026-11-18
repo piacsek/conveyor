@@ -68,7 +68,7 @@ impl Row for QueueEntry {
     const ORDER: Order = Order::ByRankAscending;
 
     fn key(&self) -> u64 {
-        self.number
+        pull_key(&self.repo, self.number)
     }
 
     fn rank(&self) -> u64 {

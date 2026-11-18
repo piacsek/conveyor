@@ -7,6 +7,7 @@ use super::status::progress;
 pub struct Write {
     pub subject: u64,
     pub stage: Stage,
+    pub tab: usize,
     pub kind: WriteKind,
 }
 
@@ -28,6 +29,9 @@ impl Write {
         match &self.kind {
             WriteKind::Merge(number) => format!("merging #{number}…"),
             WriteKind::Update(number) => format!("updating #{number}…"),
+            WriteKind::Status(number, _) if self.removes() => {
+                format!("removing #{number} from the merge queue…")
+            }
             WriteKind::Status(number, change) => progress(*number, change),
             WriteKind::Checkout(number) => format!("checking out #{number}…"),
             WriteKind::Rerun { label, .. } => format!("rerunning {label}…"),
@@ -38,12 +42,14 @@ impl Write {
         match &self.kind {
             WriteKind::Merge(_) => "merge",
             WriteKind::Update(_) => "update",
+            WriteKind::Status(..) if self.removes() => "remove from the merge queue",
             WriteKind::Status(_, change) => match change {
                 StatusChange::Ready => "mark ready",
                 StatusChange::Draft => "convert to draft",
                 StatusChange::EnableAutoMerge { .. } => "enable auto-merge",
                 StatusChange::DisableAutoMerge { .. } => "disable auto-merge",
                 StatusChange::Dequeue { .. } => "leave the merge queue",
+                StatusChange::Enqueue { jump: true, .. } => "move to the front",
                 StatusChange::Enqueue { .. } => "add to the merge queue",
                 StatusChange::Close => "close",
                 StatusChange::Approve { .. } => "approve",
@@ -58,12 +64,14 @@ impl Write {
         match &self.kind {
             WriteKind::Merge(_) => "merging…",
             WriteKind::Update(_) => "updating…",
+            WriteKind::Status(..) if self.removes() => "removing from the merge queue…",
             WriteKind::Status(_, change) => match change {
                 StatusChange::Ready => "marking ready…",
                 StatusChange::Draft => "converting to draft…",
                 StatusChange::EnableAutoMerge { .. } => "enabling auto-merge…",
                 StatusChange::DisableAutoMerge { .. } => "disabling auto-merge…",
                 StatusChange::Dequeue { .. } => "leaving the merge queue…",
+                StatusChange::Enqueue { jump: true, .. } => "moving to the front…",
                 StatusChange::Enqueue { .. } => "adding to the merge queue…",
                 StatusChange::Close => "closing…",
                 StatusChange::Approve { .. } => "approving…",
@@ -73,19 +81,28 @@ impl Write {
         }
         .to_string()
     }
+
+    pub(super) fn removes(&self) -> bool {
+        self.stage == Stage::Queue
+            && matches!(
+                self.kind,
+                WriteKind::Status(_, StatusChange::Dequeue { .. })
+            )
+    }
 }
 
 impl App {
     pub fn write_on(&self, stage: Stage, subject: u64) -> Option<&Write> {
         self.writes
             .iter()
-            .find(|write| write.stage == stage && write.subject == subject)
+            .find(|write| write.subject == subject && stage.pull_group().contains(&write.stage))
     }
 
     pub(super) fn start_write(&mut self, subject: u64, kind: WriteKind) {
         let write = Write {
             subject,
             stage: self.focus,
+            tab: self.stage(self.focus).active_tab(),
             kind,
         };
         self.notice = Some(write.progress());

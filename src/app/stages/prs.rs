@@ -196,6 +196,7 @@ impl PrsStage {
                     status(StatusChange::Enqueue {
                         node_id: pr.node_id.clone(),
                         head_oid: pr.head_oid.clone(),
+                        jump: false,
                     })
                 }),
             )

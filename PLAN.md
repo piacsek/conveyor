@@ -78,7 +78,8 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 71 | [each repository merges with its own merge method (#112)](plans/phase-71-repo-merge-method.md) | v0.37.0 |
 | 72 | [approve a pull request from the `S` popup (#113)](plans/phase-72-approve.md) | v0.38.0 |
 | 73 | [the README shows conveyor moving: a recording below the screenshot (#97)](plans/phase-73-readme-demo.md) | none |
-| 74 | [the Deployed column has tabs, one per deployed system](plans/phase-74-deployed-tabs.md) | |
+| 74 | [the Deployed column has tabs, one per deployed system](plans/phase-74-deployed-tabs.md) | v0.39.0 |
+| 76 | [take a pull request out of the merge queue, or move it to the front, from the Merge queue column](plans/phase-76-queue-actions.md) | |
 
 ## Backlog (discussed at the sweeps and retros)
 
@@ -86,6 +87,8 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 - The Merge queue refreshes every tab on the first `[[repo]]`'s `refresh_secs`
   (`spawn_queue_fetcher` takes one interval); Main builds already follows each repository's.
 - More `S` actions: reopen if the query ever lists closed pull requests.
+- Confirm on a real queue whether `i` (move to the front) works on an entry already queued or
+  GitHub refuses it (phase 76 could not send a write); drop the offer if it is always refused.
 - Merge follow-ups from the phase 20 review: `merge_method` per `[[repo]]` (#112) (one global value cannot
   serve a squash-only and a merge-commit-only repo at once); a write result that lands while the other prompt is open is
   hidden by that prompt (the failure half is done in phase 39: a failure stays on its card; a

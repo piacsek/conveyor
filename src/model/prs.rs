@@ -88,6 +88,7 @@ pub enum StatusChange {
     Enqueue {
         node_id: String,
         head_oid: String,
+        jump: bool,
     },
     Close,
     Approve {
@@ -98,7 +99,10 @@ pub enum StatusChange {
 
 impl StatusChange {
     pub fn lands_a_merge(&self) -> bool {
-        matches!(self, Self::EnableAutoMerge { .. } | Self::Enqueue { .. })
+        matches!(
+            self,
+            Self::EnableAutoMerge { .. } | Self::Enqueue { jump: false, .. }
+        )
     }
 }
 

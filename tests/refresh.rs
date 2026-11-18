@@ -2,32 +2,32 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use conveyor::app::{Input, Stage};
-use conveyor::refresh::{Schedule, Wake, spawn, spawn_each, wait};
+use conveyor::refresh::{Ask, Schedule, Wake, spawn, spawn_each, wait};
 use conveyor::sources::failure::Failure;
 
 #[test]
 fn a_burst_of_refresh_signals_wakes_the_fetcher_once() {
-    let (tx, rx) = mpsc::channel::<usize>();
-    tx.send(0).unwrap();
-    tx.send(0).unwrap();
-    tx.send(0).unwrap();
+    let (tx, rx) = mpsc::channel::<Ask>();
+    tx.send(Ask::Watch(0)).unwrap();
+    tx.send(Ask::Watch(0)).unwrap();
+    tx.send(Ask::Watch(0)).unwrap();
 
-    assert_eq!(wait(&rx, Duration::from_secs(1)), Wake::Asked(0));
+    assert_eq!(wait(&rx, Duration::from_secs(1)), asked(0));
     assert!(rx.try_recv().is_err());
 }
 
 #[test]
 fn the_last_tab_of_a_burst_is_the_one_fetched() {
-    let (tx, rx) = mpsc::channel::<usize>();
-    tx.send(1).unwrap();
-    tx.send(2).unwrap();
+    let (tx, rx) = mpsc::channel::<Ask>();
+    tx.send(Ask::Watch(1)).unwrap();
+    tx.send(Ask::Watch(2)).unwrap();
 
-    assert_eq!(wait(&rx, Duration::from_secs(1)), Wake::Asked(2));
+    assert_eq!(wait(&rx, Duration::from_secs(1)), asked(2));
 }
 
 #[test]
 fn the_interval_wakes_the_fetcher_without_a_signal() {
-    let (_tx, rx) = mpsc::channel::<usize>();
+    let (_tx, rx) = mpsc::channel::<Ask>();
     let started = Instant::now();
 
     assert_eq!(wait(&rx, Duration::from_millis(10)), Wake::Due);
@@ -36,7 +36,7 @@ fn the_interval_wakes_the_fetcher_without_a_signal() {
 
 #[test]
 fn a_closed_channel_stops_the_fetcher() {
-    let (tx, rx) = mpsc::channel::<usize>();
+    let (tx, rx) = mpsc::channel::<Ask>();
     drop(tx);
 
     assert_eq!(wait(&rx, Duration::from_secs(1)), Wake::Closed);
@@ -64,9 +64,9 @@ fn refreshes_asked_during_a_fetch_cost_one_more_fetch() {
     };
 
     assert!(matches!(next(), Input::Fetching(Stage::Prs, 0)));
-    refresh.send(0).unwrap();
-    refresh.send(0).unwrap();
-    refresh.send(0).unwrap();
+    refresh.send(Ask::Watch(0)).unwrap();
+    refresh.send(Ask::Watch(0)).unwrap();
+    refresh.send(Ask::Watch(0)).unwrap();
     release_tx.send(()).unwrap();
     assert!(matches!(next(), Input::Data(Stage::Prs, 0, _)));
     assert!(matches!(next(), Input::Fetching(Stage::Prs, 0)));
@@ -148,7 +148,7 @@ fn a_request_between_sweeps_fetches_its_tab_only() {
     next();
     next();
 
-    refresh.send(1).unwrap();
+    refresh.send(Ask::Watch(1)).unwrap();
 
     assert_eq!(next(), Input::Fetching(Stage::Prs, 1));
     assert_eq!(
@@ -180,7 +180,7 @@ fn a_request_during_a_sweep_is_fetched_before_the_tabs_the_sweep_has_left() {
     };
 
     assert_eq!(next(), Input::Fetching(Stage::Prs, 0));
-    refresh.send(2).unwrap();
+    refresh.send(Ask::Watch(2)).unwrap();
     release_tx.send(()).unwrap();
     assert!(matches!(next(), Input::Data(Stage::Prs, 0, _)));
     assert_eq!(next(), Input::Fetching(Stage::Prs, 2));
@@ -197,7 +197,7 @@ fn a_request_between_sweeps_leaves_the_deadline_where_it_was() {
     let start = Instant::now();
     let mut schedule = swept(2, start);
 
-    assert_eq!(schedule.next(Wake::Asked(1), start + secs(1)), Some(1));
+    assert_eq!(schedule.next(asked(1), start + secs(1)), Some(1));
     schedule.fetched(start + secs(1));
 
     assert_eq!(schedule.timeout(start + secs(1)), Some(secs(1)));
@@ -207,7 +207,7 @@ fn a_request_between_sweeps_leaves_the_deadline_where_it_was() {
 fn the_sweep_after_a_request_starts_with_the_asked_tab() {
     let start = Instant::now();
     let mut schedule = swept(2, start);
-    schedule.next(Wake::Asked(1), start + secs(1));
+    schedule.next(asked(1), start + secs(1));
     schedule.fetched(start + secs(1));
 
     assert_eq!(schedule.next(Wake::Due, start + secs(2)), Some(1));
@@ -220,7 +220,7 @@ fn a_sweep_of_one_restarts_the_interval_after_a_request() {
     let start = Instant::now();
     let mut schedule = swept(1, start);
 
-    assert_eq!(schedule.next(Wake::Asked(0), start + secs(1)), Some(0));
+    assert_eq!(schedule.next(asked(0), start + secs(1)), Some(0));
     schedule.fetched(start + secs(1));
 
     assert_eq!(schedule.timeout(start + secs(1)), Some(secs(2)));
@@ -233,7 +233,7 @@ fn after_a_request_during_a_sweep_the_next_tab_of_the_sweep_goes_before_any_othe
     schedule.next(Wake::Due, start);
     schedule.fetched(start);
 
-    assert_eq!(schedule.next(Wake::Asked(0), start), Some(0));
+    assert_eq!(schedule.next(asked(0), start), Some(0));
     schedule.fetched(start);
 
     assert_eq!(schedule.timeout(start), None);
@@ -245,7 +245,7 @@ fn a_request_after_the_deadline_starts_the_sweep_it_leads() {
     let start = Instant::now();
     let mut schedule = swept(2, start);
 
-    assert_eq!(schedule.next(Wake::Asked(1), start + secs(3)), Some(1));
+    assert_eq!(schedule.next(asked(1), start + secs(3)), Some(1));
     schedule.fetched(start + secs(3));
 
     assert_eq!(schedule.timeout(start + secs(3)), None);
@@ -256,11 +256,11 @@ fn a_request_after_the_deadline_starts_the_sweep_it_leads() {
 fn a_sweep_of_one_serves_every_request_back_to_back() {
     let start = Instant::now();
     let mut schedule = swept(1, start);
-    schedule.next(Wake::Asked(0), start + secs(1));
+    schedule.next(asked(0), start + secs(1));
     schedule.fetched(start + secs(1));
 
     assert_eq!(schedule.timeout(start + secs(1)), Some(secs(2)));
-    assert_eq!(schedule.next(Wake::Asked(0), start + secs(1)), Some(0));
+    assert_eq!(schedule.next(asked(0), start + secs(1)), Some(0));
 }
 
 #[test]
@@ -297,7 +297,7 @@ fn a_refresh_naming_a_tab_fetches_that_tab_and_the_result_carries_it() {
     next();
     next();
 
-    refresh.send(1).unwrap();
+    refresh.send(Ask::Watch(1)).unwrap();
 
     assert_eq!(next(), Input::Fetching(Stage::Prs, 1));
     assert_eq!(
@@ -325,7 +325,7 @@ fn a_crashed_fetch_comes_back_as_the_columns_error_and_the_next_refresh_fetches(
         Input::Data(Stage::Queue, 0, Err(Failure::crashed(&"boom")))
     );
 
-    refresh.send(0).unwrap();
+    refresh.send(Ask::Watch(0)).unwrap();
 
     assert_eq!(next(), Input::Fetching(Stage::Queue, 0));
     assert_eq!(
@@ -383,7 +383,7 @@ fn a_refresh_asked_of_spawn_each_fetches_that_tab_only() {
     let next = || inputs.recv_timeout(secs(5)).unwrap().unwrap();
     let _first_sweep = [next(), next(), next(), next()];
 
-    refresh.send(1).unwrap();
+    refresh.send(Ask::Watch(1)).unwrap();
 
     assert_eq!(next(), Input::Fetching(Stage::Builds, 1));
     assert_eq!(
@@ -404,6 +404,52 @@ fn an_interval_past_the_end_of_time_never_falls_due() {
     assert_eq!(schedule.timeout(start), Some(Duration::MAX));
 }
 
+#[test]
+fn a_one_off_ask_in_a_burst_is_kept_beside_the_watched_tab() {
+    let (tx, rx) = mpsc::channel::<Ask>();
+    tx.send(Ask::Once(0)).unwrap();
+    tx.send(Ask::Watch(1)).unwrap();
+
+    assert_eq!(
+        wait(&rx, Duration::from_secs(1)),
+        Wake::Asked {
+            watch: Some(1),
+            once: vec![0],
+        }
+    );
+}
+
+#[test]
+fn a_one_off_ask_fetches_its_tab_and_the_interval_keeps_the_watched_one() {
+    let start = Instant::now();
+    let mut schedule = swept(1, start);
+    schedule.next(asked(1), start);
+    schedule.fetched(start);
+
+    assert_eq!(schedule.next(once(0), start + secs(1)), Some(0));
+    schedule.fetched(start + secs(1));
+
+    assert_eq!(schedule.timeout(start + secs(1)), Some(secs(1)));
+    assert_eq!(schedule.next(Wake::Due, start + secs(2)), Some(1));
+}
+
+#[test]
+fn a_one_off_ask_beside_a_watched_ask_fetches_both_and_keeps_watching_the_watched_one() {
+    let start = Instant::now();
+    let mut schedule = swept(1, start);
+    let burst = Wake::Asked {
+        watch: Some(1),
+        once: vec![0],
+    };
+
+    assert_eq!(schedule.next(burst, start + secs(1)), Some(1));
+    schedule.fetched(start + secs(1));
+    assert_eq!(schedule.timeout(start + secs(1)), None);
+    assert_eq!(schedule.next(Wake::Due, start + secs(1)), Some(0));
+    schedule.fetched(start + secs(1));
+    assert_eq!(schedule.next(Wake::Due, start + secs(3)), Some(1));
+}
+
 fn secs(n: u64) -> Duration {
     Duration::from_secs(n)
 }
@@ -415,4 +461,18 @@ fn swept(tabs: usize, start: Instant) -> Schedule {
         schedule.fetched(start);
     }
     schedule
+}
+
+fn asked(tab: usize) -> Wake {
+    Wake::Asked {
+        watch: Some(tab),
+        once: Vec::new(),
+    }
+}
+
+fn once(tab: usize) -> Wake {
+    Wake::Asked {
+        watch: None,
+        once: vec![tab],
+    }
 }

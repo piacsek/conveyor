@@ -46,6 +46,14 @@ impl Stage {
         Self::at(self.index() + Self::ALL.len() - 1)
     }
 
+    pub fn pull_group(self) -> &'static [Stage] {
+        match self {
+            Stage::Prs | Stage::Queue => &[Stage::Prs, Stage::Queue],
+            Stage::Builds => &[Stage::Builds],
+            Stage::Deployed => &[Stage::Deployed],
+        }
+    }
+
     pub fn tab_group(self) -> &'static [Stage] {
         match self {
             Stage::Prs => &[Stage::Prs],
@@ -179,7 +187,7 @@ pub trait StageView {
     }
 
     fn menu(&self, _: &Context) -> Result<Menu, String> {
-        Err("S manages My PRs and Main builds".to_string())
+        Err("S manages My PRs, Merge queue and Main builds".to_string())
     }
 
     fn changed(&self) -> String {

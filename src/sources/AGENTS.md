@@ -37,7 +37,10 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   **synthetic** (built from the schema; no public repo with a queue was at hand) and
   `queue-empty.json` is a real empty response.
 - **Merge queue schema**: `repository.mergeQueue.entries` (`position state enqueuedAt
-  estimatedTimeToMerge solo jump headCommit{oid} pullRequest{number title author}`).
+  estimatedTimeToMerge solo jump headCommit{oid} pullRequest{id headRefOid number title author}`).
+  `headCommit` is the commit the merge group tests, not the pull request's head: the queue's
+  writes pin `headRefOid` and name the pull request by its node `id`; either missing parses as
+  empty and dims the queue's offers.
   Entry `state` ∈ AWAITING_CHECKS | LOCKED | MERGEABLE | QUEUED | UNMERGEABLE. The
   merge-group workflow runs (`gh run list --event merge_group`) live on branches
   `gh-readonly-queue/main/pr-<N>-<base sha>`; their `displayTitle` is the workflow name.

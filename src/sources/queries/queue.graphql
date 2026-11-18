@@ -13,7 +13,7 @@ query($owner: String!, $name: String!, $first: Int!) {
           solo
           jump
           headCommit { oid statusCheckRollup { state } }
-          pullRequest { number title url author { login } }
+          pullRequest { id headRefOid number title url author { login } }
         }
       }
     }

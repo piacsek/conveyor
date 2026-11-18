@@ -27,12 +27,29 @@ fn question(pending: &Pending, label: &str) -> String {
             StatusChange::EnableAutoMerge { .. } => {
                 format!("enable auto-merge for {label} {}", target.title)
             }
+            StatusChange::Enqueue { jump: true, .. } => {
+                format!("move to the front {label} {}", target.title)
+            }
             StatusChange::Enqueue { .. } => {
                 format!("add to the merge queue {label} {}", target.title)
             }
             StatusChange::Approve { .. } => format!("approve {label} {}", target.title),
+            StatusChange::Dequeue { .. } => {
+                format!("remove from the merge queue {label} {}", target.title)
+            }
             _ => format!("close {label} {}", target.title),
         },
+    }
+}
+
+fn warning(pending: &Pending) -> Option<&'static str> {
+    match pending {
+        Pending::Status(target)
+            if matches!(target.change, StatusChange::Enqueue { jump: true, .. }) =>
+        {
+            Some("The merge groups behind it are rebuilt and their checks restart.")
+        }
+        _ => None,
     }
 }
 
@@ -42,16 +59,25 @@ pub(crate) fn draw_confirm(frame: &mut Frame, area: Rect, pending: &Pending, lab
     if let Some(last) = lines.last_mut() {
         last.push('?');
     }
+    let warning = warning(pending)
+        .map(|warning| wrap(warning, room, usize::MAX))
+        .unwrap_or_default();
     let hint = wrap(HINT, room, 2);
     let inner = lines
         .iter()
+        .chain(&warning)
         .chain(&hint)
         .map(|line| display_width(line))
         .max()
         .unwrap_or(0)
         .min(room);
-    let height = lines.len() + hint.len() + 3;
+    let gap = usize::from(!warning.is_empty());
+    let height = lines.len() + warning.len() + gap + hint.len() + 3;
     let mut text: Vec<Line> = lines.into_iter().map(Line::from).collect();
+    if !warning.is_empty() {
+        text.push(Line::default());
+        text.extend(warning.into_iter().map(Line::from));
+    }
     text.push(Line::default());
     text.extend(
         hint.into_iter()

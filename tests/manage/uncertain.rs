@@ -324,6 +324,7 @@ fn enqueue(number: u64) -> StatusChange {
     StatusChange::Enqueue {
         node_id: format!("PR_node{number}"),
         head_oid: format!("8c1f2a7d{number}"),
+        jump: false,
     }
 }
 

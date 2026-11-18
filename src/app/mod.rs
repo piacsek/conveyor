@@ -77,6 +77,7 @@ pub enum Action {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
     Refresh(Stage, usize),
+    RefreshOnce(Stage, usize),
     Jobs {
         repo: String,
         run_id: u64,

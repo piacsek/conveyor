@@ -454,7 +454,7 @@ fn a_cancelled_merge_group_run_does_not_blame_its_jobs_either() {
 }
 
 #[test]
-fn s_in_the_queue_says_where_it_works_and_requests_nothing() {
+fn the_queue_popup_offers_no_rerun_and_requests_nothing() {
     let mut h = Harness::with_size(160, 20);
 
     h.run(vec![
@@ -464,11 +464,10 @@ fn s_in_the_queue_says_where_it_works_and_requests_nothing() {
     ])
     .unwrap();
 
-    let footer = h.screen().lines().last().unwrap_or_default().to_string();
-    assert!(
-        footer.contains("S manages My PRs and Main builds"),
-        "{footer}"
-    );
+    assert!(!h.screen().contains("f  rerun"), "{}", h.screen());
+
+    h.run(vec![key(KeyCode::Char('f'))]).unwrap();
+
     assert!(
         !h.requests
             .iter()

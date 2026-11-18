@@ -185,22 +185,21 @@ fn a_queued_pull_request_lists_merge_as_refused_and_m_asks_nothing() {
 }
 
 #[test]
-fn s_in_the_merge_queue_says_where_it_works() {
-    let mut h = Harness::new();
+fn the_merge_queue_popup_offers_no_merge() {
+    let mut h = Harness::with_size(160, 20);
 
     h.run(vec![
         queue(vec![entry(1, 7, "alice", "a")]),
         key(KeyCode::Char('l')),
         key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
     ])
     .unwrap();
 
     let screen = h.screen();
-    assert!(
-        screen.contains("S manages My PRs and Main builds"),
-        "{screen}"
-    );
     assert!(!screen.contains("y confirms"), "{screen}");
+    assert!(screen.contains("nothing changed"), "{screen}");
+    assert!(h.requests.is_empty(), "{:?}", h.requests);
 }
 
 #[test]

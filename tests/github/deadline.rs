@@ -164,6 +164,17 @@ fn every_other_write_past_its_deadline_is_timed_out() {
 }
 
 #[test]
+fn a_timed_out_jump_says_the_entry_may_be_at_the_front() {
+    let jump = StatusChange::Enqueue {
+        node_id: "PR_kwacme12".into(),
+        head_oid: "8c1f2a7d".into(),
+        jump: true,
+    };
+
+    assert_eq!(Aftermath::Status(&jump).wording(), "may be at the front");
+}
+
+#[test]
 fn a_timed_out_update_says_the_branch_may_be_updated() {
     assert_eq!(Aftermath::Update.wording(), "branch may be updated");
 }
@@ -236,6 +247,7 @@ fn queue(join: bool) -> StatusChange {
         StatusChange::Enqueue {
             node_id: "PR_kwacme12".into(),
             head_oid: "8c1f2a7d".into(),
+            jump: false,
         }
     } else {
         StatusChange::Dequeue {

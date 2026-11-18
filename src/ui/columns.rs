@@ -178,19 +178,33 @@ pub(crate) fn draw_column(
             Paragraph::new(Span::styled("no merge queue", dim())).block(block),
             area,
         ),
-        Stage::Queue => draw_list(
-            frame,
-            app.queue.column_mut(),
-            area,
-            block,
-            focused,
-            "queue empty",
-            |_, entry, on, w| {
-                let jobs = entry.run.as_ref().and_then(|run| jobs.get(&run.id));
-                let pull = linked.then(|| (entry.number, entry.url.clone()));
-                (queue_row(entry, jobs, now, on, w), pull)
-            },
-        ),
+        Stage::Queue => {
+            let spinner = app.spinner();
+            let busy: Vec<Option<String>> = app
+                .queue
+                .column()
+                .visible()
+                .iter()
+                .map(|entry| app.write_on(Stage::Queue, entry.key()).map(Write::word))
+                .collect();
+            let failures = marks(app, Stage::Queue, app.queue.column());
+            draw_list(
+                frame,
+                app.queue.column_mut(),
+                area,
+                block,
+                focused,
+                "queue empty",
+                |i, entry, on, w| {
+                    let jobs = entry.run.as_ref().and_then(|run| jobs.get(&run.id));
+                    let word = busy.get(i).cloned().flatten();
+                    let busy = word.as_deref().map(|word| (spinner, word));
+                    let failure = failures.get(i).and_then(Option::as_ref);
+                    let pull = linked.then(|| (entry.number, entry.url.clone()));
+                    (queue_row(entry, jobs, busy, failure, now, on, w), pull)
+                },
+            )
+        }
         Stage::Builds => {
             let failures = marks(app, Stage::Builds, &app.builds.active().column);
             draw_list(
