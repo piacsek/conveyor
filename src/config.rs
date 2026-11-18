@@ -382,6 +382,14 @@ impl Config {
     pub fn to_toml(&self) -> String {
         toml::to_string_pretty(self).unwrap_or_default()
     }
+
+    pub fn merge_method(&self, repo: &str) -> MergeMethod {
+        self.repo
+            .iter()
+            .filter(|own| own.name.eq_ignore_ascii_case(repo))
+            .find_map(|own| own.merge_method)
+            .unwrap_or(self.prs.merge_method)
+    }
 }
 
 #[derive(Debug)]

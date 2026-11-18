@@ -213,7 +213,8 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   under `m` is still the same number, repo, title and head sha; otherwise the footer says why,
   or `the pull request changed; press S again`. `confirm_update` and `confirm_status` (close, enable auto-merge, enqueue) use the
   same check. Drafts and queued pull requests are refused in the popup. The worker runs `gh pr merge <N>
-  -R <repo> --<prs.merge_method> --match-head-commit <headRefOid>`; the pin refuses a head pushed
+  -R <repo> --<method> --match-head-commit <headRefOid>`, the method being the `merge_method`
+  of the first `[[repo]]` of that name that sets one, else `prs.merge_method`; the pin refuses a head pushed
   after the card was drawn. On a merge-queue branch gh only warns that the queue sets the
   strategy and enqueues through auto-merge (checked in gh v2.103.3 source). That warning comes
   first on stderr, so `CliGh::merge` (and `change_status`) drop gh's `! ` lines from an error: the footer shows one

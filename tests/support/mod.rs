@@ -8,7 +8,7 @@ use std::time::{Duration, UNIX_EPOCH};
 use conveyor::app::{
     App, CheckoutTarget, Input, MergeTarget, Request, Rows, Stage, StatusTarget, UpdateTarget, run,
 };
-use conveyor::config::{Config, UpdateMethod};
+use conveyor::config::{Config, MergeMethod, UpdateMethod};
 use conveyor::model::builds::{Build, BuildStatus, Builds, PullRef};
 use conveyor::model::deployed::{Condition, Deployed, Deployment, Waiting};
 use conveyor::model::jobs::Job;
@@ -376,6 +376,7 @@ pub fn merge_target(number: u64, title: &str) -> MergeTarget {
         repo: "acme/webapp".to_string(),
         title: title.to_string(),
         head_oid: format!("8c1f2a7d{number}"),
+        method: MergeMethod::Squash,
     }
 }
 

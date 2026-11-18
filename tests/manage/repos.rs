@@ -1,9 +1,10 @@
 use conveyor::app::{Input, Mode, Request};
+use conveyor::config::{Config, MergeMethod, Repo};
 use conveyor::model::prs::{PullRequest, StatusChange};
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::{draft, line_after, open, status, status_changed, tall};
-use crate::support::{key, merge_target, prs, status_target};
+use crate::support::{Harness, key, merge_target, prs, status_target};
 
 #[test]
 fn a_refresh_keeps_the_selection_on_the_pull_request_of_the_other_repository() {
@@ -212,6 +213,55 @@ fn a_confirmed_merge_goes_to_the_pull_request_of_the_other_repository() {
         _ => None,
     });
     assert_eq!(merged.as_deref(), Some("acme/infra"));
+}
+
+#[test]
+fn a_confirmed_merge_uses_the_merge_method_of_its_repository() {
+    let mut h = Harness::with_config(160, 20, infra_rebases());
+
+    h.run(vec![
+        prs(same_number()),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    assert_eq!(merged_with(&h), Some(MergeMethod::Rebase));
+}
+
+#[test]
+fn a_confirmed_merge_in_a_repository_without_its_own_method_uses_the_prs_one() {
+    let mut h = Harness::with_config(160, 20, infra_rebases());
+
+    h.run(vec![
+        prs(same_number()),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    assert_eq!(merged_with(&h), Some(MergeMethod::Squash));
+}
+
+fn infra_rebases() -> Config {
+    Config {
+        repo: vec![Repo {
+            name: "acme/infra".to_string(),
+            merge_method: Some(MergeMethod::Rebase),
+            ..Repo::default()
+        }],
+        ..Config::default()
+    }
+}
+
+fn merged_with(h: &Harness) -> Option<MergeMethod> {
+    h.requests.iter().find_map(|request| match request {
+        Request::Merge(target) => Some(target.method),
+        _ => None,
+    })
 }
 
 fn same_draft() -> Vec<PullRequest> {
