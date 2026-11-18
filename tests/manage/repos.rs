@@ -1,4 +1,4 @@
-use conveyor::app::{Input, Mode, Request};
+use conveyor::app::{Input, Mode, Request, StatusTarget};
 use conveyor::config::{Config, MergeMethod, Repo};
 use conveyor::model::prs::{PullRequest, StatusChange};
 use ratatui::crossterm::event::KeyCode;
@@ -246,6 +246,40 @@ fn a_confirmed_merge_in_a_repository_without_its_own_method_uses_the_prs_one() {
     assert_eq!(merged_with(&h), Some(MergeMethod::Squash));
 }
 
+#[test]
+fn enabling_auto_merge_uses_the_merge_method_of_its_repository() {
+    let mut h = Harness::with_config(160, 20, infra_rebases());
+    let mut pull = in_infra(open(12, "Drop the users table"));
+    pull.can_enable_auto_merge = true;
+
+    h.run(vec![
+        prs(vec![pull]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('a')),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    assert_eq!(auto_merged_with(&h), Some(MergeMethod::Rebase));
+}
+
+#[test]
+fn enabling_auto_merge_in_a_repository_without_its_own_method_uses_the_prs_one() {
+    let mut h = Harness::with_config(160, 20, infra_rebases());
+    let mut pull = open(12, "Bump the api client");
+    pull.can_enable_auto_merge = true;
+
+    h.run(vec![
+        prs(vec![pull]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('a')),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    assert_eq!(auto_merged_with(&h), Some(MergeMethod::Squash));
+}
+
 fn infra_rebases() -> Config {
     Config {
         repo: vec![Repo {
@@ -304,4 +338,14 @@ fn infra_ready_failed() -> std::io::Result<Input> {
         target,
         Err("HTTP 422".to_string().into()),
     ))
+}
+
+fn auto_merged_with(h: &Harness) -> Option<MergeMethod> {
+    h.requests.iter().find_map(|request| match request {
+        Request::ChangeStatus(StatusTarget {
+            change: StatusChange::EnableAutoMerge { method, .. },
+            ..
+        }) => Some(*method),
+        _ => None,
+    })
 }

@@ -170,7 +170,7 @@ impl PrsStage {
                 "enable auto-merge",
                 status(StatusChange::EnableAutoMerge {
                     node_id: pr.node_id.clone(),
-                    method: context.config.prs.merge_method,
+                    method: context.config.merge_method(&pr.repo),
                     head_oid: pr.head_oid.clone(),
                 }),
             )

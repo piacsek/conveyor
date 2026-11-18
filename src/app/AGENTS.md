@@ -123,7 +123,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   - **`t`, `a`, `e`, `x` change the status.** `Request::ChangeStatus(StatusTarget)` carries a
     `StatusChange`; `CliGh::status_args` runs `gh pr ready <N> -R <repo> [--undo]` and `gh pr
     close <N> -R <repo>`, and GraphQL mutations by the pull request's node `id` for the rest:
-    `enablePullRequestAutoMerge` (with `prs.merge_method` and the head as `expectedHeadOid`),
+    `enablePullRequestAutoMerge` (with the merge method `m` uses and the head as `expectedHeadOid`),
     `disablePullRequestAutoMerge` and `dequeuePullRequest`. **Never `gh pr merge --auto` or
     `--disable-auto`** (gh v2.103.3 source): `--auto` merges at once when the merge state is
     `CLEAN`, `HAS_HOOKS` or `UNSTABLE`, which would merge without the `y` a merge asks for, and
