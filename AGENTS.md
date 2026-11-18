@@ -79,7 +79,8 @@ tests/toolchain.rs one Rust version everywhere
 tests/source_size.rs no Rust file over 700 lines
 tests/stage_dispatch.rs no match on a Stage in src/app/ outside src/app/stages/mod.rs
 tests/dead_code.rs no unused `pub` item
-docs/              the screenshots
+docs/              the screenshots and the README's recording
+scripts/demo.sh    records docs/demo.gif from scripts/demo.tape
 .github/           the workflows, the issue forms, the PR template; .github/CONTRIBUTING.md points here and restates none of the rules
 .claude/skills/    the `sweep` and `adversarial-review` skills
 ```
@@ -144,11 +145,11 @@ impact.
 
 `README.md` is minimal and holds only what a user needs, in this order and nothing else: the
 banner `<img>` (it stands in for the h1; there is no `# ` heading), two sentences on what conveyor does, the one screenshot `docs/details.png` right below them (all
-four columns with the details pane open), then `## Installation`, `## Dependencies` (what must
+four columns with the details pane open), the one recording `docs/demo.gif` right below it, then `## Installation`, `## Dependencies` (what must
 be installed and what each one is for, the optional Nerd Font included), `## Usage` (commands, the key
 table, the default config), `## FAQ` (symptoms a user sees, each with its fix) and `## Development`. The key table mirrors `ui::help::KEYS` word
-for word; `tests/readme.rs` fails when the README and the help view drift, when a second
-screenshot, a subsection or another section appears, or when the description grows past two
+for word; `tests/readme.rs` fails when the README and the help view drift, when an image
+other than the screenshot and the recording, a subsection or another section appears, or when the description grows past two
 sentences (the help view is the single source: change `KEYS`, then the table). Feature depth, glyph meanings and data-source notes belong in the `AGENTS.md` files, not there.
 
 **Every visible change to the main interface shows in `docs/details.png`**: a new or changed
@@ -159,6 +160,9 @@ Run `scripts/screenshots.sh` (needs `brew install charmbracelet/tap/freeze`, Goo
 the FiraCode Nerd Font in `~/Library/Fonts`) and commit the new images. `docs/details.png`
 keeps the Nerd Font icons and `docs/plain.png` shows the default plain ones; how the script
 renders them is in `src/ui/AGENTS.md`. Fixture SHAs look real (`8c1f2a7d…`), not `33333333`.
+`docs/demo.gif` is recorded from `scripts/demo.tape` by `scripts/demo.sh` (needs `brew install
+vhs`, Google Chrome and the same font) on the same demo data; rerun it when the recording no
+longer matches the interface.
 
 Whenever behaviour changes, check that `README.md` is still true: a key, a default, a
 subcommand, a config key. Do not add prose for a feature; if it needs explaining, the card or
