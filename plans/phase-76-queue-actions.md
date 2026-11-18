@@ -35,12 +35,20 @@ owner's decisions; this phase takes 76.
   default `StageView::menu`, which offers nothing. Main builds overrides it for `f`.
 - Sensitive actions ask `y` in the confirm dialog and are re-checked by `reconfirm` when the
   row changed meanwhile; the rest act on their letter (`src/app/AGENTS.md`).
-- **Not verified, and not verifiable without a write to a repository that has a merge queue:**
-  what GitHub answers to `enqueuePullRequest(jump: true)` for a pull request that is already
-  queued (it may move the entry, or refuse), and who may jump (GitHub's documentation says
-  maintainers and administrators, or whoever the ruleset allows). The first task of the jump
-  reads GitHub's documentation and the web client's behaviour for this; no real write is sent
-  from a test or by hand.
+- **Jumping an entry already queued (task 4, read on 2026-11-18, no write sent):**
+  - [Managing a merge queue](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue)
+    offers the jump only "when adding a pull request to a merge queue", and says a jump "will
+    cause a full rebuild of all in-progress pull requests". It says nothing of an entry already
+    in the queue.
+  - The [GraphQL mutations reference](https://docs.github.com/en/graphql/reference/pulls)
+    describes `enqueuePullRequest` as "Add a pull request to the merge queue" and `jump` as "Add
+    the pull request to the front of the queue"; it is silent on a pull request already queued.
+  - Who may jump: the "Jump the merge queue" permission, held by admins or a custom repository
+    role that grants it ([custom repository roles](https://docs.github.com/en/organizations/managing-user-access-to-your-organizations-repositories/managing-repository-roles/about-custom-repository-roles)).
+  - `gh` has no enqueue or jump code (`pkg/cmd/pr/merge/http.go` enqueues through auto-merge only).
+  - **Still unverified:** whether GitHub moves an entry already queued to the front or refuses
+    it. Nothing read says it can never work, so the phase goes on under decision 3: a refusal
+    becomes the card's failure mark with GitHub's reason and the queue is unchanged.
 
 ## Decided before code
 
