@@ -124,6 +124,8 @@ fn pr_checks(pr: &PullRequest, width: usize) -> Vec<Span<'static>> {
 pub(crate) fn queue_row(
     entry: &QueueEntry,
     jobs: Option<&JobsState>,
+    busy: Option<(char, &str)>,
+    failure: Option<&Failure>,
     now: SystemTime,
     selected: bool,
     width: usize,
@@ -133,6 +135,7 @@ pub(crate) fn queue_row(
         None => entry.state.to_string(),
     };
     let parts = [
+        busy.map(|(_, word)| word.to_string()).unwrap_or_default(),
         entry.author.clone(),
         format!("position {}", entry.position),
         entry
@@ -152,15 +155,19 @@ pub(crate) fn queue_row(
         None => "no merge-group run yet".to_string(),
     };
     let below = [run, flags.join(" "), sha8(&entry.head_sha)];
-    let mut lines = vec![meta(&parts, width), meta(&below, width)];
+    let mut lines: Vec<_> = failure_line(failure, width)
+        .into_iter()
+        .chain([meta(&parts, width), meta(&below, width)])
+        .collect();
     if let Some(run) = &entry.run {
         lines.extend(failed_job(run, jobs, width));
     }
     card(
         selected,
-        match &entry.run {
-            Some(run) => build_glyph(run.status),
-            None => glyph(entry.checks),
+        match (busy, &entry.run) {
+            (Some((spinner, _)), _) => (spinner, Color::Yellow),
+            (None, Some(run)) => build_glyph(run.status),
+            (None, None) => glyph(entry.checks),
         },
         None,
         format!("#{} {}", entry.number, entry.title),

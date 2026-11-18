@@ -2,6 +2,7 @@ use conveyor::app::{Input, Request, Stage, StatusTarget};
 use conveyor::config::{Config, Repo};
 use conveyor::model::prs::StatusChange;
 use conveyor::model::queue::{QueueEntry, QueueState};
+use conveyor::sources::failure::Failure;
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::tall;
@@ -249,6 +250,97 @@ fn a_removal_in_flight_leaves_the_same_number_in_another_repository_free() {
     .unwrap();
 
     assert!(h.screen().contains("Manage #40"), "{}", h.screen());
+}
+
+#[test]
+fn a_removal_in_flight_shows_on_its_queue_card() {
+    let mut h = tall();
+    let mut inputs = on_the_queue(vec![entry(1, 7, "alice", "Bump nodes")]);
+    inputs.push(key(KeyCode::Char('e')));
+    inputs.push(key(KeyCode::Char('y')));
+
+    h.run(inputs).unwrap();
+
+    assert!(
+        h.screen().contains("leaving the merge queue…"),
+        "{}",
+        h.screen()
+    );
+}
+
+#[test]
+fn a_refused_removal_marks_its_queue_card_with_githubs_reason() {
+    let mut h = tall();
+    let mut inputs = on_the_queue(vec![entry(1, 7, "alice", "Bump nodes")]);
+    inputs.push(key(KeyCode::Char('e')));
+    inputs.push(key(KeyCode::Char('y')));
+    inputs.push(removed("acme/webapp", 7, Err("not allowed")));
+
+    h.run(inputs).unwrap();
+
+    let screen = h.screen();
+    assert!(
+        screen.contains("! leave the merge queue failed: n"),
+        "{screen}"
+    );
+    assert!(!screen.contains("leaving the merge queue…"), "{screen}");
+    assert!(screen.contains("Queue webapp (1) !1"), "{screen}");
+}
+
+#[test]
+fn a_removal_that_timed_out_marks_its_queue_card_as_maybe_out_of_the_queue() {
+    let mut h = tall();
+    let mut inputs = on_the_queue(vec![entry(1, 7, "alice", "Bump nodes")]);
+    inputs.push(key(KeyCode::Char('e')));
+    inputs.push(key(KeyCode::Char('y')));
+    inputs.push(Ok(Input::StatusChanged(
+        removal("acme/webapp", 7, ""),
+        Err(Failure::unanswered("may be out of the queue", 60)),
+    )));
+
+    h.run(inputs).unwrap();
+
+    assert!(
+        h.screen().contains("! may be out of the queue"),
+        "{}",
+        h.screen()
+    );
+    assert!(
+        h.requests.contains(&Request::Refresh(Stage::Queue, 0)),
+        "{:?}",
+        h.requests
+    );
+}
+
+#[test]
+fn a_refused_removal_marks_the_tab_it_was_sent_from_after_a_switch() {
+    let mut h = Harness::with_config(160, 20, two_repos());
+    h.run(vec![
+        queue_in(
+            0,
+            "acme/monorepo",
+            vec![entry(1, 40, "alice", "Retry webhooks")],
+        ),
+        queue_in(1, "acme/infra", vec![entry(1, 40, "bob", "Bump nodes")]),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Tab),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('e')),
+        key(KeyCode::Char('y')),
+        key(KeyCode::BackTab),
+        removed("acme/infra", 40, Err("not allowed")),
+    ])
+    .unwrap();
+
+    assert!(!h.screen().contains("! leave"), "{}", h.screen());
+
+    h.run(vec![key(KeyCode::Tab)]).unwrap();
+
+    assert!(
+        h.screen().contains("! leave the merge queue failed: n"),
+        "{}",
+        h.screen()
+    );
 }
 
 #[test]
