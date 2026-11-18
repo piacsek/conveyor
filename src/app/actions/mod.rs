@@ -153,7 +153,8 @@ impl App {
             Choice::Update(target) => return self.send_update(target),
             Choice::Rerun(rerun) => return self.send_rerun(rerun),
             Choice::Status(target)
-                if target.change == StatusChange::Close || target.change.lands_a_merge() =>
+                if matches!(target.change, StatusChange::Close | StatusChange::Approve)
+                    || target.change.lands_a_merge() =>
             {
                 self.mode = Mode::Confirm(Pending::Status(target));
             }

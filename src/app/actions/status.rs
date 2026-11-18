@@ -29,6 +29,7 @@ impl App {
         let letter = match target.change {
             StatusChange::EnableAutoMerge { .. } => 'a',
             StatusChange::Enqueue { .. } => 'm',
+            StatusChange::Approve => 'v',
             _ => 'x',
         };
         if let Err(message) = self.reconfirm(
@@ -82,7 +83,7 @@ pub(super) fn progress(number: u64, change: &StatusChange) -> String {
         StatusChange::Dequeue { .. } => format!("taking #{number} out of the merge queue…"),
         StatusChange::Enqueue { .. } => format!("adding #{number} to the merge queue…"),
         StatusChange::Close => format!("closing #{number}…"),
-        StatusChange::Approve => unimplemented!(),
+        StatusChange::Approve => format!("approving #{number}…"),
     }
 }
 
@@ -95,6 +96,6 @@ fn done(number: u64, change: &StatusChange) -> String {
         StatusChange::Dequeue { .. } => format!("#{number} left the merge queue"),
         StatusChange::Enqueue { .. } => format!("#{number} added to the merge queue"),
         StatusChange::Close => format!("#{number} closed"),
-        StatusChange::Approve => unimplemented!(),
+        StatusChange::Approve => format!("#{number} approved"),
     }
 }
