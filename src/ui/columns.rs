@@ -1,6 +1,6 @@
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Modifier, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 
@@ -9,7 +9,7 @@ use crate::text::{cells, display_width, short_repo, take_width};
 use crate::ui::help::{column_name, custom_title};
 use crate::ui::link::link;
 use crate::ui::rows::{build_row, deployed_row, pr_row, queue_row};
-use crate::ui::style::dim;
+use crate::ui::style::{ACCENT, dim};
 
 type Pull = Option<(u64, String)>;
 
@@ -102,15 +102,22 @@ fn named(app: &App, stage: Stage, short: &str, suffix: Option<&str>) -> String {
 }
 
 fn column_block(app: &App, stage: Stage, titled: bool) -> Block<'static> {
+    let block = if stage == app.focus {
+        Block::bordered().border_style(Style::default().fg(ACCENT))
+    } else {
+        Block::bordered()
+    };
     if !titled {
-        return Block::bordered();
+        return block;
     }
     let style = if stage == app.focus {
-        Style::default().add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Reset)
+            .add_modifier(Modifier::BOLD)
     } else {
         dim()
     };
-    Block::bordered().title(Span::styled(column_title(app, stage), style))
+    block.title(Span::styled(column_title(app, stage), style))
 }
 
 pub(crate) fn draw_column(

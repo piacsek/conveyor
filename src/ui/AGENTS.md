@@ -30,7 +30,12 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   line (`▌`/space, glyph, bold-when-selected title padded, right-aligned figure) plus one
   indented line per `rest` entry, each a `Vec<Span>` so a line can be dim, red or a mix. The
   cyan `▌` is drawn on **every** line of the selected card, so it reads as the card's left
-  edge; that plus the bold title is the whole highlight. **Only the focused column draws it**:
+  edge; that, the bold title and the focused column's border is the whole highlight. **The bar
+  and the focused column's border share one accent**, `style::ACCENT` (cyan), so the eye finds
+  the focused column before the card: the titled block draws it, and with tabs the block below
+  the tab bar redraws those edges with no style, so they keep it; the title keeps its default colour (`fg(Color::Reset)`, or it would
+  inherit the border's) and the unfocused columns, panes and dialogs keep the plain border.
+  **Only the focused column draws the bar**:
   `draw_list` takes `focused` and filters `column.list.selected()` on it, so four cards never
   look selected at once. The unfocused column keeps its selection (and the list keeps it in
   view); it just does not paint it. No background, no reverse video: the

@@ -79,7 +79,8 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 72 | [approve a pull request from the `S` popup (#113)](plans/phase-72-approve.md) | v0.38.0 |
 | 73 | [the README shows conveyor moving: a recording below the screenshot (#97)](plans/phase-73-readme-demo.md) | none |
 | 74 | [the Deployed column has tabs, one per deployed system](plans/phase-74-deployed-tabs.md) | v0.39.0 |
-| 76 | [take a pull request out of the merge queue, or move it to the front, from the Merge queue column](plans/phase-76-queue-actions.md) | |
+| 76 | [take a pull request out of the merge queue, or move it to the front, from the Merge queue column](plans/phase-76-queue-actions.md) | v0.40.0 |
+| 77 | [the focused column's border has the colour of the selected card's bar](plans/phase-77-focused-border.md) | |
 
 ## Backlog (discussed at the sweeps and retros)
 

@@ -7,6 +7,8 @@ use crate::model::prs::{CheckConclusion, CheckState};
 
 pub(crate) const BAR: &str = "▌";
 
+pub(crate) const ACCENT: Color = Color::Cyan;
+
 pub(crate) const INDENT: usize = 4;
 
 pub(crate) fn dim() -> Style {
