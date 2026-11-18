@@ -22,6 +22,17 @@ pub(super) fn check(config: &Config) -> Result<(), String> {
             repo.name
         ));
     }
+    if let Some(repo) = repeated(&config.repo, |a, b| {
+        a.name.eq_ignore_ascii_case(&b.name)
+            && a.merge_method.is_some()
+            && b.merge_method.is_some()
+            && a.merge_method != b.merge_method
+    }) {
+        return Err(format!(
+            "two [[repo]] named {:?} set different merge_method values; only one of them can be used, so set it on one",
+            repo.name
+        ));
+    }
     check_read(&config.repo)
 }
 

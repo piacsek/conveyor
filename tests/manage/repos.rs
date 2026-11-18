@@ -1,9 +1,10 @@
-use conveyor::app::{Input, Mode, Request};
+use conveyor::app::{Input, Mode, Request, StatusTarget};
+use conveyor::config::{Config, MergeMethod, Repo};
 use conveyor::model::prs::{PullRequest, StatusChange};
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::{draft, line_after, open, status, status_changed, tall};
-use crate::support::{key, merge_target, prs, status_target};
+use crate::support::{Harness, key, merge_target, prs, status_target};
 
 #[test]
 fn a_refresh_keeps_the_selection_on_the_pull_request_of_the_other_repository() {
@@ -214,6 +215,118 @@ fn a_confirmed_merge_goes_to_the_pull_request_of_the_other_repository() {
     assert_eq!(merged.as_deref(), Some("acme/infra"));
 }
 
+#[test]
+fn a_confirmed_merge_uses_the_merge_method_of_its_repository() {
+    let mut h = Harness::with_config(160, 20, infra_rebases());
+
+    h.run(vec![
+        prs(same_number()),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    assert_eq!(merged_with(&h), Some(MergeMethod::Rebase));
+}
+
+#[test]
+fn a_confirmed_merge_in_a_repository_without_its_own_method_uses_the_prs_one() {
+    let mut h = Harness::with_config(160, 20, infra_rebases());
+
+    h.run(vec![
+        prs(same_number()),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    assert_eq!(merged_with(&h), Some(MergeMethod::Squash));
+}
+
+#[test]
+fn a_confirmed_merge_finds_its_repository_whatever_the_case_of_its_name() {
+    let mut h = Harness::with_config(
+        160,
+        20,
+        repos(vec![("Acme/Infra", Some(MergeMethod::Rebase))]),
+    );
+
+    h.run(confirm_infra_merge()).unwrap();
+
+    assert_eq!(merged_with(&h), Some(MergeMethod::Rebase));
+}
+
+#[test]
+fn a_confirmed_merge_skips_a_repository_entry_that_sets_no_method() {
+    let mut h = Harness::with_config(
+        160,
+        20,
+        repos(vec![
+            ("acme/infra", None),
+            ("acme/infra", Some(MergeMethod::Rebase)),
+        ]),
+    );
+
+    h.run(confirm_infra_merge()).unwrap();
+
+    assert_eq!(merged_with(&h), Some(MergeMethod::Rebase));
+}
+
+#[test]
+fn enabling_auto_merge_uses_the_merge_method_of_its_repository() {
+    let mut h = Harness::with_config(160, 20, infra_rebases());
+    let mut pull = in_infra(open(12, "Drop the users table"));
+    pull.can_enable_auto_merge = true;
+
+    h.run(vec![
+        prs(vec![pull]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('a')),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    assert_eq!(auto_merged_with(&h), Some(MergeMethod::Rebase));
+}
+
+#[test]
+fn enabling_auto_merge_in_a_repository_without_its_own_method_uses_the_prs_one() {
+    let mut h = Harness::with_config(160, 20, infra_rebases());
+    let mut pull = open(12, "Bump the api client");
+    pull.can_enable_auto_merge = true;
+
+    h.run(vec![
+        prs(vec![pull]),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('a')),
+        key(KeyCode::Char('y')),
+    ])
+    .unwrap();
+
+    assert_eq!(auto_merged_with(&h), Some(MergeMethod::Squash));
+}
+
+fn infra_rebases() -> Config {
+    Config {
+        repo: vec![Repo {
+            name: "acme/infra".to_string(),
+            merge_method: Some(MergeMethod::Rebase),
+            ..Repo::default()
+        }],
+        ..Config::default()
+    }
+}
+
+fn merged_with(h: &Harness) -> Option<MergeMethod> {
+    h.requests.iter().find_map(|request| match request {
+        Request::Merge(target) => Some(target.method),
+        _ => None,
+    })
+}
+
 fn same_draft() -> Vec<PullRequest> {
     vec![
         draft(12, "Retry webhooks"),
@@ -254,4 +367,38 @@ fn infra_ready_failed() -> std::io::Result<Input> {
         target,
         Err("HTTP 422".to_string().into()),
     ))
+}
+
+fn auto_merged_with(h: &Harness) -> Option<MergeMethod> {
+    h.requests.iter().find_map(|request| match request {
+        Request::ChangeStatus(StatusTarget {
+            change: StatusChange::EnableAutoMerge { method, .. },
+            ..
+        }) => Some(*method),
+        _ => None,
+    })
+}
+
+fn repos(entries: Vec<(&str, Option<MergeMethod>)>) -> Config {
+    Config {
+        repo: entries
+            .into_iter()
+            .map(|(name, merge_method)| Repo {
+                name: name.to_string(),
+                merge_method,
+                ..Repo::default()
+            })
+            .collect(),
+        ..Config::default()
+    }
+}
+
+fn confirm_infra_merge() -> Vec<std::io::Result<Input>> {
+    vec![
+        prs(same_number()),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+    ]
 }

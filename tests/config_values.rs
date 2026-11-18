@@ -30,6 +30,16 @@ fn a_refresh_of_five_seconds_loads_everywhere() {
 }
 
 #[test]
+fn one_repository_listed_twice_may_set_its_merge_method_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let text = "[[repo]]\nname = \"acme/webapp\"\n[[repo]]\nname = \"acme/webapp\"\nbranch = \"develop\"\nmerge_method = \"merge\"\n";
+
+    let loaded = load(&write(&dir, text));
+
+    assert!(loaded.is_ok(), "{loaded:?}");
+}
+
+#[test]
 fn the_ends_of_the_page_range_load() {
     let dir = tempfile::tempdir().unwrap();
     let text = "[prs]\nlimit = 1\n[[prs.tab]]\nname = \"mine\"\nquery = \"is:pr\"\nlimit = 100\n[[repo]]\nname = \"acme/webapp\"\nbuilds = 100\n";

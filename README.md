@@ -5,6 +5,8 @@ main builds, and what each environment runs. One column per stage, one repo, one
 
 ![conveyor: four columns and the details pane](docs/details.png)
 
+![conveyor moving focus across the columns, opening the details pane and the S popup](docs/demo.gif)
+
 ## Installation
 
 ```sh
@@ -104,6 +106,7 @@ name = "owner/name"
 path = "~/projects/name"      # optional; the local clone `S` then `c` checks a pull request out in
 main_workflow = "CI/CD"       # workflow name or file, e.g. ci.yml
 # branch = "main"             # optional; the branch Main builds reads, default the repository's default branch; repeat a [[repo]] to follow another
+# merge_method = "rebase"     # optional; how `S` merges this repository's pull requests, default [prs].merge_method
 builds = 10                   # runs shown in the Main builds column, 1 to 100
 refresh_secs = 30             # 5 or more
 

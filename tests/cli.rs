@@ -314,6 +314,34 @@ fn config_leaves_the_branch_out_while_it_is_unset() {
 }
 
 #[test]
+fn config_prints_the_merge_method_of_a_repository_that_sets_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_config(
+        &dir,
+        "[[repo]]\nname = \"acme/webapp\"\nmerge_method = \"rebase\"\n",
+    );
+
+    let out = config_command(&path);
+
+    assert!(out.status.success(), "{out:?}");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("merge_method = \"rebase\"\n"), "{stdout}");
+}
+
+#[test]
+fn config_refuses_one_repository_listed_twice_with_two_merge_methods() {
+    let (code, stderr) = refusal(
+        "[[repo]]\nname = \"acme/webapp\"\nmerge_method = \"rebase\"\n[[repo]]\nname = \"Acme/Webapp\"\nbranch = \"develop\"\nmerge_method = \"merge\"\n",
+    );
+
+    assert_eq!(code, Some(1));
+    assert!(
+        stderr.contains("two [[repo]] named \"Acme/Webapp\" set different merge_method values; only one of them can be used, so set it on one"),
+        "{stderr}"
+    );
+}
+
+#[test]
 fn config_refuses_my_prs_refreshing_more_often_than_every_five_seconds() {
     let (code, stderr) = refusal("[prs]\nrefresh_secs = 4\n");
 

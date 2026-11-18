@@ -190,6 +190,20 @@ fn an_unknown_merge_method_fails_naming_the_file() {
 }
 
 #[test]
+fn an_unknown_merge_method_on_a_repository_fails_naming_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let err = load(&write(
+        &dir,
+        "[[repo]]\nname = \"acme/webapp\"\nmerge_method = \"fast\"\n",
+    ))
+    .unwrap_err();
+
+    assert!(err.to_string().contains("config.toml"), "{err}");
+    assert!(err.to_string().contains("fast"), "{err}");
+}
+
+#[test]
 fn the_update_method_defaults_to_merge_and_accepts_rebase() {
     let dir = tempfile::tempdir().unwrap();
 
