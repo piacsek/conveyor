@@ -78,6 +78,7 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 71 | [each repository merges with its own merge method (#112)](plans/phase-71-repo-merge-method.md) | v0.37.0 |
 | 72 | [approve a pull request from the `S` popup (#113)](plans/phase-72-approve.md) | v0.38.0 |
 | 73 | [the README shows conveyor moving: a recording below the screenshot (#97)](plans/phase-73-readme-demo.md) | none |
+| 74 | [the Deployed column has tabs, one per deployed system](plans/phase-74-deployed-tabs.md) | |
 
 ## Backlog (discussed at the sweeps and retros)
 
@@ -95,7 +96,6 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
   "waiting for My PRs to catch up" guard while the first tab still shows the stale pull request.
 - Follow one PR across columns: `f` on a PR highlights its sha/number in queue, builds, deployed.
 - Desktop/tmux notification on queue state change or main build failure (tmux-agents `watch` pattern).
-- Deployed tabs, one per application of the monorepo, switched independently of the queue.
 - Native GitHub client if `gh` latency becomes a problem (measure first; each call ~0.3–1 s).
 - `ship.sh` refuses to commit when the working tree changed after its gates started, so an edit
   made during a ship cannot land ungated (sweep of phase 60: phases 62 and 68).

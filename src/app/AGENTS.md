@@ -65,9 +65,19 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   `R` refreshes every stage, a rerun's follow-up asks for the tab it started on. A switch clears the filter of the tab
   left and the tab shown with `Column::clear_filter`, so each keeps its selected build. A
   result ages the runs of its own tab (`StageView::runs_in`), the queue's too, while jobs are
-  still asked for the shown tab's runs only. Deployed reads the builds of the deploy
-  repository's tab (`Context::deploy_builds`: the first `[[repo]]` with a `[[repo.deploy]]`,
-  else the first tab), whatever the queue shows.
+  still asked for the shown tab's runs only. Deployed reads the builds of the repository its
+  shown tab deploys (`Context::deploy_builds`: the `[[repo]]` entry holding that
+  `[[repo.deploy]]`, found by identity, so a repeated `[[repo]]` of the same name reads its own
+  builds tab; else the first tab), whatever the queue shows.
+- **Deployed has one tab per deploy, switched on its own.** `DeployedStage` holds a
+  `DeployedTab` (`column`, `system`) per `[[repo.deploy]]` of every `[[repo]]`, in the order
+  `Config::deploys` gives, the one source of that order; the tab is named by its `system`.
+  Deployed is in no tab group, so its tab keys move neither the queue nor Main builds. One
+  fetcher per deploy runs in the background on that deploy's `refresh_secs`
+  (`refresh::spawn_each`); `r` asks for the shown tab, `R` for the shown tab of every stage. A
+  result, a failure and `keep_last_known` land in the tab they were fetched for. A switch clears
+  the filter of the tab left and the tab shown with `Column::clear_filter`. `Context::deploy`
+  is the `[[repo]]` of the shown tab, so `behind_main`, `b` and `Y` follow it.
 - **Anything that belongs to a tab names it.** New or changed code that reads or writes a tab's
   state (its rows, filter, selection, a fetch and its result) carries the tab it was made for
   and lands in that tab (`listing_in_mut`), never in the one shown when it arrives; a test for
@@ -314,7 +324,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   write sends its refresh and `App::follow_up` as a success would. A write that failed in time
   does neither. The refresh does not clear the mark (rule 3 above).
 - **Deployed `b`/`Y` never dead-end.** No fetched main build for the sha → the commit page of
-  the deploy repo (`Context::deploy_repo`: the `[[repo]]` with a deploy, else the repository of `Context::deploy_builds`).
+  the deploy repo (`Context::deploy_repo`: the `[[repo]]` of the shown Deployed tab, else the repository of `Context::deploy_builds`).
 - **Only http(s) URLs reach the browser.** Check URLs (`detailsUrl`/`targetUrl`) are set by
   whatever GitHub App or CI posted the check, not by GitHub, and `open`/`xdg-open` would launch
   `file://` paths, app bundles or any custom URL scheme handler. `open::web_url` is the one

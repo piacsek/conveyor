@@ -153,7 +153,12 @@ impl App {
             prs: PrsStage::new(config.prs.tabs().into_iter().map(|tab| tab.name).collect()),
             queue: QueueStage::new(repo_tabs(&config)),
             builds: BuildsStage::new(repo_tabs(&config)),
-            deployed: DeployedStage::default(),
+            deployed: DeployedStage::new(
+                config
+                    .deploys()
+                    .map(|(_, deploy)| deploy.system.clone())
+                    .collect(),
+            ),
             focus: Stage::Prs,
             mode: Mode::Normal,
             config,

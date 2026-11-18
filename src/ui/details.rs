@@ -48,12 +48,12 @@ pub(crate) fn draw_details(frame: &mut Frame, app: &mut App, area: Rect) {
             }
             None => ("Details".to_string(), vec![Line::from("nothing selected")]),
         },
-        Stage::Deployed => match app.deployed.column.selected() {
+        Stage::Deployed => match app.deployed.active().column.selected() {
             Some(row) => (
                 format!(
                     "{} ({})",
                     row.env,
-                    app.deployed.system.clone().unwrap_or_default()
+                    app.deployed.active().system.clone().unwrap_or_default()
                 ),
                 deployed_details(row, app.now),
             ),

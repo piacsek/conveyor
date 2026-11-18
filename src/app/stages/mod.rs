@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use crate::config::Config;
+use crate::config::{Config, Repo};
 use crate::model::builds::{Build, Builds};
 use crate::model::deployed::{Deployed, Deployment};
 use crate::model::prs::PullRequest;
@@ -78,15 +78,19 @@ pub struct Context<'a> {
     pub config: &'a Config,
     pub builds: &'a BuildsStage,
     pub merge_landing: &'a [(u64, usize, bool)],
+    pub deploy: Option<&'a Repo>,
 }
 
 impl<'a> Context<'a> {
     pub fn deploy_builds(&self) -> &'a BuildsTab {
         let tab = self
-            .config
-            .repo
-            .iter()
-            .position(|repo| !repo.deploy.is_empty())
+            .deploy
+            .and_then(|deploy| {
+                self.config
+                    .repo
+                    .iter()
+                    .position(|repo| std::ptr::eq(repo, deploy))
+            })
             .unwrap_or(0);
         self.builds.tab(tab)
     }
@@ -114,13 +118,8 @@ impl<'a> Context<'a> {
             .position(|build| &build.sha == sha)
     }
 
-    /// The repository the Deployed column watches: the configured one with a `[[repo.deploy]]`,
-    /// else the one the main builds came from.
     pub fn deploy_repo(&self) -> Option<String> {
-        self.config
-            .repo
-            .iter()
-            .find(|repo| !repo.deploy.is_empty())
+        self.deploy
             .map(|repo| repo.name.clone())
             .or_else(|| self.deploy_builds().repo.clone())
     }
@@ -212,6 +211,11 @@ impl App {
             config: &self.config,
             builds: &self.builds,
             merge_landing: &self.merge_landing,
+            deploy: self
+                .config
+                .deploys()
+                .nth(self.deployed.active_tab())
+                .map(|(repo, _)| repo),
         }
     }
 

@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::ops::RangeInclusive;
 
-use super::{Config, DeployEnv, Prs, Repo, Ui};
+use super::{Config, Deploy, DeployEnv, Prs, Repo, Ui};
 
 const MIN_REFRESH_SECS: u64 = 5;
 const PAGE: RangeInclusive<usize> = 1..=100;
@@ -33,26 +33,44 @@ pub(super) fn check(config: &Config) -> Result<(), String> {
             repo.name
         ));
     }
-    check_read(&config.repo)
+    check_systems(config)
 }
 
-fn check_read(repos: &[Repo]) -> Result<(), String> {
-    let mut deployed = (1..).zip(repos).filter(|(_, repo)| !repo.deploy.is_empty());
-    if let (Some(read), Some(ignored)) = (deployed.next(), deployed.next()) {
-        let entry = |(number, repo): (usize, &Repo)| {
-            if read.1.name.eq_ignore_ascii_case(&ignored.1.name) {
-                format!("{} ([[repo]] number {number})", repo.name)
-            } else {
-                repo.name.clone()
-            }
-        };
+fn check_systems(config: &Config) -> Result<(), String> {
+    let deploys: Vec<(&Repo, &Deploy)> = config.deploys().collect();
+    if deploys.len() < 2 {
+        return Ok(());
+    }
+    if let Some((repo, _)) = deploys
+        .iter()
+        .find(|(_, deploy)| deploy.system.trim().is_empty())
+    {
         return Err(format!(
-            "the [[repo.deploy]] of {} is ignored: conveyor reads only the one of {}",
-            entry(ignored),
-            entry(read)
+            "a [[repo.deploy]] of {} has a blank system; with several deploys each is a tab and needs one",
+            entry(&config.repo, repo)
+        ));
+    }
+    if let Some((_, deploy)) = repeated(&deploys, |(_, a), (_, b)| {
+        a.system.trim().eq_ignore_ascii_case(b.system.trim())
+    }) {
+        return Err(format!(
+            "two [[repo.deploy]] have the system {:?}; each deploy is a tab and needs a system of its own",
+            deploy.system
         ));
     }
     Ok(())
+}
+
+fn entry(repos: &[Repo], repo: &Repo) -> String {
+    let named = |other: &&Repo| other.name.eq_ignore_ascii_case(&repo.name);
+    if repos.iter().filter(named).count() < 2 {
+        return repo.name.clone();
+    }
+    let number = 1 + repos
+        .iter()
+        .position(|other| std::ptr::eq(other, repo))
+        .unwrap_or_default();
+    format!("{} ([[repo]] number {number})", repo.name)
 }
 
 fn check_prs(prs: &Prs) -> Result<(), String> {
@@ -96,12 +114,6 @@ fn check_repo(repo: &Repo) -> Result<(), String> {
         repo.builds,
         &PAGE,
     )?;
-    if repo.deploy.len() > 1 {
-        return Err(format!(
-            "{} has a second [[repo.deploy]]; conveyor reads only the first",
-            repo.name
-        ));
-    }
     for deploy in &repo.deploy {
         refresh(
             &format!("[[repo.deploy]] refresh_secs of {}", repo.name),
