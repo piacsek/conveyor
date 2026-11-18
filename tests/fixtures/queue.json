@@ -24,6 +24,8 @@
                 "statusCheckRollup": { "state": "PENDING" }
               },
               "pullRequest": {
+                "id": "PR_kwDOAcme4821",
+                "headRefOid": "9d2e4f1a7c3b8e6d5f4a2b1c0e9d8f7a6b5c4d3e",
                 "number": 4821,
                 "title": "Retry webhook delivery with backoff",
                 "url": "https://github.com/acme/webapp/pull/4821",

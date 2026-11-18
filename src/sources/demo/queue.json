@@ -26,6 +26,8 @@
                 }
               },
               "pullRequest": {
+                "id": "PR_kwDOAcme4836",
+                "headRefOid": "3e7a1c9b5d2f8e4a6c0b7d1f9e3a5c2b8d4f6a1e",
                 "number": 4836,
                 "title": "Cache the pricing page for a minute",
                 "url": "https://github.com/acme/webapp/pull/4836",
@@ -48,6 +50,8 @@
                 }
               },
               "pullRequest": {
+                "id": "PR_kwDOAcme4827",
+                "headRefOid": "b4d81e6f2a9c3e7d5b1f8a4c6e2d9b7f3a5c1e8d",
                 "number": 4827,
                 "title": "Log slow queries over 500 ms",
                 "url": "https://github.com/acme/webapp/pull/4827",

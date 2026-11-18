@@ -78,6 +78,7 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 71 | [each repository merges with its own merge method (#112)](plans/phase-71-repo-merge-method.md) | v0.37.0 |
 | 72 | [approve a pull request from the `S` popup (#113)](plans/phase-72-approve.md) | v0.38.0 |
 | 73 | [the README shows conveyor moving: a recording below the screenshot (#97)](plans/phase-73-readme-demo.md) | none |
+| 76 | [take a pull request out of the merge queue, or move it to the front, from the Merge queue column](plans/phase-76-queue-actions.md) | |
 
 ## Backlog (discussed at the sweeps and retros)
 

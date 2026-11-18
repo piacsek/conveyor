@@ -235,6 +235,8 @@ pub fn entry(position: u64, number: u64, author: &str, title: &str) -> QueueEntr
         title: title.to_string(),
         author: author.to_string(),
         url: format!("https://github.com/acme/webapp/pull/{number}"),
+        node_id: format!("PR_kwDOAcme{number}"),
+        head_oid: format!("8c1f2a7d{number:032x}"),
         head_sha: format!("{number:040x}"),
         checks: CheckState::None,
         eta: None,

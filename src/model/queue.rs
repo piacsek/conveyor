@@ -36,6 +36,8 @@ pub struct QueueEntry {
     pub title: String,
     pub author: String,
     pub url: String,
+    pub node_id: String,
+    pub head_oid: String,
     pub head_sha: String,
     pub checks: CheckState,
     pub eta: Option<Duration>,
@@ -93,6 +95,8 @@ fn parse_entry(node: &serde_json::Value) -> Option<QueueEntry> {
             .unwrap_or_default()
             .to_string(),
         url: text(pr, "url"),
+        node_id: text(pr, "id"),
+        head_oid: text(pr, "headRefOid"),
         head_sha: node
             .pointer("/headCommit/oid")
             .and_then(|v| v.as_str())

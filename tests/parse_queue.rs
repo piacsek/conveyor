@@ -150,3 +150,22 @@ fn the_newest_run_for_a_pull_request_wins_whatever_order_they_arrive_in() {
     assert_eq!(attached.id, 11, "the re-batched run, not the cancelled one");
     assert_eq!(attached.status, BuildStatus::Running);
 }
+
+#[test]
+fn an_entry_carries_the_node_id_and_head_of_its_pull_request() {
+    let queue = parse(&fixture(include_str!("fixtures/queue.json"))).unwrap();
+
+    let first = &queue.entries[0];
+    assert_eq!(first.node_id, "PR_kwDOAcme4821");
+    assert_eq!(first.head_oid, "9d2e4f1a7c3b8e6d5f4a2b1c0e9d8f7a6b5c4d3e");
+}
+
+#[test]
+fn an_entry_without_a_node_id_or_head_still_parses() {
+    let queue = parse(&fixture(include_str!("fixtures/queue.json"))).unwrap();
+
+    let second = &queue.entries[1];
+    assert_eq!(second.number, 4830);
+    assert_eq!(second.node_id, "");
+    assert_eq!(second.head_oid, "");
+}
