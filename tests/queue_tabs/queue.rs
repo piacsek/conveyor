@@ -21,7 +21,13 @@ fn tab_on_merge_queue_asks_for_the_second_repository() {
 
     h.run(vec![key(KeyCode::Tab)]).unwrap();
 
-    assert_eq!(h.requests, vec![Request::Refresh(Stage::Queue, 1)]);
+    assert_eq!(
+        h.requests,
+        vec![
+            Request::Refresh(Stage::Queue, 1),
+            Request::Refresh(Stage::Builds, 1)
+        ]
+    );
 }
 
 #[test]

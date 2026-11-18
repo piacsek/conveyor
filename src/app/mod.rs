@@ -58,7 +58,7 @@ pub enum Action {
     Open(String),
     Copy(String),
     Refresh(Stage),
-    RefreshAll,
+    RefreshEach(&'static [Stage]),
     Log {
         repo: String,
         run_id: u64,

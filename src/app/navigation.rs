@@ -43,7 +43,7 @@ impl App {
             self.stage_mut(stage).listing_mut().set_filter(None);
         }
         self.reset_scroll();
-        Action::Refresh(self.focus)
+        Action::RefreshEach(self.focus.tab_group())
     }
 
     pub fn refresh_request(&self, stage: Stage) -> Request {

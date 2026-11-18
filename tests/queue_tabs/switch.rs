@@ -1,3 +1,4 @@
+use conveyor::app::{Request, Stage};
 use conveyor::model::builds::BuildStatus;
 use ratatui::crossterm::event::KeyCode;
 
@@ -15,6 +16,21 @@ fn tab_on_main_builds_moves_both_columns_to_the_next_repository() {
     assert!(screen.contains("#40 Bump nodes"), "{screen}");
     assert!(screen.contains("run 25"), "{screen}");
     assert!(!screen.contains("run 24"), "{screen}");
+}
+
+#[test]
+fn tab_on_main_builds_asks_for_the_queue_then_the_builds_of_the_next_repository() {
+    let mut h = on_main_builds();
+
+    h.run(vec![key(KeyCode::Tab)]).unwrap();
+
+    assert_eq!(
+        h.requests[..2],
+        [
+            Request::Refresh(Stage::Queue, 1),
+            Request::Refresh(Stage::Builds, 1)
+        ]
+    );
 }
 
 #[test]
