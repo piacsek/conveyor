@@ -4,7 +4,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 
-use crate::app::{App, Column, Failure, Row, Stage, Write};
+use crate::app::{App, Column, Failure, Row, Stage, StageView, Write};
 use crate::text::{cells, display_width, short_repo, take_width};
 use crate::ui::help::{column_name, custom_title};
 use crate::ui::link::link;
@@ -96,7 +96,7 @@ pub(crate) fn draw_column(
 ) {
     let block = column_block(app, stage, titled);
     let view = app.stage(stage);
-    let (area, block) = match tab_bar(view.tab_names(), view.active_tab(), area.width) {
+    let (area, block) = match tab_bar(view, area.width) {
         Some(bar) => {
             frame.render_widget(block, area);
             let line = Rect::new(area.x + 1, area.y + 1, area.width.saturating_sub(2), 1)
@@ -225,7 +225,9 @@ pub(crate) fn draw_column(
     app.jobs = jobs;
 }
 
-fn tab_bar(names: &[String], active: usize, width: u16) -> Option<Line<'static>> {
+fn tab_bar(view: &dyn StageView, width: u16) -> Option<Line<'static>> {
+    let names = view.tab_names();
+    let active = view.active_tab();
     if names.len() < 2 {
         return None;
     }
@@ -252,7 +254,9 @@ fn tab_bar(names: &[String], active: usize, width: u16) -> Option<Line<'static>>
         if i > start {
             parts.push((SEPARATOR.to_string(), Style::default()));
         }
-        let style = if i == active {
+        let style = if i == active && view.tab_dim(i) {
+            Style::default().add_modifier(Modifier::DIM | Modifier::REVERSED)
+        } else if i == active {
             Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED)
         } else {
             dim()

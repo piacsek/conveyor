@@ -81,6 +81,10 @@ impl StageView for QueueStage {
         self.active
     }
 
+    fn tab_dim(&self, tab: usize) -> bool {
+        self.tabs.get(tab).is_some_and(|tab| tab.absent)
+    }
+
     fn select_tab(&mut self, tab: usize) {
         self.column_mut().clear_filter();
         self.active = tab;

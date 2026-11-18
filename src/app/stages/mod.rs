@@ -159,6 +159,10 @@ pub trait StageView {
 
     fn select_tab(&mut self, _: usize) {}
 
+    fn tab_dim(&self, _: usize) -> bool {
+        false
+    }
+
     fn pull_target(&self) -> Result<(u64, String), String>;
 
     fn build_url(&self, context: &Context) -> Result<String, String>;

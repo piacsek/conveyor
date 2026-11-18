@@ -62,7 +62,7 @@ builds of a repository that has no merge queue without the queue column shouting
 | Not answered yet (first paint, or first visit to a tab) | `fetching…`, as today | `Queue <repo>` | normal | spinner, as today |
 | Entries | the cards, as today | `Queue <repo> (N)` | normal | as today |
 | A queue with no entries | `queue empty`, as today | `Queue <repo> (0)` | normal | as today |
-| `mergeQueue: null` | `no merge queue`, dim | `Queue <repo>`, no count | dim | none: not an error |
+| `mergeQueue: null` | `no merge queue`, dim | `Queue <repo>`, no count | dim (active: reversed and dim, not bold) | none: not an error |
 | `mergeQueue: null`, then later a queue | the cards or `queue empty` | with its count | normal again | as today |
 | A queue, then later `mergeQueue: null` (queue switched off) | `no merge queue`, the old cards gone | no count | dim | none |
 | The call fails (rate limit, offline, timed out, not signed in) | the column error, as today; the last rows stay as today | as today | keeps what it last knew | as today |
@@ -83,9 +83,11 @@ Main builds is the same for every row above: its own bar, its own rows, its own 
   says it has no queue (a field on `Queue`, not a new `FailureKind`), `QueueTab` remembers it
   per tab, and `receive` clears the tab's rows when it arrives. The column error path is not
   touched, so a real failure still reads as one.
-- **The bar learns to dim a tab.** `tab_bar` takes which tabs are dim; `StageView` gets one
-  method answering it (default: none), which `QueueStage` answers from its tabs. The active tab
-  keeps its emphasis even when dim.
+- **The bar learns to dim a tab.** `tab_bar` asks the stage which tabs are dim; `StageView`
+  gets one method answering it (default: none), which `QueueStage` answers from its tabs. The
+  bar already draws every inactive tab dim, so the mark shows on the active tab: reversed and
+  dim instead of reversed and bold, still the one reversed tab. An inactive tab without a queue
+  looks like any other inactive tab.
 - **Nothing new is fetched.** A repository without a queue costs the same one GraphQL call per
   `refresh_secs` while its tab is shown as an erroring one does today.
 
