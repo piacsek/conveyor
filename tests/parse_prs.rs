@@ -507,3 +507,11 @@ fn a_latest_review_that_is_not_an_approval_leaves_no_approved_commit() {
     );
     assert_eq!(pr.viewer_approved_oid, None);
 }
+
+#[test]
+fn a_viewer_who_never_reviewed_has_no_approved_commit_and_the_pull_request_still_reads() {
+    let pr = one(r#"{"number": 7, "title": "Retry webhooks", "viewerLatestReview": null}"#);
+    assert_eq!(pr.number, 7);
+    assert_eq!(pr.title, "Retry webhooks");
+    assert_eq!(pr.viewer_approved_oid, None);
+}

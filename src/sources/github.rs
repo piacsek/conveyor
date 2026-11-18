@@ -66,6 +66,8 @@ pub trait Github {
 
 const ENABLE_AUTO_MERGE: &str = "mutation($id: ID!, $method: PullRequestMergeMethod!, $head: GitObjectID) { enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head}) { clientMutationId } }";
 
+const APPROVE: &str = "mutation($id: ID!, $head: GitObjectID) { addPullRequestReview(input: {pullRequestId: $id, event: APPROVE, commitOID: $head}) { clientMutationId } }";
+
 const DISABLE_AUTO_MERGE: &str = "mutation($id: ID!) { disablePullRequestAutoMerge(input: {pullRequestId: $id}) { clientMutationId } }";
 
 const ENQUEUE: &str = "mutation($id: ID!, $head: GitObjectID) { enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid: $head}) { clientMutationId } }";
@@ -219,7 +221,10 @@ impl CliGh {
                 Self::graphql_args(DISABLE_AUTO_MERGE, &[("id", node_id.as_str().into())])
             }
             StatusChange::Close => pr("close"),
-            StatusChange::Approve => [pr("review"), vec!["--approve".to_string()]].concat(),
+            StatusChange::Approve { node_id, head_oid } => {
+                let vars = vec![("id", node_id.as_str().into())];
+                Self::graphql_args(APPROVE, &pinned(vars, head_oid))
+            }
             StatusChange::Dequeue { node_id } => {
                 Self::graphql_args(DEQUEUE, &[("id", node_id.as_str().into())])
             }
@@ -533,7 +538,7 @@ impl Aftermath<'_> {
             Self::Status(StatusChange::Enqueue { .. }) => "may be in the queue",
             Self::Status(StatusChange::Dequeue { .. }) => "may be out of the queue",
             Self::Status(StatusChange::Close) => "may be closed",
-            Self::Status(StatusChange::Approve) => "may be approved",
+            Self::Status(StatusChange::Approve { .. }) => "may be approved",
         }
     }
 }

@@ -9,7 +9,8 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   advanced type supports them, dedupes server-side and still accepts plain queries. Useful fields:
   `number title isDraft reviewDecision mergeStateStatus statusCheckRollup{state contexts}`
   `mergeQueueEntry{position state} updatedAt url headRefName repository{nameWithOwner}`.
-  `viewerDidAuthor` and `viewerLatestReview{state commit{oid}}` decide the `v` approve offer.
+  `viewerDidAuthor` and `viewerLatestReview{state commit{oid}}` decide the `v` approve offer;
+  `id` and `headRefOid` pin the approval it sends.
   `contexts` is a union of `CheckRun` (`name status conclusion detailsUrl`) and
   `StatusContext` (`context state targetUrl`). `mergeStateStatus` is often `UNKNOWN`
   (GitHub computes it lazily): show it as `—`, never as an error.

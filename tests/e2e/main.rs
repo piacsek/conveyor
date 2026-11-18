@@ -5,6 +5,7 @@ use std::process::Command;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
+mod approve;
 mod background_tabs;
 mod demo;
 mod merge;

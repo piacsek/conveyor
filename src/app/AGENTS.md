@@ -122,9 +122,10 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
     merge queue, `c` check out locally, `x` close PR, `v` approve. Main builds: `f` only.
   - **`t`, `a`, `e`, `x`, `v` change the status.** `Request::ChangeStatus(StatusTarget)` carries a
     `StatusChange`; `CliGh::status_args` runs `gh pr ready <N> -R <repo> [--undo]` and `gh pr
-    close <N> -R <repo>` and `gh pr review <N> -R <repo> --approve`, and GraphQL mutations by the pull request's node `id` for the rest:
+    close <N> -R <repo>`, and GraphQL mutations by the pull request's node `id` for the rest:
     `enablePullRequestAutoMerge` (with the merge method `m` uses and the head as `expectedHeadOid`),
-    `disablePullRequestAutoMerge` and `dequeuePullRequest`. **Never `gh pr merge --auto` or
+    `disablePullRequestAutoMerge`, `dequeuePullRequest` and `addPullRequestReview` (`event:
+    APPROVE`, the head as `commitOID`). **Never `gh pr merge --auto` or
     `--disable-auto`** (gh v2.103.3 source): `--auto` merges at once when the merge state is
     `CLEAN`, `HAS_HOOKS` or `UNSTABLE`, which would merge without the `y` a merge asks for, and
     `--disable-auto` exits 0 without disabling anything on a pull request that just joined the
@@ -142,8 +143,13 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
     #N`, from `viewerDidAuthor`) and on one the viewer approved at the current head (`you
     already approved #N`, from `viewerLatestReview` in state `APPROVED` and its commit), and
     offered on every other row, drafts and queued ones included: GitHub's refusal lands as the
-    failure mark. The review carries no commit pin, so `reconfirm` comparing the head is the
-    only guard against approving a head pushed after the dialog opened. The card adds nothing:
+    failure mark. The review is pinned to the head the card showed (`commitOID`), never `gh pr
+    review --approve`, which sends none and approves whatever the head is when the call lands: a
+    push after `y` leaves the approval on the commit the user confirmed, and `v` is offered again
+    after the refresh. `viewerLatestReview` is the latest review of any state, so a comment
+    after an approval at the same head offers `v` again (a second approval is a harmless
+    duplicate), and a pending review makes GitHub refuse with its own message, which lands as the
+    failure mark; both are accepted. The card adds nothing:
     it shows `reviewDecision` after the refresh, which stays empty on a repository without
     required reviews.
 - **`c` checks the pull request out locally.** It acts on the letter and sends

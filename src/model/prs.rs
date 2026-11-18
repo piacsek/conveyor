@@ -90,7 +90,10 @@ pub enum StatusChange {
         head_oid: String,
     },
     Close,
-    Approve,
+    Approve {
+        node_id: String,
+        head_oid: String,
+    },
 }
 
 impl StatusChange {

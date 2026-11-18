@@ -204,7 +204,11 @@ fn a_timed_out_status_change_says_what_may_have_happened() {
         "may be closed"
     );
     assert_eq!(
-        Aftermath::Status(&StatusChange::Approve).wording(),
+        Aftermath::Status(&StatusChange::Approve {
+            node_id: "PR_kwacme12".into(),
+            head_oid: "8c1f2a7d".into(),
+        })
+        .wording(),
         "may be approved"
     );
 }

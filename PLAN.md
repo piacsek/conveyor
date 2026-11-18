@@ -82,7 +82,7 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
 - The Merge queue refreshes every tab on the first `[[repo]]`'s `refresh_secs`
   (`spawn_queue_fetcher` takes one interval); Main builds already follows each repository's.
-- More `S` actions: `gh pr review --approve` (#113); reopen if the query ever lists closed pull requests.
+- More `S` actions: reopen if the query ever lists closed pull requests.
 - Merge follow-ups from the phase 20 review: `merge_method` per `[[repo]]` (#112) (one global value cannot
   serve a squash-only and a merge-commit-only repo at once); a write result that lands while the other prompt is open is
   hidden by that prompt (the failure half is done in phase 39: a failure stays on its card; a

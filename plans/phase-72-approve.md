@@ -4,8 +4,8 @@
 
 Issue #113. Reviewing someone else's pull request ends in the browser today only to press
 "Approve". The `S` popup on a My PRs row gains approve under the letter `v` (the owner's choice;
-`v` is no Normal-mode key). It asks to confirm with `y`, like merge, and runs
-`gh pr review <N> -R <owner>/<repo> --approve`. The card shows the review state after the next
+`v` is no Normal-mode key). It asks to confirm with `y`, like merge, and sends GitHub's
+`addPullRequestReview` mutation pinned to the head the card showed. The card shows the review state after the next
 refresh. On the viewer's own pull request it is offered dim, with the reason. A failed approve
 leaves the usual failure mark.
 
@@ -36,7 +36,11 @@ leaves the usual failure mark.
   `api/queries_pr_review.go`) finds the pull request, then sends
   `addPullRequestReview(input: {pullRequestId, event: APPROVE, body: ""})` with no commit pin; an
   error comes back as `failed to create review: <GitHub's message>`. `--approve` needs no body;
-  the success line is printed only on a terminal.
+  the success line is printed only on a terminal. With no `commitOID` GitHub approves whatever
+  the head is when the call lands, so conveyor sends the mutation itself (review round 1).
+- `AddPullRequestReviewInput` (schema introspection with `gh api graphql`, 2026-11-18) takes
+  `pullRequestId: ID!`, `commitOID: GitObjectID` ("The commit OID the review pertains to"),
+  `body`, `event: PullRequestReviewEvent`, `comments` (deprecated) and `threads`.
 - Not verified, since it takes a write: GitHub's answer for the viewer's own pull request (known
   wording "Can not approve your own pull request"), a draft, a closed or merged one, and one the
   viewer already approved (accepted as another review). Each lands as the usual failure mark.
@@ -61,13 +65,14 @@ leaves the usual failure mark.
 | The approve timed out | `v approve` | confirm | `! may be approved` |
 | Approved | n/a | footer `#N approved`, My PRs refreshed | the new review state after the refresh |
 | Head moved, or approved elsewhere, between `v` and `y` | n/a | `y` refuses: the pull request changed; press S again | unchanged |
+| The head moved after `y` was sent | n/a | the review lands on the commit the user confirmed (`commitOID`) | after the refresh `v` is offered again, since the approved commit is not the head |
 
 Draft, closed and merged are offered rather than dimmed: no other action checks them up front,
 and GitHub's own answer is the one the user needs to read. The owner may overturn this.
 
 ## Design
 
-- `StatusChange::Approve`, with no fields: approve is a status change, so it reuses the
+- `StatusChange::Approve { node_id, head_oid }`: approve is a status change, so it reuses the
   request, the status worker, the write in flight, the failure mark and `reconfirm`. No new
   worker kind.
 - `PullRequest` gains `viewer_did_author: bool` and `viewer_approved_oid: Option<String>` (the
@@ -80,7 +85,9 @@ and GitHub's own answer is the one the user needs to read. The owner may overtur
 - Wording: progress `approving #N…`, card `approving…`, failure `approve failed`, done
   `#N approved`, timeout `may be approved`.
 - A successful approve refreshes My PRs and follows up, like `Ready`; the queue is not refreshed.
-- `status_args` for `Approve`: `pr review <N> -R <repo> --approve`.
+- `status_args` for `Approve`: `api graphql` with `addPullRequestReview(input: {pullRequestId:
+  $id, event: APPROVE, commitOID: $head})`, like enqueue and auto-merge (`gh pr review
+  --approve` until review round 1, which found it pins no commit).
 - The help line and the README row for `S` add `approve`.
 
 ## Tasks
@@ -108,8 +115,8 @@ with `scripts/ship.sh`.
 ## Outcome
 
 - Shipped in #144 as `StatusChange::Approve`: the `S` popup on a My PRs row offers `v approve`,
-  asks `approve #N <title>?`, and `y` runs `gh pr review <N> -R <repo> --approve` through the
-  status worker. A success refreshes My PRs only and says `#N approved`; a failure marks the
+  asks `approve #N <title>?`, and `y` sends `addPullRequestReview` with `event: APPROVE` and
+  the confirmed head as `commitOID` through the status worker. A success refreshes My PRs only and says `#N approved`; a failure marks the
   card `! approve failed: <reason>`, a timeout `may be approved`.
 - The offer is dim on the viewer's own pull request (`viewerDidAuthor`) and on one the viewer
   approved at the current head (`viewerLatestReview`); an approval of an older head offers it
@@ -122,10 +129,15 @@ with `scripts/ship.sh`.
 - The demo's mine tab is the viewer's own and its review tab is someone else's, so
   `docs/approve.png` shows the popup with `v approve` on a review-tab row.
 - Not verified, since each needs a write: GitHub's wording for approving one's own pull
-  request, a draft, a closed one and one already approved.
+  request, a draft, a closed one and one already approved, and that a `commitOID` older than
+  the head approves that commit rather than being refused.
+- Accepted: `viewerLatestReview` is the latest review of any state, so a comment after an
+  approval at the same head offers `v` again (a duplicate approval), and a pending review makes
+  GitHub refuse the approve with its own message.
 
 ## Hurdles
 
 - `test-seam` The `manage_layout` snapshot failed the first ship of task 2: the new popup line was expected, and the snapshot was not run before shipping → none
 - `ci` `calls::a_call_made_while_another_hangs_is_not_held_up_by_it` failed once at load 25 to 41 while sibling phases built in parallel; untouched by this change, it passed on the retry → none
 - `tooling` `scripts/screenshots.sh` rewrote `docs/confirm.png` and `docs/no-queue.png` for an age that read `2s ago` instead of `1s ago`; both were reverted by hand → none
+- `review-loop` The first cut ran `gh pr review --approve`, which pins no commit, so a push between the last refresh and the call was approved unseen; known at hand-back and left open, review round 1 found it reachable → code

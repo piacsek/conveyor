@@ -83,10 +83,7 @@ fn v_asks_before_approving_and_y_approves() {
 
     h.run(vec![key(KeyCode::Char('y'))]).unwrap();
 
-    assert_eq!(
-        h.requests,
-        vec![status(1, "Retry webhooks", StatusChange::Approve)]
-    );
+    assert_eq!(h.requests, vec![status(1, "Retry webhooks", approve(1))]);
 }
 
 #[test]
@@ -118,7 +115,7 @@ fn an_approve_that_went_through_says_so_and_refreshes_only_my_prs() {
         key(KeyCode::Char('S')),
         key(KeyCode::Char('v')),
         key(KeyCode::Char('y')),
-        status_changed(1, StatusChange::Approve, Ok(())),
+        status_changed(1, approve(1), Ok(())),
     ])
     .unwrap();
 
@@ -136,7 +133,7 @@ fn a_failed_approve_marks_the_card() {
         key(KeyCode::Char('S')),
         key(KeyCode::Char('v')),
         key(KeyCode::Char('y')),
-        status_changed(1, StatusChange::Approve, Err("HTTP 422")),
+        status_changed(1, approve(1), Err("HTTP 422")),
     ])
     .unwrap();
 
@@ -169,4 +166,11 @@ fn y_refuses_to_approve_once_the_head_moved_while_the_dialog_was_open() {
         h.screen()
     );
     assert!(h.requests.is_empty(), "{:?}", h.requests);
+}
+
+fn approve(number: u64) -> StatusChange {
+    StatusChange::Approve {
+        node_id: format!("PR_node{number}"),
+        head_oid: format!("8c1f2a7d{number}"),
+    }
 }

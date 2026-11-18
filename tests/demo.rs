@@ -326,7 +326,12 @@ fn a_demo_status_change_changes_nothing() {
 
 #[test]
 fn a_demo_approve_changes_nothing() {
-    let changed = Demo.change_status("acme/webapp", 4844, &StatusChange::Approve);
+    let approve = StatusChange::Approve {
+        node_id: "PR_kwacme4844".to_string(),
+        head_oid: "8c1f2a7d".to_string(),
+    };
+
+    let changed = Demo.change_status("acme/webapp", 4844, &approve);
 
     assert_eq!(nothing_changed(changed), "demo: nothing was changed");
 }

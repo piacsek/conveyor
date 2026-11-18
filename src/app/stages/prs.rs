@@ -207,7 +207,10 @@ impl PrsStage {
         } else if pr.viewer_approved_oid.as_deref() == Some(pr.head_oid.as_str()) {
             Err(format!("you already approved #{}", pr.number))
         } else {
-            status(StatusChange::Approve)
+            status(StatusChange::Approve {
+                node_id: pr.node_id.clone(),
+                head_oid: pr.head_oid.clone(),
+            })
         };
         vec![
             merge,
