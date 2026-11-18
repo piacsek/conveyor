@@ -63,4 +63,25 @@ Phase 75 stays free for the sweep of phases 70 to 74.
 
 ## Outcome
 
+- `style::ACCENT` (cyan) is the one colour of the selection bar and of the focused column's
+  border. `columns::border` gives it to the titled block and, with tabs, to the block below the
+  tab bar, so the four edges run unbroken past the tab bar; the column bar of the narrow layout
+  and the zoomed column take it through the same `draw_column`.
+- The title sets `fg(Color::Reset)`: ratatui patches the title over the border's style, so
+  without it the focused title came out cyan too.
+- Tasks 1 and 2 of the first plan shipped as one cycle: the accent alone changes nothing a test
+  can see, so it went in as the green and refactor steps of the border's test.
+- `tests/border.rs` reads cell colours from the frame: four columns, focus moving, tabs (all
+  edges, the tab bar unchanged), loading, empty and failed columns, zoom, the narrow layout,
+  the details pane, the `S` popup, the confirm dialog, the help and changelog panes, and
+  unfocused columns with and without tabs.
+- Every screenshot that shows the columns was reshot (`help.png` did not change) and
+  `docs/demo.gif` rerecorded.
+- The root `AGENTS.md` gained the `gaswtr` rule beside "Work autonomously", at the owner's
+  request during the build.
+
 ## Hurdles
+
+- `test-seam` the focused title turned cyan with its border, since ratatui patches the title over the border style; a test written before the change caught it → code
+- `test-seam` the `S` popup and the confirm dialog fill a 12-row terminal from its first row, so the tests that find the dialog's corner run at 24 rows → none
+- `process` the first ship's output went through a pipe into a log (exit status read with `pipestatus`), against the rule of never piping `ship.sh`; later ships redirect → none
