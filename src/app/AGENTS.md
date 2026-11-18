@@ -87,7 +87,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   `App::menu` from the rows on screen. An offer that does not apply keeps its line, dim, with the
   reason after a `·` (`m  merge · #12 is a draft`), and its letter does nothing, so the popup
   explains itself instead of hiding actions. Any key that is not an offer closes it (`nothing
-  changed`), `q` included; `q` never quits from the popup. Letters (`m u f t a e x`) avoid every
+  changed`), `q` included; `q` never quits from the popup. Letters (`m u f t a e x v`) avoid every
   Normal-mode key, so a press from habit closes the popup instead of writing. `c` is the one
   exception, and the user's choice: it is the changelog key in Normal mode, and in the popup it
   checks the pull request out, which writes nothing to GitHub and is undone with `git switch -`.
@@ -114,15 +114,15 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   the popup is open does not redraw its offers: a dim offer that became possible stays dim until
   `S` is pressed again (nothing is sent either way). **Only sensitive actions
   ask `y` second**: merge (`m`), enabling auto-merge (`a` while off: on a merge-queue repo it
-  enqueues, which is a merge), close (`x`) and a rebase update (`u` with `prs.update_method =
+  enqueues, which is a merge), close (`x`), approve (`v`) and a rebase update (`u` with `prs.update_method =
   "rebase"`, a force-push) go to the confirm dialog; the rest act on the letter, since the popup
   already was the confirmation and each is cheap to undo. Offers per stage:
   - My PRs: `m` merge (`add to merge queue` on a merge-queue base), `u` update/rebase branch, `f` rerun failed jobs (`(k runs)` when more
     than one), `t` mark ready / convert to draft, `a` enable/disable auto-merge, `e` leave the
-    merge queue, `c` check out locally, `x` close PR. Main builds: `f` only.
-  - **`t`, `a`, `e`, `x` change the status.** `Request::ChangeStatus(StatusTarget)` carries a
+    merge queue, `c` check out locally, `x` close PR, `v` approve. Main builds: `f` only.
+  - **`t`, `a`, `e`, `x`, `v` change the status.** `Request::ChangeStatus(StatusTarget)` carries a
     `StatusChange`; `CliGh::status_args` runs `gh pr ready <N> -R <repo> [--undo]` and `gh pr
-    close <N> -R <repo>`, and GraphQL mutations by the pull request's node `id` for the rest:
+    close <N> -R <repo>` and `gh pr review <N> -R <repo> --approve`, and GraphQL mutations by the pull request's node `id` for the rest:
     `enablePullRequestAutoMerge` (with `prs.merge_method` and the head as `expectedHeadOid`),
     `disablePullRequestAutoMerge` and `dequeuePullRequest`. **Never `gh pr merge --auto` or
     `--disable-auto`** (gh v2.103.3 source): `--auto` merges at once when the merge state is
@@ -136,8 +136,16 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
     meta line reads `auto-merge` while `autoMergeRequest` is set, before the branch name, which
     `meta()` would otherwise cut it behind on a narrow card. `Input::StatusChanged` puts
     `#N converted to draft` (etc.) or `#N: <gh error>` in the footer; a success refreshes My PRs
-    (and the queue, except after `mark ready`) and sets `App::follow_up`. No reopen: the default `prs.query`
+    (and the queue, except after `mark ready` and `approve`) and sets `App::follow_up`. No reopen: the default `prs.query`
     is `is:open`, so a closed pull request leaves the column on the next refresh.
+  - **`v` approves someone else's pull request.** It is dim on the viewer's own (`you opened
+    #N`, from `viewerDidAuthor`) and on one the viewer approved at the current head (`you
+    already approved #N`, from `viewerLatestReview` in state `APPROVED` and its commit), and
+    offered on every other row, drafts and queued ones included: GitHub's refusal lands as the
+    failure mark. The review carries no commit pin, so `reconfirm` comparing the head is the
+    only guard against approving a head pushed after the dialog opened. The card adds nothing:
+    it shows `reviewDecision` after the refresh, which stays empty on a repository without
+    required reviews.
 - **`c` checks the pull request out locally.** It acts on the letter and sends
   `Request::Checkout(CheckoutTarget)`: the number, the repo and `dir`, the first `path` among
   the `[[repo]]` entries whose name matches the pull request's repository (ASCII case
@@ -211,7 +219,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   again through `App::reconfirm` (the same `menu()` the popup used, so a My PRs refresh that
   failed while the dialog was open refuses too) and sends `Request::Merge` only if the offer
   under `m` is still the same number, repo, title and head sha; otherwise the footer says why,
-  or `the pull request changed; press S again`. `confirm_update` and `confirm_status` (close, enable auto-merge, enqueue) use the
+  or `the pull request changed; press S again`. `confirm_update` and `confirm_status` (close, approve, enable auto-merge, enqueue) use the
   same check. Drafts and queued pull requests are refused in the popup. The worker runs `gh pr merge <N>
   -R <repo> --<prs.merge_method> --match-head-commit <headRefOid>`; the pin refuses a head pushed
   after the card was drawn. On a merge-queue branch gh only warns that the queue sets the

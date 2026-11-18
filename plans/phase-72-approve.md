@@ -107,4 +107,25 @@ with `scripts/ship.sh`.
 
 ## Outcome
 
+- Shipped in #144 as `StatusChange::Approve`: the `S` popup on a My PRs row offers `v approve`,
+  asks `approve #N <title>?`, and `y` runs `gh pr review <N> -R <repo> --approve` through the
+  status worker. A success refreshes My PRs only and says `#N approved`; a failure marks the
+  card `! approve failed: <reason>`, a timeout `may be approved`.
+- The offer is dim on the viewer's own pull request (`viewerDidAuthor`) and on one the viewer
+  approved at the current head (`viewerLatestReview`); an approval of an older head offers it
+  again.
+- Decisions taken without the owner, each open to overturn: drafts, closed and queued pull
+  requests are offered (GitHub's refusal becomes the failure mark); `v` sits last in the popup,
+  after `x`; the card is unchanged and relies on `reviewDecision`, which stays empty on a
+  repository without required reviews; an approve does not refresh the queue; the help line and
+  the README row list `approve`.
+- The demo's mine tab is the viewer's own and its review tab is someone else's, so
+  `docs/approve.png` shows the popup with `v approve` on a review-tab row.
+- Not verified, since each needs a write: GitHub's wording for approving one's own pull
+  request, a draft, a closed one and one already approved.
+
 ## Hurdles
+
+- `test-seam` The `manage_layout` snapshot failed the first ship of task 2: the new popup line was expected, and the snapshot was not run before shipping → none
+- `ci` `calls::a_call_made_while_another_hangs_is_not_held_up_by_it` failed once at load 25 to 41 while sibling phases built in parallel; untouched by this change, it passed on the retry → none
+- `tooling` `scripts/screenshots.sh` rewrote `docs/confirm.png` and `docs/no-queue.png` for an age that read `2s ago` instead of `1s ago`; both were reverted by hand → none
