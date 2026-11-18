@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 mod approve;
 mod background_tabs;
 mod demo;
+mod deployed_tabs;
 mod merge;
 
 struct Server {

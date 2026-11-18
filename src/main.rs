@@ -12,7 +12,7 @@ use conveyor::app::{
     App, CheckoutTarget, Input, MergeTarget, Request, Rows, Stage, StatusTarget, UpdateTarget, run,
 };
 use conveyor::cli::{self, Command};
-use conveyor::config::{self, Config, Repo, expand_home};
+use conveyor::config::{self, Config, Deploy, Repo, expand_home};
 use conveyor::crash;
 use conveyor::events::{self, Crossterm, SystemClock};
 use conveyor::log::{self, Log};
@@ -153,7 +153,7 @@ where
         Stage::Builds,
         spawn_builds_fetchers(&gh, &config, tx.clone()),
     );
-    if let Some(refresh) = spawn_deploy_fetcher(gh(), kube(), config.clone(), tx.clone()) {
+    if let Some(refresh) = spawn_deploy_fetchers(&gh, &kube, &config, tx.clone()) {
         refreshers.insert(Stage::Deployed, refresh);
     }
     let jobs_gh = gh();
@@ -316,21 +316,32 @@ fn spawn_builds_fetchers<G: Github + Send + 'static>(
     })
 }
 
-fn spawn_deploy_fetcher(
-    gh: impl Github + Send + 'static,
-    kube: impl Kube + Sync + Send + 'static,
-    config: Config,
+fn spawn_deploy_fetchers<G, K>(
+    gh: impl Fn() -> G,
+    kube: impl Fn() -> K,
+    config: &Config,
     tx: Inputs,
-) -> Option<mpsc::Sender<usize>> {
-    let repo = config.repo.iter().find(|repo| !repo.deploy.is_empty())?;
-    let deploy = repo.deploy.first()?.clone();
-    let interval = Duration::from_secs(deploy.refresh_secs);
-    let mut source = DeploySource::new(repo.name.clone(), deploy);
-    Some(refresh::spawn(
-        Stage::Deployed,
-        interval,
-        1,
-        tx,
-        move |_| Ok(Rows::Deployed(source.fetch(&gh, &kube, SystemTime::now()))),
-    ))
+) -> Option<mpsc::Sender<usize>>
+where
+    G: Github + Send + 'static,
+    K: Kube + Sync + Send + 'static,
+{
+    let deploys: Vec<(String, Deploy)> = config
+        .deploys()
+        .map(|(repo, deploy)| (repo.name.clone(), deploy.clone()))
+        .collect();
+    if deploys.is_empty() {
+        return None;
+    }
+    let intervals = deploys
+        .iter()
+        .map(|(_, deploy)| Duration::from_secs(deploy.refresh_secs))
+        .collect();
+    Some(refresh::spawn_each(Stage::Deployed, intervals, tx, |tab| {
+        let gh = gh();
+        let kube = kube();
+        let (repo, deploy) = deploys[tab].clone();
+        let mut source = DeploySource::new(repo, deploy);
+        move || Ok(Rows::Deployed(source.fetch(&gh, &kube, SystemTime::now())))
+    }))
 }

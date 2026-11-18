@@ -101,7 +101,7 @@ previous_tab = "shift-tab"
 # builds = "Main"
 # deployed = "Envs"
 
-[[repo]]                      # optional; default is the repository of the current directory; one tab each in Merge queue and Main builds, switched together (the queue on the first one's refresh_secs); Deployed the one with [[repo.deploy]]
+[[repo]]                      # optional; default is the repository of the current directory; one tab each in Merge queue and Main builds, switched together (the queue on the first one's refresh_secs)
 name = "owner/name"
 path = "~/projects/name"      # optional; the local clone `S` then `c` checks a pull request out in
 main_workflow = "CI/CD"       # workflow name or file, e.g. ci.yml
@@ -110,9 +110,9 @@ main_workflow = "CI/CD"       # workflow name or file, e.g. ci.yml
 builds = 10                   # runs shown in the Main builds column, 1 to 100
 refresh_secs = 30             # 5 or more
 
-[[repo.deploy]]               # optional, on one [[repo]] at most; the Deployed column
-system = "api"
-refresh_secs = 120
+[[repo.deploy]]               # optional, repeatable on any [[repo]]; one Deployed tab each, in config order, switched on their own
+system = "api"                # the tab's name; with several deploys each needs its own
+refresh_secs = 120            # each deploy is read on its own interval
 
 [[repo.deploy.env]]           # one or more
 name = "staging"

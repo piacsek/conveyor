@@ -1,104 +1,176 @@
 {
- "dev": {
-  "spec": {
-   "replicas": 2,
-   "selector": {
-    "matchLabels": {
-     "app": "api"
+ "api": {
+  "dev": {
+   "spec": {
+    "replicas": 2,
+    "selector": {
+     "matchLabels": {
+      "app": "api"
+     }
+    },
+    "template": {
+     "spec": {
+      "containers": [
+       {
+        "image": "ghcr.io/acme/api:8c1f2a7d94e3b06f5a2c9d18e7b4f0a3c6d5e291"
+       }
+      ]
+     }
     }
    },
-   "template": {
-    "spec": {
-     "containers": [
-      {
-       "image": "ghcr.io/acme/api:8c1f2a7d94e3b06f5a2c9d18e7b4f0a3c6d5e291"
-      }
-     ]
-    }
+   "status": {
+    "updatedReplicas": 2,
+    "readyReplicas": 2,
+    "availableReplicas": 2,
+    "conditions": [
+     {
+      "type": "Available",
+      "status": "True"
+     },
+     {
+      "type": "Progressing",
+      "status": "True"
+     }
+    ]
    }
   },
-  "status": {
-   "updatedReplicas": 2,
-   "readyReplicas": 2,
-   "availableReplicas": 2,
-   "conditions": [
-    {
-     "type": "Available",
-     "status": "True"
+  "staging": {
+   "spec": {
+    "replicas": 2,
+    "selector": {
+     "matchLabels": {
+      "app": "api"
+     }
     },
-    {
-     "type": "Progressing",
-     "status": "True"
+    "template": {
+     "spec": {
+      "containers": [
+       {
+        "image": "ghcr.io/acme/api:b7e4d2c9a1f08635e9d47c2ab3f61d0e8a95c4f7"
+       }
+      ]
+     }
     }
-   ]
+   },
+   "status": {
+    "updatedReplicas": 1,
+    "readyReplicas": 2,
+    "availableReplicas": 2,
+    "conditions": [
+     {
+      "type": "Available",
+      "status": "True"
+     },
+     {
+      "type": "Progressing",
+      "status": "True"
+     }
+    ]
+   }
+  },
+  "prod": {
+   "spec": {
+    "replicas": 2,
+    "selector": {
+     "matchLabels": {
+      "app": "api"
+     }
+    },
+    "template": {
+     "spec": {
+      "containers": [
+       {
+        "image": "ghcr.io/acme/api:5e2c8b9f1a47d3e06b8f4c2d9a1e7f35c0b6d8a2"
+       }
+      ]
+     }
+    }
+   },
+   "status": {
+    "updatedReplicas": 2,
+    "readyReplicas": 2,
+    "availableReplicas": 2,
+    "conditions": [
+     {
+      "type": "Available",
+      "status": "True"
+     },
+     {
+      "type": "Progressing",
+      "status": "True"
+     }
+    ]
+   }
   }
  },
- "staging": {
-  "spec": {
-   "replicas": 2,
-   "selector": {
-    "matchLabels": {
-     "app": "api"
+ "worker": {
+  "staging": {
+   "spec": {
+    "replicas": 1,
+    "selector": {
+     "matchLabels": {
+      "app": "worker"
+     }
+    },
+    "template": {
+     "spec": {
+      "containers": [
+       {
+        "image": "ghcr.io/acme/worker:8c1f2a7d94e3b06f5a2c9d18e7b4f0a3c6d5e291"
+       }
+      ]
+     }
     }
    },
-   "template": {
-    "spec": {
-     "containers": [
-      {
-       "image": "ghcr.io/acme/api:b7e4d2c9a1f08635e9d47c2ab3f61d0e8a95c4f7"
-      }
-     ]
-    }
+   "status": {
+    "updatedReplicas": 1,
+    "readyReplicas": 1,
+    "availableReplicas": 1,
+    "conditions": [
+     {
+      "type": "Available",
+      "status": "True"
+     },
+     {
+      "type": "Progressing",
+      "status": "True"
+     }
+    ]
    }
   },
-  "status": {
-   "updatedReplicas": 1,
-   "readyReplicas": 2,
-   "availableReplicas": 2,
-   "conditions": [
-    {
-     "type": "Available",
-     "status": "True"
+  "prod": {
+   "spec": {
+    "replicas": 1,
+    "selector": {
+     "matchLabels": {
+      "app": "worker"
+     }
     },
-    {
-     "type": "Progressing",
-     "status": "True"
-    }
-   ]
-  }
- },
- "prod": {
-  "spec": {
-   "replicas": 2,
-   "selector": {
-    "matchLabels": {
-     "app": "api"
+    "template": {
+     "spec": {
+      "containers": [
+       {
+        "image": "ghcr.io/acme/worker:d94a7c31e5f2b8069c4d1ea7f3b5c082d6e9a1b4"
+       }
+      ]
+     }
     }
    },
-   "template": {
-    "spec": {
-     "containers": [
-      {
-       "image": "ghcr.io/acme/api:5e2c8b9f1a47d3e06b8f4c2d9a1e7f35c0b6d8a2"
-      }
-     ]
-    }
+   "status": {
+    "updatedReplicas": 1,
+    "readyReplicas": 1,
+    "availableReplicas": 1,
+    "conditions": [
+     {
+      "type": "Available",
+      "status": "True"
+     },
+     {
+      "type": "Progressing",
+      "status": "True"
+     }
+    ]
    }
-  },
-  "status": {
-   "updatedReplicas": 2,
-   "readyReplicas": 2,
-   "availableReplicas": 2,
-   "conditions": [
-    {
-     "type": "Available",
-     "status": "True"
-    },
-    {
-     "type": "Progressing",
-     "status": "True"
-    }
-   ]
   }
  }
 }

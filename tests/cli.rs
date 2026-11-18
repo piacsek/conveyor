@@ -481,42 +481,14 @@ fn config_refuses_two_environments_of_one_name() {
 }
 
 #[test]
-fn config_refuses_a_second_deploy_it_would_ignore() {
-    let (code, stderr) = refusal(&format!("{ONE_DEPLOY}[[repo.deploy]]\n"));
-
-    assert_eq!(code, Some(1));
-    assert!(
-        stderr.contains("acme/webapp has a second [[repo.deploy]]; conveyor reads only the first"),
-        "{stderr}"
-    );
-}
-
-#[test]
-fn config_refuses_a_deploy_on_two_repositories() {
+fn config_refuses_two_deploys_of_one_system() {
     let (code, stderr) = refusal(&format!(
-        "{ONE_DEPLOY}{PROD}[[repo]]\nname = \"acme/infra\"\n[[repo.deploy]]\n{PROD}"
+        "{ONE_DEPLOY}system = \"api\"\n{PROD}[[repo]]\nname = \"acme/infra\"\n[[repo.deploy]]\nsystem = \"api\"\n{PROD}"
     ));
 
     assert_eq!(code, Some(1));
     assert!(
-        stderr.contains(
-            "the [[repo.deploy]] of acme/infra is ignored: conveyor reads only the one of acme/webapp"
-        ),
-        "{stderr}"
-    );
-}
-
-#[test]
-fn config_refusing_a_deploy_on_one_repository_listed_twice_names_the_entry() {
-    let (code, stderr) = refusal(&format!(
-        "{ONE_DEPLOY}{PROD}[[repo]]\nname = \"acme/webapp\"\nbranch = \"develop\"\n[[repo.deploy]]\n{PROD}"
-    ));
-
-    assert_eq!(code, Some(1));
-    assert!(
-        stderr.contains(
-            "the [[repo.deploy]] of acme/webapp ([[repo]] number 2) is ignored: conveyor reads only the one of acme/webapp ([[repo]] number 1)"
-        ),
+        stderr.contains("two [[repo.deploy]] have the system \"api\""),
         "{stderr}"
     );
 }

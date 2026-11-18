@@ -383,6 +383,12 @@ impl Config {
         toml::to_string_pretty(self).unwrap_or_default()
     }
 
+    pub fn deploys(&self) -> impl Iterator<Item = (&Repo, &Deploy)> {
+        self.repo
+            .iter()
+            .flat_map(|repo| repo.deploy.iter().map(move |deploy| (repo, deploy)))
+    }
+
     pub fn merge_method(&self, repo: &str) -> MergeMethod {
         self.repo
             .iter()

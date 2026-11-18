@@ -36,6 +36,21 @@ context = "ctx-uat"
 namespace = "api"
 deployment = "api"
 
+[[repo.deploy]]
+system = "worker"
+
+[[repo.deploy.env]]
+name = "staging"
+context = "ctx-staging"
+namespace = "worker"
+deployment = "worker"
+
+[[repo.deploy.env]]
+name = "prod"
+context = "ctx-prod"
+namespace = "worker"
+deployment = "worker"
+
 [[repo]]
 name = "acme/infra"
 
