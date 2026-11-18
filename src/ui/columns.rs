@@ -73,7 +73,11 @@ pub(crate) fn column_title(app: &App, stage: Stage) -> String {
                 app,
                 stage,
                 "Deployed",
-                app.deployed.active().system.as_deref(),
+                app.deployed
+                    .active()
+                    .system
+                    .as_deref()
+                    .or(tab_name(&app.deployed)),
             ),
             &app.deployed.active().column,
             marks,
