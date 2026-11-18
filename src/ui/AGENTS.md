@@ -175,3 +175,16 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
 - How the details pane scrolls (`draw_details` owns the clamp), the log pane and zoom: see `src/app/AGENTS.md`.
 - What the `S` popup offers and when an action asks `y`: see `src/app/AGENTS.md`.
 - The keymap behind `KEYS`: see `src/app/AGENTS.md`.
+
+## Screenshots
+
+- `scripts/screenshots.sh` renders `docs/details.png` (with the Nerd Font icons: it writes
+  `icons = "nerd"` into its temporary config) and `docs/plain.png` (the default plain icons),
+  plus one `shoot` per extra view. Freeze lays out an SVG with the font embedded; headless
+  Chrome rasterises it, because freeze's own PNG output cannot draw Nerd Font glyphs.
+- The script adds Menlo (DejaVu Sans Mono on Linux) as the SVG's fallback font family:
+  FiraCode lacks `✗ ⊘ ▸`, and Chrome's default fallback is wider, so every row holding one
+  shifted and the borders jogged.
+- It runs `conveyor --demo`, which reaches neither `gh` nor `kubectl`, with `HOME` a tempdir
+  (through `env`, see the e2e trap in `tests/AGENTS.md`), so the screen shows the demo's footer
+  marker too.
