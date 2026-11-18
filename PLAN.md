@@ -98,5 +98,8 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 - Enforce "no code comments" with a test like `tests/dead_code.rs`, once the owner decides
   whether `///` and `//!` docs count and what becomes of the comments already in `src/` and
   `tests/` (#125, phase 60).
+- Tab labels stay distinct and on screen: a long custom title no longer pushes later columns off
+  the narrow layout's bar, and two `[[repo]]` with the same short name no longer draw identical
+  tabs (sweep of phase 60: phases 41 and 42).
 - Trim `.github/AGENTS.md` and the per-directory `AGENTS.md` files the way phase 60 trimmed the
   root one: an inventory first, history to `plans/`, facts that restate the code cut (#125).

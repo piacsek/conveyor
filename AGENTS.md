@@ -11,13 +11,7 @@ my open pull requests, the merge queue, the last main builds, and what each
 environment runs. One column per stage, side by side; a focused column,
 actions on the selected row. `conveyor config` prints the effective config.
 `PLAN.md` is the index of phases and the backlog; each phase's plan, outcome and hurdles are
-in `plans/`.
-
-## Who follows what
-
-Every contributor follows the sections from "This repository is public" to "Releasing".
-"Working agreements" is the owner's flow: phases, worktrees, the review loop and its numbers,
-run with the owner's own agents and skills (`/my-tdd`, `/pr-review`, a Codex reviewer).
+in `plans/`. An outside contributor starts from `.github/CONTRIBUTING.md`.
 
 ## This repository is public
 
@@ -28,27 +22,30 @@ placeholders. Never screenshot real data.
 
 `scripts/ship.sh` runs `scripts/scrub-check.sh` against the local denylist at
 `~/.config/conveyor-dev/denylist` (or the file `CONVEYOR_DENYLIST` names) three times: as the
-first gate and again between `git add -A` and `git commit` over the index and the working
-tree's files that are not ignored, contents and paths; and between `git commit` and `git push`
-(`--outgoing`) over the branch name and every commit no remote has yet, its message and what it
-adds, never what it removes. Each match names where it was found and its commit. What each run
-reads, case by case, is pinned by `tests/scripts/scrub_check.rs`.
+first gate and again between `git add -A` and `git commit`, over the contents and the paths of
+the index and of the working tree's files that are not ignored; and between `git commit` and
+`git push` (`--outgoing`), over the branch name and, for every commit no remote has yet, its
+message, the paths it adds or keeps and the lines it adds (a symlink's target and a merge's
+conflict resolution included), never a removed line or a deleted path, so a branch can remove a
+term `main` still holds. Each match says which of the four (message, path, added line, branch
+name) it was in and names its commit. `tests/scripts/scrub_check.rs` pins each case.
 
 - A refused push leaves the commit local: `git reset --soft HEAD~1`, fix what is named
   (`git branch -m` for the branch name), ship again; an earlier commit is rewritten by hand.
 - A refused merge is kept and fixed with `git commit --amend`: with nothing staged and commits
   no remote has, `ship.sh` pushes them without a new commit.
 - The list is kept outside the repo on purpose, so CI does not enforce it. The check is skipped
-  only where the default path is confirmed absent, and fails in both modes when the list cannot
-  be read for certain, `CONVEYOR_DENYLIST` names one that is not there, the list is empty, or
-  `git grep` or `git log` cannot run.
+  only where the default path is confirmed absent (the nearest existing path above it is a
+  directory it can search). It fails instead, in both modes, when the path is there but is not
+  a readable file, when its absence cannot be confirmed, when `CONVEYOR_DENYLIST` names one that
+  is not, when the list is empty, or when `git grep` or `git log` cannot run.
 - It does not read the contents of binary files, the author and committer of a commit, the PR
   body, or anything pushed without `ship.sh`.
 
 ## Layout
 
 A map, not an inventory: what each file holds is in the code, and each directory's rules are in
-its `AGENTS.md`. `tests/layout.rs` fails while a path named here does not exist.
+its `AGENTS.md`. `tests/layout.rs` fails while any path named here does not exist.
 
 ```
 src/main.rs        CLI dispatch, config load, wiring
@@ -57,10 +54,10 @@ src/config.rs      the config; src/config/values.rs holds what a loaded value mu
 src/sources/       everything that reaches out to an external service (`gh`, `kubectl`), and nothing else; `--demo` answers from src/sources/demo/
 src/model/         parsing and judging what `gh` and `kubectl` answer
 src/app/           App, its modes, keys and actions
-src/app/stages/    one type per stage behind the StageView trait; the one match from a Stage to its field is in its `mod.rs`
-src/app/actions/   the `S` popup: `mod.rs` is the machinery, one file per action; what a column offers is its stage's `menu`
+src/app/stages/    one type per stage behind the StageView trait; the one match from a Stage to its field is in src/app/stages/mod.rs
+src/app/actions/   the `S` popup: src/app/actions/mod.rs is the machinery, one file per action; what a column offers is its stage's `menu`
 src/ui/            drawing; src/ui/help.rs holds KEYS, which the README mirrors
-src/open.rs        opening a URL and the clipboard: the OS seam, not a service, so it stays out of `sources/`
+src/open.rs        opening a URL and the clipboard: the OS seam, not a service, so it stays out of src/sources/
 src/refresh.rs     one fetcher thread per stage
 src/worker.rs      one thread per kind of request
 scripts/gates.sh   the quality gates; never pipe it
@@ -70,7 +67,14 @@ scripts/flake-inputs.sh the one list of what the flake build reads
 scripts/version-check.sh the `version` check; reads the head as git objects, runs nothing from it
 changes/           one fragment per pull request that feeds the binary; add-only, see Releasing
 plans/             one plan per phase, plans/metrics.md, plans/unphased.md; plans/original-plan.md is history, not live state
-tests/             outside-in; tests/readme.rs, plans.rs, layout.rs, toolchain.rs, source_size.rs, stage_dispatch.rs and dead_code.rs hold the repository to its rules
+tests/             outside-in, and the tests that hold the repository to its rules:
+tests/readme.rs    the README's shape and its key table
+tests/plans.rs     the plan files, their index and their metrics rows
+tests/layout.rs    this map
+tests/toolchain.rs one Rust version everywhere
+tests/source_size.rs no Rust file over 700 lines
+tests/stage_dispatch.rs no match on a Stage outside src/app/stages/mod.rs
+tests/dead_code.rs no unused `pub` item
 docs/              the screenshots
 .github/           the workflows, the issue forms, the PR template; .github/CONTRIBUTING.md points here and restates none of the rules
 .claude/skills/    the `sweep` and `adversarial-review` skills
@@ -85,7 +89,7 @@ This file holds the rules and agreements. The facts about each directory live in
 | `src/sources/AGENTS.md` | GitHub and kubectl: API shapes and queries, the sha → pull request lookup (`Pulls`), the spawn lock, call logging, `gh` never inheriting the terminal, the kubectl deadline | before touching `src/sources/` or anything that spawns a program |
 | `src/model/AGENTS.md` | check dedup (`newest_checks`, superseded runs, `overall`), merge-group run attach rules, deploy health rules, jobs parsing, lenient parsing | before touching `src/model/` or a fixture it parses |
 | `src/app/AGENTS.md` | keys, `Esc`, the filter, the `S` popup and each action (`m`, `u`, `f`, `t`/`a`/`e`/`x`, `c`), failed write marks, jobs state (`age_jobs`, `jobs_needed`), refresh and follow-up, row order, open debounce, zoom, scroll | before touching `src/app/`, `src/refresh.rs` or `src/open.rs`, or adding a key or an action |
-| `src/ui/AGENTS.md` | cards, glyphs and icons, dialogs, the details, help and changelog panes, the footer, colours, how the screenshots are rendered | before touching `src/ui/` or `src/changelog.rs`, or changing anything visible |
+| `src/ui/AGENTS.md` | cards, glyphs and icons, dialogs, the details, help and changelog panes, the footer, colours, how the screenshots are rendered | before touching `src/ui/`, `src/changelog.rs` or `scripts/screenshots.sh`, or changing anything visible |
 | `tests/AGENTS.md` | the testing traps hit so far, the e2e `gh` shim dispatch note, how `tests/scripts/` stands in for `cargo` and `gh` | before writing or debugging a test, a shim or a launcher of the binary |
 | `.github/AGENTS.md` | CI: what the workflows run and why (`check`, `audit`, the `version` check, the release queue, the tap), the `main` ruleset and its required checks, the unguarded `v*` tags, branch cleanup, the issue forms and Discussions; the release internals: every refusal of the `version` check, the release run, recovering a failed or stuck run, pins and permissions | before touching `.github/` (the issue forms and `CONTRIBUTING.md` included), a required check or a release script, or when a release run fails |
 
@@ -105,7 +109,7 @@ The two bullets about `src/cli.rs` and `src/config.rs` stay here; every other on
 
 Accepted limits a reviewer treats as decided, one line each, with where they are written down.
 Pointing reviewers here is not priming, since the list is in the repo. A limit joins it when a
-review finding is declined for good; a reviewer may still report one as must when it shows new
+review finding, or a finding of the sweep, is declined for good; a reviewer may still report one as must when it shows new
 impact.
 
 - **The footer shows only the latest notice**: a success that lands under a prompt is hidden by
@@ -157,37 +161,6 @@ renders them is in `src/ui/AGENTS.md`. Fixture SHAs look real (`8c1f2a7d…`), n
 Whenever behaviour changes, check that `README.md` is still true: a key, a default, a
 subcommand, a config key. Do not add prose for a feature; if it needs explaining, the card or
 the help view should carry it.
-
-## Pull requests
-
-- **Draft PR first.** The first ship on a branch opens the draft PR assigned to the user,
-  with the commit subject as its title and `.github/pull_request_template.md` as its body;
-  every later commit lands on that PR. The subject is a starting point: before review, rewrite
-  the title in plain language that says what the change does for whoever uses it, and fill the
-  body. `## Summary` holds at most 3 sentences, split across 2 lines with a blank line between
-  them; `## Changes` holds the rest. Before merging, re-read the PR title and body and fix
-  what went stale without rewording the user's edits.
-- **Screenshots in PRs.** A PR with a visible change embeds a screenshot that shows that
-  change in its body, as a commit-pinned `raw.githubusercontent.com` URL. A change to the main
-  interface goes into `docs/details.png` (see "Documentation rule"); for a view that one cannot
-  show (another pane, a dialog, a narrow width, a key pressed), add a `shoot` line to
-  `scripts/screenshots.sh` for it, commit the image under `docs/` and embed it too. Before
-  `gh pr ready`, rerun `scripts/screenshots.sh`; when an image changed, commit it and pin its
-  URL to that commit.
-- **Diagrams in PRs.** A PR that reorganizes the codebase or introduces a new flow carries a
-  Mermaid diagram in its body, in a fenced `mermaid` block that GitHub renders. Show the
-  shape of the change: the modules and what moved between them, or the steps of the flow and
-  who calls whom. For a reorganization, a before and an after. Keep each diagram small enough
-  to read without scrolling, and leave it out when the change has no structure to draw.
-- **Catching up with `main` on a pushed branch is a merge, not a rebase.** A rebase rewrites
-  the pushed commits and the next `scripts/ship.sh` push is refused; the no-force-push rule
-  then leaves only `git reset --hard origin/<branch>`, `git merge origin/main` and a
-  cherry-pick of the new work. The squash into `main` leaves the merge commit behind anyway.
-  Squash is the only merge method partly for this reason: a rebase-merge, which replays the
-  branch's own commits and drops its merge commits, could land a tree the `version` check never
-  judged.
-- **Never push to `main` directly** except the very first bootstrap commit of an empty
-  repository, and **never force-push**.
 
 ## Working agreements
 
@@ -280,6 +253,30 @@ nearest the code the guideline is about.
   Agents that share a scratch directory put their branch in the name of every file they write
   there (a log, a PR body), and wait on their own ship by its process or log, never by a
   `pgrep -f scripts/ship.sh` that matches other worktrees.
+- **TDD is never skipped.** Every change to `src/` starts with a failing test, run and seen
+  red, before the production code is touched; then the smallest change that goes green, then
+  refactor. This holds for one-line fixes, security patches, patch releases and "obvious"
+  changes alike. Writing the test and the fix in the same edit is not TDD, even when the test
+  is then backed out to prove it fails. Show the red run in the update.
+- **Draft PR first.** The first ship on a branch opens the draft PR assigned to the user,
+  with the commit subject as its title and `.github/pull_request_template.md` as its body;
+  every later commit lands on that PR. The subject is a starting point: before review, rewrite
+  the title in plain language that says what the change does for whoever uses it, and fill the
+  body. `## Summary` holds at most 3 sentences, split across 2 lines with a blank line between
+  them; `## Changes` holds the rest. Before merging, re-read the PR title and body and fix
+  what went stale without rewording the user's edits.
+- **Screenshots in PRs.** A PR with a visible change embeds a screenshot that shows that
+  change in its body, as a commit-pinned `raw.githubusercontent.com` URL. A change to the main
+  interface goes into `docs/details.png` (see "Documentation rule"); for a view that one cannot
+  show (another pane, a dialog, a narrow width, a key pressed), add a `shoot` line to
+  `scripts/screenshots.sh` for it, commit the image under `docs/` and embed it too. Before
+  `gh pr ready`, rerun `scripts/screenshots.sh`; when an image changed, commit it and pin its
+  URL to that commit.
+- **Diagrams in PRs.** A PR that reorganizes the codebase or introduces a new flow carries a
+  Mermaid diagram in its body, in a fenced `mermaid` block that GitHub renders. Show the
+  shape of the change: the modules and what moved between them, or the steps of the flow and
+  who calls whom. For a reorganization, a before and an after. Keep each diagram small enough
+  to read without scrolling, and leave it out when the change has no structure to draw.
 - **Review before ready.** Marking a PR ready for review means running the
   [`/pr-review`](https://github.com/piacsek/dotfiles/blob/main/.claude/skills/pr-review/SKILL.md)
   skill on the PR first, and acting on what it finds. It runs a Claude and a Codex reviewer
@@ -311,7 +308,19 @@ nearest the code the guideline is about.
   (see `.github/AGENTS.md`). The squash commit on `main` takes GitHub's
   default here: the pull request title followed by `(#N)` (a pull request of a single commit
   gets that commit's subject instead), with the per-task commit messages listed in its body;
-  the per-task commits stay readable on the pull request.
+  the per-task commits stay readable on the pull request. Never push to `main` directly except the very first bootstrap commit of an empty
+  repository, and never force-push.
+- **Catching up with `main` on a pushed branch is a merge, not a rebase.** A rebase rewrites
+  the pushed commits and the next `scripts/ship.sh` push is refused; the no-force-push rule
+  then leaves only `git reset --hard origin/<branch>`, `git merge origin/main` and a
+  cherry-pick of the new work. The squash into `main` leaves the merge commit behind anyway.
+  Squash is the only merge method partly for this reason: a rebase-merge, which replays the
+  branch's own commits and drops its merge commits, could land a tree the `version` check never
+  judged.
+- **Two binaries.** `conveyor` on PATH is the Homebrew release; `conveyor-dev` is a working
+  tree (`scripts/dev-install.sh`). Never `cargo install` the crate into a PATH directory. A build from a working tree (`conveyor-dev`, CI) reads `v0.0.0` in the footer and in
+  `--version`, and its `c` pane shows the changelog as frozen on `main`, not the newest
+  release: that is expected, only a release commit carries a real version.
 - **Plan before code, plans in the repo.** Each phase starts from a written plan, re-planned
   after the previous retro, with its "Verified facts" checked against live tools before use.
   Plans are versioned here: write each one to its own file under `plans/` (for example
@@ -330,16 +339,11 @@ Strict TDD: one failing test, minimal code, refactor. Outside-in: start from the
 (`tests/cli.rs`) or from `run()` with scripted inputs on a TestBackend, drop to unit tests only
 for pure helpers. No code comments; names and tests carry the intent.
 
-**TDD is never skipped.** Every change to `src/` starts with a failing test, run and seen
-red, before the production code is touched; then the smallest change that goes green, then
-refactor. This holds for one-line fixes, security patches, patch releases and "obvious"
-changes alike. Writing the test and the fix in the same edit is not TDD, even when the test
-is then backed out to prove it fails. Show the red run in the update.
-
 Dead code is strictly forbidden. An item nothing calls is deleted in the same change that
 orphans it, never kept "for later". A `pub` item that only tests call is a test seam and must
 be on the `SEAMS` list in `tests/dead_code.rs`. `#[allow(dead_code)]` appears nowhere except
-`tests/support/mod.rs`, where each test binary uses only some of the helpers.
+`tests/support/mod.rs`, where each test binary uses only some of the helpers. A `pub fn` of
+`tests/support/mod.rs` that no test uses fails `tests/dead_code.rs` too.
 
 No Rust file under `src/` or `tests/` is longer than 700 lines (`tests/source_size.rs`). A test
 file that outgrows the limit becomes a folder (`tests/<name>/main.rs` plus one file per topic),
@@ -418,11 +422,6 @@ this worktree's build every ship runs `dev-install.sh`: cargo's freshness check 
 when nothing changed, and it rebuilds after a merge of `main` that no diff of the commit would
 show. Embedding a file from one of the listed directories into the binary means taking that
 directory off the list in the script.
-
-**Two binaries.** `conveyor` on PATH is the Homebrew release; `conveyor-dev` is a working
-tree. A build from a working tree (`conveyor-dev`, CI) reads `v0.0.0` in the footer and in
-`--version`, and its `c` pane shows the changelog as frozen on `main`, not the newest
-release: that is expected, only a release commit carries a real version.
 
 ## Releasing
 

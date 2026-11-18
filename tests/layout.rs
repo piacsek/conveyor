@@ -35,8 +35,16 @@ fn layout_paths(agents: &str) -> Vec<String> {
         .skip_while(|line| !line.starts_with("```"))
         .skip(1)
         .take_while(|line| !line.starts_with("```"))
-        .filter(|line| !line.starts_with(char::is_whitespace))
-        .filter_map(|line| line.split_whitespace().next())
+        .flat_map(str::split_whitespace)
+        .map(|word| word.trim_matches(|c: char| "`,;:()".contains(c)))
+        .filter(|word| names_a_path(word))
         .map(str::to_string)
         .collect()
+}
+
+fn names_a_path(word: &str) -> bool {
+    let extensions = [
+        ".rs", ".sh", ".md", ".toml", ".lock", ".nix", ".json", ".yml",
+    ];
+    word.contains('/') || extensions.iter().any(|ext| word.ends_with(ext))
 }
