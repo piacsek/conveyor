@@ -73,9 +73,9 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   and lands in that tab (`listing_in_mut`), never in the one shown when it arrives; a test for
   it switches tabs between the request and its landing. A fetch and a rerun's follow-up do so.
   The shared caches are keyed by id, not by tab: jobs by run id, logs by job id. The exception
-  today is the follow-up refresh of a merge, update or status change, and the 3 s
-  `follow_up_prs` timer: they call `refresh_request`, which asks for the tab active when the
-  result arrives. A switch clears a filter with `clear_filter`, which keeps the selected row:
+  today is the follow-up refresh of a merge, update or status change, and the `FOLLOW_UP`
+  (10 s) refresh `follow_up_prs` sets: they call `refresh_request`, which asks for the tab
+  active when the write's result arrives, or, for the timer, when it fires. A switch clears a filter with `clear_filter`, which keeps the selected row:
   `set_filter(None)` keeps the filtered index and so selects another row.
 - **`L` is read-only, and the log has a pane of its own.** It asks `gh run view <run> --job
   <job> --log-failed` for the first failed job of the selected run (Main builds or Merge

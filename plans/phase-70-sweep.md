@@ -74,8 +74,8 @@ two sweeps. There is no phase 65: phase 68's plan reserved it, but it was never 
   148,612 (61) a round (58 to 60: 75,661 in 59 to 154,312 in 60) and builder tokens 101,213
   (61) to 169,131 (64) a hand-back show no drift. Start to draft PR is 7 to 12 minutes in every
   row of 61 to 69 (69 from the build's start); start to the clean review is 28 to 66 minutes in
-  61 to 67 and 69 (69 from the build's start), and in 68 about 2h08m once its 3h07m wait on the
-  owner is taken out; merge to release about 2 minutes except 62 (a runner failure) and 66.
+  61 to 67 and 69 (69 from the build's start), and in 68 5h15m19s, of which its Notes record
+  about 3 hours as waiting, not work; merge to release about 2 minutes except 62 (a runner failure) and 66.
 
 ### Phase
 
@@ -83,7 +83,17 @@ two sweeps. There is no phase 65: phase 68's plan reserved it, but it was never 
   and `PLAN.md` the releases of 69, 71 and 72.
 - Phase 60's docs-only branch ran the full flake build, since it touched `src/ui/AGENTS.md` and
   the flake reads `./src` whole; correct as the inputs stand, so left as found.
+- Review: two rounds, the second unprimed and clean. Round 1 found that the tab rule stated as
+  fact what the code does not do (the follow-up refresh of a write asks for the active tab), so
+  the rule now covers new and changed code and names that exception, which joined backlog item
+  B; it also corrected the metrics ranges, made the report's argument explicit until #145 lands,
+  and filled the phase 70 row. The minor findings of round 2 (the follow-up's 10 s and when it
+  asks, the `sweep` skill still running the report with no argument, an adjusted figure for 68
+  more precise than its Notes) were fixed in one ship and checked by the orchestrator against
+  the diff.
 
 ## Hurdles
 
 - `process` The report re-read phases 61 to 68, which phase 60 had already swept, and the `sweep` workflow never asked for the sweeps of 60 and 65 → rule in `AGENTS.md`
+- `review-loop` The new tab rule stated as fact that write follow-ups and job lookups carry their tab, which the code does not do, and round 2 found the follow-up's timer misnamed → backlog
+- `review-loop` The rule that a sweep passes B + 1 to the report left the `sweep` skill running it with no argument → code

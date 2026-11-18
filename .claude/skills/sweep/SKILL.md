@@ -12,8 +12,10 @@ script counts; the judgment below is yours, and every decision is the user's.
 
 ## 1. Gather
 
-1. Run `scripts/sweep-report.sh` from the repository root. It starts after the last phase
-   holding `### Sweep`; pass a phase number to start elsewhere when the user asks.
+1. Run `scripts/sweep-report.sh <B + 1>` from the repository root, B the last phase of the
+   `Phases A to B` line that opens the newest `### Sweep`. With no argument it starts after
+   the last phase holding `### Sweep`, which can re-read phases that sweep already read; pass
+   B + 1 until #145 lands. Pass another phase when the user asks.
 2. Read the `## Outcome` and `## Hurdles` of every phase in the report's range in full. A
    hurdle's one line is a summary; the outcome says what it cost.
 3. Read the sweep before this one (the newest `### Sweep`), if any: what it decided and
@@ -62,8 +64,8 @@ question). Never apply a proposal the user did not take.
 
 1. Into the sweep phase's plan file (`plans/phase-N-*.md`, N the multiple of 5 the sweep
    opens; ask for its topic and create it with empty `## Outcome` and `## Hurdles` headings
-   if it does not exist yet), put `### Sweep` as the first subsection of `## Outcome`: the
-   range swept, one line per finding with what was decided, and the metrics read.
+   if it does not exist yet), put `### Sweep` as the first subsection of `## Outcome`: its
+   opening line `Phases A to B`, the range swept, then one line per finding with what was decided, and the metrics read.
 2. Apply what was taken: the rules into their `AGENTS.md`, the backlog lines into `PLAN.md`,
    the backfilled times into `plans/metrics.md`.
 3. Run `cargo test --test plans` (the sweep gate and the hurdle format), and

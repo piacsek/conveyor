@@ -115,4 +115,4 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
   returning the shown runs) become required methods, so a stage that gains tabs cannot inherit
   them, `set_filter` takes a filter, never `None`, and the follow-up refresh of a merge, update
   or status change (and the `follow_up_prs` timer) asks for the tab the write was made in, not
-  the one active when it lands (sweep of phase 70: phases 66 and 69).
+  the one active when its result arrives or the timer fires (sweep of phase 70: phases 66 and 69).
