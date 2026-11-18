@@ -161,8 +161,8 @@ the FiraCode Nerd Font in `~/Library/Fonts`) and commit the new images. `docs/de
 keeps the Nerd Font icons and `docs/plain.png` shows the default plain ones; how the script
 renders them is in `src/ui/AGENTS.md`. Fixture SHAs look real (`8c1f2a7d…`), not `33333333`.
 `docs/demo.gif` is recorded from `scripts/demo.tape` by `scripts/demo.sh` (needs `brew install
-vhs`, Google Chrome and the same font) on the same demo data; rerun it when the recording no
-longer matches the interface.
+vhs`, Google Chrome and the same font) on the same demo data; rerun it when what it shows
+changes, and a reviewer reports a stale recording as a should, like a stale screenshot.
 
 Whenever behaviour changes, check that `README.md` is still true: a key, a default, a
 subcommand, a config key. Do not add prose for a feature; if it needs explaining, the card or
@@ -277,7 +277,8 @@ nearest the code the guideline is about.
   interface goes into `docs/details.png` (see "Documentation rule"); for a view that one cannot
   show (another pane, a dialog, a narrow width, a key pressed), add a `shoot` line to
   `scripts/screenshots.sh` for it, commit the image under `docs/` and embed it too. Before
-  `gh pr ready`, rerun `scripts/screenshots.sh`; when an image changed, commit it and pin its
+  `gh pr ready`, rerun `scripts/screenshots.sh` (and `scripts/demo.sh` when what the recording
+  shows changed); when an image changed, commit it and pin its
   URL to that commit.
 - **Diagrams in PRs.** A PR that reorganizes the codebase or introduces a new flow carries a
   Mermaid diagram in its body, in a fenced `mermaid` block that GitHub renders. Show the

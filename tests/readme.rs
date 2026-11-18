@@ -4,9 +4,9 @@ const README: &str = include_str!("../README.md");
 
 /// The README lines outside fenced code blocks: a `# comment` inside a ```sh block is not a
 /// heading.
-fn prose() -> Vec<&'static str> {
+fn prose(readme: &str) -> Vec<&str> {
     let mut fenced = false;
-    README
+    readme
         .lines()
         .filter(|line| {
             if line.starts_with("```") {
@@ -33,7 +33,7 @@ fn sentences(text: &str) -> usize {
 
 #[test]
 fn the_readme_has_exactly_the_five_user_sections_in_order() {
-    let prose = prose();
+    let prose = prose(README);
     let sections: Vec<&str> = prose
         .iter()
         .copied()
@@ -63,16 +63,7 @@ fn the_readme_has_exactly_the_five_user_sections_in_order() {
 
 #[test]
 fn the_readme_embeds_the_screenshot_and_one_recording_right_below_the_description() {
-    let images: Vec<&str> = README
-        .lines()
-        .filter(|line| line.starts_with("!["))
-        .collect();
-    assert_eq!(
-        images.len(),
-        2,
-        "the screenshot and the recording: {images:?}"
-    );
-    assert!(images[0].contains("(docs/details.png)"), "{}", images[0]);
+    assert_eq!(images(README), 2, "the screenshot and the recording");
     let before_image = README.split("![").next().unwrap();
     assert!(
         !before_image.contains("\n## "),
@@ -91,19 +82,67 @@ fn the_recording_sits_right_below_the_screenshot() {
     let lines: Vec<&str> = README.lines().collect();
     let screenshot = lines
         .iter()
-        .position(|line| line.starts_with("![") && line.contains("(docs/details.png)"))
+        .position(|line| line.contains("(docs/details.png)"))
         .expect("the screenshot");
+    assert!(
+        standalone(lines[screenshot], "docs/details.png"),
+        "{}",
+        lines[screenshot]
+    );
     assert_eq!(lines[screenshot + 1], "");
     assert!(
-        lines[screenshot + 2].starts_with("!["),
+        standalone(lines[screenshot + 2], "docs/demo.gif"),
         "{}",
         lines[screenshot + 2]
     );
-    assert!(
-        lines[screenshot + 2].contains("(docs/demo.gif)"),
-        "{}",
-        lines[screenshot + 2]
+}
+
+#[test]
+fn an_html_image_counts() {
+    assert_eq!(
+        images(&format!("{README}\n<img src=\"docs/plain.png\">\n")),
+        3
     );
+}
+
+#[test]
+fn an_indented_image_counts() {
+    assert_eq!(images(&format!("{README}\n  ![x](docs/plain.png)\n")), 3);
+}
+
+#[test]
+fn a_linked_image_counts() {
+    assert_eq!(
+        images(&format!(
+            "{README}\n[![x](docs/plain.png)](https://example.com)\n"
+        )),
+        3
+    );
+}
+
+#[test]
+fn an_image_after_the_screenshot_on_its_line_counts() {
+    let readme = README.replace(
+        "(docs/details.png)",
+        "(docs/details.png) ![x](docs/plain.png)",
+    );
+    assert_eq!(images(&readme), 3);
+}
+
+#[test]
+fn an_image_after_the_screenshot_on_its_line_leaves_it_not_standalone() {
+    assert!(!standalone(
+        "![a](docs/details.png) ![b](docs/plain.png)",
+        "docs/details.png"
+    ));
+}
+
+#[test]
+fn an_image_before_the_screenshot_on_its_line_leaves_it_not_standalone() {
+    assert!(!standalone(
+        "![b](docs/plain.png) ![a](docs/details.png)",
+        "docs/details.png"
+    ));
 }
 
 #[test]
@@ -158,4 +197,20 @@ fn toml_block() -> String {
         .and_then(|rest| rest.split("```").next())
         .expect("a ```toml block")
         .to_string()
+}
+
+fn images(readme: &str) -> usize {
+    prose(readme)
+        .iter()
+        .skip(1)
+        .map(|line| image_marks(line))
+        .sum()
+}
+
+fn image_marks(line: &str) -> usize {
+    line.matches("![").count() + line.matches("<img").count()
+}
+
+fn standalone(line: &str, path: &str) -> bool {
+    line.starts_with("![") && line.ends_with(&format!("]({path})")) && image_marks(line) == 1
 }

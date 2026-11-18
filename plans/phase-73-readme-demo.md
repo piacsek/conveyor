@@ -53,20 +53,28 @@ repository and recorded on the synthetic `acme/*` data of `conveyor --demo`.
 ## Outcome
 
 - The README shows `docs/demo.gif` right below `docs/details.png`: 17 s at 12 frames a second,
-  1440x560 pixels, 420 KB, the Nerd Font icons and the Catppuccin Mocha theme of the
+  1440x560 pixels, 424 KB, the Nerd Font icons and the Catppuccin Mocha theme of the
   screenshot. It moves down My PRs, opens the details pane, walks the focus to Deployed, closes
   the pane, walks back and opens the `S` popup.
 - `scripts/demo.sh` builds the release binary, writes a tempdir `HOME` with `icons = "nerd"`
   and runs `vhs scripts/demo.tape`; the tape launches `conveyor --demo` the way
   `screenshots.sh` does, hidden from the recording.
-- `tests/readme.rs` allows exactly two images, the screenshot then the recording on the next
-  non-empty line, and fails while `scripts/demo.tape` does not write `docs/demo.gif` or the GIF
+- `tests/readme.rs` allows exactly two images besides the banner (any `![` or `<img` in the
+  prose counts), the screenshot then the recording two lines below it with one blank line
+  between, each alone on its line, and fails while `scripts/demo.tape` does not write `docs/demo.gif` or the GIF
   is missing. The Documentation rule and the Layout of `AGENTS.md` name both.
 - Nothing under `src/` changed: no fragment, no release.
-- The footer of the recording shows the local clock time of the run, like the screenshots, so
-  every rerun changes the GIF.
+- The times on screen come from the clock of the run: the footer reads the local time of the
+  refresh (`refreshed at 22:34:56` in the first trial) and the demo ages its fixture from the
+  current time, so every rerun changes the GIF. A run on the minute only looks like a fixed clock.
+- The tape waits for `My PRs` on screen before it shows anything, so a binary that does not
+  start fails `vhs` (exit 1, no GIF written) instead of recording a bare prompt.
 
 ## Hurdles
 
 - `api-shape` GitHub's docs describe video only as an upload and say nothing of a video
   referenced by a repository path, so MP4 and WebM were not tried and the recording is a GIF → none
+- `review-loop` the README image guard counted only lines starting with `![`, so an `<img>`, an
+  indented or linked image, or a second image on the screenshot's line passed → code
+- `tooling` vhs records whatever the shell shows, so a binary that failed to start produced a
+  GIF of a bare prompt and a clean exit until the tape waited for the demo screen → code

@@ -13,7 +13,8 @@ Set TypingSpeed 0
 Hide
 Type `exec env -u XDG_CONFIG_HOME -u CONVEYOR_CONFIG -u XDG_STATE_HOME -u CONVEYOR_LOG HOME="$CONVEYOR_DEMO_HOME" "$CONVEYOR_DEMO_BIN" --demo`
 Enter
-Sleep 2s
+Wait+Screen@10s /My PRs/
+Sleep 1s
 Show
 
 Sleep 1.5s
