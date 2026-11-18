@@ -298,6 +298,38 @@ fn the_demo_uat_cannot_be_read() {
 }
 
 #[test]
+fn the_demo_deploys_a_worker_of_acme_webapp_as_a_second_tab() {
+    let config = demo::config(Config::default());
+
+    let systems: Vec<&str> = config
+        .deploys()
+        .map(|(_, deploy)| deploy.system.as_str())
+        .collect();
+    assert_eq!(systems.len(), 2);
+    assert_eq!(systems[0], "api");
+    assert_eq!(systems[1], "worker");
+}
+
+#[test]
+fn the_demo_worker_runs_in_staging_and_prod() {
+    let worker = demo_deployed_in(1);
+
+    assert_eq!(worker.rows.len(), 2);
+    assert_eq!(worker.rows[0].env, "staging");
+    assert_eq!(
+        worker.rows[0].pull.as_ref().map(|pull| pull.number),
+        Some(4840)
+    );
+    assert_eq!(worker.rows[0].health, Health::Healthy);
+    assert_eq!(worker.rows[1].env, "prod");
+    assert_eq!(
+        worker.rows[1].pull.as_ref().map(|pull| pull.number),
+        Some(4808)
+    );
+    assert_eq!(worker.rows[1].health, Health::Healthy);
+}
+
+#[test]
 fn a_demo_merge_changes_nothing() {
     let merged = Demo.merge("acme/webapp", 4821, MergeMethod::Squash, "b7e4d2c9");
 
@@ -406,9 +438,13 @@ fn the_failed_demo_step_has_a_log() {
 }
 
 fn demo_deployed() -> conveyor::model::deployed::Deployed {
+    demo_deployed_in(0)
+}
+
+fn demo_deployed_in(tab: usize) -> conveyor::model::deployed::Deployed {
     let config = demo::config(Config::default());
-    let repo = &config.repo[0];
-    let mut source = DeploySource::new(repo.name.clone(), repo.deploy[0].clone());
+    let (repo, deploy) = config.deploys().nth(tab).unwrap();
+    let mut source = DeploySource::new(repo.name.clone(), deploy.clone());
     source.fetch(&Demo, &Demo, SystemTime::now())
 }
 

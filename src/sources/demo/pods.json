@@ -1,96 +1,106 @@
 {
- "dev": {
-  "items": []
- },
- "staging": {
-  "items": [
-   {
-    "metadata": {
-     "name": "api-5b8f7c6d94-hq4zt"
-    },
-    "spec": {
-     "containers": [
-      {
-       "image": "ghcr.io/acme/api:5e2c8b9f1a47d3e06b8f4c2d9a1e7f35c0b6d8a2"
-      }
-     ]
-    },
-    "status": {
-     "phase": "Running",
-     "startTime": "ago:480",
-     "containerStatuses": [
-      {
-       "ready": true,
-       "restartCount": 0,
-       "state": {
-        "running": {}
+ "api": {
+  "dev": {
+   "items": []
+  },
+  "staging": {
+   "items": [
+    {
+     "metadata": {
+      "name": "api-5b8f7c6d94-hq4zt"
+     },
+     "spec": {
+      "containers": [
+       {
+        "image": "ghcr.io/acme/api:5e2c8b9f1a47d3e06b8f4c2d9a1e7f35c0b6d8a2"
        }
-      }
-     ]
-    }
-   },
-   {
-    "metadata": {
-     "name": "api-5b8f7c6d94-m7wvn"
-    },
-    "spec": {
-     "containers": [
-      {
-       "image": "ghcr.io/acme/api:5e2c8b9f1a47d3e06b8f4c2d9a1e7f35c0b6d8a2"
-      }
-     ]
-    },
-    "status": {
-     "phase": "Running",
-     "startTime": "ago:480",
-     "containerStatuses": [
-      {
-       "ready": true,
-       "restartCount": 0,
-       "state": {
-        "running": {}
-       }
-      }
-     ]
-    }
-   },
-   {
-    "metadata": {
-     "name": "api-7d9c6b5f48-x2k9p"
-    },
-    "spec": {
-     "containers": [
-      {
-       "image": "ghcr.io/acme/api:b7e4d2c9a1f08635e9d47c2ab3f61d0e8a95c4f7"
-      }
-     ]
-    },
-    "status": {
-     "phase": "Running",
-     "startTime": "ago:480",
-     "containerStatuses": [
-      {
-       "ready": false,
-       "restartCount": 7,
-       "state": {
-        "waiting": {
-         "reason": "CrashLoopBackOff",
-         "message": "back-off 5m0s restarting failed container=api"
-        }
-       },
-       "lastState": {
-        "terminated": {
-         "exitCode": 137,
-         "reason": "OOMKilled"
+      ]
+     },
+     "status": {
+      "phase": "Running",
+      "startTime": "ago:480",
+      "containerStatuses": [
+       {
+        "ready": true,
+        "restartCount": 0,
+        "state": {
+         "running": {}
         }
        }
-      }
-     ]
+      ]
+     }
+    },
+    {
+     "metadata": {
+      "name": "api-5b8f7c6d94-m7wvn"
+     },
+     "spec": {
+      "containers": [
+       {
+        "image": "ghcr.io/acme/api:5e2c8b9f1a47d3e06b8f4c2d9a1e7f35c0b6d8a2"
+       }
+      ]
+     },
+     "status": {
+      "phase": "Running",
+      "startTime": "ago:480",
+      "containerStatuses": [
+       {
+        "ready": true,
+        "restartCount": 0,
+        "state": {
+         "running": {}
+        }
+       }
+      ]
+     }
+    },
+    {
+     "metadata": {
+      "name": "api-7d9c6b5f48-x2k9p"
+     },
+     "spec": {
+      "containers": [
+       {
+        "image": "ghcr.io/acme/api:b7e4d2c9a1f08635e9d47c2ab3f61d0e8a95c4f7"
+       }
+      ]
+     },
+     "status": {
+      "phase": "Running",
+      "startTime": "ago:480",
+      "containerStatuses": [
+       {
+        "ready": false,
+        "restartCount": 7,
+        "state": {
+         "waiting": {
+          "reason": "CrashLoopBackOff",
+          "message": "back-off 5m0s restarting failed container=api"
+         }
+        },
+        "lastState": {
+         "terminated": {
+          "exitCode": 137,
+          "reason": "OOMKilled"
+         }
+        }
+       }
+      ]
+     }
     }
-   }
-  ]
+   ]
+  },
+  "prod": {
+   "items": []
+  }
  },
- "prod": {
-  "items": []
+ "worker": {
+  "staging": {
+   "items": []
+  },
+  "prod": {
+   "items": []
+  }
  }
 }

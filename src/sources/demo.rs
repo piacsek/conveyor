@@ -54,7 +54,8 @@ impl Demo {
     fn environment(&self, fixture: &str, env: &DeployEnv) -> Result<String, Failure> {
         let answer = self.answer(fixture)?;
         answer
-            .get(&env.name)
+            .get(&env.deployment)
+            .and_then(|deployment| deployment.get(&env.name))
             .map(Value::to_string)
             .ok_or_else(|| Failure::from(EXPIRED.to_string()))
     }

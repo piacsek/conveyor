@@ -30,6 +30,8 @@ Type "j"
 Sleep 2s
 Type "l"
 Sleep 2s
+Tab
+Sleep 2s
 Escape
 Sleep 800ms
 Type "hhh"
