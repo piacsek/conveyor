@@ -203,6 +203,10 @@ fn a_timed_out_status_change_says_what_may_have_happened() {
         Aftermath::Status(&StatusChange::Close).wording(),
         "may be closed"
     );
+    assert_eq!(
+        Aftermath::Status(&StatusChange::Approve).wording(),
+        "may be approved"
+    );
 }
 
 const SHORT: Duration = Duration::from_secs(1);

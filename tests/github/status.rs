@@ -67,6 +67,14 @@ fn status_argv_closes_a_pull_request() {
 }
 
 #[test]
+fn status_argv_approves_a_pull_request_with_gh_pr_review() {
+    assert_eq!(
+        CliGh::status_args("acme/webapp", 42, &StatusChange::Approve),
+        vec!["pr", "review", "42", "-R", "acme/webapp", "--approve"]
+    );
+}
+
+#[test]
 fn status_argv_enqueues_through_the_graphql_mutation_pinned_to_the_head() {
     let change = StatusChange::Enqueue {
         node_id: "PR_kwDOabc".to_string(),

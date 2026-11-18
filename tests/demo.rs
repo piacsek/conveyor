@@ -305,6 +305,13 @@ fn a_demo_status_change_changes_nothing() {
 }
 
 #[test]
+fn a_demo_approve_changes_nothing() {
+    let changed = Demo.change_status("acme/webapp", 4844, &StatusChange::Approve);
+
+    assert_eq!(nothing_changed(changed), "demo: nothing was changed");
+}
+
+#[test]
 fn a_demo_checkout_changes_nothing() {
     let checked_out = Demo.checkout("acme/webapp", 4821, None);
 
