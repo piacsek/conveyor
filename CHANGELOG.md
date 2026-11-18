@@ -1,5 +1,132 @@
 # Changelog
 
+## v0.36.0 (2026-11-18)
+- Main builds shows the same repository tabs as Merge queue, and the tab keys switch both columns from either one.
+- A repository without a merge queue shows a dim `no merge queue` instead of an error, its name is struck through in the Merge queue's tabs, and its builds are one tab away.
+
+## v0.35.4 (2026-11-17)
+- A config with a `refresh_secs` below 5 no longer loads: conveyor starts on the defaults and
+  names the file and the setting. A refresh of every second or so ran out the GitHub rate
+  limit; write 5 or more.
+- A very large `refresh_secs` no longer stops its column refreshing after the first load.
+- A `limit` or a number of `builds` outside 1 to 100 is refused at start, instead of failing in
+  its column or showing a page size nobody asked for.
+- A `details_percent` of 0 or 100 and above, or a `min_column_width` above 16383 is refused at start,
+  instead of hiding the columns or wrapping the width around.
+- A `[[repo]]` name that is not `owner/name`, or an environment with a blank name or
+  deployment, is refused at start instead of failing later in its column. A missing `context`
+  or `namespace` still means kubectl's current ones.
+- Two `[[repo]]` of one name (in any case) on the same branch and workflow are refused at start
+  instead of showing the same tab twice; one repository on two branches still loads. Two
+  environments of one name in a deploy are refused instead of sharing one card's selection
+  and marks.
+- A `[[repo.deploy]]` with no environment, a second `[[repo.deploy]]` on a repository, or a `[[repo.deploy]]` on more than one
+  repository, is refused at start, naming the one conveyor reads, instead of being ignored
+  without a word.
+
+## v0.35.3 (2026-11-17)
+- With several `[[repo]]`, Main builds shows the builds of the repository the Merge queue
+  shows, and switches with it. Every repository's builds refresh in the background on its own
+  `refresh_secs`, and Deployed keeps reading its own repository's builds.
+
+## v0.35.2 (2026-11-17)
+- A pull request title with emoji or Chinese, Japanese or Korean characters now ends inside
+  the confirm dialog instead of being cut at its border, and keeps a card's age in place.
+- A failing check with such a name no longer pushes the next one past the card's edge, and a
+  tab bar of such tab names ends with `…` at the column's edge.
+- A Deployed card whose branch name holds such characters keeps its last one inside the card,
+  and a tab key set to such a character keeps the help's descriptions in line.
+- A single failing check whose name is longer than the card now shows, cut with `…`, instead of
+  leaving the card's checks line empty.
+
+## v0.35.1 (2026-11-17)
+- A column no longer sits on `fetching…` until conveyor restarts when GitHub stops answering: a `gh` call that has not answered within 30 s is stopped, the column shows `gh did not answer within 30s` with its last rows kept, and the next refresh (or `r`) tries again. The failed step's log waits 60 s, since it downloads the whole run's log.
+- An action that has not answered within 60 s (merge, update, a status change, rerun) is stopped too, so later actions of the same kind are no longer stuck behind it. Its card says what may already have happened instead of calling it failed, for example `! may be merged`, the footer adds `no answer in 60s`, the details pane (`d`) tells when conveyor stopped waiting, and conveyor reloads the column as it would after a success. After a merge, an add to the merge queue or enabling auto-merge that timed out, updating the branch and converting to draft wait until My PRs has caught up, as after one that answered.
+
+## v0.35.0 (2026-11-17)
+- Main builds reads the repository's own default branch instead of a branch named `main`, so a repository built on `master`, `develop` or `trunk` fills the column and its Deployed rows tell how far behind they are.
+- A new optional `branch` key under `[[repo]]` picks another branch for Main builds. When the default branch cannot be read, the column shows the error instead of staying empty.
+
+## v0.34.5 (2026-11-17)
+- Two pull requests with the same number in different repositories stay apart in My PRs: a
+  refresh keeps the selection on the one you picked, a write or a failure on one no longer
+  blocks or marks the other, and a merge of one no longer holds the other back.
+- While My PRs lists more than one repository, the `S` popup and the confirm dialog name the
+  repository (`Manage infra#12`, `merge infra#12 <title>?`), with its owner when two share a
+  name (`Manage me/webapp#12`).
+
+## v0.34.4 (2026-11-17)
+- v0.34.4: internal changes only.
+
+## v0.34.3 (2026-11-17)
+- v0.34.3: internal changes only.
+
+## v0.34.2 (2026-11-17)
+- A crash in a background fetch or action no longer leaves the terminal broken (keys echoed, `q` not quitting) or a column, pane or card waiting forever. The crash shows where the result would have, as `crashed: <reason>`: as the column's error, in the jobs or log pane, or as the failure mark on the card. The next refresh or action works again, and the crash is written to the call log (`conveyor log`).
+
+## v0.34.1 (2026-11-17)
+- v0.34.1: internal changes only.
+
+## v0.34.0 (2026-11-17)
+- conveyor no longer needs a Nerd Font: the pull request icon on a My PRs card is now a plain arrow (`↑` open, `→` in the merge queue, `≈` draft), in the same colours, so no card shows a box.
+- To get GitHub's pull request icons back, add `icons = "nerd"` under `[ui]` in your config (needs a Nerd Font as the terminal font).
+
+## v0.33.0 (2026-11-17)
+- `conveyor --demo` shows all four columns filled with made-up `acme/*` pull requests, builds and deployments, so you can try conveyor without `gh`, `kubectl` or a config file. Nothing it shows is real and no action changes anything.
+
+## v0.32.0 (2026-11-17)
+- Install with Nix on Linux or an Apple silicon Mac: `nix --extra-experimental-features 'nix-command flakes' profile install github:piacsek/conveyor/stable` (or try it with `nix --extra-experimental-features 'nix-command flakes' run github:piacsek/conveyor/stable`). The `stable` branch always points at the newest release.
+
+## v0.31.4 (2026-11-17)
+- The help view says that `Esc` dismisses the error a failed action leaves on a card.
+
+## v0.31.3 (2026-11-17)
+- v0.31.3: internal changes only.
+
+## v0.31.2 (2026-11-16)
+- v0.31.2: internal changes only.
+
+## v0.31.1 (2026-11-16)
+- v0.31.1: internal changes only.
+
+## v0.31.0 (2026-11-16)
+- Every My PRs tab loads at start and refreshes on the interval, so a tab is already filled
+  when you switch to it; set `background_tabs = false` under `[prs]` to fetch only the tab shown.
+
+## v0.30.1 (2026-11-15)
+- The screen redraws at the new size as soon as the terminal is resized.
+- Ages, the refresh spinner and the follow-up reload of My PRs keep moving while a key is held.
+
+## v0.30.0 (2026-11-15)
+- Merge queue shows one tab per configured repository, switched with Tab, Shift-Tab or 1-9.
+
+## v0.29.0 (2026-11-15)
+- The column titles can be renamed in a new `[ui.titles]` table (`prs`, `queue`, `builds`, `deployed`), each optional. The new name shows on the column, in the tabs of a narrow terminal and in the `?` help, followed by the repository or system when one is configured.
+
+## v0.28.0 (2026-11-15)
+- My PRs can hold several tabs, each a named search set with `[[prs.tab]]`, shown as a bar at the top of the column.
+- `Tab` and `Shift-Tab` switch the My PRs tabs and `1` to `9` pick one; `h` and `l` move between columns. The tab keys can be changed in `[ui.keys]`.
+
+## v0.27.0 (2026-11-13)
+- A pull request number on a card is a link: in a terminal that supports hyperlinks, hover it and click (Cmd-click in iTerm2) to open the pull request in the browser. Works in all four columns.
+
+## v0.26.1 (2026-11-13)
+- v0.26.1: internal changes only.
+
+## v0.26.0 (2026-11-12)
+- A failed action (merge, update, status change, checkout or rerun) leaves a red `! <action> failed: <reason>` line under the title of the card it was started from, so a later result can no longer wipe it from the footer before you read it. An update that hit conflicts and a rerun where any run failed count as failures.
+- `d` on a marked card starts with the whole reason and the time it landed.
+- The column title counts the marked cards (`My PRs (5) !1`), in the tabs of a narrow terminal too.
+- A mark goes away when you start a new action on that card, press `Esc` with the card selected (after the details pane and zoom, before the filter), or when the card leaves its column.
+
+## v0.25.0 (2026-11-12)
+- `S` works on another pull request while an action on the first one is still running; only the pull request with an action on its way refuses it.
+- A pull request card with an action on its way shows a spinner in place of its check mark and names the action (`marking ready…`, `merging…`) on its second line until the result lands.
+
+## v0.24.2 (2026-11-12)
+- Main builds appears much sooner on the first load: the pull requests of all its runs are asked for in one request instead of one request per run (about 4 s instead of 27 s for 30 builds).
+- The Deployed column asks for the pull requests of all its environments in one request as well.
+
 ## v0.24.1 (2026-11-11)
 - In the `S` popup of My PRs the close action reads `x  close PR` instead of `x  close`.
 
