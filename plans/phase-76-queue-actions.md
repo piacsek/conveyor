@@ -130,4 +130,25 @@ each case; the report of the phase lists them for the owner.
 
 ## Outcome
 
+- `S` on a Merge queue row offers `e  remove from the merge queue` and `i  move to the front`,
+  both behind a `y` confirm and `reconfirm` by subject; the jump dialog says the merge groups
+  behind it are rebuilt. The jump is `enqueuePullRequest` with `jump: true` and the head as
+  `expectedHeadOid` (`StatusChange::Enqueue { jump }`), one mutation, no dequeue first.
+- `i`, not `j`: `j` is a Normal-mode key.
+- The queue query reads `pullRequest { id headRefOid }`; a missing one dims both offers with
+  `GitHub sent no id for #N`. `Locked` dims both with `#N is being merged`; position 1 and a set
+  `jump` dim `i` with `already at the front` and `already jumping the queue`.
+- A write names its tab: the refresh after a queue write, its card's spinner word and its
+  failure mark land in the tab it was sent from, tested with a tab switch.
+- A queue card shows the write in flight and the failure mark, like a My PRs card.
+- Not verified: whether GitHub moves an entry already queued to the front or refuses it (task 4,
+  no write sent). A refusal lands as the card's failure mark with GitHub's reason.
+- `ui::help::KEYS` and the README are unchanged: "status" in the `S` line covers both offers.
+  `docs/details.png` is unchanged (the main view did not change); `docs/queue-actions.png` shows
+  the popup.
+
 ## Hurdles
+
+- `test-seam` popup and card lines are cut at the column width, so the first assertions on the full failure wording failed on truncation and were shortened → none
+- `tooling` a scripted text replace added `jump: false` to `EnableAutoMerge` constructors too, caught by the compiler and redone as exact single-occurrence edits → none
+- `api-shape` whether GitHub jumps an entry already in the queue cannot be read from its docs and was not tried, since no real write may be sent → backlog
