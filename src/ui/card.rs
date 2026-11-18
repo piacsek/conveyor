@@ -2,7 +2,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
 use crate::text::{display_width, pad_right, truncate};
-use crate::ui::style::{BAR, INDENT, dim};
+use crate::ui::style::{ACCENT, BAR, INDENT, dim};
 
 pub(crate) fn card(
     selected: bool,
@@ -22,7 +22,7 @@ pub(crate) fn card(
     };
     let bar = || {
         if selected {
-            Span::styled(BAR, Style::default().fg(Color::Cyan))
+            Span::styled(BAR, Style::default().fg(ACCENT))
         } else {
             Span::raw(" ")
         }
