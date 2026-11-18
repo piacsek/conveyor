@@ -91,19 +91,12 @@ fn keys_act_on_the_focused_queue_column() {
 fn a_failed_queue_fetch_flags_the_column_and_shows_the_message() {
     let mut h = Harness::new();
 
-    h.run(vec![failed(
-        Stage::Queue,
-        "no merge queue on this repository",
-    )])
-    .unwrap();
+    h.run(vec![failed(Stage::Queue, "API rate limit exceeded")])
+        .unwrap();
 
     let col = column(&h.screen(), 1);
     assert!(col[0].contains("Merge queue ⚠"), "{}", h.screen());
-    assert!(
-        col[1].contains("no merge queue on this repository"),
-        "{}",
-        h.screen()
-    );
+    assert!(col[1].contains("API rate limit exceeded"), "{}", h.screen());
 }
 
 #[test]

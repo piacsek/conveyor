@@ -13,13 +13,13 @@ use crate::ui::style::dim;
 
 type Pull = Option<(u64, String)>;
 
-fn titled<T: Row>(base: &str, column: &Column<T>, marks: usize) -> String {
+fn titled<T: Row>(base: &str, column: &Column<T>, marks: usize, counted: bool) -> String {
     let marks = match marks {
         0 => String::new(),
         marks => format!(" !{marks}"),
     };
     let warning = if column.error.is_some() { " ⚠" } else { "" };
-    if column.is_loading() {
+    if column.is_loading() || !counted {
         format!("{base}{marks}{warning}")
     } else if column.filter.is_some() {
         format!(
@@ -39,11 +39,13 @@ pub(crate) fn column_title(app: &App, stage: Stage) -> String {
             column_name(stage, &app.config.ui.titles),
             app.prs.column(),
             marks,
+            true,
         ),
         Stage::Queue => titled(
             &named(app, stage, "Queue", app.queue.repo().map(short_repo)),
             app.queue.column(),
             marks,
+            !app.queue.absent(),
         ),
         Stage::Builds => titled(
             &named(
@@ -54,11 +56,13 @@ pub(crate) fn column_title(app: &App, stage: Stage) -> String {
             ),
             &app.builds.active().column,
             marks,
+            true,
         ),
         Stage::Deployed => titled(
             &named(app, stage, "Deployed", app.deployed.system.as_deref()),
             &app.deployed.column,
             marks,
+            true,
         ),
     }
 }
@@ -144,6 +148,10 @@ pub(crate) fn draw_column(
                 },
             )
         }
+        Stage::Queue if app.queue.absent() => frame.render_widget(
+            Paragraph::new(Span::styled("no merge queue", dim())).block(block),
+            area,
+        ),
         Stage::Queue => draw_list(
             frame,
             app.queue.column_mut(),

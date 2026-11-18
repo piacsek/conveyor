@@ -42,9 +42,16 @@ fn an_empty_queue_parses_to_no_entries() {
 }
 
 #[test]
-fn a_repository_without_a_merge_queue_is_an_error_naming_it() {
-    let err = parse(&fixture(r#"{"data":{"repository":{"mergeQueue":null}}}"#)).unwrap_err();
-    assert!(err.contains("no merge queue"), "{err}");
+fn a_repository_without_a_merge_queue_parses_to_an_absent_queue() {
+    let queue = parse(&fixture(include_str!("fixtures/queue-none.json"))).unwrap();
+    assert!(queue.absent);
+    assert!(queue.entries.is_empty());
+}
+
+#[test]
+fn a_queue_with_no_entries_is_not_absent() {
+    let queue = parse(&fixture(include_str!("fixtures/queue-empty.json"))).unwrap();
+    assert!(!queue.absent);
 }
 
 #[test]
