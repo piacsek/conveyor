@@ -65,10 +65,10 @@ per application of the monorepo, switched independently of the queue".
   itself, so a result lands in the tab it was fetched for whatever is shown. `keep_last_known`
   runs against the rows of that tab. A switch clears the filter of the tab left and the tab
   shown with `clear_filter`.
-- **Context.** `deploy_builds` takes the shown tab's repository and returns the first builds tab
-  of that name (case ignored), so "behind main", the build link and the commit link follow the
-  shown system. A deploy whose repository has several `[[repo]]` entries (one per branch) reads
-  the first, as today.
+- **Context.** `deploy_builds` reads the builds tab of the `[[repo]]` entry that holds the shown
+  tab's deploy, so "behind main", the build link and the commit link follow the shown system. A
+  repository listed twice (one entry per branch) reads the builds of the entry the deploy sits
+  on, as today (the code read the first entry with a deploy, not the first entry of that name).
 - **UI.** The Deployed title draws the tab names the way Main builds does, the active one
   marked; one tab draws exactly today's title. The help view already words the tab keys per
   column. `README.md`: the `[[repo.deploy]]` comment loses "on one `[[repo]]` at most".
