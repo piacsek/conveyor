@@ -1,8 +1,10 @@
 # AGENTS.md
 
 Notes for agents and humans working on `conveyor`. Keep this file short and
-factual; verify against the code before treating anything here as live state. A rule carries
-its reason in at most one sentence; its history goes to the phase's plan file under `plans/`.
+factual; verify against the code before treating anything here as live state. In every
+`AGENTS.md`, a rule written from now on carries its reason in at most one sentence and its
+history goes to the phase's plan file under `plans/`; longer paragraphs already there are not
+violations to fix in passing.
 
 ## What this is
 
@@ -45,8 +47,9 @@ name) it was in and names its commit. `tests/scripts/scrub_check.rs` pins each c
 ## Layout
 
 A map, not an inventory: what each file holds is in the code, and each directory's rules are in
-its `AGENTS.md`. `tests/layout.rs` fails while any path named here (a word holding a `/` or ending in a file
-extension) does not exist.
+its `AGENTS.md`. `tests/layout.rs` fails while a path named in the map below does not exist; it
+recognises a word holding a `/` or ending in `.rs`, `.sh`, `.md`, `.toml`, `.lock`, `.nix`,
+`.json` or `.yml`, and checks nothing in the prose or of any other shape.
 
 ```
 src/main.rs        CLI dispatch, config load, wiring
@@ -231,9 +234,10 @@ nearest the code the guideline is about.
     measured or estimated with its source; what nobody can read is `unknown`, never a guess. A
     sub-agent's completion notice carries `subagent_tokens`, its running total so far (whether
     cached input counts like fresh input is not known), which the orchestrator copies from that
-    agent's last notice; the Codex reviewer and the orchestrator's own session report none from
-    the inside. A builder's counter can restart between notices: list its figures in the order
-    seen and mark the restart, never sum them or present them as one running total.
+    agent's last notice; when the agent ran again after a hand-back (a builder fixing a round),
+    the counter may have restarted, so the orchestrator copies the last notice of each run, in
+    order, marks a restart it knows of, and never sums them or presents them as one running
+    total. The Codex reviewer and the orchestrator's own session report none from the inside.
   - After the merge: a branch cannot record its own ready, merge or release, so its row leaves
     those cells empty, the report of step 6 gives them, and the first ship of the next phase
     writes them into every row still missing them. Both read them from GitHub (`gh api
@@ -250,8 +254,8 @@ nearest the code the guideline is about.
   time. `conveyor-dev` points at the worktree that last ran `dev-install.sh`, so re-run it in the
   worktree you are testing. Remove the worktree (`git worktree remove`) once its PR is merged.
   Agents that share a scratch directory put their branch in the name of every file they write
-  there (a log, a PR body), and wait on their own ship by its process or log, never by a
-  `pgrep -f scripts/ship.sh` that matches other worktrees.
+  there (a log, a PR body). Wait on your own ship by its process or its log, never by a
+  `pgrep -f scripts/ship.sh`, which matches the ships of every other worktree too.
 - **TDD is never skipped.** Every change to `src/` starts with a failing test, run and seen
   red, before the production code is touched; then the smallest change that goes green, then
   refactor. This holds for one-line fixes, security patches, patch releases and "obvious"
@@ -342,7 +346,8 @@ Dead code is strictly forbidden. An item nothing calls is deleted in the same ch
 orphans it, never kept "for later". A `pub` item that only tests call is a test seam and must
 be on the `SEAMS` list in `tests/dead_code.rs`. `#[allow(dead_code)]` appears nowhere except
 `tests/support/mod.rs`, where each test binary uses only some of the helpers. A `pub fn` of
-`tests/support/mod.rs` that no test uses fails `tests/dead_code.rs` too.
+`tests/support/mod.rs` that no test uses fails `tests/dead_code.rs` too, and so does a seam on
+the `SEAMS` list that is no longer declared or no longer used by a test.
 
 No Rust file under `src/` or `tests/` is longer than 700 lines (`tests/source_size.rs`). A test
 file that outgrows the limit becomes a folder (`tests/<name>/main.rs` plus one file per topic),

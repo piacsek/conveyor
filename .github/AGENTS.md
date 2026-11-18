@@ -218,7 +218,7 @@ pipeline went from ~3 min 20 s to 37 s:
   `grep -m1 '^version = '` line, and with `cargo metadata` (the runner image's `stable`, not
   the pinned toolchain) when cargo is on `PATH`, before the tag exists). The
   decisions live in `scripts/release-tag.sh` (resume an unfinished tag, else tag what is
-  pending, else nothing) with its tests in `tests/scripts/release_tag.rs`; the YAML only wires
+  pending, else nothing; it refuses to run outside GitHub Actions) with its tests in `tests/scripts/release_tag.rs`; the YAML only wires
   jobs. The `tag` job is the only one besides `publish` with `contents: write`, which it uses to
   push one tag with the job's own token; a push made with that token starts no workflow, so
   the build and publish jobs run in the same run, from the tag. Both first run
@@ -238,7 +238,8 @@ pipeline went from ~3 min 20 s to 37 s:
 - **The `tap` job of `release.yml` reconciles, it does not replay.** It runs in every release
   run that is not cancelled (`if: !cancelled() && github.repository == 'piacsek/conveyor'`),
   built or not, and `scripts/formula-version.sh` decides: the newest published release holding
-  the six assets, written only when the formula names an older version. Concurrency alone
+  the six assets, written only when the formula names an older version, so it never answers a
+  version below the formula's. Concurrency alone
   could not keep the formula from going back (a rerun of an old `tap` after a newer release),
   nor repair a run cancelled between `publish` and `tap`. It still runs one at a time
   (`concurrency: tap`, `cancel-in-progress: false`), so two writes never race.
@@ -248,7 +249,8 @@ pipeline went from ~3 min 20 s to 37 s:
   token. `stable-build` (`contents: read`) runs after `publish` in every run that is not
   cancelled (`needs: [tag, publish]`, `if: !cancelled()`): `scripts/stable-version.sh` picks
   the newest published `complete` release above the version in `Cargo.toml` on `stable` (a 404
-  means no `stable` yet), nothing otherwise; only then does it check out that tag without
+  means no `stable` yet), nothing otherwise, so it never answers a version below the one
+  `stable` holds; only then does it check out that tag without
   keeping a credential, install Nix, `nix build` it and refuse unless
   `./result/bin/conveyor --version` prints `conveyor <version>`. Its `version` output is set
   by that build step, so it is empty unless the build passed. `stable` (`contents: write`, no

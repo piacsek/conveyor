@@ -62,7 +62,7 @@ this phase. "Root" means root `AGENTS.md`; a section name follows.
 
 | # | Rule (before) | After |
 | --- | --- | --- |
-| 1 | Keep this file short and factual; verify against the code before treating it as live state | Root, opening (changed: the base sentence kept word for word, plus a rule's reason in at most one sentence and its history in the phase's plan file) |
+| 1 | Keep this file short and factual; verify against the code before treating it as live state | Root, opening (changed: the base sentence kept word for word, plus, for every `AGENTS.md` and for what is written from now on, a rule's reason in at most one sentence and its history in the phase's plan file) |
 | 2 | No employer data: org or repo names, PR numbers or titles, logins, hostnames, cluster or kube-context names, ticket prefixes | Root, This repository is public |
 | 3 | Fixtures from this repo's own public PRs; screenshots and TUI tests use `acme/*`; plans and docs use `<owner>/<repo>` | Root, This repository is public |
 | 4 | Do not screenshot real data (was in Documentation rule) | Root, This repository is public |
@@ -141,6 +141,9 @@ this phase. "Root" means root `AGENTS.md`; a section name follows.
 | 77 | Install: `dev-install.sh`; a milestone is done only after the gates and `ship.sh` ran or explained skipping `dev-install.sh` | Root, Development |
 | 78 | When `ship.sh` skips the install; the list is `scripts/feeds-binary.sh`; embedding a listed file means taking it off the list | Root, Development (the path list: the script; timings: History below) |
 | 79 | Releasing: the whole section | Root, Releasing (unchanged) |
+| 80 | `scripts/release-tag.sh` refuses to run outside GitHub Actions | `.github/AGENTS.md`, the release run (was in the root Layout) |
+| 81 | `tests/dead_code.rs` also fails on a seam on its list that is no longer declared or used by a test | Root, Development (was in the root Layout) |
+| 82 | `formula-version.sh` never answers a version below the formula's; `stable-version.sh` never one below the version `stable` holds | `.github/AGENTS.md`, the tap and `stable` bullets (was in the root Layout) |
 
 ### Scope at base and now
 
@@ -244,4 +247,32 @@ phase 40 to 68, and `plans/metrics.md`.
   to 170k per hand-back. Declined: nothing to act on. The Codex reviewer and the orchestrator
   are `unknown` in every row, which no tool here can read.
 
+### Phase
+
+- Root `AGENTS.md` went from 583 lines (50,159 bytes) to the rules: what moved where is the
+  rule inventory above, 82 rows, each with its section after the phase; no row was dropped.
+- Facts that only restate a directory moved to its `AGENTS.md` (`src/ui/AGENTS.md` gained
+  `## Screenshots`, `tests/AGENTS.md` the script-test shims and the skipped target); history
+  moved to this file. `.github/AGENTS.md` took three release facts back from the old Layout.
+- The Layout stays a map and `tests/layout.rs` checks it: every word of the map holding a `/`
+  or ending in `.rs .sh .md .toml .lock .nix .json .yml` must exist. Prose, `LICENSE`,
+  `.gitignore` and `.py` paths are not checked.
+- One opening sentence binds every `AGENTS.md` from now on: a new rule gives its reason in at
+  most one sentence, its history goes to `plans/`. The existing long paragraphs of the other
+  files are left for the backlog item that trims them.
+- Every section name another file links to or names stayed: the `CONTRIBUTING.md` anchors,
+  "Releasing", "The sweep", "Hurdles", "Time and tokens", "This repository is public",
+  "Known limits", "Review before ready".
+- The metrics rows of phases 64, 66, 67 and 68 got their ready, merged and released cells from
+  GitHub; row 66 lists its builder figures in order instead of a sum.
+- The sweep skill says a lasting decline may belong in "Known limits", while root `AGENTS.md`
+  admits only a declined review finding there; left as found, on the backlog.
+- Three review rounds; the minor findings of the clean round were fixed after it and checked by
+  the orchestrator against the diff.
+
 ## Hurdles
+
+- `design` The first trim added a section on who follows which rule, which changed who the review, shipping and release rules bind (round 1) → code
+- `review-loop` Rewording widened or narrowed a rule's scope twice (round 2: the Known limits admission and the stage dispatch scope, one of them asked for in the round before); each was restored, and nothing but review guards the next rewording → none
+- `test-seam` The layout test and the sentence describing it claimed more than it checked: first words only (round 1), then a description wider than the shapes it recognises (round 3) → code
+- `process` The first sweep read only phases 58 onwards instead of every phase since 40 → code
