@@ -224,7 +224,9 @@ nearest the code the guideline is about.
   and the sweep phase's own `## Hurdles` with it. A multiple of 5 that a sweep already read past
   gets no phase, and its `PLAN.md` row says which sweep covered it.
   `scripts/sweep-report.sh [<first phase>]` gathers the data (hurdles counted and grouped by tag,
-  every `→ none`, the metrics rows and their empty cells, from the phase after the last sweep);
+  every `→ none`, the metrics rows and their empty cells). With no argument it starts at the
+  phase after the last sweep phase's number, not at B + 1, so until #145 lands a sweep passes
+  B + 1 as `<first phase>`;
   the `sweep` workflow opens an issue "Sweep due before phase N" with that report once phase N−1
   is on `main`. The report only counts: telling that two hurdles are the same problem, and what
   becomes of each, is the sweep's judgment, which the `sweep` skill (`/sweep`) walks through.

@@ -30,8 +30,10 @@ two sweeps. There is no phase 65: phase 68's plan reserved it, but it was never 
   aged and a rerun's follow-up sent for the shown tab, `set_filter(None)` moving the selection
   (66 four times, 69 once; 61 left a merge result in the backlog). The My PRs rule that every
   result carries its tab did not reach the other stages → rule in `src/app/AGENTS.md`
-  ("Anything that belongs to a tab names it") and backlog: the one-tab `StageView` defaults
-  become required and `set_filter` never takes `None`.
+  ("Anything that belongs to a tab names it", for new and changed code; the shared caches are
+  keyed by id; the follow-up refresh of a merge, update or status change still asks for the
+  active tab, written as the exception) and backlog: the one-tab `StageView` defaults become
+  required, `set_filter` never takes `None`, and those follow-ups name their tab.
 - Owner decisions held up the review loop: the `refresh_secs` floor waited about 3 hours in 68,
   and 69's "dim tab" could not be seen, since inactive tabs are dim already (68, 69) → rule in
   root `AGENTS.md` ("Plan before code": ask while planning, each option checked against the
@@ -67,11 +69,13 @@ two sweeps. There is no phase 65: phase 68's plan reserved it, but it was never 
 - Single hurdles (60: a rewording widened a rule's scope; 61: a review asked for a known limit
   that cannot happen; 62: the text guard hook blocked a grep for em dashes) → declined: seen
   once each.
-- Metrics: review rounds (58: 4, 59: 4, 60: 3, 61: 2, 62: 3, 63: 1, 64: 2, 66: 2, 67: 1, 68: 4,
-  69: 2), Claude reviewer tokens (102k to 154k a round) and builder tokens (113k to 170k a
-  hand-back) show no drift. Start to draft PR is 7 to 12 minutes in every row; start to the
-  clean review without owner waits is 28 to 66 minutes; merge to release about 2 minutes except
-  62 (a runner failure) and 66.
+- Metrics, phases 61 to 69 unless named: review rounds (61: 2, 62: 3, 63: 1, 64: 2, 66: 2,
+  67: 1, 68: 4, 69: 2; 58 and 59 had 4, 60 had 3), Claude reviewer tokens 102,103 (67) to
+  148,612 (61) a round (58 to 60: 75,661 in 59 to 154,312 in 60) and builder tokens 101,213
+  (61) to 169,131 (64) a hand-back show no drift. Start to draft PR is 7 to 12 minutes in every
+  row of 61 to 69 (69 from the build's start); start to the clean review is 28 to 66 minutes in
+  61 to 67 and 69 (69 from the build's start), and in 68 about 2h08m once its 3h07m wait on the
+  owner is taken out; merge to release about 2 minutes except 62 (a runner failure) and 66.
 
 ### Phase
 

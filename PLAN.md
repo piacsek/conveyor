@@ -113,4 +113,6 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
   may belong there, root `AGENTS.md` admits only a declined review finding (phase 60).
 - The `StageView` defaults that assume one tab (`active_tab` 0, a no-op `select_tab`, `runs_in`
   returning the shown runs) become required methods, so a stage that gains tabs cannot inherit
-  them, and `set_filter` takes a filter, never `None` (sweep of phase 70: phases 66 and 69).
+  them, `set_filter` takes a filter, never `None`, and the follow-up refresh of a merge, update
+  or status change (and the `follow_up_prs` timer) asks for the tab the write was made in, not
+  the one active when it lands (sweep of phase 70: phases 66 and 69).
