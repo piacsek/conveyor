@@ -481,3 +481,29 @@ fn a_missing_merge_queue_flag_means_no_merge_queue() {
     let pr = one(r#"{"number": 7}"#);
     assert!(!pr.merge_queue_enabled);
 }
+
+#[test]
+fn whether_the_viewer_opened_the_pull_request_is_read() {
+    let pr = one(r#"{"number": 7, "viewerDidAuthor": true}"#);
+    assert!(pr.viewer_did_author);
+    assert!(conveyor::sources::fetch::PRS_QUERY.contains("viewerDidAuthor"));
+}
+
+#[test]
+fn the_commit_the_viewer_last_approved_is_read() {
+    let pr = one(
+        r#"{"number": 7, "viewerLatestReview": {"state": "APPROVED", "commit": {"oid": "8c1f2a7d"}}}"#,
+    );
+    assert_eq!(pr.viewer_approved_oid.as_deref(), Some("8c1f2a7d"));
+    assert!(
+        conveyor::sources::fetch::PRS_QUERY.contains("viewerLatestReview { state commit { oid } }")
+    );
+}
+
+#[test]
+fn a_latest_review_that_is_not_an_approval_leaves_no_approved_commit() {
+    let pr = one(
+        r#"{"number": 7, "viewerLatestReview": {"state": "CHANGES_REQUESTED", "commit": {"oid": "8c1f2a7d"}}}"#,
+    );
+    assert_eq!(pr.viewer_approved_oid, None);
+}
