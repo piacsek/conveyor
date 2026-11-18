@@ -202,6 +202,16 @@ impl PrsStage {
         } else {
             offer('m', "merge", self.merge_target(context).map(Choice::Merge))
         };
+        let approve = if pr.viewer_did_author {
+            Err(format!("you opened #{}", pr.number))
+        } else if pr.viewer_approved_oid.as_deref() == Some(pr.head_oid.as_str()) {
+            Err(format!("you already approved #{}", pr.number))
+        } else {
+            status(StatusChange::Approve {
+                node_id: pr.node_id.clone(),
+                head_oid: pr.head_oid.clone(),
+            })
+        };
         vec![
             merge,
             offer('u', update, self.update_target(context).map(Choice::Update)),
@@ -215,6 +225,7 @@ impl PrsStage {
                 Ok(Choice::Checkout(checkout_target(pr, context))),
             ),
             offer('x', "close PR", status(StatusChange::Close)),
+            offer('v', "approve", approve),
         ]
     }
 

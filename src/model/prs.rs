@@ -90,6 +90,10 @@ pub enum StatusChange {
         head_oid: String,
     },
     Close,
+    Approve {
+        node_id: String,
+        head_oid: String,
+    },
 }
 
 impl StatusChange {
@@ -155,6 +159,8 @@ pub struct PullRequest {
     pub can_enable_auto_merge: bool,
     pub can_disable_auto_merge: bool,
     pub merge_queue_enabled: bool,
+    pub viewer_did_author: bool,
+    pub viewer_approved_oid: Option<String>,
 }
 
 impl PullRequest {
@@ -241,6 +247,13 @@ fn parse_pull_request(node: &serde_json::Value) -> Option<PullRequest> {
         can_enable_auto_merge: flag(node, "viewerCanEnableAutoMerge"),
         can_disable_auto_merge: flag(node, "viewerCanDisableAutoMerge"),
         merge_queue_enabled: flag(node, "isMergeQueueEnabled"),
+        viewer_did_author: flag(node, "viewerDidAuthor"),
+        viewer_approved_oid: node
+            .get("viewerLatestReview")
+            .filter(|review| review.get("state").and_then(|v| v.as_str()) == Some("APPROVED"))
+            .and_then(|review| review.pointer("/commit/oid"))
+            .and_then(|v| v.as_str())
+            .map(str::to_string),
     })
 }
 

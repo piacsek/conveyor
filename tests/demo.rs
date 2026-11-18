@@ -68,6 +68,26 @@ fn the_demo_review_tab_holds_other_pull_requests_than_mine() {
 }
 
 #[test]
+fn the_demo_mine_tab_holds_pull_requests_the_viewer_opened() {
+    let config = demo::config(Config::default());
+
+    let mine = fetch_prs(&Demo, &config, 0).unwrap();
+
+    assert!(mine[0].viewer_did_author);
+    assert!(mine[4].viewer_did_author);
+}
+
+#[test]
+fn the_demo_review_tab_holds_pull_requests_the_viewer_can_approve() {
+    let config = demo::config(Config::default());
+
+    let review = fetch_prs(&Demo, &config, 1).unwrap();
+
+    assert!(!review[0].viewer_did_author);
+    assert_eq!(review[0].viewer_approved_oid, None);
+}
+
+#[test]
 fn the_demo_keeps_the_users_ui_settings() {
     let user = Config {
         ui: Ui {
@@ -300,6 +320,18 @@ fn a_demo_branch_update_changes_nothing() {
 #[test]
 fn a_demo_status_change_changes_nothing() {
     let changed = Demo.change_status("acme/webapp", 4790, &StatusChange::Ready);
+
+    assert_eq!(nothing_changed(changed), "demo: nothing was changed");
+}
+
+#[test]
+fn a_demo_approve_changes_nothing() {
+    let approve = StatusChange::Approve {
+        node_id: "PR_kwacme4844".to_string(),
+        head_oid: "8c1f2a7d".to_string(),
+    };
+
+    let changed = Demo.change_status("acme/webapp", 4844, &approve);
 
     assert_eq!(nothing_changed(changed), "demo: nothing was changed");
 }

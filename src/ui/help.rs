@@ -19,7 +19,10 @@ pub const KEYS: [(&str, &str); 15] = [
     ("y/Y", "copy pull request / build URL"),
     ("d C-d/C-u", "details / scroll them"),
     ("L", "log of the failed step"),
-    ("S", "manage: merge, update, rerun, status, checkout"),
+    (
+        "S",
+        "manage: merge, update, rerun, status, approve, checkout",
+    ),
     ("z", "zoom the column"),
     (
         "Esc",

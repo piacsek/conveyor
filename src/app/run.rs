@@ -63,7 +63,10 @@ where
             Input::StatusChanged(target, result) => {
                 if app.receive_status(&target, &result) {
                     request(app.refresh_request(Stage::Prs));
-                    if target.change != StatusChange::Ready {
+                    if !matches!(
+                        target.change,
+                        StatusChange::Ready | StatusChange::Approve { .. }
+                    ) {
                         request(app.refresh_request(Stage::Queue));
                     }
                     app.follow_up_prs();

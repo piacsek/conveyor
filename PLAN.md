@@ -74,6 +74,7 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 68 | [a config value that would break conveyor or be ignored is refused at load (#122)](plans/phase-68-config-values.md) | v0.35.4 |
 | 69 | [Merge queue and Main builds share one row of repository tabs (#138)](plans/phase-69-repo-tabs.md) | |
 | 71 | [each repository merges with its own merge method (#112)](plans/phase-71-repo-merge-method.md) | |
+| 72 | [approve a pull request from the `S` popup (#113)](plans/phase-72-approve.md) | |
 | 73 | [the README shows conveyor moving: a recording below the screenshot (#97)](plans/phase-73-readme-demo.md) | none |
 
 ## Backlog (discussed at the sweeps and retros)
@@ -81,7 +82,7 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 - `argocd-git` and `github-deployments` fetchers; `argocd` CLI fetcher.
 - The Merge queue refreshes every tab on the first `[[repo]]`'s `refresh_secs`
   (`spawn_queue_fetcher` takes one interval); Main builds already follows each repository's.
-- More `S` actions: `gh pr review --approve` (#113); reopen if the query ever lists closed pull requests.
+- More `S` actions: reopen if the query ever lists closed pull requests.
 - Merge follow-ups from the phase 20 review: `merge_method` per `[[repo]]` (#112) (one global value cannot
   serve a squash-only and a merge-commit-only repo at once); a write result that lands while the other prompt is open is
   hidden by that prompt (the failure half is done in phase 39: a failure stays on its card; a

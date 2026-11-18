@@ -9,6 +9,8 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   advanced type supports them, dedupes server-side and still accepts plain queries. Useful fields:
   `number title isDraft reviewDecision mergeStateStatus statusCheckRollup{state contexts}`
   `mergeQueueEntry{position state} updatedAt url headRefName repository{nameWithOwner}`.
+  `viewerDidAuthor` and `viewerLatestReview{state commit{oid}}` decide the `v` approve offer;
+  `id` and `headRefOid` pin the approval it sends.
   `contexts` is a union of `CheckRun` (`name status conclusion detailsUrl`) and
   `StatusContext` (`context state targetUrl`). `mergeStateStatus` is often `UNKNOWN`
   (GitHub computes it lazily): show it as `—`, never as an error.
@@ -194,7 +196,8 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
 - **The fixture tells one story.** My PRs are `me`'s and still open, so none of them is a
   Main build; the one queued (`#4827`) sits at the same position in `queue.json`, and each
   merge-group run's `pr-<N>-` branch names its entry. The failing check of `#4821` carries a
-  finished failing suite with a run id, so `S` offers `f`. A run's jobs sit inside its times
+  finished failing suite with a run id, so `S` offers `f`. The mine tab is all `viewerDidAuthor: true`, so `v` is dim
+  there; the review tab is someone else's, so `S` offers `v`. A run's jobs sit inside its times
   and its failed log names that run's own failure. `tests/demo.rs` holds these
   agreements; a fixture change that breaks one fails there.
 - **`Kube` answers per environment name** from `deployments.json` and `pods.json`; any other
