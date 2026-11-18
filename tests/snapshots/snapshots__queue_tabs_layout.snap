@@ -1,8 +1,9 @@
 ---
 source: tests/snapshots.rs
+assertion_line: 91
 expression: versionless(h.screen())
 ---
-┌My PRs────────────────────────────────┐┌Queue infra (1)───────────────────────┐┌Main builds───────────────────────────┐┌Deployed──────────────────────────────┐
+┌My PRs────────────────────────────────┐┌Queue infra (1)───────────────────────┐┌Main infra────────────────────────────┐┌Deployed──────────────────────────────┐
 │fetching…                             ││monorepo │ infra                      ││monorepo │ infra                      ││no [[repo.deploy]] configured         │
 │                                      ││▌ ○ #4830 Add rate limit heade… queued││fetching…                             ││                                      │
 │                                      ││▌   carol · position 2 · enqueued 20m…││                                      ││                                      │

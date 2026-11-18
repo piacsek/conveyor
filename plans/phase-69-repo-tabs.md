@@ -136,4 +136,29 @@ Each is one red-green-refactor cycle, outside-in from `run()` with scripted inpu
 
 ## Outcome
 
+- Shipped as #140. Merge queue and Main builds draw the same repository bar, and the tab keys
+  switch both from either column (`Stage::tab_group`); a switch refreshes the queue's new tab,
+  then the builds', through `Action::RefreshEach`, which replaced `Action::RefreshAll`.
+  `BuildsStage::follow` was deleted in task 2, not task 3, since nothing called it any more.
+- `mergeQueue: null` parses to `Queue { absent: true }`; the queue column reads a dim
+  `no merge queue` with no count, and the demo's `acme/docs` shows it (`docs/no-queue.png`).
+- Owner's decisions of 2026-11-18, taken during review round 1: a repository without a queue is
+  struck through in the queue's bar, active or not (the issue's "dim tab" could not be seen,
+  since inactive tabs are dim already), and a failed call after "no queue" keeps
+  `no merge queue`, adds `⚠` and shows the error in the footer, like every loaded column.
+- A switch clears every column's filter with `Listing::clear_filter`, so each column keeps its
+  selected row, the columns the switch does not move included.
+- Before a tab's first answer both titles name its configured repository (`Queue monorepo`,
+  `Main monorepo`), so the paired columns agree from the first paint.
+- Tasks 4 and 6 had no red run: tasks 2 and 5 had already made their tests pass, so they shipped
+  as pins.
+- The screenshot pipeline draws neither reversed nor struck-through text, so
+  `docs/no-queue.png` shows `no merge queue` but not the strike.
+
 ## Hurdles
+
+- `design` The owner's "dim the tab" decision could not be seen on screen, since inactive tabs are already dim; found in review and re-decided as strikethrough → code
+- `design` The states table's "column error" row for a failed call after "no queue" disagreed with how every loaded column treats a failure → code
+- `review-loop` `set_filter(None)` on a tab switch lost the selected row of the columns the switch did not move, where `clear_filter` keeps it → code
+- `test-seam` A round-trip test filtered to the build that was already first, so a selection reset to zero would have passed → code
+- `tooling` The screenshot pipeline draws neither reversed nor struck-through text, so the bar's marks cannot show in `docs/` → none

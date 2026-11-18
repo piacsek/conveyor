@@ -42,7 +42,12 @@ pub(crate) fn column_title(app: &App, stage: Stage) -> String {
             true,
         ),
         Stage::Queue => titled(
-            &named(app, stage, "Queue", queue_repo(app)),
+            &named(
+                app,
+                stage,
+                "Queue",
+                app.queue.repo().map(short_repo).or(tab_name(&app.queue)),
+            ),
             app.queue.column(),
             marks,
             !app.queue.absent(),
@@ -52,7 +57,12 @@ pub(crate) fn column_title(app: &App, stage: Stage) -> String {
                 app,
                 stage,
                 "Main",
-                app.builds.active().repo.as_deref().map(short_repo),
+                app.builds
+                    .active()
+                    .repo
+                    .as_deref()
+                    .map(short_repo)
+                    .or(tab_name(&app.builds)),
             ),
             &app.builds.active().column,
             marks,
@@ -67,14 +77,11 @@ pub(crate) fn column_title(app: &App, stage: Stage) -> String {
     }
 }
 
-fn queue_repo(app: &App) -> Option<&str> {
-    app.queue.repo().map(short_repo).or_else(|| {
-        app.queue
-            .tab_names()
-            .get(app.queue.active_tab())
-            .map(String::as_str)
-            .filter(|name| !name.is_empty())
-    })
+fn tab_name(view: &dyn StageView) -> Option<&str> {
+    view.tab_names()
+        .get(view.active_tab())
+        .map(String::as_str)
+        .filter(|name| !name.is_empty())
 }
 
 fn named(app: &App, stage: Stage, short: &str, suffix: Option<&str>) -> String {
