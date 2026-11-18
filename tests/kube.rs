@@ -360,6 +360,7 @@ fn a_missing_kubectl_fails_the_deployed_row_as_program_missing_with_its_own_word
 
     let failure = app
         .deployed
+        .active()
         .column
         .selected()
         .unwrap()
@@ -380,6 +381,7 @@ fn a_kubectl_past_its_deadline_fails_the_deployed_row_as_timed_out_with_its_own_
 
     let failure = app
         .deployed
+        .active()
         .column
         .selected()
         .unwrap()
@@ -406,6 +408,7 @@ fn any_other_kubectl_failure_fails_the_deployed_row_as_other_with_its_own_words(
 
     let failure = app
         .deployed
+        .active()
         .column
         .selected()
         .unwrap()
@@ -436,6 +439,7 @@ fn pods_past_the_deadline_fail_the_rows_pods_as_timed_out_with_their_own_words()
 
     let failure = app
         .deployed
+        .active()
         .column
         .selected()
         .unwrap()

@@ -189,11 +189,15 @@ pub fn job(id: u64, name: &str, status: BuildStatus, failed_step: Option<&str>) 
 }
 
 pub fn deployed(rows: Vec<Deployment>) -> io::Result<Input> {
+    deployed_in(0, "api", rows)
+}
+
+pub fn deployed_in(tab: usize, system: &str, rows: Vec<Deployment>) -> io::Result<Input> {
     Ok(Input::Data(
         Stage::Deployed,
-        0,
+        tab,
         Ok(Rows::Deployed(Deployed {
-            system: "api".to_string(),
+            system: system.to_string(),
             rows,
         })),
     ))

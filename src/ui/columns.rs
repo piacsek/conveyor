@@ -69,8 +69,13 @@ pub(crate) fn column_title(app: &App, stage: Stage) -> String {
             true,
         ),
         Stage::Deployed => titled(
-            &named(app, stage, "Deployed", app.deployed.system.as_deref()),
-            &app.deployed.column,
+            &named(
+                app,
+                stage,
+                "Deployed",
+                app.deployed.active().system.as_deref(),
+            ),
+            &app.deployed.active().column,
             marks,
             true,
         ),
@@ -202,8 +207,8 @@ pub(crate) fn draw_column(
             )
         }
         Stage::Deployed
-            if app.deployed.column.is_loading()
-                && app.deployed.column.error.is_none()
+            if app.deployed.active().column.is_loading()
+                && app.deployed.active().column.error.is_none()
                 && !app.deploy_configured() =>
         {
             frame.render_widget(
@@ -215,6 +220,7 @@ pub(crate) fn draw_column(
             let deploy_branch = app.context().deploy_builds().branch.clone();
             let behind: Vec<Option<usize>> = app
                 .deployed
+                .active()
                 .column
                 .visible()
                 .iter()
@@ -222,7 +228,7 @@ pub(crate) fn draw_column(
                 .collect();
             draw_list(
                 frame,
-                &mut app.deployed.column,
+                app.deployed.column_mut(),
                 area,
                 block,
                 focused,
