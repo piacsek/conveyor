@@ -159,6 +159,16 @@ each case; the report of the phase lists them for the owner.
   - A jump no longer sets `merge_landing`; its footer says `asking GitHub to move #N to the
     front…` and `asked GitHub to move #N to the front`.
   - `tests/manage/queue.rs` was split, the jump tests moving to `tests/manage/jump.rs`.
+- Review round 2 (unprimed) was clean: no must, one should declined as minor by reachability.
+  Its minors were fixed in one ship, checked by the orchestrator against the diff:
+  - A removal sent from the queue is worded `remove` (in flight, failure mark, footer), like its
+    offer; from My PRs it still says `leave`. `docs/queue-failure.png` was reshot.
+  - `App::write_on` looks across `Stage::pull_group`, so the card of a pull request busy from the
+    other column spins too, matching the `S` refusal.
+  - Declined, written beside the one-off refresh in `src/app/AGENTS.md`: pending one-off queue
+    refreshes run before an overdue interval fetch and a newly asked tab, so the shown queue
+    waits one fetch per pending one-off (about a second; 30 s each only when GitHub hangs).
+  - Kept: the confirm names `webapp#N` while the popup title reads `Manage #N`.
 
 ## Hurdles
 
@@ -170,3 +180,6 @@ each case; the report of the phase lists them for the owner.
 - `review-loop` the jump question put its warning before the number, so a narrow dialog cut the number or the warning → code
 - `review-loop` no screenshot showed the queue card's failure mark → code
 - `review-loop` a jump set `merge_landing` and its footer claimed a move GitHub may not make → code
+- `review-loop` a removal sent from the queue said `leave`, unlike its `remove` offer → code
+- `review-loop` a card of a pull request busy from the other column showed no spinner while `S` refused on it → code
+- `review-loop` pending one-off queue refreshes delay an overdue interval fetch and a newly asked tab by one fetch each → rule in `src/app/AGENTS.md`

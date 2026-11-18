@@ -116,7 +116,8 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   footer notice while the focused column's last refresh failed (the rows it would judge by are
   older than they look), on the selected row while a write started on it is in flight (the
   footer repeats that write's progress line, `marking #N ready…`; a write on a pull request
-  holds it busy in both My PRs and the Merge queue, `Stage::pull_group`), and in Deployed (`S manages
+  holds it busy in both My PRs and the Merge queue, `Stage::pull_group`, and both cards show
+  its word), and in Deployed (`S manages
   My PRs, Merge queue and Main builds`). Every other row opens the popup, so several
   pull requests can each have a write running. `App::writes` holds one `Write` per write in
   flight (`src/app/actions/writes.rs`): the row key it was started on (`subject`), the stage,
@@ -156,7 +157,10 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
     moves an entry already queued or refuses it is unverified
     (`plans/phase-76-queue-actions.md`). `reconfirm` compares the popup's subject (the row key),
     not its title. A success refreshes My PRs and, once, the queue tab it was sent from
-    (`Request::RefreshOnce`): the queue keeps watching the tab on screen. A jump says `asking
+    (`Request::RefreshOnce`): the queue keeps watching the tab on screen. A removal sent from
+    the queue says `remove` (`removing #N from the merge queue…`, `#N removed from the merge
+    queue`, `! remove from the merge queue failed`), as its offer does; from My PRs it still says
+    `leave` (`Write::removes`). A jump says `asking
     GitHub to move #N to the front…` and `asked GitHub to move #N to the front`, since GitHub
     may accept it without moving the entry, and does not set `merge_landing` (the pull request
     was queued already, so `u` keeps the queued refusal). `i` is not `j`: `j` is a Normal-mode key.
@@ -420,7 +424,10 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   on screen, which the interval then keeps fetching) or `Ask::Once(tab)` (a write's follow-up on
   the tab it was sent from): `wait` keeps every `Once` beside the latest `Watch`, `Schedule`
   fetches it next without moving the watched tab or the interval. A `Watch` for the follow-up
-  made a single-tab column fetch the hidden tab on every interval after a tab switch. It used to queue a fetch per key repeat, which
+  made a single-tab column fetch the hidden tab on every interval after a tab switch. Accepted:
+  pending one-offs run before an overdue interval fetch and before a newly asked tab, so the
+  queue on screen waits one fetch per pending one-off (about a second; 30 s each only when
+  GitHub hangs to the deadline, and more than one needs writes in several repositories at once). It used to queue a fetch per key repeat, which
   kept running long after the key came up. A time window in `App` was rejected: skipping a
   column mid-fetch dropped an `r` meant to catch a change the running fetch predates.
   `refresh::spawn` takes the number of tabs to sweep (My PRs all of them with

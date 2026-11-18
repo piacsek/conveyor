@@ -72,11 +72,13 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   the `#N` in the details pane, dialogs and footer, and every `#N` in the demo (`app.demo`),
   whose `acme/*` URLs are made up: the terminal would open them past `DemoOpener`.
 - **A busy PR or queue card spins.** While a write started on a pull request is in flight
-  (`App::write_on`), its card draws the footer's braille frame (`App::spinner`) in yellow in
+  (`App::write_on`, which finds a write sent from either My PRs or the queue, so both cards of
+  the pull request spin while `S` refuses on either), its card draws the footer's braille frame (`App::spinner`) in yellow in
   place of the check glyph, and its meta line starts with the action word (`Write::word`:
   `marking ready…`, `converting to draft…`, `merging…`, `updating…`, `rerunning…`,
-  `checking out…`, `closing…`, `moving to the front…`, and the auto-merge and merge queue
-  ones), first so a narrow card
+  `checking out…`, `closing…`, `moving to the front…`, `removing from the merge queue…` (a
+  removal sent from the queue; from My PRs it is `leaving the merge queue…`), and the auto-merge
+  and merge queue ones), first so a narrow card
   keeps it. `draw_column` looks the word up per visible row before `draw_list` borrows the
   column. The card goes back to its check glyph when the result lands. Main builds cards do
   not spin; a rerun there shows its progress in the footer only (a failed one marks the card,

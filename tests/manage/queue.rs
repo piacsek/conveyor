@@ -173,7 +173,7 @@ fn while_the_removal_runs_s_on_its_row_repeats_its_progress() {
 
     let footer = h.screen().lines().last().unwrap_or_default().to_string();
     assert!(
-        footer.contains("taking #7 out of the merge queue…"),
+        footer.contains("removing #7 from the merge queue…"),
         "{footer}"
     );
     assert!(!h.screen().contains("Manage #7"), "{}", h.screen());
@@ -190,7 +190,7 @@ fn a_removal_that_went_through_refreshes_my_prs_and_its_queue() {
     h.run(inputs).unwrap();
 
     assert!(
-        h.screen().contains("#7 left the merge queue"),
+        h.screen().contains("#7 removed from the merge queue"),
         "{}",
         h.screen()
     );
@@ -273,6 +273,12 @@ fn a_removal_sent_from_my_prs_keeps_the_same_pull_request_busy_on_the_queue() {
 
     assert!(!h.screen().contains("Manage #7"), "{}", h.screen());
     assert_eq!(h.requests.len(), 1, "{:?}", h.requests);
+    assert_eq!(
+        h.screen().matches("leaving the merge queue…").count(),
+        2,
+        "{}",
+        h.screen()
+    );
 }
 
 #[test]
@@ -294,6 +300,12 @@ fn a_removal_sent_from_the_queue_keeps_the_same_pull_request_busy_on_my_prs() {
 
     assert!(!h.screen().contains("Manage #7"), "{}", h.screen());
     assert_eq!(h.requests.len(), 1, "{:?}", h.requests);
+    assert_eq!(
+        h.screen().matches("removing from the merge queue…").count(),
+        2,
+        "{}",
+        h.screen()
+    );
 }
 
 #[test]
@@ -306,7 +318,7 @@ fn a_removal_in_flight_shows_on_its_queue_card() {
     h.run(inputs).unwrap();
 
     assert!(
-        h.screen().contains("leaving the merge queue…"),
+        h.screen().contains("removing from the merge queue…"),
         "{}",
         h.screen()
     );
@@ -324,10 +336,13 @@ fn a_refused_removal_marks_its_queue_card_with_githubs_reason() {
 
     let screen = h.screen();
     assert!(
-        screen.contains("! leave the merge queue failed: n"),
+        screen.contains("! remove from the merge queue fai"),
         "{screen}"
     );
-    assert!(!screen.contains("leaving the merge queue…"), "{screen}");
+    assert!(
+        !screen.contains("removing from the merge queue…"),
+        "{screen}"
+    );
     assert!(screen.contains("Queue webapp (1) !1"), "{screen}");
 }
 
@@ -376,12 +391,12 @@ fn a_refused_removal_marks_the_tab_it_was_sent_from_after_a_switch() {
     ])
     .unwrap();
 
-    assert!(!h.screen().contains("! leave"), "{}", h.screen());
+    assert!(!h.screen().contains("! remove"), "{}", h.screen());
 
     h.run(vec![key(KeyCode::Tab)]).unwrap();
 
     assert!(
-        h.screen().contains("! leave the merge queue failed: n"),
+        h.screen().contains("! remove from the merge queue fai"),
         "{}",
         h.screen()
     );

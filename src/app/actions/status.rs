@@ -3,7 +3,7 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use crate::app::{Action, App, Stage, pull_key};
 use crate::model::prs::StatusChange;
 
-use super::{Choice, WriteKind, may_have_happened};
+use super::{Choice, Write, WriteKind, may_have_happened};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatusTarget {
@@ -62,10 +62,12 @@ impl App {
         let (number, change) = (target.number, &target.change);
         let write = self.finish_write(target.key(), &WriteKind::Status(number, change.clone()));
         let origin = write.as_ref().map(|write| (write.stage, write.tab));
+        let removed = write.as_ref().is_some_and(Write::removes);
         if let Err(message) = result {
             self.fail(write, message);
         }
         self.notice = Some(match result {
+            Ok(()) if removed => format!("#{number} removed from the merge queue"),
             Ok(()) => done(number, change),
             Err(message) => format!("#{number}: {message}"),
         });
