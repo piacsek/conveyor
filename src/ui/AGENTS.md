@@ -132,7 +132,9 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   never squeezes it), at most 56 columns inside and 2 off each edge: `Clear`, a
   bordered `Confirm` block, the question (`Pending::{Merge, UpdateBranch, Status}`) wrapped over at most 3 lines (cut with `…` before the
   `?`), a blank line and the dim `y confirms · any other key cancels`, wrapped over 2 lines on a
-  narrow body rather than cut. `draw_manage` draws the `S` popup with the same geometry: each
+  narrow body rather than cut. A question with a consequence (`dialog::warning`, the jump's
+  rebuilt merge groups) puts it below the question after a blank line, wrapped whole, never
+  cut: the question leads with the verb and the target, so only the title is cut. `draw_manage` draws the `S` popup with the same geometry: each
   offer wraps over at most 2 lines with a hanging indent, and nothing else: no hint line (the
   user called it pollution; the dim reasons already explain the popup). On a short terminal the popup's bottom is clipped. The footer carries no
   prompt, only the usual notice or refresh age underneath; it used to hold the question and was

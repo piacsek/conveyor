@@ -85,7 +85,7 @@ pub(super) fn progress(number: u64, change: &StatusChange) -> String {
         StatusChange::DisableAutoMerge { .. } => format!("disabling auto-merge for #{number}…"),
         StatusChange::Dequeue { .. } => format!("taking #{number} out of the merge queue…"),
         StatusChange::Enqueue { jump: true, .. } => {
-            format!("moving #{number} to the front of the merge queue…")
+            format!("asking GitHub to move #{number} to the front…")
         }
         StatusChange::Enqueue { .. } => format!("adding #{number} to the merge queue…"),
         StatusChange::Close => format!("closing #{number}…"),
@@ -101,7 +101,7 @@ fn done(number: u64, change: &StatusChange) -> String {
         StatusChange::DisableAutoMerge { .. } => format!("auto-merge disabled for #{number}"),
         StatusChange::Dequeue { .. } => format!("#{number} left the merge queue"),
         StatusChange::Enqueue { jump: true, .. } => {
-            format!("#{number} moved to the front of the merge queue")
+            format!("asked GitHub to move #{number} to the front")
         }
         StatusChange::Enqueue { .. } => format!("#{number} added to the merge queue"),
         StatusChange::Close => format!("#{number} closed"),

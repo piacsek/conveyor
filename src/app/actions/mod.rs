@@ -88,8 +88,10 @@ impl App {
     }
 
     fn write_in_flight(&self) -> Option<String> {
-        self.selected_key()
-            .and_then(|key| self.write_on(self.focus, key))
+        let key = self.selected_key()?;
+        self.writes
+            .iter()
+            .find(|write| write.subject == key && self.focus.pull_group().contains(&write.stage))
             .map(Write::progress)
     }
 

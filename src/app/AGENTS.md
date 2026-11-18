@@ -115,7 +115,8 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   Keep any new letter that writes to GitHub off the Normal-mode keys. `S` refuses with a
   footer notice while the focused column's last refresh failed (the rows it would judge by are
   older than they look), on the selected row while a write started on it is in flight (the
-  footer repeats that write's progress line, `marking #N ready…`), and in Deployed (`S manages
+  footer repeats that write's progress line, `marking #N ready…`; a write on a pull request
+  holds it busy in both My PRs and the Merge queue, `Stage::pull_group`), and in Deployed (`S manages
   My PRs, Merge queue and Main builds`). Every other row opens the popup, so several
   pull requests can each have a write running. `App::writes` holds one `Write` per write in
   flight (`src/app/actions/writes.rs`): the row key it was started on (`subject`), the stage,
@@ -144,7 +145,8 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   - Merge queue: `e` remove from the merge queue (`StatusChange::Dequeue`) and `i` move to the
     front (`StatusChange::Enqueue { jump: true }`: `enqueuePullRequest` with `jump: true` and the
     head as `expectedHeadOid`), both asking `y`: the pull request may be someone else's, and a
-    jump rebuilds every merge group behind it, so their checks restart (the dialog says so). A
+    jump rebuilds every merge group behind it, so their checks restart (the dialog says so
+    below the question, wrapped whole). A
     queue row's key is `pull_key(repo, number)` (`QueueEntry::repo`, set per tab on receive), the
     same key as the pull request on a My PRs row, so its writes, marks and busy word are its own
     per repository. Refused in the popup: `#N is being merged` (`Locked`, both), `GitHub sent no
@@ -153,8 +155,11 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
     (the "Jump the merge queue" permission) becomes the card's failure mark. Whether GitHub
     moves an entry already queued or refuses it is unverified
     (`plans/phase-76-queue-actions.md`). `reconfirm` compares the popup's subject (the row key),
-    not its title. A success refreshes My PRs and the queue tab it was sent from. `i` is not `j`:
-    `j` is a Normal-mode key.
+    not its title. A success refreshes My PRs and, once, the queue tab it was sent from
+    (`Request::RefreshOnce`): the queue keeps watching the tab on screen. A jump says `asking
+    GitHub to move #N to the front…` and `asked GitHub to move #N to the front`, since GitHub
+    may accept it without moving the entry, and does not set `merge_landing` (the pull request
+    was queued already, so `u` keeps the queued refusal). `i` is not `j`: `j` is a Normal-mode key.
   - **`t`, `a`, `e`, `x`, `v` change the status.** `Request::ChangeStatus(StatusTarget)` carries a
     `StatusChange`; `CliGh::status_args` runs `gh pr ready <N> -R <repo> [--undo]` and `gh pr
     close <N> -R <repo>`, and GraphQL mutations by the pull request's node `id` for the rest:
@@ -411,7 +416,11 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
 - **Refreshes coalesce in the fetcher.** `r`/`R` always send a `Request::Refresh`; each
   fetcher thread wakes through `refresh::wait`, which takes one signal and drains the rest, so
   a burst costs at most one fetch beyond the one running, and a held `r` refetches back to back
-  until released, with nothing left queued after. It used to queue a fetch per key repeat, which
+  until released, with nothing left queued after. An ask is `refresh::Ask::Watch(tab)` (the tab
+  on screen, which the interval then keeps fetching) or `Ask::Once(tab)` (a write's follow-up on
+  the tab it was sent from): `wait` keeps every `Once` beside the latest `Watch`, `Schedule`
+  fetches it next without moving the watched tab or the interval. A `Watch` for the follow-up
+  made a single-tab column fetch the hidden tab on every interval after a tab switch. It used to queue a fetch per key repeat, which
   kept running long after the key came up. A time window in `App` was rejected: skipping a
   column mid-fetch dropped an `r` meant to catch a change the running fetch predates.
   `refresh::spawn` takes the number of tabs to sweep (My PRs all of them with

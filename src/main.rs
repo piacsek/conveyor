@@ -140,7 +140,7 @@ where
     let mut terminal = ratatui::init();
     panic::set_hook(crash::hook(log.clone(), panic::take_hook()));
     let (tx, rx) = mpsc::channel::<io::Result<Input>>();
-    let mut refreshers: HashMap<Stage, mpsc::Sender<usize>> = HashMap::new();
+    let mut refreshers: HashMap<Stage, mpsc::Sender<refresh::Ask>> = HashMap::new();
     refreshers.insert(
         Stage::Prs,
         spawn_prs_fetcher(gh(), config.clone(), tx.clone()),
@@ -209,7 +209,12 @@ where
         |request| match request {
             Request::Refresh(stage, tab) => {
                 if let Some(refresh) = refreshers.get(&stage) {
-                    let _ = refresh.send(tab);
+                    let _ = refresh.send(refresh::Ask::Watch(tab));
+                }
+            }
+            Request::RefreshOnce(stage, tab) => {
+                if let Some(refresh) = refreshers.get(&stage) {
+                    let _ = refresh.send(refresh::Ask::Once(tab));
                 }
             }
             Request::Jobs { repo, run_id } => {
@@ -255,7 +260,7 @@ fn spawn_prs_fetcher(
     gh: impl Github + Send + 'static,
     config: Config,
     tx: Inputs,
-) -> mpsc::Sender<usize> {
+) -> mpsc::Sender<refresh::Ask> {
     let interval = Duration::from_secs(config.prs.refresh_secs);
     let tabs = if config.prs.background_tabs {
         config.prs.tabs().len()
@@ -271,7 +276,7 @@ fn spawn_queue_fetcher(
     gh: impl Github + Send + 'static,
     config: Config,
     tx: Inputs,
-) -> mpsc::Sender<usize> {
+) -> mpsc::Sender<refresh::Ask> {
     let interval = Duration::from_secs(config.repo.first().map_or(30, |repo| repo.refresh_secs));
     let mut watched: Option<Vec<Repo>> = None;
     refresh::spawn(Stage::Queue, interval, 1, tx, move |tab| {
@@ -291,7 +296,7 @@ fn spawn_builds_fetchers<G: Github + Send + 'static>(
     gh: impl Fn() -> G,
     config: &Config,
     tx: Inputs,
-) -> mpsc::Sender<usize> {
+) -> mpsc::Sender<refresh::Ask> {
     let intervals = (0..config.repo.len().max(1))
         .map(|tab| Duration::from_secs(config.repo.get(tab).map_or(30, |repo| repo.refresh_secs)))
         .collect();
@@ -321,7 +326,7 @@ fn spawn_deploy_fetchers<G, K>(
     kube: impl Fn() -> K,
     config: &Config,
     tx: Inputs,
-) -> Option<mpsc::Sender<usize>>
+) -> Option<mpsc::Sender<refresh::Ask>>
 where
     G: Github + Send + 'static,
     K: Kube + Sync + Send + 'static,

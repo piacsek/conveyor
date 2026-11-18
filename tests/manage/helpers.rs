@@ -1,7 +1,10 @@
 use conveyor::app::{Input, Request};
+use conveyor::config::{Config, Repo};
 use conveyor::model::prs::{PullRequest, StatusChange};
+use conveyor::model::queue::QueueEntry;
+use ratatui::crossterm::event::KeyCode;
 
-use crate::support::{Harness, pr, status_target};
+use crate::support::{Harness, key, pr, queue, status_target};
 
 pub fn tall() -> Harness {
     Harness::with_size(160, 20)
@@ -48,4 +51,25 @@ pub fn queueable(number: u64, title: &str) -> PullRequest {
     let mut pull = open(number, title);
     pull.merge_queue_enabled = true;
     pull
+}
+
+pub fn on_the_queue(entries: Vec<QueueEntry>) -> Vec<std::io::Result<Input>> {
+    vec![
+        queue(entries),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('S')),
+    ]
+}
+
+pub fn two_repos() -> Config {
+    Config {
+        repo: ["acme/monorepo", "acme/infra"]
+            .into_iter()
+            .map(|name| Repo {
+                name: name.to_string(),
+                ..Repo::default()
+            })
+            .collect(),
+        ..Config::default()
+    }
 }

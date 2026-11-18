@@ -46,6 +46,14 @@ impl Stage {
         Self::at(self.index() + Self::ALL.len() - 1)
     }
 
+    pub fn pull_group(self) -> &'static [Stage] {
+        match self {
+            Stage::Prs | Stage::Queue => &[Stage::Prs, Stage::Queue],
+            Stage::Builds => &[Stage::Builds],
+            Stage::Deployed => &[Stage::Deployed],
+        }
+    }
+
     pub fn tab_group(self) -> &'static [Stage] {
         match self {
             Stage::Prs => &[Stage::Prs],

@@ -7,23 +7,37 @@ use crate::app::{Input, Rows, Stage};
 use crate::crash;
 use crate::sources::failure::Failure;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Ask {
+    Watch(usize),
+    Once(usize),
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Wake {
-    Asked(usize),
+    Asked {
+        watch: Option<usize>,
+        once: Vec<usize>,
+    },
     Due,
     Closed,
 }
 
-pub fn wait(rx: &Receiver<usize>, timeout: Duration) -> Wake {
-    let mut tab = match rx.recv_timeout(timeout) {
-        Ok(asked) => asked,
+pub fn wait(rx: &Receiver<Ask>, timeout: Duration) -> Wake {
+    let first = match rx.recv_timeout(timeout) {
+        Ok(ask) => ask,
         Err(RecvTimeoutError::Timeout) => return Wake::Due,
         Err(RecvTimeoutError::Disconnected) => return Wake::Closed,
     };
-    while let Ok(asked) = rx.try_recv() {
-        tab = asked;
+    let mut watch = None;
+    let mut once = Vec::new();
+    for ask in std::iter::once(first).chain(rx.try_iter()) {
+        match ask {
+            Ask::Watch(tab) => watch = Some(tab),
+            Ask::Once(tab) => once.push(tab),
+        }
     }
-    Wake::Asked(tab)
+    Wake::Asked { watch, once }
 }
 
 pub struct Schedule {
@@ -34,6 +48,8 @@ pub struct Schedule {
     due: Option<Instant>,
     sweeping: bool,
     owed: bool,
+    once: Vec<usize>,
+    fetching_once: bool,
 }
 
 impl Schedule {
@@ -46,11 +62,13 @@ impl Schedule {
             due: Some(now),
             sweeping: false,
             owed: false,
+            once: Vec::new(),
+            fetching_once: false,
         }
     }
 
     pub fn timeout(&self, now: Instant) -> Option<Duration> {
-        if self.owed {
+        if self.owed || !self.once.is_empty() {
             None
         } else if self.left.is_empty() {
             Some(
@@ -64,9 +82,19 @@ impl Schedule {
 
     pub fn next(&mut self, wake: Wake, now: Instant) -> Option<usize> {
         self.owed = false;
+        self.fetching_once = false;
         match wake {
             Wake::Closed => None,
-            Wake::Asked(asked) => {
+            Wake::Asked { watch, once } => {
+                for tab in once {
+                    if !self.once.contains(&tab) {
+                        self.once.push(tab);
+                    }
+                }
+                let Some(asked) = watch else {
+                    return self.next(Wake::Due, now);
+                };
+                self.once.retain(|tab| *tab != asked);
                 self.first = asked;
                 let tab = if self.left.is_empty() && self.due.is_some_and(|due| now >= due) {
                     self.start_sweep()
@@ -79,6 +107,10 @@ impl Schedule {
                 Some(tab)
             }
             Wake::Due => {
+                if !self.once.is_empty() {
+                    self.fetching_once = true;
+                    return Some(self.once.remove(0));
+                }
                 if self.left.is_empty() {
                     return Some(self.start_sweep());
                 }
@@ -95,6 +127,9 @@ impl Schedule {
     }
 
     pub fn fetched(&mut self, now: Instant) {
+        if std::mem::take(&mut self.fetching_once) {
+            return;
+        }
         if self.left.is_empty() && (self.sweeping || self.tabs <= 1) {
             self.due = now.checked_add(self.interval);
         }
@@ -107,8 +142,8 @@ pub fn spawn(
     tabs: usize,
     tx: Sender<io::Result<Input>>,
     fetch: impl FnMut(usize) -> Result<Rows, Failure> + Send + 'static,
-) -> Sender<usize> {
-    let (refresh_tx, refresh_rx) = mpsc::channel::<usize>();
+) -> Sender<Ask> {
+    let (refresh_tx, refresh_rx) = mpsc::channel::<Ask>();
     let schedule = Schedule::new(tabs, interval, Instant::now());
     start(
         format!("{stage:?} fetcher"),
@@ -127,15 +162,15 @@ pub fn spawn_each<F>(
     intervals: Vec<Duration>,
     tx: Sender<io::Result<Input>>,
     make_fetch: impl Fn(usize) -> F,
-) -> Sender<usize>
+) -> Sender<Ask>
 where
     F: FnMut() -> Result<Rows, Failure> + Send + 'static,
 {
-    let each: Vec<Sender<usize>> = intervals
+    let each: Vec<Sender<Ask>> = intervals
         .into_iter()
         .enumerate()
         .map(|(tab, interval)| {
-            let (each_tx, each_rx) = mpsc::channel::<usize>();
+            let (each_tx, each_rx) = mpsc::channel::<Ask>();
             let mut fetch = make_fetch(tab);
             let schedule = Schedule::new(1, interval, Instant::now());
             let name = format!("{stage:?} fetcher {tab}");
@@ -151,12 +186,13 @@ where
             each_tx
         })
         .collect();
-    let (refresh_tx, refresh_rx) = mpsc::channel::<usize>();
+    let (refresh_tx, refresh_rx) = mpsc::channel::<Ask>();
     let named = thread::Builder::new().name(format!("{stage:?} refresh router"));
     let spawned = named.spawn(move || {
-        for tab in refresh_rx {
+        for ask in refresh_rx {
+            let (Ask::Watch(tab) | Ask::Once(tab)) = ask;
             if let Some(fetcher) = each.get(tab) {
-                let _ = fetcher.send(0);
+                let _ = fetcher.send(Ask::Watch(0));
             }
         }
     });
@@ -168,7 +204,7 @@ fn start(
     name: String,
     stage: Stage,
     mut schedule: Schedule,
-    refresh_rx: Receiver<usize>,
+    refresh_rx: Receiver<Ask>,
     tx: Sender<io::Result<Input>>,
     shown_as: impl Fn(usize) -> usize + Send + 'static,
     mut fetch: impl FnMut(usize) -> Result<Rows, Failure> + Send + 'static,

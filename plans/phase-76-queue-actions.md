@@ -146,9 +146,27 @@ each case; the report of the phase lists them for the owner.
 - `ui::help::KEYS` and the README are unchanged: "status" in the `S` line covers both offers.
   `docs/details.png` is unchanged (the main view did not change); `docs/queue-actions.png` shows
   the popup.
+- Review round 1 (Claude reviewer): four shoulds and two minors, all fixed in one ship.
+  - The follow-up refresh of a queue write sent a watch ask for the tab it was sent from, so a
+    tab switch left the single-tab queue fetcher watching the hidden tab. It is now
+    `Request::RefreshOnce` / `refresh::Ask::Once`: `Schedule` fetches that tab once and keeps the
+    watched tab and its interval. The rerun follow-up sends a watch ask for My PRs (all tabs
+    swept, so it only reorders) or Main builds (one fetcher per tab), so it never had the bug.
+  - A write on a pull request is busy in both My PRs and the queue (`Stage::pull_group`).
+  - The jump dialog reads `move to the front #N <title>?` with the warning below it, wrapped
+    whole: at 35 columns or with a long title only the title is cut.
+  - `docs/queue-failure.png` shows a queue card with its failure mark (`S`, `e`, `y` in the demo).
+  - A jump no longer sets `merge_landing`; its footer says `asking GitHub to move #N to the
+    front…` and `asked GitHub to move #N to the front`.
+  - `tests/manage/queue.rs` was split, the jump tests moving to `tests/manage/jump.rs`.
 
 ## Hurdles
 
 - `test-seam` popup and card lines are cut at the column width, so the first assertions on the full failure wording failed on truncation and were shortened → none
 - `tooling` a scripted text replace added `jump: false` to `EnableAutoMerge` constructors too, caught by the compiler and redone as exact single-occurrence edits → none
 - `api-shape` whether GitHub jumps an entry already in the queue cannot be read from its docs and was not tried, since no real write may be sent → backlog
+- `review-loop` the queue write's follow-up refresh moved the watched tab of the single-tab queue fetcher, leaving it stale after a tab switch → code
+- `review-loop` a write in flight on a pull request did not make its row busy in the other column that lists it → code
+- `review-loop` the jump question put its warning before the number, so a narrow dialog cut the number or the warning → code
+- `review-loop` no screenshot showed the queue card's failure mark → code
+- `review-loop` a jump set `merge_landing` and its footer claimed a move GitHub may not make → code

@@ -4,6 +4,7 @@ mod support;
 mod approve;
 mod failures;
 mod helpers;
+mod jump;
 mod parallel;
 mod popup;
 mod queue;
