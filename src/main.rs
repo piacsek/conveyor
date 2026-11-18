@@ -172,9 +172,8 @@ where
         Input::Rerun(rerun_failed(&reruns_gh, &repo, &run_ids))
     });
     let merges_gh = gh();
-    let merge_method = config.prs.merge_method;
     let merges = worker::spawn(tx.clone(), move |target: MergeTarget| {
-        let result = merges_gh.merge(&target.repo, target.number, merge_method, &target.head_oid);
+        let result = merges_gh.merge(&target.repo, target.number, target.method, &target.head_oid);
         Input::Merged(target, result)
     });
     let updates_gh = gh();

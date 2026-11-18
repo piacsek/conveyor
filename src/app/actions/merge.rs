@@ -1,6 +1,7 @@
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::{Action, App, Stage, pull_key};
+use crate::config::MergeMethod;
 
 use super::{Choice, WriteKind, may_have_happened};
 
@@ -10,6 +11,7 @@ pub struct MergeTarget {
     pub repo: String,
     pub title: String,
     pub head_oid: String,
+    pub method: MergeMethod,
 }
 
 impl MergeTarget {

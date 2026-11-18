@@ -322,6 +322,7 @@ pub struct Repo {
     pub path: Option<PathBuf>,
     pub main_workflow: String,
     pub branch: Option<String>,
+    pub merge_method: Option<MergeMethod>,
     pub builds: usize,
     pub refresh_secs: u64,
     pub deploy: Vec<Deploy>,
@@ -334,6 +335,7 @@ impl Default for Repo {
             path: None,
             main_workflow: "CI/CD".to_string(),
             branch: None,
+            merge_method: None,
             builds: 10,
             refresh_secs: 30,
             deploy: Vec::new(),
@@ -379,6 +381,14 @@ pub enum Fetcher {
 impl Config {
     pub fn to_toml(&self) -> String {
         toml::to_string_pretty(self).unwrap_or_default()
+    }
+
+    pub fn merge_method(&self, repo: &str) -> MergeMethod {
+        self.repo
+            .iter()
+            .filter(|own| own.name.eq_ignore_ascii_case(repo))
+            .find_map(|own| own.merge_method)
+            .unwrap_or(self.prs.merge_method)
     }
 }
 

@@ -170,7 +170,7 @@ impl PrsStage {
                 "enable auto-merge",
                 status(StatusChange::EnableAutoMerge {
                     node_id: pr.node_id.clone(),
-                    method: context.config.prs.merge_method,
+                    method: context.config.merge_method(&pr.repo),
                     head_oid: pr.head_oid.clone(),
                 }),
             )
@@ -192,7 +192,7 @@ impl PrsStage {
             offer(
                 'm',
                 "add to merge queue",
-                self.merge_target().and_then(|_| {
+                self.merge_target(context).and_then(|_| {
                     status(StatusChange::Enqueue {
                         node_id: pr.node_id.clone(),
                         head_oid: pr.head_oid.clone(),
@@ -200,7 +200,7 @@ impl PrsStage {
                 }),
             )
         } else {
-            offer('m', "merge", self.merge_target().map(Choice::Merge))
+            offer('m', "merge", self.merge_target(context).map(Choice::Merge))
         };
         vec![
             merge,
@@ -218,7 +218,7 @@ impl PrsStage {
         ]
     }
 
-    fn merge_target(&self) -> Result<MergeTarget, String> {
+    fn merge_target(&self, context: &Context) -> Result<MergeTarget, String> {
         let pr = self.column().selected().ok_or("nothing selected")?;
         if pr.is_draft {
             return Err(format!("#{} is a draft", pr.number));
@@ -231,6 +231,7 @@ impl PrsStage {
             repo: pr.repo.clone(),
             title: pr.title.clone(),
             head_oid: pr.head_oid.clone(),
+            method: context.config.merge_method(&pr.repo),
         })
     }
 
