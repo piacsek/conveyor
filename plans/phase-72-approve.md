@@ -134,6 +134,9 @@ with `scripts/ship.sh`.
 - Accepted: `viewerLatestReview` is the latest review of any state, so a comment after an
   approval at the same head offers `v` again (a duplicate approval), and a pending review makes
   GitHub refuse the approve with its own message.
+- Declined as unreachable (review round 2): `pinned` drops `commitOID` when the head oid is
+  empty, which would send an unpinned approve, but GitHub always returns `headRefOid` for a pull
+  request in the search and the demo refuses writes.
 
 ## Hurdles
 
@@ -141,3 +144,4 @@ with `scripts/ship.sh`.
 - `ci` `calls::a_call_made_while_another_hangs_is_not_held_up_by_it` failed once at load 25 to 41 while sibling phases built in parallel; untouched by this change, it passed on the retry → none
 - `tooling` `scripts/screenshots.sh` rewrote `docs/confirm.png` and `docs/no-queue.png` for an age that read `2s ago` instead of `1s ago`; both were reverted by hand → none
 - `review-loop` The first cut ran `gh pr review --approve`, which pins no commit, so a push between the last refresh and the call was approved unseen; known at hand-back and left open, review round 1 found it reachable → code
+- `ci` The `check` job failed once on 4eb816b in `version_check_cargo::the_lock_of_this_repository_passes` (the script exited 141, a broken pipe; `tests/scripts/`, untouched by this branch) and passed on rerun → none

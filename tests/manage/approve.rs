@@ -21,6 +21,18 @@ fn the_popup_offers_to_approve_someone_elses_pull_request() {
 }
 
 #[test]
+fn v_pressed_outside_the_popup_sends_nothing_and_opens_nothing() {
+    let mut h = tall();
+    h.run(vec![prs(vec![open(1, "Retry webhooks")])]).unwrap();
+    let before = h.screen();
+
+    h.run(vec![key(KeyCode::Char('v'))]).unwrap();
+
+    assert!(h.requests.is_empty(), "{:?}", h.requests);
+    assert_eq!(h.screen(), before);
+}
+
+#[test]
 fn on_the_viewers_own_pull_request_approve_is_dim_with_the_reason() {
     let mut h = tall();
     let mut mine = open(1, "Retry webhooks");
