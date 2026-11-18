@@ -40,14 +40,6 @@ impl BuildsStage {
     pub fn column_mut(&mut self) -> &mut Column<Build> {
         &mut self.tabs[self.active].column
     }
-
-    pub fn follow(&mut self, tab: usize) {
-        if tab < self.tabs.len() {
-            self.column_mut().clear_filter();
-            self.active = tab;
-            self.column_mut().clear_filter();
-        }
-    }
 }
 
 impl StageView for BuildsStage {
@@ -79,6 +71,14 @@ impl StageView for BuildsStage {
 
     fn active_tab(&self) -> usize {
         self.active
+    }
+
+    fn select_tab(&mut self, tab: usize) {
+        if tab < self.tabs.len() {
+            self.column_mut().clear_filter();
+            self.active = tab;
+            self.column_mut().clear_filter();
+        }
     }
 
     fn holds(&self, key: u64) -> bool {

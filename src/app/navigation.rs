@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use super::{Action, App, Listing, Mode, Request, Stage, StageView};
+use super::{Action, App, Listing, Mode, Request, Stage};
 use crate::text;
 
 impl App {
@@ -35,8 +35,9 @@ impl App {
         if tab >= count || tab == active {
             return Action::Continue;
         }
-        self.stage_mut(self.focus).select_tab(tab);
-        self.builds.follow(self.queue.active_tab());
+        for stage in self.focus.tab_group() {
+            self.stage_mut(*stage).select_tab(tab);
+        }
         self.query = None;
         for stage in Stage::ALL {
             self.stage_mut(stage).listing_mut().set_filter(None);
