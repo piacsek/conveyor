@@ -66,7 +66,7 @@ builds of a repository that has no merge queue without the queue column shouting
 | `mergeQueue: null`, then later a queue | the cards or `queue empty` | with its count | normal again | as today |
 | A queue, then later `mergeQueue: null` (queue switched off) | `no merge queue`, the old cards gone | no count | dim | none |
 | The call fails (rate limit, offline, timed out, not signed in) | the column error, as today; the last rows stay as today | as today | keeps what it last knew | as today |
-| The call fails for a repository last known to have no queue | the column error | no count | dim | as today |
+| The call fails for a repository last known to have no queue | `no merge queue` stays, as the last rows stay on any loaded column | `Queue <repo> ⚠`, no count | dim | the error in the footer, as today |
 | No `[[repo]]`, or one | no bar in either column, as today | as today | no bar | as today |
 
 Main builds is the same for every row above: its own bar, its own rows, its own error.
