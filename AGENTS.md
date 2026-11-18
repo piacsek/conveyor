@@ -203,6 +203,12 @@ nearest the code the guideline is about.
   Stop and ask instead of proceeding when: a gate fails for a reason the change did not
   cause, CI fails twice on the same step, a review finding needs a product decision, or the
   next step would force-push, push to `main` or delete a release.
+- **`gaswtr` means "go, autonomously, sub-agent/worktree till release".** When the owner writes
+  it, it approves the plan or request just discussed and asks for the flow of the bullet above:
+  a sub-agent builds it in its own worktree off `origin/main` while the main session
+  orchestrates and reviews, through to the release (or to the merge, for a branch that feeds
+  nothing into the binary), and the worktree is removed at the end. One word replaces a
+  paragraph the owner would otherwise retype for every phase.
 - **Cadence.** Outside the autonomous flow above, work runs under `/my-tdd autonomous`: one branch per phase (`phase-N-<topic>`),
   one commit per task through `scripts/ship.sh` (the fixes of a review round are the exception:
   one commit per round, see "Review before ready"), no pause between tasks, a pause only for the
