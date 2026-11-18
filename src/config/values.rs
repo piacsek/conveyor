@@ -29,7 +29,7 @@ pub(super) fn check(config: &Config) -> Result<(), String> {
             && a.merge_method != b.merge_method
     }) {
         return Err(format!(
-            "two [[repo]] named {:?} set different merge_method values; conveyor merges with the first",
+            "two [[repo]] named {:?} set different merge_method values; only one of them can be used, so set it on one",
             repo.name
         ));
     }

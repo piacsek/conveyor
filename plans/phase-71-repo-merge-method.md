@@ -62,7 +62,9 @@ so this is 71.
 - Two `[[repo]]` of the same name that set different methods are refused at load, naming the repository; one set and one unset load.
 - The method travels on `MergeTarget::method`, read when the popup is built like `UpdateTarget::method`, so the merge worker no longer reads the config. Enabling auto-merge reads the same method; enqueueing is unchanged.
 - The merge e2e tests moved to `tests/e2e/merge.rs` to keep `tests/e2e/main.rs` under 700 lines, and gained one for a repository that rebases.
+- Review round 1 was clean. Its minor findings were fixed after it: two tests for the case-insensitive name match and for skipping an entry that sets no method, each shown to fail on its mutation; the README comment aligned; the duplicate error reworded to say only one of them can be used.
+- Left open: neither the merge confirm nor the enable auto-merge confirm names the method, so the user cannot see before `y` whether `m` squashes or rebases. Showing it is a visible change the owner has not decided.
 
 ## Hurdles
 
-- none recorded
+- `test-seam` two rows of the states table (name case, an entry that sets no method) had no test; the reviewer's mutations of `Config::merge_method` stayed green until tests were added → code

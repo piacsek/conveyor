@@ -247,6 +247,35 @@ fn a_confirmed_merge_in_a_repository_without_its_own_method_uses_the_prs_one() {
 }
 
 #[test]
+fn a_confirmed_merge_finds_its_repository_whatever_the_case_of_its_name() {
+    let mut h = Harness::with_config(
+        160,
+        20,
+        repos(vec![("Acme/Infra", Some(MergeMethod::Rebase))]),
+    );
+
+    h.run(confirm_infra_merge()).unwrap();
+
+    assert_eq!(merged_with(&h), Some(MergeMethod::Rebase));
+}
+
+#[test]
+fn a_confirmed_merge_skips_a_repository_entry_that_sets_no_method() {
+    let mut h = Harness::with_config(
+        160,
+        20,
+        repos(vec![
+            ("acme/infra", None),
+            ("acme/infra", Some(MergeMethod::Rebase)),
+        ]),
+    );
+
+    h.run(confirm_infra_merge()).unwrap();
+
+    assert_eq!(merged_with(&h), Some(MergeMethod::Rebase));
+}
+
+#[test]
 fn enabling_auto_merge_uses_the_merge_method_of_its_repository() {
     let mut h = Harness::with_config(160, 20, infra_rebases());
     let mut pull = in_infra(open(12, "Drop the users table"));
@@ -348,4 +377,28 @@ fn auto_merged_with(h: &Harness) -> Option<MergeMethod> {
         }) => Some(*method),
         _ => None,
     })
+}
+
+fn repos(entries: Vec<(&str, Option<MergeMethod>)>) -> Config {
+    Config {
+        repo: entries
+            .into_iter()
+            .map(|(name, merge_method)| Repo {
+                name: name.to_string(),
+                merge_method,
+                ..Repo::default()
+            })
+            .collect(),
+        ..Config::default()
+    }
+}
+
+fn confirm_infra_merge() -> Vec<std::io::Result<Input>> {
+    vec![
+        prs(same_number()),
+        key(KeyCode::Char('j')),
+        key(KeyCode::Char('S')),
+        key(KeyCode::Char('m')),
+        key(KeyCode::Char('y')),
+    ]
 }

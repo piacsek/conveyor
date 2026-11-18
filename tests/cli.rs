@@ -336,7 +336,7 @@ fn config_refuses_one_repository_listed_twice_with_two_merge_methods() {
 
     assert_eq!(code, Some(1));
     assert!(
-        stderr.contains("two [[repo]] named \"Acme/Webapp\" set different merge_method values; conveyor merges with the first"),
+        stderr.contains("two [[repo]] named \"Acme/Webapp\" set different merge_method values; only one of them can be used, so set it on one"),
         "{stderr}"
     );
 }
