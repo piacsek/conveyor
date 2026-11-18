@@ -393,14 +393,20 @@ fn s_on_main_builds_offers_only_the_rerun() {
 }
 
 #[test]
-fn s_in_the_merge_queue_and_deployed_says_there_is_nothing_to_manage() {
+fn s_in_deployed_says_there_is_nothing_to_manage() {
     let mut h = tall();
 
-    h.run(vec![key(KeyCode::Char('l')), key(KeyCode::Char('S'))])
-        .unwrap();
+    h.run(vec![
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('l')),
+        key(KeyCode::Char('S')),
+    ])
+    .unwrap();
 
     assert!(
-        h.screen().contains("S manages My PRs and Main builds"),
+        h.screen()
+            .contains("S manages My PRs, Merge queue and Main builds"),
         "{}",
         h.screen()
     );

@@ -1,6 +1,6 @@
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
-use crate::app::{Action, App, pull_key};
+use crate::app::{Action, App, Stage, pull_key};
 use crate::model::prs::StatusChange;
 
 use super::{Choice, WriteKind, may_have_happened};
@@ -30,6 +30,7 @@ impl App {
             StatusChange::EnableAutoMerge { .. } => 'a',
             StatusChange::Enqueue { .. } => 'm',
             StatusChange::Approve { .. } => 'v',
+            StatusChange::Dequeue { .. } => 'e',
             _ => 'x',
         };
         if let Err(message) = self.reconfirm(
@@ -56,9 +57,10 @@ impl App {
         &mut self,
         target: &StatusTarget,
         result: &Result<(), crate::sources::failure::Failure>,
-    ) -> bool {
+    ) -> Option<(Stage, usize)> {
         let (number, change) = (target.number, &target.change);
         let write = self.finish_write(target.key(), &WriteKind::Status(number, change.clone()));
+        let origin = write.as_ref().map(|write| (write.stage, write.tab));
         if let Err(message) = result {
             self.fail(write, message);
         }
@@ -70,7 +72,7 @@ impl App {
         if happened && change.lands_a_merge() {
             self.land(target.key());
         }
-        happened
+        happened.then(|| origin.unwrap_or((Stage::Prs, self.stage(Stage::Prs).active_tab())))
     }
 }
 

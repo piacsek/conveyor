@@ -180,7 +180,7 @@ pub trait StageView {
     }
 
     fn menu(&self, _: &Context) -> Result<Menu, String> {
-        Err("S manages My PRs and Main builds".to_string())
+        Err("S manages My PRs, Merge queue and Main builds".to_string())
     }
 
     fn changed(&self) -> String {

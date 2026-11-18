@@ -1,8 +1,10 @@
 use std::time::SystemTime;
 
-use crate::app::{Column, Listing, Row};
+use crate::app::actions::offer;
+use crate::app::{Choice, Column, Listing, Menu, Offer, Row, StatusTarget};
 use crate::model::builds::Build;
-use crate::model::queue::QueueEntry;
+use crate::model::prs::StatusChange;
+use crate::model::queue::{QueueEntry, QueueState};
 
 use super::{Context, Rows, StageView};
 
@@ -56,7 +58,10 @@ impl StageView for QueueStage {
     }
 
     fn receive(&mut self, tab: usize, rows: Rows, now: SystemTime) {
-        if let (Rows::Queue(queue), Some(tab)) = (rows, self.tabs.get_mut(tab)) {
+        if let (Rows::Queue(mut queue), Some(tab)) = (rows, self.tabs.get_mut(tab)) {
+            for entry in &mut queue.entries {
+                entry.repo.clone_from(&queue.repo);
+            }
             tab.repo = Some(queue.repo);
             tab.absent = queue.absent;
             tab.column.receive(queue.entries, now);
@@ -94,7 +99,7 @@ impl StageView for QueueStage {
     fn pull_target(&self) -> Result<(u64, String), String> {
         self.column()
             .selected()
-            .map(|entry| (entry.key(), entry.url.clone()))
+            .map(|entry| (entry.number, entry.url.clone()))
             .ok_or_else(|| "nothing selected".to_string())
     }
 
@@ -114,6 +119,18 @@ impl StageView for QueueStage {
         self.runs_in(self.active)
     }
 
+    fn menu(&self, _: &Context) -> Result<Menu, String> {
+        if self.column().error.is_some() {
+            return Err("the last refresh failed; press r and try again".to_string());
+        }
+        let entry = self.column().selected().ok_or("nothing selected")?;
+        Ok(Menu {
+            subject: entry.key(),
+            title: format!("Manage #{}", entry.number),
+            offers: offers(entry),
+        })
+    }
+
     fn runs_in(&self, tab: usize) -> Vec<&Build> {
         self.tabs
             .get(tab)
@@ -123,4 +140,29 @@ impl StageView for QueueStage {
             .filter_map(|entry| entry.run.as_ref())
             .collect()
     }
+}
+
+fn offers(entry: &QueueEntry) -> Vec<Offer> {
+    let status = |change| {
+        if entry.state == QueueState::Locked {
+            return Err(format!("#{} is being merged", entry.number));
+        }
+        if entry.node_id.is_empty() || entry.head_oid.is_empty() {
+            return Err(format!("GitHub sent no id for #{}", entry.number));
+        }
+        Ok(Choice::Status(StatusTarget {
+            number: entry.number,
+            repo: entry.repo.clone(),
+            title: entry.title.clone(),
+            head_oid: entry.head_oid.clone(),
+            change,
+        }))
+    };
+    vec![offer(
+        'e',
+        "remove from the merge queue",
+        status(StatusChange::Dequeue {
+            node_id: entry.node_id.clone(),
+        }),
+    )]
 }

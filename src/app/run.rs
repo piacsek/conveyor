@@ -61,9 +61,11 @@ where
                 }
             }
             Input::StatusChanged(target, result) => {
-                if app.receive_status(&target, &result) {
+                if let Some((stage, tab)) = app.receive_status(&target, &result) {
                     request(app.refresh_request(Stage::Prs));
-                    if !matches!(
+                    if stage == Stage::Queue {
+                        request(Request::Refresh(Stage::Queue, tab));
+                    } else if !matches!(
                         target.change,
                         StatusChange::Ready | StatusChange::Approve { .. }
                     ) {

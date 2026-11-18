@@ -7,6 +7,7 @@ use super::status::progress;
 pub struct Write {
     pub subject: u64,
     pub stage: Stage,
+    pub tab: usize,
     pub kind: WriteKind,
 }
 
@@ -86,6 +87,7 @@ impl App {
         let write = Write {
             subject,
             stage: self.focus,
+            tab: self.stage(self.focus).active_tab(),
             kind,
         };
         self.notice = Some(write.progress());

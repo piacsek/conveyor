@@ -3,7 +3,7 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use crate::config::UpdateMethod;
 use crate::model::prs::StatusChange;
 
-use super::{Action, App, Mode, StageView};
+use super::{Action, App, Mode, Stage, pull_key};
 
 mod checkout;
 mod failures;
@@ -153,10 +153,12 @@ impl App {
             Choice::Update(target) => return self.send_update(target),
             Choice::Rerun(rerun) => return self.send_rerun(rerun),
             Choice::Status(target)
-                if matches!(
-                    target.change,
-                    StatusChange::Close | StatusChange::Approve { .. }
-                ) || target.change.lands_a_merge() =>
+                if self.focus == Stage::Queue
+                    || matches!(
+                        target.change,
+                        StatusChange::Close | StatusChange::Approve { .. }
+                    )
+                    || target.change.lands_a_merge() =>
             {
                 self.mode = Mode::Confirm(Pending::Status(target));
             }
@@ -174,8 +176,9 @@ impl App {
         expected: Choice,
     ) -> Result<(), String> {
         let menu = self.menu()?;
-        if menu.title != format!("Manage {}", self.prs.label(repo, number)) {
-            return Err(self.prs.changed());
+        let changed = || self.stage(self.focus).changed();
+        if menu.subject != pull_key(repo, number) {
+            return Err(changed());
         }
         match menu.offers.into_iter().find(|offer| offer.key == key) {
             Some(Offer {
@@ -185,7 +188,7 @@ impl App {
                 choice: Err(reason),
                 ..
             }) => Err(reason),
-            _ => Err(self.prs.changed()),
+            _ => Err(changed()),
         }
     }
 }

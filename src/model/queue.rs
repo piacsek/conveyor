@@ -30,6 +30,7 @@ impl fmt::Display for QueueState {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct QueueEntry {
+    pub repo: String,
     pub position: u64,
     pub state: QueueState,
     pub number: u64,
@@ -85,6 +86,7 @@ fn parse_entry(node: &serde_json::Value) -> Option<QueueEntry> {
         .pointer("/headCommit/statusCheckRollup")
         .filter(|v| !v.is_null());
     Some(QueueEntry {
+        repo: String::new(),
         position: node.get("position").and_then(|v| v.as_u64()).unwrap_or(0),
         state: state(node.get("state").and_then(|v| v.as_str())),
         number: pr.get("number")?.as_u64()?,

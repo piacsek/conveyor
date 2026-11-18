@@ -31,6 +31,9 @@ fn question(pending: &Pending, label: &str) -> String {
                 format!("add to the merge queue {label} {}", target.title)
             }
             StatusChange::Approve { .. } => format!("approve {label} {}", target.title),
+            StatusChange::Dequeue { .. } => {
+                format!("remove from the merge queue {label} {}", target.title)
+            }
             _ => format!("close {label} {}", target.title),
         },
     }

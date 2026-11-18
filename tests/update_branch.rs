@@ -79,21 +79,19 @@ fn any_other_key_cancels_a_rebase() {
 }
 
 #[test]
-fn s_in_the_merge_queue_says_where_it_works() {
-    let mut h = Harness::new();
+fn the_merge_queue_popup_offers_no_branch_update() {
+    let mut h = Harness::with_size(160, 20);
 
     h.run(vec![
         queue(vec![entry(1, 7, "alice", "a")]),
         key(KeyCode::Char('l')),
         key(KeyCode::Char('S')),
+        key(KeyCode::Char('u')),
     ])
     .unwrap();
 
-    let screen = h.screen();
-    assert!(
-        screen.contains("S manages My PRs and Main builds"),
-        "{screen}"
-    );
+    assert!(h.screen().contains("nothing changed"), "{}", h.screen());
+    assert!(h.requests.is_empty(), "{:?}", h.requests);
 }
 
 #[test]

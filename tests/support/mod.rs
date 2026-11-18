@@ -229,6 +229,7 @@ pub fn waiting(reason: &str) -> Waiting {
 
 pub fn entry(position: u64, number: u64, author: &str, title: &str) -> QueueEntry {
     QueueEntry {
+        repo: "acme/webapp".to_string(),
         position,
         state: QueueState::Queued,
         number,
