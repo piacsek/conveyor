@@ -1,6 +1,7 @@
 #[path = "../support/mod.rs"]
 mod support;
 
+mod approve;
 mod failures;
 mod helpers;
 mod parallel;

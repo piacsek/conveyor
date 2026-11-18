@@ -219,6 +219,7 @@ impl CliGh {
                 Self::graphql_args(DISABLE_AUTO_MERGE, &[("id", node_id.as_str().into())])
             }
             StatusChange::Close => pr("close"),
+            StatusChange::Approve => unimplemented!(),
             StatusChange::Dequeue { node_id } => {
                 Self::graphql_args(DEQUEUE, &[("id", node_id.as_str().into())])
             }
@@ -532,6 +533,7 @@ impl Aftermath<'_> {
             Self::Status(StatusChange::Enqueue { .. }) => "may be in the queue",
             Self::Status(StatusChange::Dequeue { .. }) => "may be out of the queue",
             Self::Status(StatusChange::Close) => "may be closed",
+            Self::Status(StatusChange::Approve) => unimplemented!(),
         }
     }
 }
