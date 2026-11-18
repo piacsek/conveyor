@@ -71,16 +71,17 @@ What is drawn: cards, glyphs and icons, dialogs, the details, help and changelog
   `(#N)` of a squash title). A number cut by `…` on a narrow card gets no link. Not linked:
   the `#N` in the details pane, dialogs and footer, and every `#N` in the demo (`app.demo`),
   whose `acme/*` URLs are made up: the terminal would open them past `DemoOpener`.
-- **A busy PR card spins.** While a write started on a pull request is in flight
+- **A busy PR or queue card spins.** While a write started on a pull request is in flight
   (`App::write_on`), its card draws the footer's braille frame (`App::spinner`) in yellow in
   place of the check glyph, and its meta line starts with the action word (`Write::word`:
   `marking ready…`, `converting to draft…`, `merging…`, `updating…`, `rerunning…`,
-  `checking out…`, `closing…`, and the auto-merge and merge queue ones), first so a narrow card
+  `checking out…`, `closing…`, `moving to the front…`, and the auto-merge and merge queue
+  ones), first so a narrow card
   keeps it. `draw_column` looks the word up per visible row before `draw_list` borrows the
   column. The card goes back to its check glyph when the result lands. Main builds cards do
   not spin; a rerun there shows its progress in the footer only (a failed one marks the card,
   see the next bullet).
-- **A failed write leaves a red line on its card.** `pr_row` and `build_row` take the row's
+- **A failed write leaves a red line on its card.** `pr_row`, `queue_row` and `build_row` take the row's
   `Failure` (`App::failure_on`, looked up per visible row in `draw_column` like the busy word)
   and draw `! <action> failed: <reason>` in red, its whitespace runs (a multi-line gh error
   included) collapsed to one space and cut with `…`, as the line right under the

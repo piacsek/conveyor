@@ -73,9 +73,11 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   and lands in that tab (`listing_in_mut`), never in the one shown when it arrives; a test for
   it switches tabs between the request and its landing. A fetch and a rerun's follow-up do so.
   The shared caches are keyed by id, not by tab: jobs by run id, logs by job id. The exception
-  today is the follow-up refresh of a merge, update or status change, and the `FOLLOW_UP`
+  today is the follow-up refresh of a merge, update or status change from My PRs, and the `FOLLOW_UP`
   (10 s) refresh `follow_up_prs` sets: they call `refresh_request`, which asks for the tab
-  active when the write's result arrives, or, for the timer, when it fires. A switch clears a filter with `clear_filter`, which keeps the selected row:
+  active when the write's result arrives, or, for the timer, when it fires. A status change sent
+  from the Merge queue refreshes the queue tab it was sent from (`Write::tab`, returned by
+  `receive_status`). A switch clears a filter with `clear_filter`, which keeps the selected row:
   `set_filter(None)` keeps the filtered index and so selects another row.
 - **`L` is read-only, and the log has a pane of its own.** It asks `gh run view <run> --job
   <job> --log-failed` for the first failed job of the selected run (Main builds or Merge
@@ -92,22 +94,22 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
 - **`S` is the one write key.** It opens `Mode::Manage(Menu)`: a popup titled `Manage #N`
   (My PRs; `Manage infra#N`, the short repository name, while the active tab lists more than one
   repository, its filter ignored, and the full `owner/name` when two of those repositories share
-  a short name: `PrsStage::label`) or `Manage run N` (Main builds) with one `Offer` per action, `key  label`, built by
+  a short name: `PrsStage::label`), `Manage #N` (Merge queue) or `Manage run N` (Main builds) with one `Offer` per action, `key  label`, built by
   `App::menu` from the rows on screen. An offer that does not apply keeps its line, dim, with the
   reason after a `·` (`m  merge · #12 is a draft`), and its letter does nothing, so the popup
   explains itself instead of hiding actions. Any key that is not an offer closes it (`nothing
-  changed`), `q` included; `q` never quits from the popup. Letters (`m u f t a e x v`) avoid every
+  changed`), `q` included; `q` never quits from the popup. Letters (`m u f t a e x v i`) avoid every
   Normal-mode key, so a press from habit closes the popup instead of writing. `c` is the one
   exception, and the user's choice: it is the changelog key in Normal mode, and in the popup it
   checks the pull request out, which writes nothing to GitHub and is undone with `git switch -`.
   Keep any new letter that writes to GitHub off the Normal-mode keys. `S` refuses with a
   footer notice while the focused column's last refresh failed (the rows it would judge by are
   older than they look), on the selected row while a write started on it is in flight (the
-  footer repeats that write's progress line, `marking #N ready…`), and in Merge queue and
-  Deployed (`S manages My PRs and Main builds`). Every other row opens the popup, so several
+  footer repeats that write's progress line, `marking #N ready…`), and in Deployed (`S manages
+  My PRs, Merge queue and Main builds`). Every other row opens the popup, so several
   pull requests can each have a write running. `App::writes` holds one `Write` per write in
-  flight (`src/app/actions/writes.rs`): the row key it was started on (`subject`), the stage
-  and the kind, which owns the footer `progress` and the card `word`; each result removes its
+  flight (`src/app/actions/writes.rs`): the row key it was started on (`subject`), the stage,
+  the tab it was started in and the kind, which owns the footer `progress` and the card `word`; each result removes its
   own entry, a pull request result by its target's key and kind, a rerun by its run ids. Each kind still
   has one worker thread in `main`, so two writes of the same kind run one after the other, each
   row busy until its own answer. A worker catches a panic around one request
@@ -129,6 +131,20 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   - My PRs: `m` merge (`add to merge queue` on a merge-queue base), `u` update/rebase branch, `f` rerun failed jobs (`(k runs)` when more
     than one), `t` mark ready / convert to draft, `a` enable/disable auto-merge, `e` leave the
     merge queue, `c` check out locally, `x` close PR, `v` approve. Main builds: `f` only.
+  - Merge queue: `e` remove from the merge queue (`StatusChange::Dequeue`) and `i` move to the
+    front (`StatusChange::Enqueue { jump: true }`: `enqueuePullRequest` with `jump: true` and the
+    head as `expectedHeadOid`), both asking `y`: the pull request may be someone else's, and a
+    jump rebuilds every merge group behind it, so their checks restart (the dialog says so). A
+    queue row's key is `pull_key(repo, number)` (`QueueEntry::repo`, set per tab on receive), the
+    same key as the pull request on a My PRs row, so its writes, marks and busy word are its own
+    per repository. Refused in the popup: `#N is being merged` (`Locked`, both), `GitHub sent no
+    id for #N` (no node id or head oid in the answer, both), `already at the front` (position 1)
+    and `already jumping the queue` (`jump` set) for `i`. Any role may try: a refusal from GitHub
+    (the "Jump the merge queue" permission) becomes the card's failure mark. Whether GitHub
+    moves an entry already queued or refuses it is unverified
+    (`plans/phase-76-queue-actions.md`). `reconfirm` compares the popup's subject (the row key),
+    not its title. A success refreshes My PRs and the queue tab it was sent from. `i` is not `j`:
+    `j` is a Normal-mode key.
   - **`t`, `a`, `e`, `x`, `v` change the status.** `Request::ChangeStatus(StatusTarget)` carries a
     `StatusChange`; `CliGh::status_args` runs `gh pr ready <N> -R <repo> [--undo]` and `gh pr
     close <N> -R <repo>`, and GraphQL mutations by the pull request's node `id` for the rest:
@@ -218,7 +234,7 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   older run's pending job. A newer run blocks only while it runs, because rerunning the older
   one could cancel it through a concurrency group; once it has finished it does not, so the
   `✗` a finished run keeps under a newer `labeled` run that skipped the job stays rerunnable.
-  The Merge queue has no `S`: a failed merge-group run has already dropped its pull request
+  The Merge queue offers no `f`: a failed merge-group run has already dropped its pull request
   from the queue, so rerunning it merges nothing. The worker asks for every
   run even after one fails and sends one result per run in `Input::Rerun`; the footer says
   which runs failed, and the column it came from refreshes when any run went through. From My PRs it
