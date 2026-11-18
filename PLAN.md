@@ -69,12 +69,14 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
 | 62 | [Main builds reads the repository's own default branch (#123)](plans/phase-62-builds-branch.md) | v0.35.0 |
 | 63 | [the flake build runs only when its inputs change, and gates the merge (#117)](plans/phase-63-flake-gate.md) | none |
 | 64 | [titles with emoji or CJK characters keep inside their dialog and card (#111)](plans/phase-64-display-width.md) | v0.35.2 |
+| 65 | no phase: swept by phase 60, which read up to 68 | none |
 | 66 | [Main builds follows the Merge queue's repository (#114)](plans/phase-66-builds-per-repo.md) | v0.35.3 |
 | 67 | [the release scripts read `cargo metadata` with a JSON parser (#126)](plans/phase-67-cargo-metadata.md) | none |
 | 68 | [a config value that would break conveyor or be ignored is refused at load (#122)](plans/phase-68-config-values.md) | v0.35.4 |
-| 69 | [Merge queue and Main builds share one row of repository tabs (#138)](plans/phase-69-repo-tabs.md) | |
-| 71 | [each repository merges with its own merge method (#112)](plans/phase-71-repo-merge-method.md) | |
-| 72 | [approve a pull request from the `S` popup (#113)](plans/phase-72-approve.md) | |
+| 69 | [Merge queue and Main builds share one row of repository tabs (#138)](plans/phase-69-repo-tabs.md) | v0.36.0 |
+| 70 | [the sweep of phases 61 to 69 (#141)](plans/phase-70-sweep.md) | none |
+| 71 | [each repository merges with its own merge method (#112)](plans/phase-71-repo-merge-method.md) | v0.37.0 |
+| 72 | [approve a pull request from the `S` popup (#113)](plans/phase-72-approve.md) | v0.38.0 |
 | 73 | [the README shows conveyor moving: a recording below the screenshot (#97)](plans/phase-73-readme-demo.md) | none |
 
 ## Backlog (discussed at the sweeps and retros)
@@ -109,3 +111,8 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
   root one: an inventory first, history to `plans/`, facts that restate the code cut (#125).
 - The sweep skill and "Known limits" agree on what a lasting decline becomes: the skill says one
   may belong there, root `AGENTS.md` admits only a declined review finding (phase 60).
+- The `StageView` defaults that assume one tab (`active_tab` 0, a no-op `select_tab`, `runs_in`
+  returning the shown runs) become required methods, so a stage that gains tabs cannot inherit
+  them, `set_filter` takes a filter, never `None`, and the follow-up refresh of a merge, update
+  or status change (and the `follow_up_prs` timer) asks for the tab the write was made in, not
+  the one active when its result arrives or the timer fires (sweep of phase 70: phases 66 and 69).
