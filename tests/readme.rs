@@ -1,6 +1,3 @@
-//! The README is the user-facing contract: five sections, one screenshot, and a key table
-//! that mirrors the in-app help so the two can never drift.
-
 use conveyor::ui::help::KEYS;
 
 const README: &str = include_str!("../README.md");
@@ -65,12 +62,16 @@ fn the_readme_has_exactly_the_five_user_sections_in_order() {
 }
 
 #[test]
-fn the_readme_embeds_one_screenshot_right_below_the_description() {
+fn the_readme_embeds_the_screenshot_and_one_recording_right_below_the_description() {
     let images: Vec<&str> = README
         .lines()
         .filter(|line| line.starts_with("!["))
         .collect();
-    assert_eq!(images.len(), 1, "one screenshot: {images:?}");
+    assert_eq!(
+        images.len(),
+        2,
+        "the screenshot and the recording: {images:?}"
+    );
     assert!(images[0].contains("(docs/details.png)"), "{}", images[0]);
     let before_image = README.split("![").next().unwrap();
     assert!(
@@ -83,6 +84,37 @@ fn the_readme_embeds_one_screenshot_right_below_the_description() {
         .collect::<Vec<_>>()
         .join(" ");
     assert_eq!(sentences(&description), 2, "two sentences: {description}");
+}
+
+#[test]
+fn the_recording_sits_right_below_the_screenshot() {
+    let lines: Vec<&str> = README.lines().collect();
+    let screenshot = lines
+        .iter()
+        .position(|line| line.starts_with("![") && line.contains("(docs/details.png)"))
+        .expect("the screenshot");
+    assert_eq!(lines[screenshot + 1], "");
+    assert!(
+        lines[screenshot + 2].starts_with("!["),
+        "{}",
+        lines[screenshot + 2]
+    );
+    assert!(
+        lines[screenshot + 2].contains("(docs/demo.gif)"),
+        "{}",
+        lines[screenshot + 2]
+    );
+}
+
+#[test]
+fn the_recording_comes_from_the_committed_tape() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let tape = std::fs::read_to_string(root.join("scripts/demo.tape")).unwrap_or_default();
+    assert!(
+        tape.lines().any(|line| line == "Output docs/demo.gif"),
+        "{tape}"
+    );
+    assert!(root.join("docs/demo.gif").is_file());
 }
 
 #[test]

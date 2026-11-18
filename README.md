@@ -5,6 +5,8 @@ main builds, and what each environment runs. One column per stage, one repo, one
 
 ![conveyor: four columns and the details pane](docs/details.png)
 
+![conveyor moving focus across the columns, opening the details pane and the S popup](docs/demo.gif)
+
 ## Installation
 
 ```sh
