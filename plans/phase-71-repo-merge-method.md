@@ -58,4 +58,11 @@ so this is 71.
 
 ## Outcome
 
+- `[[repo]]` takes an optional `merge_method`, printed by `conveyor config` only when set and listed in the README's default config. `Config::merge_method(repo)` answers the first `[[repo]]` of that name (ASCII case ignored) that sets one, else `[prs] merge_method`.
+- Two `[[repo]]` of the same name that set different methods are refused at load, naming the repository; one set and one unset load.
+- The method travels on `MergeTarget::method`, read when the popup is built like `UpdateTarget::method`, so the merge worker no longer reads the config. Enabling auto-merge reads the same method; enqueueing is unchanged.
+- The merge e2e tests moved to `tests/e2e/merge.rs` to keep `tests/e2e/main.rs` under 700 lines, and gained one for a repository that rebases.
+
 ## Hurdles
+
+- none recorded
