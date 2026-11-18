@@ -21,9 +21,10 @@ fn the_demo_watches_its_own_repositories_instead_of_the_users() {
 
     let config = demo::config(user);
 
-    assert_eq!(config.repo.len(), 2);
+    assert_eq!(config.repo.len(), 3);
     assert_eq!(config.repo[0].name, "acme/webapp");
     assert_eq!(config.repo[1].name, "acme/infra");
+    assert_eq!(config.repo[2].name, "acme/docs");
 }
 
 #[test]
@@ -154,6 +155,28 @@ fn the_demo_queue_of_acme_infra_is_empty() {
     let queue = fetch_queue(&Demo, &config.repo[1]).unwrap();
 
     assert!(queue.entries.is_empty());
+}
+
+#[test]
+fn acme_docs_has_no_merge_queue_in_the_demo() {
+    let config = demo::config(Config::default());
+
+    let queue = fetch_queue(&Demo, &config.repo[2]).unwrap();
+
+    assert!(queue.absent);
+}
+
+#[test]
+fn the_demo_main_builds_of_acme_docs_name_their_own_pull_requests() {
+    let config = demo::config(Config::default());
+    let mut source = BuildsSource::new(config.repo[2].clone());
+
+    let builds = source.fetch(&Demo, SystemTime::now()).unwrap();
+
+    assert_eq!(builds.len(), 2);
+    assert_eq!(builds[0].repo().as_deref(), Some("acme/docs"));
+    assert_eq!(builds[0].pull.as_ref().unwrap().number, 4819);
+    assert_eq!(builds[1].pull.as_ref().unwrap().number, 4806);
 }
 
 #[test]
@@ -319,10 +342,13 @@ fn every_demo_main_build_and_merge_group_run_holds_its_jobs_in_time() {
     let builds = source.fetch(&Demo, SystemTime::now()).unwrap();
     let mut infra = BuildsSource::new(config.repo[1].clone());
     let infra_builds = infra.fetch(&Demo, SystemTime::now()).unwrap();
+    let mut docs = BuildsSource::new(config.repo[2].clone());
+    let docs_builds = docs.fetch(&Demo, SystemTime::now()).unwrap();
     let queue = fetch_queue(&Demo, &config.repo[0]).unwrap();
     let runs = builds
         .iter()
         .chain(infra_builds.iter())
+        .chain(docs_builds.iter())
         .chain(queue.entries.iter().filter_map(|entry| entry.run.as_ref()));
 
     let outside: Vec<u64> = runs

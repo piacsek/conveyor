@@ -58,5 +58,25 @@
     "login": "dave"
    }
   }
+ ],
+ "c47e2a9b15d83f60e2b94a7c1d5f08e3a6b29d74": [
+  {
+   "number": 4819,
+   "title": "Document the rollback steps",
+   "html_url": "https://github.com/acme/docs/pull/4819",
+   "user": {
+    "login": "erin"
+   }
+  }
+ ],
+ "5d0b8f3e92a14c76b8e1f05a3c9d27e4b6a81f05": [
+  {
+   "number": 4806,
+   "title": "Fix the broken links in the setup guide",
+   "html_url": "https://github.com/acme/docs/pull/4806",
+   "user": {
+    "login": "alice"
+   }
+  }
  ]
 }

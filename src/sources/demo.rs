@@ -15,6 +15,7 @@ const REVIEW: &str = include_str!("demo/review.json");
 const QUEUE: &str = include_str!("demo/queue.json");
 const RUNS: &str = include_str!("demo/runs.json");
 const INFRA_RUNS: &str = include_str!("demo/infra-runs.json");
+const DOCS_RUNS: &str = include_str!("demo/docs-runs.json");
 const MERGE_GROUP_RUNS: &str = include_str!("demo/merge-group-runs.json");
 const WORKFLOWS: &str = include_str!("demo/workflows.json");
 const PULLS: &str = include_str!("demo/pulls.json");
@@ -28,6 +29,7 @@ const EXPIRED: &str = "ERROR: Active profile expired.";
 const REPOSITORY: &str = r#"{"default_branch":"main"}"#;
 const NO_COMMITS: &str = r#"{"data":{"repository":{}}}"#;
 const EMPTY_QUEUE: &str = r#"{"data":{"repository":{"mergeQueue":{"url":"https://github.com/acme/infra/queue/main","entries":{"nodes":[]}}}}}"#;
+const NO_QUEUE: &str = r#"{"data":{"repository":{"mergeQueue":null}}}"#;
 
 pub fn config(config: Config) -> Config {
     let demo: Config = toml::from_str(CONFIG).unwrap_or_default();
@@ -88,6 +90,8 @@ fn jobs(run: &str) -> String {
         "310" => (7200, Some(6198), false),
         "905" => (2700, Some(2280), false),
         "904" => (9000, Some(8460), false),
+        "703" => (1500, Some(1260), false),
+        "702" => (14400, Some(14160), false),
         _ => (100000, Some(99000), false),
     };
     let (status, conclusion, completed) = match finished {
@@ -133,6 +137,9 @@ impl Github for Demo {
             QUEUE_QUERY if vars.iter().any(|(_, v)| *v == Variable::from("webapp")) => {
                 self.answer(QUEUE)
             }
+            QUEUE_QUERY if vars.iter().any(|(_, v)| *v == Variable::from("docs")) => {
+                self.answer(NO_QUEUE)
+            }
             QUEUE_QUERY => self.answer(EMPTY_QUEUE),
             _ => self.answer(NO_COMMITS),
         }
@@ -145,6 +152,7 @@ impl Github for Demo {
             [_, _, _, "actions", "workflows"] => self.answer(WORKFLOWS),
             [_, _, "webapp", "actions", "workflows", _, "runs"] => self.answer(RUNS),
             [_, _, "infra", "actions", "workflows", _, "runs"] => self.answer(INFRA_RUNS),
+            [_, _, "docs", "actions", "workflows", _, "runs"] => self.answer(DOCS_RUNS),
             [_, _, _, "actions", "runs"] if query.contains("event=merge_group") => {
                 self.answer(MERGE_GROUP_RUNS)
             }
