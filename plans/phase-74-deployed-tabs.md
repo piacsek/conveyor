@@ -109,4 +109,27 @@ per application of the monorepo, switched independently of the queue".
 
 ## Outcome
 
+- Deployed holds one `DeployedTab` (`column`, `system`) per `[[repo.deploy]]` of every
+  `[[repo]]`, in `Config::deploys` order, named by its `system`, and outside any tab group.
+  One fetcher per deploy runs on that deploy's `refresh_secs`; a result, a failure and
+  `keep_last_known` land in the tab they were fetched for (`listing_in_mut`).
+- `Context::deploy` is the `[[repo]]` of the shown tab, found by identity
+  (`std::ptr::eq`), so `↓N`, `b` and `Y` follow the shown tab, and a repeated `[[repo]]` of one
+  name reads its own builds tab. The doc comment of `Context::deploy_repo` went wrong with the
+  change and was removed.
+- Several deploys load; a repeated `system` (trimmed, case ignored) is refused, and so is a
+  blank one among several. The one-deploy config, blank system included, loads and draws as
+  before (no bar).
+- The title names the shown tab's configured `system` before its first fetch, like Main
+  builds names its repository.
+- The demo deploys `worker` (staging, prod) on `acme/webapp` beside `api`; its fixtures are
+  keyed by deployment, then environment. `docs/worker.png` shows the worker tab;
+  `docs/demo.gif` presses `Tab` in Deployed.
+- `R` refreshes the shown tab of every stage, not every Deployed tab: the plan's first wording
+  was wrong and was corrected before code.
+
 ## Hurdles
+
+- `test-seam` The filter test first passed with the clear before the switch mutated away, since `switch_tab` clears the shown listing anyway; it now reads the tab left right after the switch → none
+- `test-seam` The second ship failed on `tests/kube.rs`, which read `.deployed` and `.column` on two lines that the rename grep missed → none
+- `process` `config_refuses_two_deploys_of_one_system` in `tests/cli.rs` was written after the refusal, so it was never seen red; the `tests/config_values.rs` tests of the same refusal were → none
