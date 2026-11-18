@@ -14,8 +14,9 @@ Phase 75 stays free for the sweep of phases 70 to 74.
 - `column_block` (`src/ui/columns.rs`) builds `Block::bordered()` with the title bold when
   `stage == app.focus`, dim otherwise; it sets no border style.
 - A column with tabs is drawn as two blocks: the titled block, then a second
-  `Block::bordered().borders(LEFT | RIGHT | BOTTOM)` below the tab bar. Both need the colour, or
-  the top edge and the sides would differ.
+  `Block::bordered().borders(LEFT | RIGHT | BOTTOM)` below the tab bar. The second block's
+  edges lie on the titled block's, and its empty border style leaves their colour as drawn, so
+  only the titled block needs the colour (corrected after review round 1).
 - `draw_column` is called from three places in `src/ui/mod.rs`: the four columns side by side,
   the zoomed column (`app.zoom`), and the narrow layout, where it draws the focused column with
   `titled == false` under the stage bar.
@@ -30,8 +31,8 @@ Phase 75 stays free for the sweep of phases 70 to 74.
 
 - One accent in `src/ui/style.rs` (the cyan of the bar), used by `card.rs` for the bar and by
   `columns.rs` for the border, so the two cannot drift.
-- The focused column's border is drawn in the accent: the titled block and, with tabs, the
-  block below the tab bar. The title keeps its bold default colour; the tab bar is unchanged.
+- The focused column's border is drawn in the accent by the titled block; with tabs, the
+  block below the tab bar redraws the same edges and keeps that colour. The title keeps its bold default colour; the tab bar is unchanged.
 - Unfocused columns keep today's border.
 - The details, log, help and changelog panes, the `S` popup and the confirm dialog are not
   columns and keep their borders.
@@ -64,8 +65,8 @@ Phase 75 stays free for the sweep of phases 70 to 74.
 ## Outcome
 
 - `style::ACCENT` (cyan) is the one colour of the selection bar and of the focused column's
-  border. `columns::border` gives it to the titled block and, with tabs, to the block below the
-  tab bar, so the four edges run unbroken past the tab bar; the column bar of the narrow layout
+  border. `column_block` gives it to the titled block, whose edges the block below the tab bar
+  only redraws without a style, so the four edges run unbroken past the tab bar; the column bar of the narrow layout
   and the zoomed column take it through the same `draw_column`.
 - The title sets `fg(Color::Reset)`: ratatui patches the title over the border's style, so
   without it the focused title came out cyan too.
@@ -83,5 +84,6 @@ Phase 75 stays free for the sweep of phases 70 to 74.
 ## Hurdles
 
 - `test-seam` the focused title turned cyan with its border, since ratatui patches the title over the border style; a test written before the change caught it → code
+- `test-seam` review round 1 (minor) found the tab test could not fail for the bug it named: the block below the tab bar redraws the titled block's edges without a style, so styling it too was redundant; removed, and the test was checked to fail when the titled block loses the accent → code
 - `test-seam` the `S` popup and the confirm dialog fill a 12-row terminal from its first row, so the tests that find the dialog's corner run at 24 rows → none
 - `process` the first ship's output went through a pipe into a log (exit status read with `pipestatus`), against the rule of never piping `ship.sh`; later ships redirect → none

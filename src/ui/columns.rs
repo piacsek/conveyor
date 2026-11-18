@@ -101,17 +101,12 @@ fn named(app: &App, stage: Stage, short: &str, suffix: Option<&str>) -> String {
     }
 }
 
-fn border(app: &App, stage: Stage, borders: Borders) -> Block<'static> {
-    let block = Block::bordered().borders(borders);
-    if stage == app.focus {
-        block.border_style(Style::default().fg(ACCENT))
-    } else {
-        block
-    }
-}
-
 fn column_block(app: &App, stage: Stage, titled: bool) -> Block<'static> {
-    let block = border(app, stage, Borders::ALL);
+    let block = if stage == app.focus {
+        Block::bordered().border_style(Style::default().fg(ACCENT))
+    } else {
+        Block::bordered()
+    };
     if !titled {
         return block;
     }
@@ -147,7 +142,7 @@ pub(crate) fn draw_column(
                 area.height.saturating_sub(2),
             )
             .intersection(area);
-            let sides = border(app, stage, Borders::LEFT | Borders::RIGHT | Borders::BOTTOM);
+            let sides = Block::bordered().borders(Borders::LEFT | Borders::RIGHT | Borders::BOTTOM);
             (below, sides)
         }
         None => (area, block),
