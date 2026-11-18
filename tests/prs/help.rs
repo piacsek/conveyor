@@ -69,6 +69,19 @@ fn the_help_says_esc_dismisses_the_error_on_a_card() {
 }
 
 #[test]
+fn the_help_lists_approve_among_the_actions_of_s() {
+    let mut h = Harness::with_size(160, 18);
+
+    h.run(vec![prs(three()), key(KeyCode::Char('?'))]).unwrap();
+
+    let screen = h.screen();
+    assert!(
+        screen.contains("manage: merge, update, rerun, status, approve, checkout"),
+        "{screen}"
+    );
+}
+
+#[test]
 fn question_mark_shows_the_key_help_and_any_key_returns() {
     let mut h = Harness::with_size(160, 18);
 

@@ -68,6 +68,26 @@ fn the_demo_review_tab_holds_other_pull_requests_than_mine() {
 }
 
 #[test]
+fn the_demo_mine_tab_holds_pull_requests_the_viewer_opened() {
+    let config = demo::config(Config::default());
+
+    let mine = fetch_prs(&Demo, &config, 0).unwrap();
+
+    assert!(mine[0].viewer_did_author);
+    assert!(mine[4].viewer_did_author);
+}
+
+#[test]
+fn the_demo_review_tab_holds_pull_requests_the_viewer_can_approve() {
+    let config = demo::config(Config::default());
+
+    let review = fetch_prs(&Demo, &config, 1).unwrap();
+
+    assert!(!review[0].viewer_did_author);
+    assert_eq!(review[0].viewer_approved_oid, None);
+}
+
+#[test]
 fn the_demo_keeps_the_users_ui_settings() {
     let user = Config {
         ui: Ui {

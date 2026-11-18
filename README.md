@@ -56,7 +56,7 @@ conveyor --demo    # made-up acme/* data: no gh, kubectl or config needed, nothi
 | `y/Y` | copy pull request / build URL |
 | `d C-d/C-u` | details / scroll them |
 | `L` | log of the failed step |
-| `S` | manage: merge, update, rerun, status, checkout |
+| `S` | manage: merge, update, rerun, status, approve, checkout |
 | `z` | zoom the column |
 | `Esc` | close details / zoom, dismiss a failed action's error, clear the filter |
 | `/` | filter (Enter keeps, Esc clears) |

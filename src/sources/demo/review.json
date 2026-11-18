@@ -1,14 +1,15 @@
 {"data":{"search":{"issueCount":2,"nodes":[
  {"number":4844,"title":"Paginate the audit log export","url":"https://github.com/acme/webapp/pull/4844",
-  "isDraft":false,"updatedAt":"ago:5400","headRefName":"audit-log-pages",
+  "viewerDidAuthor":false,"isDraft":false,"updatedAt":"ago:5400","headRefName":"audit-log-pages",
   "repository":{"nameWithOwner":"acme/webapp"},"author":{"login":"frank"},"reviewDecision":"REVIEW_REQUIRED",
   "mergeStateStatus":"BLOCKED","additions":146,"deletions":38,"mergeQueueEntry":null,
   "statusCheckRollup":{"state":"SUCCESS","contexts":{"totalCount":1,"nodes":[
    {"name":"CI/CD","status":"COMPLETED","conclusion":"SUCCESS","detailsUrl":"https://github.com/acme/webapp/actions/runs/5/job/1","startedAt":"ago:6000","completedAt":"ago:5520"}]}},
   "reviews":{"nodes":[]},"reviewRequests":{"nodes":[]},"comments":{"totalCount":4}},
  {"number":212,"title":"Grow the default node pool to five nodes","url":"https://github.com/acme/infra/pull/212",
-  "isDraft":false,"updatedAt":"ago:86400","headRefName":"node-pool-five",
-  "repository":{"nameWithOwner":"acme/infra"},"author":{"login":"grace"},"reviewDecision":"CHANGES_REQUESTED",
+  "viewerDidAuthor":false,"isDraft":false,"updatedAt":"ago:86400","headRefName":"node-pool-five",
+  "repository":{"nameWithOwner":"acme/infra"},"author":{"login":"grace"},
+  "viewerLatestReview":{"state":"CHANGES_REQUESTED","commit":{"oid":"3e7a9c41d2b05f86a1c4e9d7b2f03a6c58e1d904"}},"reviewDecision":"CHANGES_REQUESTED",
   "mergeStateStatus":"BLOCKED","additions":3,"deletions":3,"mergeQueueEntry":null,
   "statusCheckRollup":{"state":"SUCCESS","contexts":{"totalCount":1,"nodes":[
    {"name":"plan","status":"COMPLETED","conclusion":"SUCCESS","detailsUrl":"https://github.com/acme/infra/actions/runs/6/job/1","startedAt":"ago:87000","completedAt":"ago:86700"}]}},
