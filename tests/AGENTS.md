@@ -4,6 +4,10 @@ What has gone wrong in the tests before, and how the suites are set up to avoid 
 
 ## Testing traps hit so far
 
+- **A test must be able to fail for the bug it names.** Pick data where the wrong behaviour
+  gives a different answer: select or filter to a row other than the first (a reset to 0 passes
+  otherwise), and assert the whole notice, not a prefix (`contains("copied #1")` matched a row
+  hash starting with 1).
 - tmux is a test harness, not a dependency: only the `#[ignore]` e2e tests use it, they panic
   with an install hint when it is missing, and `gates.sh` skips them without tmux (CI has it).
 - `tests/kube.rs` shim tests take the same kind of mutex as `tests/github/` (fork race).

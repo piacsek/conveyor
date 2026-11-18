@@ -68,6 +68,11 @@ The keys, the `S` popup and its actions, the jobs state, refreshes and row order
   still asked for the shown tab's runs only. Deployed reads the builds of the deploy
   repository's tab (`Context::deploy_builds`: the first `[[repo]]` with a `[[repo.deploy]]`,
   else the first tab), whatever the queue shows.
+- **Anything that belongs to a tab names it.** A request, its result, a follow-up refresh and a
+  job lookup carry the tab they were made for and land in that tab (`listing_in_mut`), never in
+  the one shown when they arrive; a test for one switches tabs between the request and its
+  landing. A switch clears a filter with `clear_filter`, which keeps the selected row:
+  `set_filter(None)` keeps the filtered index and so selects another row.
 - **`L` is read-only, and the log has a pane of its own.** It asks `gh run view <run> --job
   <job> --log-failed` for the first failed job of the selected run (Main builds or Merge
   queue), keeps the last `LOG_TAIL` lines per job id in `App.logs`, and toggles `App.log_open`.

@@ -1,0 +1,85 @@
+# Phase 70: the sweep of phases 61 to 69
+
+## Context
+
+Issue #141, opened by the `sweep` workflow once phase 69 merged. Phase 70 is a multiple of 5,
+so it is the sweep (see "The sweep" in the root `AGENTS.md`), run with the `sweep` skill:
+gather with `scripts/sweep-report.sh`, read every Outcome and Hurdles in its range, analyse,
+propose, and apply what the owner takes. Phases 71, 72 and 73 were built beside it.
+
+## Plan
+
+1. Gather: the report, the Outcome and Hurdles of phases 61 to 69, the phase 60 sweep, and the
+   empty metrics cells read from GitHub.
+2. Analyse and propose; the owner decides each proposal.
+3. Apply what was taken: the rules into their `AGENTS.md`, the backlog line and the missing
+   phase 65 row into `PLAN.md`, the two issues opened, the metrics rows backfilled.
+
+## Outcome
+
+### Sweep
+
+Phases 61 to 69. Read: the report of `scripts/sweep-report.sh` (35 hurdles: review-loop 12,
+tooling 7, test-seam 6, design 4, process 3, ci 2, api-shape 1; 16 `→ none`), every Outcome and
+Hurdles of phases 61 to 69, the phase 60 sweep and `plans/metrics.md`. Phase 60 had already read
+phases 40 to 68, so only phase 69 was new; phases 61 to 68 were re-read for repeats across the
+two sweeps. There is no phase 65: phase 68's plan reserved it, but it was never opened and the
+`sweep` workflow never asked for it (below). The owner took every proposal on 2026-11-18.
+
+- State that belongs to one tab landed on the tab shown: a trait default `active_tab` of 0, jobs
+  aged and a rerun's follow-up sent for the shown tab, `set_filter(None)` moving the selection
+  (66 four times, 69 once; 61 left a merge result in the backlog). The My PRs rule that every
+  result carries its tab did not reach the other stages → rule in `src/app/AGENTS.md`
+  ("Anything that belongs to a tab names it") and backlog: the one-tab `StageView` defaults
+  become required and `set_filter` never takes `None`.
+- Owner decisions held up the review loop: the `refresh_secs` floor waited about 3 hours in 68,
+  and 69's "dim tab" could not be seen, since inactive tabs are dim already (68, 69) → rule in
+  root `AGENTS.md` ("Plan before code": ask while planning, each option checked against the
+  screen).
+- Sweep bookkeeping breaks under parallel phases: the issue opens only for "highest phase + 1",
+  so it missed 60 (63 merged first) and 65 (67 merged first); the report starts after the sweep
+  phase's number, so it re-read 61 to 68 and never reads a sweep phase's own hurdles (60, 65,
+  70) → rule in root `AGENTS.md` ("The sweep": `### Sweep` opens with `Phases A to B`, the next
+  reads from B + 1), the `PLAN.md` row for 65, and
+  [#145](https://github.com/piacsek/conveyor/issues/145) for the scripts and the test.
+- Tests that passed for the wrong reason: a prefix match on a notice (61), a filter to the row
+  already first (66, 69) → rule in `tests/AGENTS.md` ("A test must be able to fail for the bug
+  it names").
+- The screenshots cannot show some states, twice `→ none` (64: a gap after CJK characters; 69:
+  struck-through text). `scripts/truecolor.py` keeps only bold, dim and colours, so it drops
+  reversed and struck-through text itself → [#146](https://github.com/piacsek/conveyor/issues/146).
+- Minor findings fixed after the clean round were checked only by the orchestrator (60, 61, 62,
+  63, 64, 66, 68, 69), which no rule covered → rule in root `AGENTS.md` ("Review before ready":
+  minor findings after the clean round).
+- The metrics start was the worktree's creation, made at plan time in 69, hours before the build;
+  waits on the owner were in the Notes only when remembered (68, 69) → rule in root `AGENTS.md`
+  ("Time and tokens": Start is the build's start, waits on the owner with their span).
+- A sweep runs beside the phases numbered after it (60 after 61 to 68; 70 beside 71 to 73) →
+  declined: parallel throughput is the owner's choice, and the range line makes what a sweep
+  read explicit.
+- Hurdles the phase 60 sweep already decided (`git add -A` during a ship, `ship.sh | tail`, the
+  shared scratchpad, the macOS runner, a test after its code, a test binary exiting 101, clippy
+  after a targeted test) → declined: none came back in 69, the one phase since those rules.
+- The Codex reviewer and the orchestrator are `unknown` in every row from 53 → declined again:
+  no tool here can read them.
+- 63's flake `build=false` path never ran in real CI → declined, resolved: #136 (phase 67) ran
+  `paths`, skipped `flake` and passed `flake-ok`.
+- Single hurdles (60: a rewording widened a rule's scope; 61: a review asked for a known limit
+  that cannot happen; 62: the text guard hook blocked a grep for em dashes) → declined: seen
+  once each.
+- Metrics: review rounds (58: 4, 59: 4, 60: 3, 61: 2, 62: 3, 63: 1, 64: 2, 66: 2, 67: 1, 68: 4,
+  69: 2), Claude reviewer tokens (102k to 154k a round) and builder tokens (113k to 170k a
+  hand-back) show no drift. Start to draft PR is 7 to 12 minutes in every row; start to the
+  clean review without owner waits is 28 to 66 minutes; merge to release about 2 minutes except
+  62 (a runner failure) and 66.
+
+### Phase
+
+- The metrics rows of 69, 71, 72 and 73 got their ready, merged and released cells from GitHub,
+  and `PLAN.md` the releases of 69, 71 and 72.
+- Phase 60's docs-only branch ran the full flake build, since it touched `src/ui/AGENTS.md` and
+  the flake reads `./src` whole; correct as the inputs stand, so left as found.
+
+## Hurdles
+
+- `process` The report re-read phases 61 to 68, which phase 60 had already swept, and the `sweep` workflow never asked for the sweeps of 60 and 65 → rule in `AGENTS.md`

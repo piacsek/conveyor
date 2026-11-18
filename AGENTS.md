@@ -220,6 +220,9 @@ nearest the code the guideline is about.
   item or an issue, or is declined with its reason; the sweep's outcome is the `### Sweep`
   section that opens that phase's `## Outcome` (from phase 60, `tests/plans.rs` fails without it).
   The retrospective checkpoints of `plans/original-plan.md` are its starting list.
+  Its `### Sweep` opens with `Phases A to B`, the range it read; the next sweep reads from B + 1,
+  and the sweep phase's own `## Hurdles` with it. A multiple of 5 that a sweep already read past
+  gets no phase, and its `PLAN.md` row says which sweep covered it.
   `scripts/sweep-report.sh [<first phase>]` gathers the data (hurdles counted and grouped by tag,
   every `→ none`, the metrics rows and their empty cells, from the phase after the last sweep);
   the `sweep` workflow opens an issue "Sweep due before phase N" with that report once phase N−1
@@ -233,7 +236,10 @@ nearest the code the guideline is about.
   - Time: build start (the worktree's creation, the oldest entry of `git reflog show
     --date=iso <branch>`, its last line), draft PR opened, the end of the clean review
     round, the wall time from start to that end, and the number of review rounds. Absolute
-    times with a timezone (`2026-11-17 04:56Z`), never "about an hour".
+    times with a timezone (`2026-11-17 04:56Z`), never "about an hour". Start is when the build
+    begins, so the worktree is created then; when it already existed (a plan written ahead),
+    Start is the orchestrator's time of the hand-off and the Notes say so. Every wait on the
+    owner goes into the Notes with its span, from the question to the answer.
   - Tokens: one figure per agent (builder, each reviewer, the orchestrator), each marked
     measured or estimated with its source; what nobody can read is `unknown`, never a guess. A
     sub-agent's completion notice carries `subagent_tokens`, its running total so far (whether
@@ -310,6 +316,10 @@ nearest the code the guideline is about.
     branch, with its context intact, not to a fresh one, and land as one `ship.sh` per round
     of findings rather than one per finding: the review-round exception to "one commit per
     task". Each fix that touches `src/` still starts from a failing test.
+  - **Minor findings after the clean round.** They may be fixed without another round: one
+    ship, each `src/` fix from a failing test, and the orchestrator checks the diff against the
+    findings and says so in the metrics Notes; a fix that does more than its finding asks opens
+    a new, unprimed round.
 - **Merging and releasing.** Squash-merge the phase PR into `main` when CI is green, then
   watch the `release` run the merge starts (see Releasing): no bump, no `CHANGELOG.md` edit,
   no tag by hand. Squash is the only merge method the repository and the `main` ruleset allow
@@ -339,7 +349,10 @@ nearest the code the guideline is about.
   it, a phase plan has no `## Outcome`, or a phase from 53 has no `plans/metrics.md` row. A plan that adds
   logic over external state (pod states, check states, merge states, write results) carries a
   table of the states and what the card shows for each, and that table is reviewed before any
-  code is written: review rounds otherwise find those states one at a time.
+  code is written: review rounds otherwise find those states one at a time. A choice only the
+  owner can make (a bound, how a state looks) is asked while planning, before the build starts,
+  with each option checked against what the screen already draws: one asked during review stops
+  the loop until it is answered.
 
 ## Development
 
