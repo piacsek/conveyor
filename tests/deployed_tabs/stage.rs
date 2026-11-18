@@ -1,4 +1,4 @@
-use conveyor::app::{Request, Stage};
+use conveyor::app::{Request, Row, Stage, StageView};
 use ratatui::crossterm::event::KeyCode;
 
 use crate::helpers::{to_deployed, two_systems, typed_filter};
@@ -61,8 +61,9 @@ fn a_failed_fetch_marks_only_its_tab() {
         .unwrap();
 
     assert!(h.app.deployed.active().column.error.is_none());
-    assert!(h.app.deployed.tab(0).column.error.is_some());
-    assert_eq!(h.app.deployed.tab(0).column.all().len(), 1);
+    let api = h.app.deployed.listing_in_mut(0).unwrap();
+    assert!(api.error().is_some());
+    assert_eq!(api.counts(), (1, 1));
 }
 
 #[test]
@@ -82,9 +83,10 @@ fn a_switch_clears_the_filter_of_the_tab_left_and_keeps_its_selected_row() {
 
     h.run(vec![key(KeyCode::Tab)]).unwrap();
 
-    let column = &h.app.deployed.tab(0).column;
-    assert_eq!(column.filter, None);
-    assert_eq!(column.selected().unwrap().env, "prod");
+    let prod = deployment("prod", 23, None).key();
+    let api = h.app.deployed.listing_in_mut(0).unwrap();
+    assert_eq!(api.counts(), (2, 2));
+    assert_eq!(api.selected_key(), Some(prod));
 }
 
 #[test]
@@ -100,7 +102,9 @@ fn a_row_without_a_sha_keeps_the_last_one_its_own_tab_knew() {
 
     h.run(vec![deployed_in(1, "worker", vec![unknown])])
         .unwrap();
+    h.run(to_deployed()).unwrap();
+    h.run(vec![key(KeyCode::Tab)]).unwrap();
 
-    let worker = &h.app.deployed.tab(1).column.all()[0];
+    let worker = &h.app.deployed.active().column.all()[0];
     assert_eq!(worker.sha.as_deref(), Some(format!("{:040x}", 31).as_str()));
 }

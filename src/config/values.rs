@@ -47,7 +47,7 @@ fn check_systems(config: &Config) -> Result<(), String> {
     {
         return Err(format!(
             "a [[repo.deploy]] of {} has a blank system; with several deploys each is a tab and needs one",
-            repo.name
+            entry(&config.repo, repo)
         ));
     }
     if let Some((_, deploy)) = repeated(&deploys, |(_, a), (_, b)| {
@@ -59,6 +59,18 @@ fn check_systems(config: &Config) -> Result<(), String> {
         ));
     }
     Ok(())
+}
+
+fn entry(repos: &[Repo], repo: &Repo) -> String {
+    let named = |other: &&Repo| other.name.eq_ignore_ascii_case(&repo.name);
+    if repos.iter().filter(named).count() < 2 {
+        return repo.name.clone();
+    }
+    let number = 1 + repos
+        .iter()
+        .position(|other| std::ptr::eq(other, repo))
+        .unwrap_or_default();
+    format!("{} ([[repo]] number {number})", repo.name)
 }
 
 fn check_prs(prs: &Prs) -> Result<(), String> {

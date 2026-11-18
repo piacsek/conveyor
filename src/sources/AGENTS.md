@@ -134,7 +134,9 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   **synthetic**: the only clusters at hand are private.
 - **sha → pull request** goes through `fetch::Pulls`; `BuildsSource` and `DeploySource` each
   own one, so the same sha is asked for once per column and each keeps its own retry
-  window.
+  window. Deployed has one `DeploySource` per tab, so one `Pulls` per deploy: two deploys of
+  one repository each look a new sha up, one extra `gh` call per new sha per extra tab (an
+  accepted cost; the answers are the same).
   **All the shas of a fetch are asked for in one GraphQL call first** (`Pulls::prefetch`, since
   v0.24.2): `repository { c0: object(oid: "<sha>") { ... on Commit { oid
   associatedPullRequests(first: 1) … } } c1: … }`, built in `commit_pulls_query` and read by

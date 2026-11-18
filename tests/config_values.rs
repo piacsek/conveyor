@@ -226,6 +226,20 @@ fn a_blank_system_among_several_deploys_is_refused() {
 }
 
 #[test]
+fn a_blank_system_on_a_repository_listed_twice_names_its_entry() {
+    let err = refused(&format!(
+        "[[repo]]\nname = \"acme/webapp\"\n{}[[repo]]\nname = \"Acme/WebApp\"\nbranch = \"release\"\n{}",
+        deploy("api"),
+        deploy(" ")
+    ));
+
+    assert!(
+        err.contains("a [[repo.deploy]] of Acme/WebApp ([[repo]] number 2) has a blank system"),
+        "{err}"
+    );
+}
+
+#[test]
 fn two_repositories_differing_only_in_case_on_one_branch_are_one() {
     let dir = tempfile::tempdir().unwrap();
     let text = "[[repo]]\nname = \"acme/webapp\"\n[[repo]]\nname = \"Acme/WebApp\"\n";

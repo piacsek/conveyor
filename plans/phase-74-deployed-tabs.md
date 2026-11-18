@@ -132,4 +132,6 @@ per application of the monorepo, switched independently of the queue".
 
 - `test-seam` The filter test first passed with the clear before the switch mutated away, since `switch_tab` clears the shown listing anyway; it now reads the tab left right after the switch → none
 - `test-seam` The second ship failed on `tests/kube.rs`, which read `.deployed` and `.column` on two lines that the rename grep missed → none
+- `test-seam` The e2e test of the background fetch passed with the hidden tab's background fetch mutated away, since the switch itself asks for a fetch; it now waits for the hidden deploy's kubectl call in the call log before the switch (review round 1, minor) → code
+- `test-seam` `DeployedStage::tab`, a `pub` item only tests called, slipped past `tests/dead_code.rs` because `BuildsStage::tab` shares its name; the tests now read through `listing_in_mut` and it is gone (review round 1, minor) → none
 - `process` `config_refuses_two_deploys_of_one_system` in `tests/cli.rs` was written after the refusal, so it was never seen red; the `tests/config_values.rs` tests of the same refusal were → none
