@@ -96,7 +96,6 @@ Releases and fixes that had no phase are in [`plans/unphased.md`](plans/unphased
   "waiting for My PRs to catch up" guard while the first tab still shows the stale pull request.
 - Follow one PR across columns: `f` on a PR highlights its sha/number in queue, builds, deployed.
 - Desktop/tmux notification on queue state change or main build failure (tmux-agents `watch` pattern).
-- Deployed tabs, one per application of the monorepo, switched independently of the queue.
 - Native GitHub client if `gh` latency becomes a problem (measure first; each call ~0.3–1 s).
 - `ship.sh` refuses to commit when the working tree changed after its gates started, so an edit
   made during a ship cannot land ungated (sweep of phase 60: phases 62 and 68).

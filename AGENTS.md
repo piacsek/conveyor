@@ -62,7 +62,7 @@ src/app/stages/    one type per stage behind the StageView trait; the one match 
 src/app/actions/   the `S` popup: src/app/actions/mod.rs is the machinery, one file per action; what a column offers is its stage's `menu`
 src/ui/            drawing; src/ui/help.rs holds KEYS, which the README mirrors
 src/open.rs        opening a URL and the clipboard: the OS seam, not a service, so it stays out of src/sources/
-src/refresh.rs     one fetcher thread per stage
+src/refresh.rs     one fetcher thread per stage, one per tab for Main builds and Deployed
 src/worker.rs      one thread per kind of request
 scripts/gates.sh   the quality gates; never pipe it
 scripts/ship.sh    gates, dev install, scrub, commit, push, the draft PR on the first push

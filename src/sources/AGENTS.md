@@ -200,8 +200,9 @@ How GitHub (through `gh`) and the clusters (through `kubectl`) are reached and w
   there; the review tab is someone else's, so `S` offers `v`. A run's jobs sit inside its times
   and its failed log names that run's own failure. `tests/demo.rs` holds these
   agreements; a fixture change that breaks one fails there.
-- **`Kube` answers per environment name** from `deployments.json` and `pods.json`; any other
-  environment (`uat`) fails with `ERROR: Active profile expired.`, so the demo shows an error row.
+- **`Kube` answers per deployment, then environment name** from `deployments.json` and
+  `pods.json` (`api` in four environments, `worker` in staging and prod, the second Deployed
+  tab); any other environment (`uat`) fails with `ERROR: Active profile expired.`, so the demo shows an error row.
 - **Every write and the checkout fail with `demo: nothing was changed`**, which marks the card
   like any failed write. `log_failed` answers `sessions.log` for run 311 and `failed.log` for any other run, in
   `gh`'s tab-separated shape.
