@@ -176,6 +176,56 @@ fn a_deploy_on_the_second_repository_alone_loads() {
 }
 
 #[test]
+fn several_deploys_load_as_tabs_in_config_order() {
+    let dir = tempfile::tempdir().unwrap();
+    let text = format!(
+        "[[repo]]\nname = \"acme/webapp\"\n{}{}[[repo]]\nname = \"acme/infra\"\n{}",
+        deploy("api"),
+        deploy("worker"),
+        deploy("edge")
+    );
+
+    let config = load(&write(&dir, &text)).unwrap();
+    let tabs: Vec<(&str, &str)> = config
+        .deploys()
+        .map(|(repo, deploy)| (repo.name.as_str(), deploy.system.as_str()))
+        .collect();
+
+    assert_eq!(tabs.len(), 3);
+    assert_eq!(tabs[0], ("acme/webapp", "api"));
+    assert_eq!(tabs[1], ("acme/webapp", "worker"));
+    assert_eq!(tabs[2], ("acme/infra", "edge"));
+}
+
+#[test]
+fn two_deploys_of_one_system_are_refused_whatever_the_case() {
+    let err = refused(&format!(
+        "[[repo]]\nname = \"acme/webapp\"\n{}[[repo]]\nname = \"acme/infra\"\n{}",
+        deploy("api"),
+        deploy("API")
+    ));
+
+    assert!(
+        err.contains("two [[repo.deploy]] have the system \"API\"; each deploy is a tab and needs a system of its own"),
+        "{err}"
+    );
+}
+
+#[test]
+fn a_blank_system_among_several_deploys_is_refused() {
+    let err = refused(&format!(
+        "[[repo]]\nname = \"acme/webapp\"\n{}{}",
+        deploy("api"),
+        deploy(" ")
+    ));
+
+    assert!(
+        err.contains("a [[repo.deploy]] of acme/webapp has a blank system; with several deploys each is a tab and needs one"),
+        "{err}"
+    );
+}
+
+#[test]
 fn two_repositories_differing_only_in_case_on_one_branch_are_one() {
     let dir = tempfile::tempdir().unwrap();
     let text = "[[repo]]\nname = \"acme/webapp\"\n[[repo]]\nname = \"Acme/WebApp\"\n";
@@ -238,6 +288,12 @@ fn a_quoted_name_is_written_escaped_on_one_line() {
         "{env}"
     );
     assert!(!env.contains('\n'), "{env}");
+}
+
+fn deploy(system: &str) -> String {
+    format!(
+        "[[repo.deploy]]\nsystem = \"{system}\"\n[[repo.deploy.env]]\nname = \"prod\"\ndeployment = \"app\"\n"
+    )
 }
 
 fn refused(text: &str) -> String {
